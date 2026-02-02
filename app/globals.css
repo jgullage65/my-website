@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ✅ Navy + Gold Theme */
+:root {
+--navy: #071a2f;
+--gold: #f5c542;
+
+--bg: #f8fafc;
+--text: #071a2f;
+}
+
+body {
+background: var(--bg);
+color: var(--text);
+font-family: ui-sans-serif, system-ui, sans-serif;
+}
