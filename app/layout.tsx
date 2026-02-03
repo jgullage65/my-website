@@ -39,11 +39,9 @@ title: siteName,
 description: siteDescription,
 images: [ogImage],
 },
-
 icons: {
-    icons: {
-        icon: [{ url: "/favicon.ico", type: "image/x-icon" }],
-        },
+    icon: "/favicon.ico",
+    },
 },
 };
 
