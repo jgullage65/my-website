@@ -1,6 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 
 const siteName = "JG Creative Studio";
 const siteDescription =
@@ -15,7 +16,9 @@ default: siteName,
 template: `%s | ${siteName}`,
 },
 description: siteDescription,
+
 metadataBase: new URL("https://jgcreativestudios.com"),
+
 openGraph: {
 title: siteName,
 description: siteDescription,
@@ -39,16 +42,15 @@ title: siteName,
 description: siteDescription,
 images: [ogImage],
 },
+
 icons: {
-    icon: "/favicon.ico",
-    },
+icon: "/favicon.ico",
 },
 };
-
 export default function RootLayout({
 children,
 }: {
-children: React.ReactNode;
+children: ReactNode;
 }) {
 const year = new Date().getFullYear();
 
