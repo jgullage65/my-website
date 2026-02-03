@@ -1,4 +1,6 @@
-export default function ServicesPage() {
+export const metadata = {
+  title: "Services",
+  };export default function ServicesPage() {
   return (
   <main className="min-h-screen bg-slate-50 text-[var(--navy)]">
   <section className="mx-auto max-w-5xl px-6 py-16 space-y-10">
