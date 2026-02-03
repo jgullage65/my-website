@@ -4,7 +4,10 @@ import type { Metadata } from "next";
 
 const siteName = "JG Creative Studio";
 const siteDescription =
-"Clean, modern websites and content that help your business look legit — websites, flyers, social content, and AI templates.";
+"Modern websites, flyers, social content, and AI templates — built clean and delivered fast.";
+
+const ogImage =
+"https://i.postimg.cc/xTh3s9Jx/EE89ABF2-BE6B-41F3-BBE9-2F2074F81C03.png";
 
 export const metadata: Metadata = {
 title: {
@@ -12,6 +15,34 @@ default: siteName,
 template: `%s | ${siteName}`,
 },
 description: siteDescription,
+
+openGraph: {
+title: siteName,
+description: siteDescription,
+url: "https://jgcreativestudios.com",
+siteName: siteName,
+images: [
+{
+url: ogImage,
+width: 1200,
+height: 630,
+alt: "JG Creative Studio Social Preview",
+},
+],
+locale: "en_US",
+type: "website",
+},
+
+twitter: {
+card: "summary_large_image",
+title: siteName,
+description: siteDescription,
+images: [ogImage],
+},
+
+icons: {
+icon: "/favicon.ico",
+},
 };
 
 export default function RootLayout({
@@ -27,7 +58,7 @@ return (
 {/* ✅ LOGO HEADER */}
 <div className="bg-white border-b border-slate-200">
 <div className="mx-auto max-w-6xl px-6 pt-10 pb-6 text-center">
-{/* ✅ HUGE LOGO (h-56) */}
+{/* ✅ HUGE LOGO */}
 <img
 src="https://i.postimg.cc/3rsp4TY3/D8CD1815-549F-4A0F-9BF3-07BE21197B9D.jpg"
 alt="JG Creative Studio Logo"

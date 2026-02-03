@@ -1,183 +1,189 @@
+import Link from "next/link";
+
 export const metadata = {
-    title: "Examples",
-    };export default function ExamplesPage() {
-    return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-    <section className="mx-auto max-w-6xl px-6 py-16 space-y-14">
-    {/* Header */}
-    <header className="space-y-3">
-    <h1 className="text-4xl font-black">Examples</h1>
-    <p className="text-slate-600 text-lg max-w-3xl">
-    A few sample designs and concepts that show what we can create for your
-    business — clean, modern, and ready to post.
-    </p>
-    </header>
-    
-    {/* Flyer Examples */}
-    <section className="space-y-6">
-    <h2 className="text-3xl font-black">Flyer + Social Examples</h2>
-    <p className="text-slate-600 max-w-3xl">
-    Here are a couple sample promo design sets.
-    </p>
-    
-    {/* ✅ Images only */}
-    <div className="grid gap-6 lg:grid-cols-2">
-    <ImageOnly url="https://i.postimg.cc/C51S6jMX/E40EE0C3-3041-41EB-8E02-B6C9FF99416E.jpg" />
-    <ImageOnly url="https://i.postimg.cc/1zQPZx53/FE048F29-6FB8-4500-9C49-532FCD68D4FC.jpg" />
-    </div>
-    
-    {/* CTA */}
-    <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-    <h3 className="text-2xl font-black">Want designs like this?</h3>
-    <p className="mt-2 text-slate-600">
-    Tell me what kind of business you run and what you want to promote —
-    I’ll create a matching style that’s ready to post.
-    </p>
-    
-    <a
-    href="/contact"
-    className="mt-6 inline-block rounded-xl bg-[var(--navy)] px-8 py-3 font-semibold text-white hover:opacity-90"
-    >
-    Contact Me →
-    </a>
-    </div>
-    </section>
-    
-    {/* Website Concepts */}
-    <section className="space-y-6">
-    <h2 className="text-3xl font-black">Sample Website Concepts</h2>
-    <p className="text-slate-600 max-w-3xl">
-    Websites don’t need to be complicated — they need to look trustworthy,
-    work on mobile, and make it easy for customers to contact you.
-    </p>
-    
-    <div className="grid gap-6 md:grid-cols-2">
-    <WebsiteConcept
-    title="Simple One-Page Website"
-    desc="Perfect for a clean online presence with clear calls-to-action."
-    items={["Hero + contact button", "Services overview", "Mobile friendly"]}
-    />
-    
-    <WebsiteConcept
-    title="Multi-Page Business Website"
-    desc="Best for companies that want separate pages for services, pricing, and contact."
-    items={["Home + Services + Pricing", "Lead form capture", "Professional navigation"]}
-    />
-    
-    <WebsiteConcept
-    title="Landing Page for Promotions"
-    desc="Great for running ads or focusing on one offer."
-    items={["High conversion layout", "Clear call-to-action", "Fast turnaround build"]}
-    />
-    
-    <WebsiteConcept
-    title="Ongoing Website Maintenance"
-    desc="Keep your site updated with changes, promotions, and improvements."
-    items={["Monthly edits + updates", "Fixes + improvements", "Support when needed"]}
-    />
-    </div>
-    </section>
-    
-    {/* ✅ AI Template Examples */}
-    <section className="space-y-6">
-    <h2 className="text-3xl font-black">AI Template Examples</h2>
-    <p className="text-slate-600 max-w-3xl">
-    I also build simple AI-powered templates that help you save time, respond
-    faster, and stay consistent with customers.
-    </p>
-    
-    <div className="grid gap-6 md:grid-cols-2">
-    <AIBox
-    title="Customer Reply Templates"
-    desc="Fast responses for DMs, quote requests, bookings, and FAQs."
-    />
-    
-    <AIBox
-    title="Social Media Caption Generator"
-    desc="Quick post captions customized to your business style and offers."
-    />
-    
-    <AIBox
-    title="Review Request Scripts"
-    desc="Automated messages that help you get more Google reviews."
-    />
-    
-    <AIBox
-    title="Business Workflow Helpers"
-    desc="Simple AI setups to organize tasks, emails, or customer intake."
-    />
-    </div>
-    
-    {/* CTA */}
-    <div className="rounded-3xl bg-[var(--navy)] text-white p-10 text-center">
-    <h3 className="text-2xl font-black">
-    Want AI templates built for your business?
-    </h3>
-    <p className="mt-3 text-white/80 max-w-2xl mx-auto">
-    Tell me what tasks you repeat every week — I can build an AI workflow
-    that saves you time instantly.
-    </p>
-    
-    <a
-    href="/contact"
-    className="mt-6 inline-block rounded-xl bg-[var(--gold)] px-8 py-3 font-semibold text-[var(--navy)] hover:opacity-90"
-    >
-    Ask About AI Help →
-    </a>
-    </div>
-    </section>
-    </section>
-    </main>
-    );
-    }
-    
-    /* ✅ Image Only Box */
-    function ImageOnly({ url }: { url: string }) {
-    return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm hover:shadow-md transition">
-    <img
-    src={url}
-    alt="Design sample collage"
-    className="w-full rounded-2xl border border-slate-200"
-    />
-    </div>
-    );
-    }
-    
-    /* Website Concept Card */
-    function WebsiteConcept({
-    title,
-    desc,
-    items,
-    }: {
-    title: string;
-    desc: string;
-    items: string[];
-    }) {
-    return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm hover:shadow-md transition">
-    <h3 className="text-xl font-black">{title}</h3>
-    <p className="mt-2 text-slate-600">{desc}</p>
-    
-    <ul className="mt-4 space-y-2 text-sm text-slate-700">
-    {items.map((item) => (
-    <li key={item} className="flex gap-2">
-    <span className="mt-[6px] h-2 w-2 rounded-full bg-[var(--gold)]" />
-    {item}
-    </li>
-    ))}
-    </ul>
-    </div>
-    );
-    }
-    
-    /* ✅ AI Box */
-    function AIBox({ title, desc }: { title: string; desc: string }) {
-    return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm hover:shadow-md transition">
-    <h3 className="text-xl font-black">{title}</h3>
-    <p className="mt-2 text-slate-600">{desc}</p>
-    </div>
-    );
-    }
-    
+title: "Portfolio",
+};
+
+const flyers = [
+{
+src: "https://i.postimg.cc/C51S6jMX/E40EE0C3-3041-41EB-8E02-B6C9FF99416E.jpg",
+alt: "Flyer collage example 1",
+},
+{
+src: "https://i.postimg.cc/1zQPZx53/FE048F29-6FB8-4500-9C49-532FCD68D4FC.jpg",
+alt: "Flyer collage example 2",
+},
+// ✅ Add your 3rd collage link here when ready:
+// { src: "PASTE_THIRD_COLLAGE_LINK_HERE", alt: "Flyer collage example 3" },
+];
+
+const websiteConcepts = [
+{
+title: "Local Restaurant",
+desc: "Menu + hours + online ordering / reservations layout concept.",
+href: "/contact",
+},
+{
+title: "Home Services",
+desc: "Lead-generating homepage with clear services + quote request CTA.",
+href: "/contact",
+},
+{
+title: "Fitness Coach",
+desc: "Bold hero, program highlights, and simple booking flow concept.",
+href: "/contact",
+},
+];
+
+const aiTemplates = [
+{
+title: "Review Reply Templates",
+desc: "Polished responses for Google reviews — positive, neutral, or negative.",
+},
+{
+title: "Social Post Captions",
+desc: "Ready-to-use captions with hooks, CTAs, and hashtag sets by industry.",
+},
+{
+title: "Customer Follow-up Messages",
+desc: "Text/email templates to convert leads and bring customers back.",
+},
+];
+
+export default function ExamplesPage() {
+return (
+<main className="min-h-screen bg-slate-50 text-slate-900">
+<section className="mx-auto max-w-6xl px-6 py-16 space-y-12">
+{/* Header */}
+<header className="text-center space-y-3">
+<h1 className="text-4xl md:text-5xl font-black">Portfolio</h1>
+<p className="text-slate-600 text-lg max-w-3xl mx-auto">
+A quick look at the style and quality you can expect — flyers, sample
+website concepts, and AI templates that help businesses move faster.
+</p>
+</header>
+
+{/* Flyers */}
+<section className="space-y-5">
+<div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+<div>
+<h2 className="text-3xl font-black">Flyer & Promo Designs</h2>
+<p className="text-slate-600 mt-1">
+Clean layouts that are easy to read and designed to get attention.
+</p>
+</div>
+<Link
+href="/contact"
+className="inline-flex rounded-xl bg-[var(--navy)] px-6 py-3 font-semibold text-white hover:opacity-90"
+>
+Request a flyer →
+</Link>
+</div>
+
+<div className="grid gap-6 md:grid-cols-2">
+{flyers.map((img) => (
+<div
+key={img.src}
+className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
+>
+{/* eslint-disable-next-line @next/next/no-img-element */}
+<img
+src={img.src}
+alt={img.alt}
+className="w-full rounded-2xl object-cover"
+/>
+</div>
+))}
+</div>
+
+<p className="text-sm text-slate-500">
+Want a specific style? Send a reference and I’ll match the vibe.
+</p>
+</section>
+
+{/* Website Concepts */}
+<section className="space-y-5">
+<div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+<div>
+<h2 className="text-3xl font-black">Website Concepts</h2>
+<p className="text-slate-600 mt-1">
+Professional layouts built for clarity, speed, and conversions.
+</p>
+</div>
+<Link
+href="/services"
+className="inline-flex rounded-xl bg-[var(--gold)] px-6 py-3 font-semibold text-[var(--navy)] hover:opacity-90"
+>
+View website services →
+</Link>
+</div>
+
+<div className="grid gap-6 md:grid-cols-3">
+{websiteConcepts.map((w) => (
+<div
+key={w.title}
+className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"
+>
+<p className="text-sm font-semibold text-slate-500">CONCEPT</p>
+<h3 className="mt-2 text-xl font-black">{w.title}</h3>
+<p className="mt-2 text-slate-600">{w.desc}</p>
+<Link
+href={w.href}
+className="mt-5 inline-block font-semibold text-[var(--navy)] hover:underline"
+>
+Ask about this style →
+</Link>
+</div>
+))}
+</div>
+
+<div className="rounded-3xl bg-white border border-slate-200 p-8">
+<h3 className="text-xl font-black">Want your own concept?</h3>
+<p className="mt-2 text-slate-600">
+If you tell me your business type and what you want your site to do
+(calls, bookings, quotes, etc.), I can recommend a layout and build it.
+</p>
+<Link
+href="/contact"
+className="mt-5 inline-flex rounded-xl bg-[var(--navy)] px-6 py-3 font-semibold text-white hover:opacity-90"
+>
+Get a website recommendation →
+</Link>
+</div>
+</section>
+
+{/* AI Templates */}
+<section className="space-y-5">
+<div className="text-center space-y-2">
+<h2 className="text-3xl font-black">AI Templates & Systems</h2>
+<p className="text-slate-600 max-w-3xl mx-auto">
+Plug-and-play templates that save time and keep your communication consistent.
+</p>
+</div>
+
+<div className="grid gap-6 md:grid-cols-3">
+{aiTemplates.map((t) => (
+<div
+key={t.title}
+className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm"
+>
+<p className="text-sm font-semibold text-slate-500">TEMPLATE</p>
+<h3 className="mt-2 text-xl font-black">{t.title}</h3>
+<p className="mt-2 text-slate-600">{t.desc}</p>
+</div>
+))}
+</div>
+
+<div className="text-center">
+<Link
+href="/contact"
+className="inline-flex rounded-xl bg-[var(--gold)] px-7 py-3 font-semibold text-[var(--navy)] hover:opacity-90"
+>
+Ask about templates →
+</Link>
+</div>
+</section>
+</section>
+</main>
+);
+}

@@ -1,128 +1,237 @@
-export default function Home() {
-  return (
-  <main className="min-h-screen bg-slate-50 text-slate-900">
-  {/* HERO */}
-  <section className="mx-auto max-w-6xl px-6 pt-12 pb-10">
-  <div className="rounded-3xl border border-slate-200 bg-white p-12 shadow-sm">
-  <p className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-1 text-xs font-semibold text-slate-700">
-  <span className="h-2 w-2 rounded-full bg-[var(--gold)]" />
-  Fast turnaround • Simple process • Modern look
-  </p>
-  
-  {/* ✅ SLIGHTLY BIGGER HEADING */}
-  <h2 className="mt-6 text-5xl lg:text-6xl font-black tracking-tight">
-  Modern design & websites for your business.
-  </h2>
-  
-  <p className="mt-6 max-w-2xl text-lg text-slate-600">
-  Websites, flyers, and content — built clean and delivered fast.
-  </p>
-  
-  <div className="mt-8 flex flex-wrap gap-4">
-  <a
-  href="/contact"
-  className="rounded-xl bg-[var(--navy)] px-6 py-3 font-semibold text-white shadow hover:opacity-90"
-  >
-  Get a Quote →
-  </a>
-  
-  <a
-  href="/services"
-  className="rounded-xl border border-slate-300 bg-white px-6 py-3 font-semibold text-slate-900 hover:bg-slate-100"
-  >
-  All Services →
-  </a>
-  </div>
-  
-  <div className="mt-10 grid gap-4 md:grid-cols-3">
-  <Stat label="Turnaround" value="24–72h" />
-  <Stat label="Approach" value="Simple" />
-  <Stat label="Style" value="Modern" />
-  </div>
-  </div>
-  </section>
-  
-  {/* WHAT I DO */}
-  <section className="mx-auto max-w-6xl px-6 pb-16">
-  <h3 className="text-3xl font-black mb-8">What I Do</h3>
-  
-  <div className="grid gap-6 md:grid-cols-2">
-  <Card
-  title="Website Creation + Updates"
-  desc="Modern multi-page websites + maintenance so your business looks professional online."
-  />
-  <Card
-  title="Flyers + Social Media"
-  desc="Clean promo designs and simple post packs sized correctly for IG + Facebook."
-  />
-  <Card
-  title="Admin Support"
-  desc="Scheduling, spreadsheets, organization, and message templates to save you time."
-  />
-  <Card
-  title="AI Templates"
-  desc="Reusable scripts and workflows that help you respond faster and stay consistent."
-  />
-  </div>
-  
-  <div className="mt-10 text-center">
-  <a
-  href="/services"
-  className="inline-block rounded-xl bg-[var(--navy)] px-8 py-3 font-semibold text-white hover:opacity-90"
-  >
-  View All Services →
-  </a>
-  </div>
-  </section>
-  
-  {/* BOTTOM CTA */}
-  <section className="bg-[var(--navy)] text-white py-14 px-6">
-  <div className="mx-auto max-w-6xl text-center">
-  <h4 className="text-3xl font-black">Not sure what you need?</h4>
-  
-  <p className="mt-3 text-white/80 max-w-2xl mx-auto">
-  Send a quick message with what you’re trying to improve. I’ll recommend
-  the simplest option that gets you results.
-  </p>
-  
-  <div className="mt-7 flex flex-wrap justify-center gap-4">
-  <a
-  href="/contact"
-  className="inline-block rounded-xl bg-[var(--gold)] px-8 py-3 font-semibold text-[var(--navy)] hover:opacity-90"
-  >
-  Contact Me →
-  </a>
-  
-  <a
-  href="/pricing"
-  className="inline-block rounded-xl border border-white/20 bg-white/5 px-8 py-3 font-semibold text-white hover:bg-white/10"
-  >
-  View Pricing
-  </a>
-  </div>
-  </div>
-  </section>
-  </main>
-  );
-  }
-  
-  /* Components */
-  
-  function Card({ title, desc }: { title: string; desc: string }) {
-  return (
-  <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition">
-  <h5 className="font-black text-lg">{title}</h5>
-  <p className="mt-2 text-slate-600 text-sm leading-relaxed">{desc}</p>
-  </div>
-  );
-  }
-  
-  function Stat({ label, value }: { label: string; value: string }) {
-  return (
-  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-  <div className="text-xs font-semibold text-slate-500">{label}</div>
-  <div className="mt-1 text-lg font-black text-slate-900">{value}</div>
-  </div>
-  );
-  }
-  
+import Link from "next/link";
+
+export const metadata = {
+title: "Home",
+};
+
+export default function HomePage() {
+return (
+<main className="bg-slate-50">
+{/* HERO */}
+<section className="mx-auto max-w-6xl px-6 pt-14 pb-10 text-center">
+<h1 className="text-4xl md:text-6xl font-black tracking-tight text-slate-900">
+Modern websites & content
+<span className="block">for your business.</span>
+</h1>
+
+<p className="mx-auto mt-5 max-w-2xl text-lg md:text-xl text-slate-600">
+I help businesses look legit online with clean websites, eye-catching
+flyers, simple social content, and helpful AI templates — without the
+stress.
+</p>
+
+<div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+<Link
+href="/services"
+className="rounded-xl bg-[var(--navy)] px-7 py-3 font-semibold text-white hover:opacity-90"
+>
+View Services
+</Link>
+<Link
+href="/contact"
+className="rounded-xl border border-slate-300 bg-white px-7 py-3 font-semibold text-slate-900 hover:bg-slate-100"
+>
+Get a Quote
+</Link>
+</div>
+
+<p className="mt-4 text-sm text-slate-500">
+Not sure what you need?{" "}
+<Link href="/contact" className="font-semibold underline">
+Message me
+</Link>{" "}
+and I’ll recommend the simplest path.
+</p>
+</section>
+
+{/* TRUST STRIP */}
+<section className="mx-auto max-w-6xl px-6 pb-10">
+<div className="grid gap-4 md:grid-cols-4">
+<div className="rounded-2xl border border-slate-200 bg-white p-5">
+<p className="font-black text-slate-900">Fast turnaround</p>
+<p className="mt-1 text-sm text-slate-600">
+Clean work delivered quickly.
+</p>
+</div>
+<div className="rounded-2xl border border-slate-200 bg-white p-5">
+<p className="font-black text-slate-900">Affordable options</p>
+<p className="mt-1 text-sm text-slate-600">
+Pricing that makes sense starting out.
+</p>
+</div>
+<div className="rounded-2xl border border-slate-200 bg-white p-5">
+<p className="font-black text-slate-900">One-person studio</p>
+<p className="mt-1 text-sm text-slate-600">
+Direct communication with me.
+</p>
+</div>
+<div className="rounded-2xl border border-slate-200 bg-white p-5">
+<p className="font-black text-slate-900">Simple + modern</p>
+<p className="mt-1 text-sm text-slate-600">
+No clutter. Easy navigation.
+</p>
+</div>
+</div>
+</section>
+
+{/* SERVICES PREVIEW */}
+<section className="mx-auto max-w-6xl px-6 py-12">
+<div className="flex items-end justify-between gap-4">
+<div>
+<h2 className="text-3xl font-black text-slate-900">
+What I can help with
+</h2>
+<p className="mt-2 text-slate-600">
+Choose one service or mix and match.
+</p>
+</div>
+<Link
+href="/services"
+className="hidden sm:inline-flex rounded-xl bg-[var(--gold)] px-5 py-2 font-semibold text-[var(--navy)] hover:opacity-90"
+>
+All Services →
+</Link>
+</div>
+
+<div className="mt-8 grid gap-6 md:grid-cols-3">
+<div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+<p className="text-sm font-semibold text-slate-500">WEBSITES</p>
+<h3 className="mt-2 text-xl font-black">Modern business websites</h3>
+<p className="mt-2 text-slate-600">
+A clean website that looks professional, loads fast, and helps
+people contact you.
+</p>
+<Link
+href="/services"
+className="mt-5 inline-block font-semibold text-[var(--navy)] hover:underline"
+>
+Learn more →
+</Link>
+</div>
+
+<div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+<p className="text-sm font-semibold text-slate-500">FLYERS</p>
+<h3 className="mt-2 text-xl font-black">Flyers that get attention</h3>
+<p className="mt-2 text-slate-600">
+Promotions, events, menus, specials — designed to look clean and
+easy to read.
+</p>
+<Link
+href="/examples"
+className="mt-5 inline-block font-semibold text-[var(--navy)] hover:underline"
+>
+See examples →
+</Link>
+</div>
+
+<div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
+<p className="text-sm font-semibold text-slate-500">SOCIAL</p>
+<h3 className="mt-2 text-xl font-black">Simple social content</h3>
+<p className="mt-2 text-slate-600">
+Posts and graphics that match your brand and keep your page active
+without extra stress.
+</p>
+<Link
+href="/pricing"
+className="mt-5 inline-block font-semibold text-[var(--navy)] hover:underline"
+>
+View pricing →
+</Link>
+</div>
+</div>
+
+<div className="mt-8 sm:hidden">
+<Link
+href="/services"
+className="inline-flex rounded-xl bg-[var(--gold)] px-5 py-2 font-semibold text-[var(--navy)] hover:opacity-90"
+>
+All Services →
+</Link>
+</div>
+</section>
+
+{/* EXAMPLES PREVIEW */}
+<section className="mx-auto max-w-6xl px-6 py-12">
+<div className="rounded-3xl bg-white border border-slate-200 p-8 md:p-10">
+<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+<div>
+<h2 className="text-3xl font-black text-slate-900">
+Want to see the style?
+</h2>
+<p className="mt-2 text-slate-600 max-w-2xl">
+Check out flyer examples and sample site concepts so you can
+picture what we can build for your business.
+</p>
+</div>
+<Link
+href="/examples"
+className="inline-flex rounded-xl bg-[var(--navy)] px-7 py-3 font-semibold text-white hover:opacity-90"
+>
+View Examples →
+</Link>
+</div>
+</div>
+</section>
+
+{/* HOW IT WORKS */}
+<section className="mx-auto max-w-6xl px-6 py-12">
+<h2 className="text-3xl font-black text-slate-900 text-center">
+How it works
+</h2>
+
+<div className="mt-8 grid gap-6 md:grid-cols-3">
+<div className="rounded-3xl border border-slate-200 bg-white p-7">
+<p className="text-sm font-semibold text-slate-500">STEP 1</p>
+<h3 className="mt-2 text-xl font-black">Tell me what you need</h3>
+<p className="mt-2 text-slate-600">
+Send a quick message about your business and your goal.
+</p>
+</div>
+
+<div className="rounded-3xl border border-slate-200 bg-white p-7">
+<p className="text-sm font-semibold text-slate-500">STEP 2</p>
+<h3 className="mt-2 text-xl font-black">I recommend the best path</h3>
+<p className="mt-2 text-slate-600">
+I’ll suggest the simplest option that gets the result you want.
+</p>
+</div>
+
+<div className="rounded-3xl border border-slate-200 bg-white p-7">
+<p className="text-sm font-semibold text-slate-500">STEP 3</p>
+<h3 className="mt-2 text-xl font-black">You get a finished product</h3>
+<p className="mt-2 text-slate-600">
+Clean deliverables, fast turnaround, and easy communication.
+</p>
+</div>
+</div>
+</section>
+
+{/* FINAL CTA */}
+<section className="mx-auto max-w-6xl px-6 pb-20">
+<div className="rounded-3xl bg-[var(--navy)] text-white p-10 md:p-12 text-center">
+<h2 className="text-3xl md:text-4xl font-black">
+Ready to upgrade your business?
+</h2>
+<p className="mt-3 text-white/80 max-w-2xl mx-auto">
+Message me and I’ll help you pick the best service and pricing for
+what you’re trying to accomplish.
+</p>
+<div className="mt-7 flex flex-col sm:flex-row justify-center gap-4">
+<Link
+href="/contact"
+className="rounded-xl bg-[var(--gold)] px-8 py-3 font-semibold text-[var(--navy)] hover:opacity-90"
+>
+Contact Me →
+</Link>
+<Link
+href="/pricing"
+className="rounded-xl border border-white/30 bg-transparent px-8 py-3 font-semibold hover:bg-white/10"
+>
+View Pricing
+</Link>
+</div>
+</div>
+</section>
+</main>
+);
+}
