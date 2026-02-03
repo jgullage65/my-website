@@ -15,7 +15,7 @@ default: siteName,
 template: `%s | ${siteName}`,
 },
 description: siteDescription,
-
+metadataBase: new URL("https://jgcreativestudios.com"),
 openGraph: {
 title: siteName,
 description: siteDescription,
@@ -41,7 +41,9 @@ images: [ogImage],
 },
 
 icons: {
-icon: "/favicon.ico",
+    icons: {
+        icon: [{ url: "/favicon.ico", type: "image/x-icon" }],
+        },
 },
 };
 
