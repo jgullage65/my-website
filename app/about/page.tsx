@@ -22,8 +22,8 @@ export const metadata = {
     James Gullage
     </p>
     <p className="text-sm text-slate-500">
-    Founder, JG Creative Studio
-    </p>
+Founder, JG Creative Studio, LLC
+</p>
     </div>
     </div>
     </div>
