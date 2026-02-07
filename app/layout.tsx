@@ -47,11 +47,8 @@ icons: {
 icon: "/favicon.ico",
 },
 };
-export default function RootLayout({
-children,
-}: {
-children: ReactNode;
-}) {
+
+export default function RootLayout({ children }: { children: ReactNode }) {
 const year = new Date().getFullYear();
 
 return (
@@ -84,6 +81,9 @@ Services
 </Link>
 <Link className="hover:text-[var(--gold)]" href="/pricing">
 Pricing
+</Link>
+<Link className="hover:text-[var(--gold)]" href="/payments">
+Payments
 </Link>
 <Link className="hover:text-[var(--gold)]" href="/examples">
 Examples
@@ -140,6 +140,9 @@ Services
 </Link>
 <Link className="hover:text-[var(--navy)]" href="/pricing">
 Pricing
+</Link>
+<Link className="hover:text-[var(--navy)]" href="/payments">
+Payments
 </Link>
 <Link className="hover:text-[var(--navy)]" href="/examples">
 Examples
