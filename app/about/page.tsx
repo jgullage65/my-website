@@ -35,8 +35,8 @@ export const metadata = {
     </p>
     
     <h1 className="text-4xl sm:text-5xl font-black leading-tight">
-    Building clean, modern websites and content that make your business
-    look legit.
+    Building clean websites and content that connects you with customers, and
+    helps grow your business.
     </h1>
     
     <p className="text-lg text-slate-600 max-w-2xl">
