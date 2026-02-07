@@ -53,7 +53,7 @@ const year = new Date().getFullYear();
 
 return (
 <html lang="en">
-<body className="bg-slate-50 text-slate-900">
+<body className="text-slate-900">
 {/* ✅ LOGO HEADER */}
 <div className="bg-white border-b border-slate-200">
 <div className="mx-auto max-w-6xl px-6 pt-10 pb-6 text-center">

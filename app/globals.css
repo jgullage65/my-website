@@ -4,15 +4,37 @@
 
 /* ✅ Navy + Gold Theme */
 :root {
---navy: #071a2f;
---gold: #f5c542;
+  --navy: #071a2f;
+  --gold: #f5c542;
 
---bg: #f8fafc;
---text: #071a2f;
+  --bg: #f8fafc;
+  --text: #071a2f;
 }
 
+/* ===== Premium Background (Gradient + Grain + Glow) ===== */
 body {
-background: var(--bg);
-color: var(--text);
-font-family: ui-sans-serif, system-ui, sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(15, 23, 42, 0.08), transparent 60%),
+    radial-gradient(circle at bottom right, rgba(234, 179, 8, 0.10), transparent 60%),
+    linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  position: relative;
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* subtle grain overlay */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image: url("https://www.transparenttextures.com/patterns/asfalt-light.png");
+  opacity: 0.12;
+  z-index: 0;
+}
+
+/* keep your site content above the grain */
+body > * {
+  position: relative;
+  z-index: 1;
 }
