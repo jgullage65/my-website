@@ -44,8 +44,9 @@ images: [ogImage],
 },
 
 icons: {
-icon: "/favicon.ico",
-},
+    icon: "/favicon.ico",
+    apple: "/favicon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
