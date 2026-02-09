@@ -8,7 +8,10 @@ const PAY = {
   flyer_paid_full: "https://buy.stripe.com/dRmaEQ2im02kgw9eFZ24001",
   social_paid_full: "https://buy.stripe.com/5kQ7sE6yC8yQ6Vz9lF24002",
   updates_paid_full: "https://buy.stripe.com/4gM14g9KOcP6a7L8hB24000",
-  ai_deposit: "https://buy.stripe.com/28E14g6yC2asgw9btN24003",
+
+  ai_deposit_basic: "https://buy.stripe.com/28E14g6yC2asgw9btN24003",
+  ai_deposit_pro: "https://buy.stripe.com/fZu8wIaOS3ew3Jn69t24007",
+
   admin_deposit: "https://buy.stripe.com/aFa8wIcX04iA6Vz69t24004",
   simple_site_deposit: "https://buy.stripe.com/14AbIUaOSdTa3Jn8hB24005",
   business_site_deposit: "https://buy.stripe.com/dRmfZa3mq7uM93H9lF24006",
@@ -23,7 +26,8 @@ export default function ServicesPage() {
           <h1 className="text-4xl font-black">Services</h1>
           <p className="text-slate-600 text-lg max-w-3xl">
             Pick what you need and I’ll confirm scope + timeline before we start.
-            Everything is built to be clean, modern, and easy for your customers to understand.
+            Everything is built to be clean, modern, and easy for your customers
+            to understand.
           </p>
         </header>
 
@@ -51,7 +55,7 @@ export default function ServicesPage() {
             ]}
           />
 
-          {/* ✅ AI moved up + retooled */}
+          {/* AI moved up + split Basic vs Pro */}
           <ServiceCard
             title="AI Business Solutions (Templates + Automation)"
             subtitle="Practical AI tools that save time and help you respond faster."
@@ -63,8 +67,12 @@ export default function ServicesPage() {
             outcomes="You work faster, stay consistent, and turn more messages into paying customers."
             actions={[
               {
-                label: "Pay deposit — $25",
-                href: PAY.ai_deposit,
+                label: "Pay deposit (AI Setup — Basic) — $25",
+                href: PAY.ai_deposit_basic,
+              },
+              {
+                label: "Pay deposit (AI Setup — Pro) — $75",
+                href: PAY.ai_deposit_pro,
               },
               {
                 label: "Learn more about AI options",
@@ -156,8 +164,8 @@ export default function ServicesPage() {
         <section className="rounded-3xl bg-[var(--navy)] text-white p-10 md:p-12">
           <h2 className="text-3xl font-black">Not sure what you need?</h2>
           <p className="mt-3 text-white/80 max-w-3xl">
-            Send a quick message with your business type and what you’re trying to improve.
-            I’ll recommend the simplest option that gets you results.
+            Send a quick message with your business type and what you’re trying
+            to improve. I’ll recommend the simplest option that gets you results.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
