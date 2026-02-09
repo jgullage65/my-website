@@ -563,11 +563,42 @@ window.location.href = url;
 },
 },
 {
-label: "Send a quick message instead",
-onClick: () => {
-window.location.href = "/contact";
-},
-},
+    label: "Email James directly",
+    onClick: () => {
+      const subject = encodeURIComponent(
+        "New inquiry from JG Creative Studio website"
+      );
+  
+      const body = encodeURIComponent(
+        `Hi James,
+  
+  I was chatting with your website assistant and wanted to reach out directly.
+  
+  Service needed:
+  ${intake.service || "Not specified"}
+  
+  Business type:
+  ${intake.businessType || "Not specified"}
+  
+  Goal:
+  ${intake.goal || "Not specified"}
+  
+  Preferred follow-up:
+  ${intake.followUp || "Not specified"}
+  
+  Email:
+  ${intake.email || "Not provided"}
+  
+  Phone:
+  ${intake.phone || "Not provided"}
+  
+  Thanks!
+  `
+      );
+  
+      window.location.href = `mailto:hello@jgcreativestudios.com?subject=${subject}&body=${body}`;
+    },
+  },
 ]);
 };
 
