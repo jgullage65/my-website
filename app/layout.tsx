@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
-const siteName = "JG Creative Studio";
+const siteName = "JG Creative Studio LLC";
 const siteDescription =
   "Modern websites, flyers, social content, and AI templates — built clean and delivered fast.";
 
