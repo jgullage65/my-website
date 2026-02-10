@@ -559,7 +559,7 @@ setQuickReplies([
 label: "Open Project Request Form",
 onClick: () => {
 const url = buildContactUrl(intake);
-window.location.href = url;
+window.location.href = `${window.location.origin}${url}`;
 },
 },
 {
