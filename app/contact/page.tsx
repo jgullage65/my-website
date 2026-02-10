@@ -1,11 +1,6 @@
 "use client";
-function firstParam(
-  searchParams: Record<string, string | string[] | undefined> | undefined,
-  key: string
-) {
-  const v = searchParams?.[key];
-  return Array.isArray(v) ? v[0] : v;
-}
+
+import { useSearchParams } from "next/navigation";
 
 function normalizePreferred(raw: string) {
   const v = decodeURIComponent(raw || "").trim().toLowerCase();
@@ -23,10 +18,11 @@ function normalizeService(raw: string) {
 
   // Allow chatbot-friendly values:
   if (["website", "web", "site"].includes(v)) return "Website Creation";
-  if (["flyers", "flyer", "social", "flyers / social", "flyers and social", "design"].includes(v))
+  if (
+    ["flyers", "flyer", "social", "flyers / social", "flyers and social", "design"].includes(v)
+  )
     return "Flyer / Promo Design";
-  if (["ai", "ai setup", "ai templates", "ai business solutions"].includes(v))
-    return "AI Setup";
+  if (["ai", "ai setup", "ai templates", "ai business solutions"].includes(v)) return "AI Setup";
 
   // If they already pass the exact label we use, keep it:
   const exact = (raw || "").trim();
@@ -45,17 +41,17 @@ function normalizeService(raw: string) {
   return "Not sure yet";
 }
 
-export default function ContactPage({
-  searchParams,
-}: {
-  searchParams?: Record<string, string | string[] | undefined>;
-}) {
-  const preService = normalizeService(firstParam(searchParams, "service") || "");
-  const prePreferred = normalizePreferred(firstParam(searchParams, "preferred") || "");
-  const prePhone = firstParam(searchParams, "phone") || "";
-  const preBusinessType = firstParam(searchParams, "business_type") || "";
-  const preEmail = firstParam(searchParams, "email") || "";
-  
+export default function ContactPage() {
+  const params = useSearchParams();
+
+  const preService = normalizeService(params.get("service") || "");
+  const prePreferred = normalizePreferred(
+    params.get("preferred_contact") || params.get("preferred") || params.get("contact") || ""
+  );
+  const prePhone = params.get("phone") || "";
+  const preBusinessType = params.get("business_type") || params.get("business") || "";
+  const preEmail = params.get("email") || "";
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <section className="mx-auto max-w-5xl px-6 py-16 space-y-10">
@@ -77,11 +73,7 @@ export default function ContactPage({
             </p>
           </div>
 
-          <form
-            action="https://formspree.io/f/mlgldrnk"
-            method="POST"
-            className="mt-8 grid gap-5"
-          >
+          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="mt-8 grid gap-5">
             <input type="hidden" name="form_type" value="Project Request" />
 
             <div className="grid gap-5 md:grid-cols-2">
@@ -123,9 +115,7 @@ export default function ContactPage({
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-slate-800">
-                  Best way to follow up?
-                </label>
+                <label className="text-sm font-semibold text-slate-800">Best way to follow up?</label>
                 <select
                   name="preferred_contact"
                   className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 bg-white"
@@ -210,7 +200,9 @@ export default function ContactPage({
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className="text-sm font-semibold text-slate-800">Do you have a logo/photos?</label>
+                <label className="text-sm font-semibold text-slate-800">
+                  Do you have a logo/photos?
+                </label>
                 <select
                   name="assets"
                   className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3 bg-white"
@@ -223,7 +215,9 @@ export default function ContactPage({
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-slate-800">Extra details (optional)</label>
+                <label className="text-sm font-semibold text-slate-800">
+                  Extra details (optional)
+                </label>
                 <textarea
                   name="notes"
                   rows={3}
