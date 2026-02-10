@@ -648,25 +648,31 @@ return;
 }
 
 if (expectingInput === "email") {
-userSay(v);
-setIntake((d) => ({ ...d, email: v }));
-setInputValue("");
-setExpectingInput(null);
+  userSay(v);
 
-finishAndHandoff();
-return;
+  const next = { ...intake, email: v }; // ✅ has the email immediately
+  setIntake(next);
+
+  setInputValue("");
+  setExpectingInput(null);
+
+  const url = buildContactUrl(next);
+  window.location.href = new URL(url, window.location.origin).toString();
+  return;
 }
 
 if (expectingInput === "phone") {
-userSay(v);
-setIntake((d) => ({ ...d, phone: v }));
-setInputValue("");
-setExpectingInput(null);
+  userSay(v);
 
-// If phone was chosen, we still might want email optionally later,
-// but we’ll keep it simple and finish.
-finishAndHandoff();
-return;
+  const next = { ...intake, phone: v }; // ✅ has the phone immediately
+  setIntake(next);
+
+  setInputValue("");
+  setExpectingInput(null);
+
+  const url = buildContactUrl(next);
+  window.location.href = new URL(url, window.location.origin).toString();
+  return;
 }
 };
 
