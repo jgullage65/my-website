@@ -81,6 +81,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <Link className="hover:text-[var(--gold)]" href="/services">
                   Services
                 </Link>
+                <Link className="hover:text-[var(--gold)]" href="/ai-tools">
+                  AI Tools
+                </Link>
                 <Link className="hover:text-[var(--gold)]" href="/pricing">
                   Pricing
                 </Link>
