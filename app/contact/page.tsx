@@ -1,7 +1,4 @@
-export const metadata = {
-  title: "Contact",
-};
-
+"use client";
 function firstParam(
   searchParams: Record<string, string | string[] | undefined> | undefined,
   key: string
@@ -11,7 +8,7 @@ function firstParam(
 }
 
 function normalizePreferred(raw: string) {
-  const v = (raw || "").trim().toLowerCase();
+  const v = decodeURIComponent(raw || "").trim().toLowerCase();
 
   if (["text", "sms"].includes(v)) return "Text";
   if (["phone", "call"].includes(v)) return "Call";
@@ -56,8 +53,9 @@ export default function ContactPage({
   const preService = normalizeService(firstParam(searchParams, "service") || "");
   const prePreferred = normalizePreferred(firstParam(searchParams, "preferred") || "");
   const prePhone = firstParam(searchParams, "phone") || "";
-  const preBusinessType = firstParam(searchParams, "businessType") || "";
-
+  const preBusinessType = firstParam(searchParams, "business_type") || "";
+  const preEmail = firstParam(searchParams, "email") || "";
+  
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <section className="mx-auto max-w-5xl px-6 py-16 space-y-10">
@@ -103,6 +101,7 @@ export default function ContactPage({
                 <input
                   type="email"
                   name="email"
+                  defaultValue={preEmail}
                   required
                   placeholder="you@email.com"
                   className="mt-1 w-full rounded-xl border border-slate-300 px-4 py-3"
