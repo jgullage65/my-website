@@ -1,339 +1,252 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Home",
+  title: "Premium Websites & AI Business Systems",
 };
+
+const services = [
+  {
+    title: "Premium Websites",
+    eyebrow: "POSITIONING + PERFORMANCE",
+    description:
+      "Custom web experiences built around the way your business sells, earns trust, and turns attention into qualified action.",
+    points: [
+      "Custom responsive websites",
+      "Strong business positioning",
+      "Conversion-focused structure",
+      "Performance and mobile quality",
+    ],
+  },
+  {
+    title: "AI Business Systems",
+    eyebrow: "COPILOTS + AUTOMATION",
+    description:
+      "Purpose-built AI tools that support your team, answer faster, organize knowledge, and reduce repetitive work.",
+    points: [
+      "Custom copilots",
+      "Support assistants",
+      "Internal knowledge tools",
+      "AI-assisted workflows",
+      "Business automation",
+    ],
+  },
+  {
+    title: "Growth Technology",
+    eyebrow: "TOOLS + OPERATIONS",
+    description:
+      "Custom software for the operational layer of your business, from lead systems to dashboards and workflow tools.",
+    points: [
+      "Dashboards",
+      "Lead systems",
+      "Workflow tools",
+      "Internal business software",
+      "Custom operational systems",
+    ],
+  },
+];
+
+const proof = [
+  "Complex SaaS products",
+  "AI copilots",
+  "Lead intelligence systems",
+  "Business dashboards",
+  "Workflow automation",
+];
+
+const process = [
+  {
+    step: "01",
+    title: "Understand the business",
+    text: "We identify your offer, audience, sales process, bottlenecks, and the business outcome the build needs to support.",
+  },
+  {
+    step: "02",
+    title: "Design the right solution",
+    text: "We map the website, AI system, automation, or custom tool around a clear strategy instead of forcing a generic template.",
+  },
+  {
+    step: "03",
+    title: "Build and refine",
+    text: "We turn the plan into a polished, responsive product and refine structure, copy, flow, and usability as it comes together.",
+  },
+  {
+    step: "04",
+    title: "Launch and support",
+    text: "We prepare the experience for real users, launch cleanly, and keep the door open for improvements after release.",
+  },
+];
+
+function CheckIcon() {
+  return (
+    <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[rgba(212,175,55,0.38)] bg-[rgba(212,175,55,0.12)] text-[10px] font-black text-[var(--gold)]">
+      ✓
+    </span>
+  );
+}
 
 export default function HomePage() {
   return (
-    <main className="bg-slate-50">
-      {/* HERO */}
-      <section className="mx-auto max-w-6xl px-6 pt-14 pb-10">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 md:p-12 shadow-sm">
-          <div className="flex flex-col items-center text-center">
-            <p className="text-sm font-semibold tracking-wide text-slate-500">
-              JG CREATIVE STUDIO
-            </p>
+    <main className="relative overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute left-1/2 top-0 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-[rgba(245,158,11,0.13)] blur-3xl" />
+        <div className="absolute right-[-10rem] top-[30rem] h-[28rem] w-[28rem] rounded-full bg-[rgba(212,175,55,0.08)] blur-3xl" />
+      </div>
 
-            <h1 className="mt-3 text-4xl md:text-6xl font-black tracking-tight text-slate-900">
-              Modern websites & content
-              <span className="block text-[var(--navy)]">for your business.</span>
-            </h1>
+      <section className="mx-auto grid w-full max-w-[90rem] gap-10 px-6 pb-16 pt-16 sm:px-8 lg:grid-cols-[1.08fr_0.92fr] lg:px-10 lg:pb-24 lg:pt-24">
+        <div className="flex flex-col justify-center">
+          <p className="text-xs font-black uppercase tracking-[0.28em] text-[var(--gold)]">
+            JG CREATIVE STUDIO
+          </p>
+          <h1 className="mt-5 max-w-5xl text-5xl font-black tracking-[-0.055em] text-white sm:text-6xl lg:text-7xl xl:text-8xl">
+            Premium Websites.
+            <span className="block text-transparent bg-clip-text bg-[linear-gradient(180deg,#ffffff,#d4af37)]">
+              Intelligent Business Systems.
+            </span>
+          </h1>
+          <p className="mt-7 max-w-3xl text-lg leading-8 text-[var(--muted)] sm:text-xl">
+            JG Creative Studio builds high-performance websites, custom AI
+            tools, automation, and growth systems for businesses that need more
+            than a brochure page.
+          </p>
 
-            <p className="mx-auto mt-5 max-w-2xl text-lg md:text-xl text-slate-600">
-              Clean websites, eye-catching flyers, simple social content, and
-              practical AI tools that save you time — without the stress.
-            </p>
+          <div className="mt-10 flex flex-col gap-4 sm:flex-row">
+            <Link
+              href="/contact"
+              className="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-7 py-4 text-sm font-black text-[#07101f] shadow-[0_20px_44px_rgba(212,175,55,0.22),inset_0_1px_0_rgba(255,255,255,0.38)] transition hover:-translate-y-0.5"
+            >
+              Start a Project
+            </Link>
+            <Link
+              href="#leadforge"
+              className="inline-flex items-center justify-center rounded-2xl border border-[rgba(212,175,55,0.32)] bg-[rgba(14,22,62,0.68)] px-7 py-4 text-sm font-black text-white shadow-[0_18px_40px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-[rgba(245,158,11,0.58)]"
+            >
+              Explore LEADFORGE
+            </Link>
+          </div>
+        </div>
 
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link
-                href="/services"
-                className="rounded-xl bg-[var(--navy)] px-7 py-3 font-semibold text-white hover:opacity-90"
-              >
-                View Services
-              </Link>
-              <Link
-                href="/contact"
-                className="rounded-xl border border-slate-300 bg-white px-7 py-3 font-semibold text-slate-900 hover:bg-slate-100"
-              >
-                Get a Quote
-              </Link>
+        <div className="relative rounded-[2rem] border border-[rgba(212,175,55,0.24)] bg-[linear-gradient(145deg,rgba(17,27,72,0.94),rgba(6,10,30,0.98))] p-5 shadow-[0_36px_90px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-7">
+          <div className="absolute -right-6 -top-6 h-28 w-28 rounded-full bg-[rgba(245,158,11,0.22)] blur-2xl" />
+          <div className="relative rounded-[1.5rem] border border-white/[0.07] bg-[#07101f]/80 p-5">
+            <div className="flex items-center justify-between gap-4 border-b border-white/[0.07] pb-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--gold)]">Business command layer</p>
+                <p className="mt-2 text-2xl font-black text-white">Website + AI + Growth Systems</p>
+              </div>
+              <span className="rounded-full border border-[rgba(212,175,55,0.28)] px-3 py-1 text-xs font-bold text-[var(--gold)]">LIVE READY</span>
             </div>
-
-            <p className="mt-4 text-sm text-slate-500">
-              Not sure what you need?{" "}
-              <Link href="/contact" className="font-semibold underline">
-                Message me
-              </Link>{" "}
-              and I’ll recommend the simplest path.
-            </p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {["Position", "Capture", "Automate", "Scale"].map((item) => (
+                <div key={item} className="rounded-2xl border border-[rgba(212,175,55,0.16)] bg-white/[0.04] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                  <p className="text-sm font-black text-white">{item}</p>
+                  <div className="mt-4 h-2 rounded-full bg-white/[0.08]">
+                    <div className="h-2 rounded-full bg-[linear-gradient(90deg,#d4af37,#f59e0b)]" style={{ width: item === "Scale" ? "68%" : "86%" }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* TRUST STRIP */}
-      <section className="mx-auto max-w-6xl px-6 pb-10">
-        <div className="grid gap-4 md:grid-cols-4">
-          {[
-            {
-              title: "Fast turnaround",
-              desc: "Clean work delivered quickly.",
-              icon: "⚡",
-            },
-            {
-              title: "Affordable options",
-              desc: "Pricing that makes sense starting out.",
-              icon: "💰",
-            },
-            {
-              title: "One-person studio",
-              desc: "Direct communication with me.",
-              icon: "🤝",
-            },
-            {
-              title: "Simple + modern",
-              desc: "No clutter. Easy navigation.",
-              icon: "✨",
-            },
-          ].map((t) => (
-            <div
-              key={t.title}
-              className="rounded-2xl border border-slate-200 bg-white p-5"
-            >
-              <p className="text-2xl">{t.icon}</p>
-              <p className="mt-2 font-black text-slate-900">{t.title}</p>
-              <p className="mt-1 text-sm text-slate-600">{t.desc}</p>
-            </div>
+      <section className="mx-auto w-full max-w-[90rem] px-6 py-14 sm:px-8 lg:px-10">
+        <div className="max-w-3xl">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--gold)]">Core services</p>
+          <h2 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-5xl">Premium builds for the parts of your business customers and teams actually use.</h2>
+        </div>
+        <div className="mt-10 grid gap-6 lg:grid-cols-3">
+          {services.map((service) => (
+            <article key={service.title} className="rounded-[1.75rem] border border-[rgba(212,175,55,0.22)] bg-[linear-gradient(145deg,rgba(17,27,72,0.9),rgba(7,16,31,0.96))] p-7 shadow-[0_28px_70px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-1 hover:border-[rgba(245,158,11,0.45)]">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--gold)]">{service.eyebrow}</p>
+              <h3 className="mt-4 text-2xl font-black text-white">{service.title}</h3>
+              <p className="mt-4 leading-7 text-[var(--muted)]">{service.description}</p>
+              <ul className="mt-6 space-y-3 text-sm font-semibold text-slate-200">
+                {service.points.map((point) => (
+                  <li key={point} className="flex gap-3"><CheckIcon /> <span>{point}</span></li>
+                ))}
+              </ul>
+            </article>
           ))}
         </div>
       </section>
 
-      {/* WHAT I CAN HELP WITH */}
-      <section className="mx-auto max-w-6xl px-6 py-10">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-          <div>
-            <h2 className="text-3xl font-black text-slate-900">
-              What I can help with
-            </h2>
-            <p className="mt-2 text-slate-600">
-              Pick one service or mix and match. I’ll keep it simple.
-            </p>
-          </div>
-
-          <Link
-            href="/services"
-            className="hidden sm:inline-flex rounded-xl bg-[var(--gold)] px-5 py-2 font-semibold text-[var(--navy)] hover:opacity-90"
-          >
-            All Services →
-          </Link>
-        </div>
-
-        <div className="mt-8 grid gap-6 md:grid-cols-4">
-          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
-                🧱
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-500">WEBSITES</p>
-                <h3 className="text-xl font-black text-slate-900">
-                  Modern sites
-                </h3>
-              </div>
-            </div>
-            <p className="mt-4 text-slate-600">
-              A clean site that loads fast and helps people contact you.
-            </p>
-            <Link
-              href="/services"
-              className="mt-5 inline-block font-semibold text-[var(--navy)] hover:underline"
-            >
-              Learn more →
-            </Link>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
-                🧾
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-500">FLYERS</p>
-                <h3 className="text-xl font-black text-slate-900">
-                  Promo design
-                </h3>
-              </div>
-            </div>
-            <p className="mt-4 text-slate-600">
-              Promotions, menus, events — designed clean and easy to read.
-            </p>
-            <Link
-              href="/examples"
-              className="mt-5 inline-block font-semibold text-[var(--navy)] hover:underline"
-            >
-              See examples →
-            </Link>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
-                📱
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-500">SOCIAL</p>
-                <h3 className="text-xl font-black text-slate-900">
-                  Post packs
-                </h3>
-              </div>
-            </div>
-            <p className="mt-4 text-slate-600">
-              Simple posts that match your brand and keep you consistent.
-            </p>
-            <Link
-              href="/pricing"
-              className="mt-5 inline-block font-semibold text-[var(--navy)] hover:underline"
-            >
-              View pricing →
-            </Link>
-          </div>
-
-          <div className="rounded-3xl border border-slate-200 bg-white p-7 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
-                🤖
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-500">AI TOOLS</p>
-                <h3 className="text-xl font-black text-slate-900">
-                  Automations
-                </h3>
-              </div>
-            </div>
-            <p className="mt-4 text-slate-600">
-              Website AI assistants + templates to help you reply faster.
-            </p>
-            <Link
-              href="/ai-tools"
-              className="mt-5 inline-block font-semibold text-[var(--navy)] hover:underline"
-            >
-              See AI tools →
-            </Link>
-          </div>
-        </div>
-
-        <div className="mt-8 sm:hidden">
-          <Link
-            href="/services"
-            className="inline-flex rounded-xl bg-[var(--gold)] px-5 py-2 font-semibold text-[var(--navy)] hover:opacity-90"
-          >
-            All Services →
-          </Link>
-        </div>
-      </section>
-
-      {/* LIVE AI DEMO TEASER */}
-      <section className="mx-auto max-w-6xl px-6 py-10">
-        <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white to-slate-100 p-8 md:p-10 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-[var(--navy)] px-4 py-2 text-sm font-semibold text-white">
-                <span className="text-[var(--gold)]">●</span> LIVE AI DEMO
-              </div>
-              <h2 className="text-3xl font-black text-slate-900">
-                Try the assistant on this site
-              </h2>
-              <p className="text-slate-600 max-w-2xl">
-                Click the chat bubble in the bottom corner — it collects details and helps
-                visitors take the next step.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link
-                href="/ai-tools"
-                className="inline-flex items-center justify-center rounded-xl bg-[var(--gold)] px-7 py-3 font-semibold text-[var(--navy)] hover:opacity-90"
-              >
-                See AI Tools →
-              </Link>
-              <Link
-                href="/contact?service=AI%20Setup&preferred=email"
-                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-7 py-3 font-semibold text-slate-900 hover:bg-slate-100"
-              >
-                Ask About AI →
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* EXAMPLES PREVIEW */}
-      <section className="mx-auto max-w-6xl px-6 py-10">
-        <div className="rounded-3xl bg-white border border-slate-200 p-8 md:p-10 shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <section id="leadforge" className="mx-auto w-full max-w-[90rem] px-6 py-16 sm:px-8 lg:px-10">
+        <div className="overflow-hidden rounded-[2rem] border border-[rgba(212,175,55,0.28)] bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,0.18),transparent_28rem),linear-gradient(145deg,rgba(17,27,72,0.98),rgba(4,8,24,0.98))] p-7 shadow-[0_38px_100px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-10 lg:p-12">
+          <div className="grid gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
             <div>
-              <h2 className="text-3xl font-black text-slate-900">
-                Want to see the style?
-              </h2>
-              <p className="mt-2 text-slate-600 max-w-2xl">
-                Check out flyer examples and sample site concepts so you can
-                picture what we can build for your business.
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--gold)]">Flagship product</p>
+              <h2 className="mt-4 text-5xl font-black tracking-[-0.055em] text-white sm:text-7xl">LEADFORGE</h2>
+              <p className="mt-4 text-2xl font-black text-[var(--gold)]">Search Once. Discover Continuously.</p>
+              <p className="mt-6 text-lg leading-8 text-[var(--muted)]">
+                An AI-assisted territory discovery and sales intelligence platform for agencies. LEADFORGE shows the same thinking JG Creative Studio brings to client work: useful systems, premium interfaces, and software designed around real business motion.
               </p>
             </div>
-            <Link
-              href="/examples"
-              className="inline-flex rounded-xl bg-[var(--navy)] px-7 py-3 font-semibold text-white hover:opacity-90"
-            >
-              View Examples →
-            </Link>
+            <div className="rounded-[1.5rem] border border-white/[0.08] bg-[#07101f]/72 p-5 sm:p-7">
+              <p className="text-sm font-black uppercase tracking-[0.18em] text-slate-300">Agency workflow</p>
+              <div className="mt-6 grid gap-3">
+                {"Discover → Build Territory → Unlock Leads → Pitch → Win".split(" → ").map((item, index) => (
+                  <div key={item} className="flex items-center gap-4 rounded-2xl border border-[rgba(212,175,55,0.16)] bg-white/[0.04] p-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] text-sm font-black text-[#07101f]">{index + 1}</span>
+                    <span className="font-black text-white">{item}</span>
+                  </div>
+                ))}
+              </div>
+              <Link
+                href="/contact"
+                className="mt-6 inline-flex items-center justify-center rounded-xl border border-[rgba(212,175,55,0.32)] bg-[rgba(212,175,55,0.1)] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-[rgba(245,158,11,0.58)]"
+              >
+                Build a system like this →
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section className="mx-auto max-w-6xl px-6 py-12">
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 md:p-10 shadow-sm">
-          <div className="text-center">
-            <h2 className="text-3xl font-black text-slate-900">How it works</h2>
-            <p className="mt-2 text-slate-600 max-w-2xl mx-auto">
-              Simple process, clear communication, no surprises.
+      <section className="mx-auto w-full max-w-[90rem] px-6 py-14 sm:px-8 lg:px-10">
+        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--gold)]">Proof of capability</p>
+            <h2 className="mt-4 text-3xl font-black tracking-tight text-white sm:text-5xl">Built by a studio shipping real production software.</h2>
+            <p className="mt-5 leading-8 text-[var(--muted)]">
+              JG Creative Studio is positioned around business assets that have to work in the real world. LEADFORGE is proof that the studio can design, build, and ship systems with product logic, data workflows, and premium user experiences.
             </p>
           </div>
-
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
-            {[
-              { step: "Step 1: Contact", text: "Tell me what you need and your goal." },
-              { step: "Step 2: Quote + Plan", text: "I confirm scope, timeline, and the best option." },
-              { step: "Step 3: Pay Deposit", text: "Secure your spot and we begin." },
-              { step: "Step 4: Build + Review", text: "I build it, you review, and we polish it." },
-              { step: "Step 5: Launch + Support", text: "We publish and I’m here for updates if needed." },
-            ].map((s) => (
-              <div
-                key={s.step}
-                className={`rounded-2xl border border-slate-200 bg-slate-50 p-6 ${
-                  s.step.includes("Step 5") ? "md:col-span-2" : ""
-                }`}
-              >
-                <p className="text-sm font-semibold text-[var(--navy)]">{s.step}</p>
-                <p className="mt-2 text-slate-700">{s.text}</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {proof.map((item) => (
+              <div key={item} className="rounded-2xl border border-[rgba(212,175,55,0.18)] bg-white/[0.045] p-5 shadow-[0_18px_44px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.04)]">
+                <div className="mb-4 h-1.5 w-16 rounded-full bg-[linear-gradient(90deg,#d4af37,#f59e0b)]" />
+                <p className="font-black text-white">{item}</p>
               </div>
             ))}
           </div>
-
-          <div className="mt-8 flex justify-center">
-            <Link
-              href="/contact"
-              className="inline-flex rounded-xl bg-[var(--navy)] px-6 py-3 text-sm font-semibold text-white hover:opacity-90"
-            >
-              Start Your Project →
-            </Link>
-          </div>
         </div>
       </section>
 
-      {/* FINAL CTA */}
-      <section className="mx-auto max-w-6xl px-6 pb-20">
-        <div className="rounded-3xl bg-[var(--navy)] text-white p-10 md:p-12 text-center shadow-sm">
-          <h2 className="text-3xl md:text-4xl font-black">
-            Ready to upgrade your business?
-          </h2>
-          <p className="mt-3 text-white/80 max-w-2xl mx-auto">
-            Message me and I’ll help you pick the best service and pricing for what you’re trying to accomplish.
+      <section className="mx-auto w-full max-w-[90rem] px-6 py-14 sm:px-8 lg:px-10">
+        <div className="text-center">
+          <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--gold)]">Process</p>
+          <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-black tracking-tight text-white sm:text-5xl">A clear path from business problem to useful shipped system.</h2>
+        </div>
+        <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          {process.map((item) => (
+            <article key={item.step} className="rounded-[1.5rem] border border-[rgba(212,175,55,0.2)] bg-[rgba(14,22,62,0.62)] p-6 shadow-[0_22px_54px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.04)]">
+              <p className="text-sm font-black text-[var(--gold)]">{item.step}</p>
+              <h3 className="mt-4 text-xl font-black text-white">{item.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-[var(--muted)]">{item.text}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto w-full max-w-[90rem] px-6 pb-24 pt-12 sm:px-8 lg:px-10">
+        <div className="rounded-[2rem] border border-[rgba(212,175,55,0.28)] bg-[radial-gradient(circle_at_center,rgba(245,158,11,0.16),transparent_28rem),linear-gradient(145deg,rgba(17,27,72,0.92),rgba(6,10,30,0.98))] p-8 text-center shadow-[0_34px_90px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-12">
+          <h2 className="mx-auto max-w-4xl text-3xl font-black tracking-tight text-white sm:text-5xl">Build something your business can actually use.</h2>
+          <p className="mx-auto mt-5 max-w-2xl leading-8 text-[var(--muted)]">
+            If you need a premium website, an AI-powered workflow, or a custom tool that improves how your business runs, start with a focused project request.
           </p>
-          <div className="mt-7 flex flex-col sm:flex-row justify-center gap-4">
-            <Link
-              href="/contact"
-              className="rounded-xl bg-[var(--gold)] px-8 py-3 font-semibold text-[var(--navy)] hover:opacity-90"
-            >
-              Contact Me →
-            </Link>
-            <Link
-              href="/pricing"
-              className="rounded-xl border border-white/30 bg-transparent px-8 py-3 font-semibold hover:bg-white/10"
-            >
-              View Pricing
-            </Link>
-          </div>
+          <Link href="/contact" className="mt-8 inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-8 py-4 text-sm font-black text-[#07101f] shadow-[0_20px_44px_rgba(212,175,55,0.22),inset_0_1px_0_rgba(255,255,255,0.38)] transition hover:-translate-y-0.5">
+            Start a Project →
+          </Link>
         </div>
       </section>
     </main>
