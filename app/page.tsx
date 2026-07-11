@@ -71,7 +71,7 @@ export default function HomePage() {
               href="#leadforge"
               className="inline-flex items-center justify-center rounded-2xl border border-[rgba(212,175,55,0.3)] bg-[linear-gradient(180deg,rgba(17,27,72,0.9),rgba(7,12,31,0.96))] px-7 py-4 text-sm font-black text-white shadow-[0_18px_44px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-[rgba(245,158,11,0.55)]"
             >
-              Explore LEADFORGE
+              See What We Build
             </Link>
           </div>
         </div>
@@ -151,53 +151,45 @@ export default function HomePage() {
         <div className="relative overflow-hidden rounded-[2.2rem] border border-[rgba(212,175,55,0.32)] bg-[linear-gradient(145deg,#10183a_0%,#070c1e_52%,#050918_100%)] p-8 shadow-[0_42px_120px_rgba(0,0,0,0.54),inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-10 lg:p-14">
           <div className="pointer-events-none absolute -right-28 -top-28 h-96 w-96 rounded-full bg-[rgba(245,158,11,0.16)] blur-[110px]" />
 
-          <div className="relative grid gap-12 lg:grid-cols-[0.95fr_1.05fr] lg:items-center">
+          <div className="relative grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--gold)]">
-                Built by JG Creative Studio
+                Proof, not promises
               </p>
-              <h2 className="mt-4 text-5xl font-black tracking-[-0.06em] text-white sm:text-7xl">
-                LEADFORGE
+              <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-[-0.05em] text-white sm:text-6xl">
+                We built an entire software company from the ground up.
               </h2>
-              <p className="mt-5 text-2xl font-black text-[var(--gold)]">
-                Search Once. Discover Continuously.
-              </p>
               <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--muted)]">
-                An AI-assisted territory discovery and sales intelligence platform for agencies. LEADFORGE is proof that we do more than build websites—we create complete products, intelligent workflows, and business systems.
+                LEADFORGE is not here because your business needs a lesson on lead generation. It is here because it proves what JG Creative Studio can actually design, build, connect, and ship.
               </p>
-              <div className="mt-8 flex flex-col gap-4 sm:flex-row">
+              <div className="mt-8">
                 <Link
                   href="/contact"
                   className="inline-flex items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#e2be48,#b78b1f)] px-6 py-4 text-sm font-black text-[#07101f] shadow-[0_18px_44px_rgba(212,175,55,0.22),inset_0_1px_0_rgba(255,255,255,0.4)]"
                 >
-                  Build Something Powerful
-                </Link>
-                <Link
-                  href="/about"
-                  className="inline-flex items-center justify-center rounded-2xl border border-[rgba(212,175,55,0.28)] bg-white/[0.035] px-6 py-4 text-sm font-black text-white"
-                >
-                  About the Studio
+                  Build Something for My Business
                 </Link>
               </div>
             </div>
 
             <div className="rounded-[1.8rem] border border-white/[0.08] bg-[#070d20]/86 p-6 shadow-[0_26px_70px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-8">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                The LEADFORGE workflow
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--gold)]">
+                What that build required
               </p>
-              <div className="mt-6 space-y-3">
-                {["Discover", "Build Territory", "Unlock Leads", "Pitch", "Win"].map((step, index) => (
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                {["Premium product design", "Custom AI copilots", "Complex business logic", "Lead and data systems", "Dashboards and workflows", "Full SaaS architecture"].map((item) => (
                   <div
-                    key={step}
-                    className="flex items-center gap-4 rounded-2xl border border-[rgba(212,175,55,0.16)] bg-white/[0.035] p-4"
+                    key={item}
+                    className="rounded-2xl border border-[rgba(212,175,55,0.16)] bg-white/[0.035] p-5"
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#e2be48,#b78b1f)] text-sm font-black text-[#07101f]">
-                      {index + 1}
-                    </span>
-                    <span className="font-black text-white">{step}</span>
+                    <span className="mb-4 block h-1.5 w-10 rounded-full bg-[linear-gradient(90deg,#d4af37,#f59e0b)]" />
+                    <p className="font-black text-white">{item}</p>
                   </div>
                 ))}
               </div>
+              <p className="mt-6 border-t border-white/[0.07] pt-6 text-sm leading-7 text-[var(--muted)]">
+                That same level of thinking can be applied to a focused website, an AI assistant, an internal portal, or a custom system built around your operation.
+              </p>
             </div>
           </div>
         </div>
