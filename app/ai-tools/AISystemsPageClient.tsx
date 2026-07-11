@@ -147,10 +147,13 @@ export default function AISystemsPageClient() {
         <div className="mt-10 grid gap-5 lg:grid-cols-4">{buildPhases.map(([phase, copy], index) => <motion.article variants={fadeUp} key={phase} className="rounded-[1.35rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-6 shadow-[0_28px_80px_rgba(0,0,0,.34)]"><p className="text-sm font-black text-[var(--gold)]">0{index + 1}</p><h3 className="mt-5 text-2xl font-black tracking-[-.04em]">{phase}</h3><p className="mt-4 text-sm leading-7 text-[var(--muted)]">{copy}</p></motion.article>)}</div>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] px-5 pb-24 sm:px-8 lg:px-10">
-        <motion.div variants={fadeUp} className="relative overflow-hidden rounded-[1.7rem] border border-[rgba(212,175,55,.22)] bg-[radial-gradient(circle_at_84%_72%,rgba(245,158,11,.34),transparent_16rem),radial-gradient(circle_at_95%_28%,rgba(255,255,255,.10),transparent_9rem),linear-gradient(145deg,rgba(6,12,28,.92),rgba(2,5,14,.98))] p-8 shadow-[0_34px_110px_rgba(0,0,0,.42)] md:p-12">
-          <div className="absolute bottom-0 right-0 h-56 w-64 bg-[conic-gradient(from_210deg,transparent,rgba(245,158,11,.42),transparent_35%)] blur-xl" />
-          <div className="relative max-w-3xl"><p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Ready to modernize the workflow?</p><h2 className="mt-3 text-3xl font-black leading-tight tracking-[-.045em] sm:text-5xl">Let’s build the AI system your business actually needs.</h2><p className="mt-4 leading-7 text-[var(--muted)]">Keep the existing contact flow and tell us what your team is trying to automate, support, report on, or scale. We’ll map the right system before building.</p><div className="mt-7 flex flex-col gap-3 sm:flex-row"><GoldButton href="/contact?service=AI%20Setup&preferred=email">Request an AI Systems Quote</GoldButton><OutlineButton href="/pricing">View Pricing</OutlineButton></div></div>
+      <Section className="mx-auto max-w-[94rem] px-5 py-10 sm:px-8 lg:px-10">
+        <motion.div variants={fadeUp} className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-[rgba(212,175,55,.18)] bg-[#050b18] p-6 shadow-[0_18px_50px_rgba(0,0,0,.28)] md:flex-row md:items-center">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Ready to modernize the workflow?</p>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]"><span className="font-black text-white">Tell me what needs to improve.</span> I’ll map the right AI system before anything gets built.</p>
+          </div>
+          <div className="flex shrink-0 flex-col gap-3 sm:flex-row"><GoldButton href="/contact?service=AI%20Setup&preferred=email">Request Quote</GoldButton><OutlineButton href="/pricing">Pricing</OutlineButton></div>
         </motion.div>
       </Section>
     </div>
