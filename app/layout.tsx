@@ -153,7 +153,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-[rgba(212,175,55,0.24)] bg-[linear-gradient(145deg,rgba(17,27,72,0.9),rgba(6,10,30,0.96))] p-7 shadow-[0_24px_60px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <div className="rounded-3xl border border-[rgba(212,175,55,0.24)] bg-[#030713] p-7 shadow-[0_24px_60px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--gold)]">
                   Build something useful
                 </p>
