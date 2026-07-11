@@ -6,8 +6,6 @@ import type { Variants } from "framer-motion";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 
-const leadforgeUrl = "https://LeadForgeApp.net/";
-
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 28 },
   show: { opacity: 1, y: 0, transition: { duration: 0.72, ease: [0.16, 1, 0.3, 1] } },
@@ -162,10 +160,10 @@ export default function HomePage() {
         <HeroCollage />
       </Section>
 
-      <Section id="work" className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:px-10 lg:py-20">
+      <Section id="work" className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 text-center sm:px-8 lg:px-10 lg:py-20">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Selected Work</motion.p>
         <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">Real products. Real results.</motion.h2>
-        <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-10 grid gap-5 text-left md:grid-cols-2 xl:grid-cols-3">
           {workCards.map(([title, desc, cta, href, label]) => (
             <motion.article variants={fadeUp} whileHover={{ y: -8, rotateX: 2 }} key={title} className="rounded-[1.45rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,.36)]">
               <ProductMedia alt={`${title} placeholder`} label={label} ratio="aspect-[16/11]" />
@@ -188,19 +186,17 @@ export default function HomePage() {
         <motion.div variants={mediaIn} className="relative"><div className="absolute -inset-5 rounded-[2.5rem] bg-[radial-gradient(circle_at_50%_80%,rgba(212,175,55,.18),transparent_55%)] blur-2xl" /><AnimatePresence mode="wait"><motion.div key={current.mediaLabel} initial={{ opacity: 0, scale: .98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.01 }} transition={{ duration: .35 }}><ProductMedia alt={`${current.mediaLabel} placeholder`} label={current.mediaLabel} ratio="aspect-[16/11]" className="rounded-[1.6rem] lg:mt-16" /></motion.div></AnimatePresence></motion.div>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] px-5 py-20 sm:px-8 lg:px-10">
+      <Section className="mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Our Process</motion.p>
         <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">From idea to impact.</motion.h2>
         <motion.div variants={fadeUp} className="relative mt-12 overflow-hidden rounded-[1.7rem] border border-[rgba(212,175,55,.13)] bg-[#030815] p-7 shadow-[0_34px_110px_rgba(0,0,0,.42)] md:p-10">
           <motion.div initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1.2, ease: "easeInOut" }} className="absolute left-14 right-14 top-[6.45rem] hidden h-px origin-left bg-[linear-gradient(90deg,transparent,#d4af37,transparent)] lg:block" />
-          <div className="grid gap-7 lg:grid-cols-5">{processSteps.map(([step, copy], i) => <div key={step} className="relative flex gap-5 lg:block lg:text-center"><div className="z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[rgba(212,175,55,.58)] bg-[#08122a] font-black text-[var(--gold)] shadow-[0_0_34px_rgba(212,175,55,.25)] lg:mx-auto">0{i + 1}</div><div><h3 className="mt-0 font-black text-white lg:mt-5">{step}</h3><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{copy}</p></div></div>)}</div>
+          <div className="grid gap-7 text-left lg:grid-cols-5 lg:text-center">{processSteps.map(([step, copy], i) => <div key={step} className="relative flex gap-5 lg:block lg:text-center"><div className="z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[rgba(212,175,55,.58)] bg-[#08122a] font-black text-[var(--gold)] shadow-[0_0_34px_rgba(212,175,55,.25)] lg:mx-auto">0{i + 1}</div><div><h3 className="mt-0 font-black text-white lg:mt-5">{step}</h3><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{copy}</p></div></div>)}</div>
           <motion.div variants={fadeUp} className="relative mt-14 overflow-hidden rounded-[1.6rem] border border-[rgba(212,175,55,.22)] bg-[linear-gradient(145deg,rgba(6,12,28,.92),rgba(2,5,14,.98))] p-8 text-center md:p-12">
             <div className="relative mx-auto max-w-3xl"><p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Ready to build something great?</p><h2 className="mt-3 text-3xl font-black leading-tight tracking-[-.045em] sm:text-5xl">Ready to build something your business can actually use?</h2><p className="mt-4 leading-7 text-[var(--muted)]">Let’s build something useful, polished, and designed around the way your business works.</p><div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row"><GoldButton href="/contact">Start a Project →</GoldButton><OutlineButton href="/#work">View Our Work</OutlineButton></div></div>
           </motion.div>
         </motion.div>
       </Section>
-
-      <Section className="mx-auto max-w-[94rem] px-5 pb-20 sm:px-8 lg:px-10"><motion.div variants={fadeUp} className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-[rgba(212,175,55,.13)] bg-[#050b18] p-6 md:flex-row md:items-center"><p className="text-sm leading-6 text-[var(--muted)]"><span className="font-black text-white">Built by the team behind LEADFORGE.</span> Experience building full SaaS products, AI workflows, dashboards, and business systems.</p><a href={leadforgeUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm font-black text-[var(--gold)]">Explore LEADFORGE →</a></motion.div></Section>
     </div>
   );
 }
