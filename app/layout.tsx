@@ -62,23 +62,23 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <div className="min-h-screen overflow-x-hidden">
-          <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[rgba(6,10,30,0.9)] backdrop-blur-xl">
-            <div className="mx-auto flex min-h-20 w-full max-w-[90rem] items-center justify-between gap-6 px-5 py-4 sm:px-8 lg:px-10">
+          <header className="sticky top-0 z-50 border-b border-[rgba(212,175,55,0.16)] bg-[rgba(3,7,19,0.78)] backdrop-blur-xl">
+            <div className="mx-auto my-2 flex min-h-14 w-[calc(100%-1.5rem)] max-w-[90rem] items-center justify-between gap-5 rounded-2xl border border-[rgba(212,175,55,0.22)] bg-[rgba(5,12,27,0.88)] px-4 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.05)] sm:w-[calc(100%-3rem)] sm:px-5 lg:px-6">
               <Link href="/" className="group flex min-w-0 items-center gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[rgba(212,175,55,0.34)] bg-[linear-gradient(145deg,#111b48,#070c1e)] text-sm font-black tracking-[0.08em] text-[var(--gold)] shadow-[0_12px_30px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.06)] transition-transform duration-200 group-hover:-translate-y-0.5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[rgba(212,175,55,0.42)] bg-[linear-gradient(145deg,#101a43,#050b1d)] text-sm font-black tracking-[0.08em] text-[var(--gold)] shadow-[0_10px_26px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.06)] transition-transform duration-200 group-hover:-translate-y-0.5">
                   JG
                 </span>
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-black uppercase tracking-[0.16em] text-white sm:text-base">
+                  <span className="block truncate text-xs font-black uppercase tracking-[0.16em] text-white sm:text-sm">
                     JG Creative Studio
                   </span>
-                  <span className="hidden text-xs font-medium tracking-wide text-[var(--muted)] sm:block">
+                  <span className="hidden text-[0.68rem] font-medium tracking-wide text-[var(--muted)] sm:block">
                     Websites · AI Systems · Growth Technology
                   </span>
                 </span>
               </Link>
 
-              <nav className="hidden items-center gap-7 text-sm font-semibold text-slate-300 lg:flex">
+              <nav className="hidden items-center gap-7 text-xs font-bold text-slate-300 lg:flex">
                 {navItems.map((item) => (
                   <Link
                     key={item.href}
@@ -93,7 +93,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <div className="flex shrink-0 items-center gap-3">
                 <Link
                   href="/contact"
-                  className="hidden rounded-xl border border-[rgba(212,175,55,0.32)] bg-[rgba(14,22,62,0.72)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-[rgba(245,158,11,0.55)] sm:inline-flex"
+                  className="hidden rounded-lg border border-[rgba(212,175,55,0.42)] bg-[rgba(14,22,62,0.72)] px-4 py-2 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-[rgba(245,158,11,0.55)] sm:inline-flex"
                 >
                   Start a Project
                 </Link>
@@ -107,7 +107,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            <nav className="border-t border-white/[0.05] px-4 py-3 lg:hidden">
+            <nav className="border-t border-white/[0.05] px-4 py-2 lg:hidden">
               <div className="mx-auto flex max-w-full items-center gap-5 overflow-x-auto text-sm font-semibold text-slate-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {navItems.map((item) => (
                   <Link
