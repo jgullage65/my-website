@@ -1,37 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
-import type { Variants } from "framer-motion";
-import type { ReactNode } from "react";
-
-const inputClass = "mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
-const labelClass = "text-sm font-bold text-slate-200";
-const fadeUp: Variants = { hidden: { opacity: 0, y: 28 }, show: { opacity: 1, y: 0, transition: { duration: 0.72, ease: [0.16, 1, 0.3, 1] } } };
-const stagger: Variants = { hidden: {}, show: { transition: { staggerChildren: 0.1, delayChildren: 0.08 } } };
-
-const inputClass = "mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
-const bareInputClass = inputClass.replace("mt-1 ", "");
-const labelClass = "text-sm font-semibold text-slate-200";
-const cardClass = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
-
-const inputClass = "mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
-const bareInputClass = inputClass.replace("mt-1 ", "");
-const labelClass = "text-sm font-semibold text-slate-200";
-const cardClass = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
-
-const formInputClass = "mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
-const formBareInputClass = formInputClass.replace("mt-1 ", "");
-const formLabelClass = "text-sm font-semibold text-slate-200";
-const formCardClass = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
-
-const contactStyles = {
-  field: "mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]",
-  bareField: "w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]",
-  label: "text-sm font-semibold text-slate-200",
-  card: "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]",
-};
-
 function normalizePreferred(raw: string) {
   const v = decodeURIComponent(raw || "").trim().toLowerCase();
   if (["text", "sms"].includes(v)) return "Text";
@@ -70,7 +39,7 @@ function ServiceOptions() {
   );
 }
 
-export default function ContactClient() {
+export default function ContactPageClient() {
   const params = useSearchParams();
   const preService = normalizeService(params.get("service") || "");
   const prePreferred = normalizePreferred(params.get("preferred_contact") || params.get("preferred") || params.get("contact") || "");
