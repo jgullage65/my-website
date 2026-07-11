@@ -15,6 +15,11 @@ const bareInputClass = inputClass.replace("mt-1 ", "");
 const labelClass = "text-sm font-semibold text-slate-200";
 const cardClass = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
 
+const inputClass = "mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
+const bareInputClass = inputClass.replace("mt-1 ", "");
+const labelClass = "text-sm font-semibold text-slate-200";
+const cardClass = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
+
 function normalizePreferred(raw: string) {
   const v = decodeURIComponent(raw || "").trim().toLowerCase();
   if (["text", "sms"].includes(v)) return "Text";
