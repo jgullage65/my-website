@@ -6,7 +6,7 @@ import type { Variants } from "framer-motion";
 import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 
-const leadforgeUrl = "https://leadforge.business/";
+const leadforgeUrl = "https://LeadForgeApp.net/";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 28 },
@@ -91,15 +91,15 @@ function OutlineButton({ href, children }: { href: string; children: ReactNode }
 
 function ProductMedia({ src, alt, label, className = "", ratio = "aspect-[16/10]" }: { src?: string; alt: string; label: string; className?: string; ratio?: string }) {
   return (
-    <div className={`group relative overflow-hidden rounded-[1.15rem] border border-[rgba(212,175,55,.18)] bg-[#071126] shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_0_1px_rgba(255,255,255,.035)_inset] ${ratio} ${className}`}>
+    <div className={`group relative overflow-hidden rounded-[1.15rem] border border-[rgba(212,175,55,.18)] bg-[#030711] shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_0_1px_rgba(255,255,255,.035)_inset] ${ratio} ${className}`}>
       {src ? <img src={src} alt={alt} className="h-full w-full object-cover" /> : null}
       {!src ? (
-        <div aria-label={alt} className="absolute inset-0 bg-[radial-gradient(circle_at_72%_17%,rgba(245,158,11,.24),transparent_12rem),radial-gradient(circle_at_18%_84%,rgba(36,69,114,.42),transparent_17rem),linear-gradient(145deg,rgba(12,24,50,.98),rgba(3,7,20,.98))]">
-          <div className="absolute inset-3 rounded-[.9rem] border border-white/[.06] bg-[linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.014))]" />
+        <div aria-label={alt} className="absolute inset-0 bg-[radial-gradient(circle_at_72%_17%,rgba(245,158,11,.24),transparent_12rem),radial-gradient(circle_at_18%_84%,rgba(8,18,34,.68),transparent_17rem),linear-gradient(145deg,rgba(5,10,22,.99),rgba(2,5,14,.995))]">
+          <div className="absolute inset-3 rounded-[.9rem] border border-[rgba(212,175,55,.10)] bg-[linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.014))]" />
           <div className="absolute left-5 top-5 flex gap-1.5"><span className="h-2 w-2 rounded-full bg-[#d4af37]" /><span className="h-2 w-2 rounded-full bg-white/20" /><span className="h-2 w-2 rounded-full bg-white/14" /></div>
           <p className="absolute left-5 top-10 text-[.56rem] font-black uppercase tracking-[.22em] text-[var(--gold)]">{label}</p>
-          <div className="absolute left-[9%] right-[9%] top-[28%] h-px bg-gradient-to-r from-transparent via-white/14 to-transparent" />
-          <div className="absolute bottom-[14%] left-[12%] h-[36%] w-[76%] rounded-2xl border border-[rgba(212,175,55,.13)] bg-black/10 shadow-[0_0_70px_rgba(212,175,55,.08)]" />
+          <div className="absolute left-[9%] right-[9%] top-[28%] h-px bg-gradient-to-r from-transparent via-[rgba(212,175,55,.20)] to-transparent" />
+          <div className="absolute bottom-[14%] left-[12%] h-[36%] w-[76%] rounded-2xl border border-[rgba(212,175,55,.13)] bg-black/30 shadow-[0_0_70px_rgba(212,175,55,.08)]" />
           <div className="absolute -bottom-10 left-1/2 h-28 w-[72%] -translate-x-1/2 rounded-[50%] bg-[rgba(212,175,55,.24)] blur-2xl" />
         </div>
       ) : null}
@@ -151,7 +151,7 @@ export default function HomePage() {
   return (
     <div className="overflow-hidden bg-[#030713] text-white">
       <Section className="relative mx-auto grid max-w-[94rem] gap-8 px-5 pb-16 pt-14 sm:px-8 lg:grid-cols-[.76fr_1.24fr] lg:px-10 lg:pb-20 lg:pt-20">
-        <div className="absolute inset-x-0 top-0 h-[48rem] bg-[radial-gradient(circle_at_10%_20%,rgba(212,175,55,.14),transparent_28rem),radial-gradient(circle_at_82%_18%,rgba(28,61,104,.28),transparent_36rem)]" />
+        <div className="absolute inset-x-0 top-0 h-[48rem] bg-[radial-gradient(circle_at_10%_20%,rgba(212,175,55,.14),transparent_28rem),radial-gradient(circle_at_82%_18%,rgba(9,20,38,.34),transparent_36rem)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
         <motion.div variants={fadeUp} className="relative z-10 self-center py-6">
           <p className="text-xs font-black uppercase tracking-[.34em] text-[var(--gold)]">JG Creative Studio</p>
@@ -162,12 +162,12 @@ export default function HomePage() {
         <HeroCollage />
       </Section>
 
-      <Section id="work" className="mx-auto max-w-[94rem] border-y border-white/[.06] px-5 py-20 sm:px-8 lg:px-10 lg:py-20">
+      <Section id="work" className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:px-10 lg:py-20">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Selected Work</motion.p>
         <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">Real products. Real results.</motion.h2>
         <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {workCards.map(([title, desc, cta, href, label]) => (
-            <motion.article variants={fadeUp} whileHover={{ y: -8, rotateX: 2 }} key={title} className="rounded-[1.45rem] border border-white/10 bg-[linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.015))] p-4 shadow-[0_30px_90px_rgba(0,0,0,.36)]">
+            <motion.article variants={fadeUp} whileHover={{ y: -8, rotateX: 2 }} key={title} className="rounded-[1.45rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,.36)]">
               <ProductMedia alt={`${title} placeholder`} label={label} ratio="aspect-[16/11]" />
               <div className="p-2 pt-5"><p className="text-[.62rem] font-black uppercase tracking-[.22em] text-[var(--gold)]">{title}</p><h3 className="mt-3 text-2xl font-black tracking-[-.04em]">{title === "Premium Websites" ? "High-converting websites built to perform." : title === "AI Systems" ? "Intelligent systems that automate and scale." : "Powerful software built for your workflow."}</h3><p className="mt-3 min-h-14 text-sm leading-6 text-[var(--muted)]">{desc}</p><Link href={href} className="mt-6 inline-flex text-sm font-black text-[var(--gold)]">{cta} →</Link></div>
             </motion.article>
@@ -175,12 +175,12 @@ export default function HomePage() {
         </div>
       </Section>
 
-      <Section className="mx-auto grid max-w-[94rem] gap-10 border-b border-white/[.06] px-5 py-20 sm:px-8 lg:grid-cols-[.88fr_1.12fr] lg:px-10 lg:py-20">
+      <Section className="mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.88fr_1.12fr] lg:px-10 lg:py-20">
         <motion.div variants={fadeUp} className="self-center">
           <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">AI Systems</p>
           <h2 className="mt-4 text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl">Smarter systems.<br />Stronger businesses.</h2>
           <div role="tablist" aria-label="AI system capabilities" onKeyDown={onTabKeyDown} className="mt-8 flex flex-wrap gap-2">
-            {aiTabs.map((tab, i) => <button key={tab.id} id={`${tabRoot}-${tab.id}-tab`} role="tab" aria-selected={active === i} aria-controls={`${tabRoot}-${tab.id}-panel`} tabIndex={active === i ? 0 : -1} onClick={() => setActive(i)} className={`rounded-lg border px-4 py-2 text-xs font-black transition ${active === i ? "border-[var(--gold)] bg-[var(--gold)] text-[#06101f]" : "border-white/10 bg-white/[.03] text-white hover:border-[rgba(212,175,55,.42)]"}`}>{tab.label}</button>)}
+            {aiTabs.map((tab, i) => <button key={tab.id} id={`${tabRoot}-${tab.id}-tab`} role="tab" aria-selected={active === i} aria-controls={`${tabRoot}-${tab.id}-panel`} tabIndex={active === i ? 0 : -1} onClick={() => setActive(i)} className={`rounded-lg border px-4 py-2 text-xs font-black transition ${active === i ? "border-[var(--gold)] bg-[var(--gold)] text-[#06101f]" : "border-[rgba(212,175,55,.13)] bg-white/[.03] text-white hover:border-[rgba(212,175,55,.42)]"}`}>{tab.label}</button>)}
           </div>
           <AnimatePresence mode="wait"><motion.div key={current.id} id={`${tabRoot}-${current.id}-panel`} role="tabpanel" aria-labelledby={`${tabRoot}-${current.id}-tab`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: .3 }} className="mt-8"><h3 className="text-2xl font-black tracking-[-.035em]">{current.heading}</h3><p className="mt-4 max-w-xl leading-7 text-[var(--muted)]">{current.description}</p><ul className="mt-6 grid gap-3">{current.lines.map(line => <li key={line} className="flex gap-3 text-sm font-bold text-slate-200"><span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--gold)] shadow-[0_0_18px_rgba(212,175,55,.6)]" />{line}</li>)}</ul></motion.div></AnimatePresence>
           <div className="mt-8"><GoldButton href="/ai-tools">Explore AI Systems →</GoldButton></div>
@@ -191,10 +191,10 @@ export default function HomePage() {
       <Section className="mx-auto max-w-[94rem] px-5 py-20 sm:px-8 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Our Process</motion.p>
         <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">From idea to impact.</motion.h2>
-        <motion.div variants={fadeUp} className="relative mt-12 overflow-hidden rounded-[1.7rem] border border-white/10 bg-[#061022] p-7 shadow-[0_34px_110px_rgba(0,0,0,.42)] md:p-10">
+        <motion.div variants={fadeUp} className="relative mt-12 overflow-hidden rounded-[1.7rem] border border-[rgba(212,175,55,.13)] bg-[#030815] p-7 shadow-[0_34px_110px_rgba(0,0,0,.42)] md:p-10">
           <motion.div initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1.2, ease: "easeInOut" }} className="absolute left-14 right-14 top-[6.45rem] hidden h-px origin-left bg-[linear-gradient(90deg,transparent,#d4af37,transparent)] lg:block" />
           <div className="grid gap-7 lg:grid-cols-5">{processSteps.map(([step, copy], i) => <div key={step} className="relative flex gap-5 lg:block lg:text-center"><div className="z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[rgba(212,175,55,.58)] bg-[#08122a] font-black text-[var(--gold)] shadow-[0_0_34px_rgba(212,175,55,.25)] lg:mx-auto">0{i + 1}</div><div><h3 className="mt-0 font-black text-white lg:mt-5">{step}</h3><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{copy}</p></div></div>)}</div>
-          <motion.div variants={fadeUp} className="relative mt-14 overflow-hidden rounded-[1.6rem] border border-[rgba(212,175,55,.22)] bg-[radial-gradient(circle_at_84%_72%,rgba(245,158,11,.34),transparent_16rem),radial-gradient(circle_at_95%_28%,rgba(255,255,255,.10),transparent_9rem),linear-gradient(145deg,rgba(17,27,72,.86),rgba(4,8,23,.96))] p-8 md:p-12">
+          <motion.div variants={fadeUp} className="relative mt-14 overflow-hidden rounded-[1.6rem] border border-[rgba(212,175,55,.22)] bg-[radial-gradient(circle_at_84%_72%,rgba(245,158,11,.34),transparent_16rem),radial-gradient(circle_at_95%_28%,rgba(255,255,255,.10),transparent_9rem),linear-gradient(145deg,rgba(6,12,28,.92),rgba(2,5,14,.98))] p-8 md:p-12">
             <div className="absolute bottom-0 right-0 h-56 w-64 bg-[conic-gradient(from_210deg,transparent,rgba(245,158,11,.42),transparent_35%)] blur-xl" />
             <div className="absolute bottom-10 right-12 h-2 w-52 rotate-[-10deg] rounded-full bg-[rgba(245,158,11,.72)] blur-md" />
             <div className="relative max-w-2xl"><p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Ready to build something great?</p><h2 className="mt-3 text-3xl font-black leading-tight tracking-[-.045em] sm:text-5xl">Ready to build something your business can actually use?</h2><p className="mt-4 leading-7 text-[var(--muted)]">Let’s build something useful, polished, and designed around the way your business works.</p><div className="mt-7 flex flex-col gap-3 sm:flex-row"><GoldButton href="/contact">Start a Project →</GoldButton><OutlineButton href="/#work">View Our Work</OutlineButton></div></div>
@@ -202,7 +202,7 @@ export default function HomePage() {
         </motion.div>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] px-5 pb-20 sm:px-8 lg:px-10"><motion.div variants={fadeUp} className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-white/10 bg-white/[.035] p-6 md:flex-row md:items-center"><p className="text-sm leading-6 text-[var(--muted)]"><span className="font-black text-white">Built by the team behind LEADFORGE.</span> Experience building full SaaS products, AI workflows, dashboards, and business systems.</p><a href={leadforgeUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm font-black text-[var(--gold)]">Explore LEADFORGE →</a></motion.div></Section>
+      <Section className="mx-auto max-w-[94rem] px-5 pb-20 sm:px-8 lg:px-10"><motion.div variants={fadeUp} className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-[rgba(212,175,55,.13)] bg-[#050b18] p-6 md:flex-row md:items-center"><p className="text-sm leading-6 text-[var(--muted)]"><span className="font-black text-white">Built by the team behind LEADFORGE.</span> Experience building full SaaS products, AI workflows, dashboards, and business systems.</p><a href={leadforgeUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-sm font-black text-[var(--gold)]">Explore LEADFORGE →</a></motion.div></Section>
     </div>
   );
 }
