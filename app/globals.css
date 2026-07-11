@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  --navy: #071a2f;
   --navy-0: #060a1e;
   --navy-1: #090e28;
   --navy-2: #0e163e;
@@ -25,3 +26,23 @@ html {
 
 body {
   margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(212, 175, 55, 0.16), transparent 32rem),
+    radial-gradient(circle at bottom right, rgba(14, 22, 62, 0.82), transparent 34rem),
+    linear-gradient(180deg, var(--navy-0) 0%, var(--navy-1) 45%, var(--navy-0) 100%);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
