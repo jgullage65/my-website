@@ -70,7 +70,7 @@ function ServiceOptions() {
   );
 }
 
-export default function ContactClient() {
+export default function ContactPageClient() {
   const params = useSearchParams();
   const preService = normalizeService(params.get("service") || "");
   const prePreferred = normalizePreferred(params.get("preferred_contact") || params.get("preferred") || params.get("contact") || "");
