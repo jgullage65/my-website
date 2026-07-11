@@ -20,6 +20,11 @@ const bareInputClass = inputClass.replace("mt-1 ", "");
 const labelClass = "text-sm font-semibold text-slate-200";
 const cardClass = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
 
+const formInputClass = "mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
+const formBareInputClass = formInputClass.replace("mt-1 ", "");
+const formLabelClass = "text-sm font-semibold text-slate-200";
+const formCardClass = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
+
 function normalizePreferred(raw: string) {
   const v = decodeURIComponent(raw || "").trim().toLowerCase();
   if (["text", "sms"].includes(v)) return "Text";
@@ -77,7 +82,7 @@ export default function ContactClient() {
           </p>
         </header>
 
-        <section className={cardClass}>
+        <section className={formCardClass}>
           <div className="text-center">
             <p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Project Request</p>
             <h2 className="mt-3 text-3xl font-black tracking-[-.04em]">Tell me what you need.</h2>
@@ -91,25 +96,25 @@ export default function ContactClient() {
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className={labelClass}>Your Name</label>
-                <input type="text" name="name" required placeholder="John Smith" className={inputClass} />
+                <label className={formLabelClass}>Your Name</label>
+                <input type="text" name="name" required placeholder="John Smith" className={formInputClass} />
               </div>
 
               <div>
-                <label className={labelClass}>Email</label>
-                <input type="email" name="email" defaultValue={preEmail} required placeholder="you@email.com" className={inputClass} />
+                <label className={formLabelClass}>Email</label>
+                <input type="email" name="email" defaultValue={preEmail} required placeholder="you@email.com" className={formInputClass} />
               </div>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className={labelClass}>Phone (optional)</label>
-                <input type="tel" name="phone" defaultValue={prePhone} placeholder="(555) 123-4567" className={inputClass} />
+                <label className={formLabelClass}>Phone (optional)</label>
+                <input type="tel" name="phone" defaultValue={prePhone} placeholder="(555) 123-4567" className={formInputClass} />
               </div>
 
               <div>
-                <label className={labelClass}>Best way to follow up?</label>
-                <select name="preferred_contact" className={inputClass} defaultValue={prePreferred}>
+                <label className={formLabelClass}>Best way to follow up?</label>
+                <select name="preferred_contact" className={formInputClass} defaultValue={prePreferred}>
                   <option value="Email">Email</option>
                   <option value="Text">Text</option>
                   <option value="Call">Call</option>
@@ -119,39 +124,39 @@ export default function ContactClient() {
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className={labelClass}>Business Name (optional)</label>
-                <input type="text" name="business" placeholder="Your business" className={inputClass} />
+                <label className={formLabelClass}>Business Name (optional)</label>
+                <input type="text" name="business" placeholder="Your business" className={formInputClass} />
               </div>
 
               <div>
-                <label className={labelClass}>What type of business do you run? (optional)</label>
-                <input type="text" name="business_type" defaultValue={preBusinessType} placeholder="Example: Cleaning service, coffee shop, barber" className={inputClass} />
+                <label className={formLabelClass}>What type of business do you run? (optional)</label>
+                <input type="text" name="business_type" defaultValue={preBusinessType} placeholder="Example: Cleaning service, coffee shop, barber" className={formInputClass} />
               </div>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className={labelClass}>What do you need?</label>
-                <select name="service" required className={inputClass} defaultValue={preService}>
+                <label className={formLabelClass}>What do you need?</label>
+                <select name="service" required className={formInputClass} defaultValue={preService}>
                   <ServiceOptions />
                 </select>
               </div>
 
               <div>
-                <label className={labelClass}>Deadline (optional)</label>
-                <input type="text" name="deadline" placeholder="Example: Next Friday" className={inputClass} />
+                <label className={formLabelClass}>Deadline (optional)</label>
+                <input type="text" name="deadline" placeholder="Example: Next Friday" className={formInputClass} />
               </div>
             </div>
 
             <div>
-              <label className={labelClass}>Goal / What should this help you do?</label>
-              <textarea name="goal" required rows={4} placeholder="Example: I want more customers calling or booking online." className={inputClass} />
+              <label className={formLabelClass}>Goal / What should this help you do?</label>
+              <textarea name="goal" required rows={4} placeholder="Example: I want more customers calling or booking online." className={formInputClass} />
             </div>
 
             <div className="grid gap-5 md:grid-cols-2">
               <div>
-                <label className={labelClass}>Do you have a logo/photos?</label>
-                <select name="assets" className={inputClass} defaultValue="Not yet">
+                <label className={formLabelClass}>Do you have a logo/photos?</label>
+                <select name="assets" className={formInputClass} defaultValue="Not yet">
                   <option value="Yes">Yes</option>
                   <option value="No">No</option>
                   <option value="Not yet">Not yet</option>
@@ -159,8 +164,8 @@ export default function ContactClient() {
               </div>
 
               <div>
-                <label className={labelClass}>Extra details (optional)</label>
-                <textarea name="notes" rows={3} placeholder="Anything else I should know?" className={inputClass} />
+                <label className={formLabelClass}>Extra details (optional)</label>
+                <textarea name="notes" rows={3} placeholder="Anything else I should know?" className={formInputClass} />
               </div>
             </div>
 
@@ -184,7 +189,7 @@ export default function ContactClient() {
         </section>
 
         <div className="grid gap-8 md:grid-cols-2">
-          <div className={`${cardClass} space-y-4`}>
+          <div className={`${formCardClass} space-y-4`}>
             <h2 className="text-2xl font-black tracking-[-.035em]">Email Me Directly</h2>
             <p className="text-[var(--muted)]">The fastest way to reach me is by email:</p>
             <p className="text-lg font-semibold text-[var(--gold)]">
@@ -197,23 +202,23 @@ export default function ContactClient() {
             </p>
           </div>
 
-          <div className={`${cardClass} space-y-4`}>
+          <div className={`${formCardClass} space-y-4`}>
             <h2 className="text-2xl font-black tracking-[-.035em]">Quick Message</h2>
 
             <form action="https://formspree.io/f/mlgldrnk" method="POST" className="space-y-4">
               <input type="hidden" name="form_type" value="Quick Message" />
-              <input type="text" name="name" placeholder="Your Name" required className={bareInputClass} />
-              <input type="email" name="email" placeholder="Your Email" required className={bareInputClass} />
-              <input type="tel" name="phone" defaultValue={prePhone} placeholder="Phone (optional)" className={bareInputClass} />
-              <select name="preferred_contact" className={bareInputClass} defaultValue={prePreferred}>
+              <input type="text" name="name" placeholder="Your Name" required className={formBareInputClass} />
+              <input type="email" name="email" placeholder="Your Email" required className={formBareInputClass} />
+              <input type="tel" name="phone" defaultValue={prePhone} placeholder="Phone (optional)" className={formBareInputClass} />
+              <select name="preferred_contact" className={formBareInputClass} defaultValue={prePreferred}>
                 <option value="Email">Email</option>
                 <option value="Text">Text</option>
                 <option value="Call">Call</option>
               </select>
-              <select name="service" className={bareInputClass} defaultValue={preService}>
+              <select name="service" className={formBareInputClass} defaultValue={preService}>
                 <ServiceOptions />
               </select>
-              <textarea name="message" placeholder="Tell me what you need help with..." required rows={5} className={bareInputClass} />
+              <textarea name="message" placeholder="Tell me what you need help with..." required rows={5} className={formBareInputClass} />
               <button type="submit" className="w-full rounded-xl bg-[var(--gold)] py-3 font-black text-[#06101f] transition hover:-translate-y-0.5">
                 Send Message
               </button>
