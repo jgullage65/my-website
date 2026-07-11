@@ -48,10 +48,11 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/services", label: "Websites" },
+  { href: "/#work", label: "Work" },
   { href: "/ai-tools", label: "AI Systems" },
-  { href: "/examples", label: "Portfolio" },
+  { href: "/services", label: "Services" },
   { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -94,7 +95,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   href="/contact"
                   className="hidden rounded-xl border border-[rgba(212,175,55,0.32)] bg-[rgba(14,22,62,0.72)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-[rgba(245,158,11,0.55)] sm:inline-flex"
                 >
-                  Start a project
+                  Start a Project
                 </Link>
                 <Link
                   href="/contact"
