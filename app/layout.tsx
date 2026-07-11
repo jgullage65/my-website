@@ -50,7 +50,7 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/services", label: "Websites" },
   { href: "/ai-tools", label: "AI Systems" },
-  { href: "/examples", label: "Work" },
+  { href: "/examples", label: "Portfolio" },
   { href: "/about", label: "About" },
 ];
 
@@ -146,7 +146,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <div className="mt-5 grid gap-3 text-sm font-semibold text-slate-300">
                   <Link href="/services" className="hover:text-white">Websites</Link>
                   <Link href="/ai-tools" className="hover:text-white">AI Systems</Link>
-                  <Link href="/examples" className="hover:text-white">Selected Work</Link>
+                  <Link href="/examples" className="hover:text-white">Portfolio</Link>
                   <Link href="/about" className="hover:text-white">About</Link>
                   <Link href="/contact" className="hover:text-white">Contact</Link>
                 </div>
