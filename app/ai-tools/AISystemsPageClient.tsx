@@ -121,10 +121,10 @@ export default function AISystemsPageClient() {
         </motion.div>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:px-10 lg:py-20">
+      <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 text-center sm:px-8 lg:px-10 lg:py-20">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">What we build</motion.p>
-        <motion.h2 variants={fadeUp} className="mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">A full AI systems partner, not a chatbot shop.</motion.h2>
-        <motion.div variants={fadeUp} className="mt-10 flex flex-wrap gap-3">
+        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">A full AI systems partner, not a chatbot shop.</motion.h2>
+        <motion.div variants={fadeUp} className="mt-10 flex flex-wrap justify-center gap-3">
           {capabilities.map((item) => <span key={item} className="rounded-full border border-[rgba(212,175,55,.18)] bg-white/[.035] px-4 py-2 text-sm font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,.04)]">{item}</span>)}
         </motion.div>
       </Section>
@@ -141,19 +141,19 @@ export default function AISystemsPageClient() {
         <motion.div variants={mediaIn}><AnimatePresence mode="wait"><motion.div key={current.media} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.01 }} transition={{ duration: 0.35 }}><MediaPlaceholder label={current.media} ratio="aspect-[16/11]" /></motion.div></AnimatePresence></motion.div>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] px-5 py-20 sm:px-8 lg:px-10">
+      <Section className="mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Delivery process</motion.p>
-        <motion.h2 variants={fadeUp} className="mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">Built cleanly enough to run inside the business.</motion.h2>
+        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">Built cleanly enough to run inside the business.</motion.h2>
         <div className="mt-10 grid gap-5 lg:grid-cols-4">{buildPhases.map(([phase, copy], index) => <motion.article variants={fadeUp} key={phase} className="rounded-[1.35rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-6 shadow-[0_28px_80px_rgba(0,0,0,.34)]"><p className="text-sm font-black text-[var(--gold)]">0{index + 1}</p><h3 className="mt-5 text-2xl font-black tracking-[-.04em]">{phase}</h3><p className="mt-4 text-sm leading-7 text-[var(--muted)]">{copy}</p></motion.article>)}</div>
       </Section>
 
       <Section className="mx-auto max-w-[94rem] px-5 py-10 sm:px-8 lg:px-10">
-        <motion.div variants={fadeUp} className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-[rgba(212,175,55,.18)] bg-[#050b18] p-6 shadow-[0_18px_50px_rgba(0,0,0,.28)] md:flex-row md:items-center">
+        <motion.div variants={fadeUp} className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-5 rounded-2xl border border-[rgba(212,175,55,.18)] bg-[#050b18] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:p-6">
           <div>
             <p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Ready to modernize the workflow?</p>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]"><span className="font-black text-white">Tell me what needs to improve.</span> I’ll map the right AI system before anything gets built.</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]"><span className="font-black text-white">Tell me what needs to improve.</span> I’ll map the right AI system before anything gets built.</p>
           </div>
-          <div className="flex shrink-0 flex-col gap-3 sm:flex-row"><GoldButton href="/contact?service=AI%20Setup&preferred=email">Request Quote</GoldButton><OutlineButton href="/pricing">Pricing</OutlineButton></div>
+          <div className="flex shrink-0 flex-col justify-center gap-3 sm:flex-row"><GoldButton href="/contact?service=AI%20Setup&preferred=email">Request Quote</GoldButton><OutlineButton href="/pricing">Pricing</OutlineButton></div>
         </motion.div>
       </Section>
     </div>
