@@ -61,10 +61,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <div className="site-background" aria-hidden="true">
-          <div className="site-background__glow site-background__glow--gold" />
-          <div className="site-background__glow site-background__glow--blue" />
-          <div className="site-background__glow site-background__glow--navy" />
+          <div className="site-background__aurora" />
+          <div className="site-background__beam site-background__beam--one" />
+          <div className="site-background__beam site-background__beam--two" />
+          <div className="site-background__beam site-background__beam--three" />
           <div className="site-background__grid" />
+          <div className="site-background__grain" />
         </div>
 
         <div className="relative z-10 min-h-screen overflow-x-hidden">
