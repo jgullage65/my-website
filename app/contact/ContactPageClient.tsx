@@ -131,18 +131,9 @@ export default function ContactPageClient() {
               <textarea name="goal" required rows={4} placeholder="Example: I want more customers calling or booking online." className={field} />
             </div>
 
-            <div>
-              <label className={label}>Do you have a logo/photos?</label>
-              <select name="assets" className={field} defaultValue="Not yet">
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-                <option value="Not yet">Not yet</option>
-              </select>
-            </div>
-
-            <div className="rounded-2xl border border-[rgba(212,175,55,.12)] bg-white/[.035] p-5 text-sm text-slate-300">
+            <div className="mx-auto max-w-md rounded-2xl border border-[rgba(212,175,55,.12)] bg-white/[.035] p-4 text-center text-sm text-slate-300">
               <p className="font-semibold text-white">What happens next?</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5">
+              <ul className="mt-2 space-y-1">
                 <li>I’ll reply with a clear quote and timeline.</li>
                 <li>If you’re ready, we’ll confirm details and start.</li>
                 <li>You’ll get updates as your project is built.</li>
