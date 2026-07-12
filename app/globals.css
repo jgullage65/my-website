@@ -48,8 +48,7 @@ body {
 
 .site-background__depth,
 .site-background__grid,
-.site-background__flow,
-.site-background__wave,
+.site-background__contours,
 .site-background__lines,
 .site-background__particles,
 .site-background__readability,
@@ -58,7 +57,6 @@ body {
   inset: 0;
   pointer-events: none;
 }
-
 
 .site-page-shell > [class~="bg-[#030713]"] {
   background-color: transparent;
@@ -69,12 +67,12 @@ body {
 }
 
 .site-background__depth {
-  opacity: 0.8;
+  opacity: 0.82;
   background:
-    radial-gradient(58rem 28rem at 18% 26%, rgba(212, 175, 55, 0.11), transparent 72%),
-    radial-gradient(48rem 26rem at 78% 66%, rgba(37, 99, 235, 0.12), transparent 74%),
-    linear-gradient(120deg, transparent 0 18%, rgba(212, 175, 55, 0.045) 26%, transparent 36% 100%);
-  animation: site-depth-drift 7s ease-in-out infinite alternate;
+    radial-gradient(58rem 28rem at 18% 26%, rgba(212, 175, 55, 0.13), transparent 72%),
+    radial-gradient(48rem 26rem at 78% 66%, rgba(37, 99, 235, 0.14), transparent 74%),
+    radial-gradient(32rem 22rem at 54% 42%, rgba(212, 175, 55, 0.06), transparent 78%);
+  animation: site-depth-drift 14s ease-in-out infinite alternate;
 }
 
 .site-background__grid {
@@ -83,80 +81,33 @@ body {
   bottom: -30vh;
   height: 92vh;
   top: auto;
-  opacity: 0.34;
+  opacity: 0.26;
   transform: perspective(720px) rotateX(64deg) translateY(5vh);
   transform-origin: bottom center;
   background-image:
-    linear-gradient(rgba(212, 175, 55, 0.18) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(96, 165, 250, 0.14) 1px, transparent 1px),
-    linear-gradient(90deg, transparent 0 49%, rgba(212, 175, 55, 0.22) 50%, transparent 51% 100%);
+    linear-gradient(rgba(212, 175, 55, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(96, 165, 250, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, transparent 0 49%, rgba(212, 175, 55, 0.18) 50%, transparent 51% 100%);
   background-size: 78px 78px, 78px 78px, 390px 390px;
   mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.82), transparent 78%);
-  animation: site-grid-flow 2.8s linear infinite;
+  animation: site-grid-flow 7s linear infinite;
 }
 
-.site-background__flow {
-  opacity: 0.26;
-  background:
-    repeating-linear-gradient(112deg, transparent 0 96px, rgba(212, 175, 55, 0.1) 120px, transparent 168px),
-    repeating-linear-gradient(68deg, transparent 0 132px, rgba(96, 165, 250, 0.08) 158px, transparent 220px);
-  background-size: 160% 160%, 150% 150%;
-  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 72%);
-  animation: site-flow-scan 5s linear infinite;
-}
-
-.site-background__wave {
-  left: 50%;
-  width: 170vw;
-  height: 4.6rem;
-  border-radius: 999rem;
-  opacity: 0.72;
-  mix-blend-mode: screen;
-  filter: drop-shadow(0 0 18px rgba(212, 175, 55, 0.22));
-  background-repeat: repeat-x;
-  background-size: 42rem 100%;
-  will-change: transform, background-position;
-}
-
-.site-background__wave::after {
-  content: "";
-  position: absolute;
-  inset: 45% 0;
-  border-radius: inherit;
-  background: rgba(255, 241, 184, 0.72);
-  filter: blur(3px);
-  opacity: 0.62;
-}
-
-.site-background__wave--gold-primary {
-  top: 38%;
-  background-image: linear-gradient(90deg, transparent 0%, rgba(212, 175, 55, 0.05) 18%, rgba(245, 158, 11, 0.64) 36%, rgba(255, 232, 154, 0.84) 48%, rgba(212, 175, 55, 0.2) 62%, transparent 82%);
-  transform: translate3d(-50%, 0, 0) rotate(-9deg);
-  animation: site-wave-gold-primary 4.2s linear infinite;
-}
-
-.site-background__wave--gold-secondary {
-  top: 66%;
-  height: 3.4rem;
-  opacity: 0.52;
-  background-image: linear-gradient(90deg, transparent 0%, rgba(212, 175, 55, 0.08) 22%, rgba(255, 218, 122, 0.56) 46%, rgba(212, 175, 55, 0.16) 58%, transparent 78%);
-  transform: translate3d(-50%, 0, 0) rotate(7deg);
-  animation: site-wave-gold-secondary 3.6s linear infinite;
-}
-
-.site-background__wave--blue {
-  top: 22%;
-  height: 3.2rem;
-  opacity: 0.46;
-  background-image: linear-gradient(90deg, transparent 0%, rgba(37, 99, 235, 0.04) 20%, rgba(96, 165, 250, 0.42) 43%, rgba(147, 197, 253, 0.34) 54%, transparent 78%);
-  transform: translate3d(-50%, 0, 0) rotate(-4deg);
-  animation: site-wave-blue 4.8s linear infinite reverse;
+.site-background__contours {
+  inset: -14%;
+  opacity: 0.28;
+  background-image:
+    repeating-radial-gradient(ellipse at 22% 38%, transparent 0 38px, rgba(212, 175, 55, 0.14) 40px, transparent 42px 68px),
+    repeating-radial-gradient(ellipse at 78% 58%, transparent 0 46px, rgba(96, 165, 250, 0.1) 48px, transparent 50px 82px);
+  background-size: 118% 118%, 124% 124%;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 78%);
+  animation: site-contour-drift 11s ease-in-out infinite alternate;
 }
 
 .site-background__lines {
   width: 100%;
   height: 100%;
-  opacity: 0.78;
+  opacity: 0.56;
   mix-blend-mode: screen;
 }
 
@@ -166,66 +117,51 @@ body {
   stroke-dasharray: 22 34 140 820;
   stroke-width: 1.6;
   vector-effect: non-scaling-stroke;
-  animation: site-line-chase 2.4s linear infinite;
+  animation: site-line-chase 7s linear infinite;
 }
 
 .site-background__line--gold {
-  stroke: rgba(255, 225, 137, 0.72);
-  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.36));
+  stroke: rgba(255, 225, 137, 0.66);
+  filter: drop-shadow(0 0 9px rgba(212, 175, 55, 0.3));
 }
 
 .site-background__line--blue {
-  stroke: rgba(96, 165, 250, 0.52);
+  stroke: rgba(96, 165, 250, 0.46);
   stroke-dasharray: 18 46 120 760;
-  animation-duration: 3s;
+  animation-duration: 8.5s;
   animation-direction: reverse;
 }
 
 .site-background__line--thin {
   stroke-width: 1;
-  opacity: 0.62;
-  animation-duration: 2.1s;
+  opacity: 0.54;
+  animation-duration: 9s;
 }
 
 .site-background__particles {
-  opacity: 0.56;
+  opacity: 0.48;
   background-image:
-    radial-gradient(circle, rgba(255, 232, 154, 0.95) 0 1px, transparent 1.9px),
-    radial-gradient(circle, rgba(96, 165, 250, 0.58) 0 1px, transparent 2px),
-    radial-gradient(circle, rgba(212, 175, 55, 0.5) 0 1px, transparent 2px);
-  background-size: 150px 150px, 230px 230px, 310px 310px;
+    radial-gradient(circle, rgba(255, 232, 154, 0.9) 0 1px, transparent 1.9px),
+    radial-gradient(circle, rgba(96, 165, 250, 0.52) 0 1px, transparent 2px),
+    radial-gradient(circle, rgba(212, 175, 55, 0.46) 0 1px, transparent 2px);
+  background-size: 170px 170px, 250px 250px, 330px 330px;
   background-position: 0 0, 70px 38px, 140px 118px;
   mask-image: radial-gradient(circle at 50% 46%, rgba(0, 0, 0, 0.82), transparent 78%);
-  animation: site-particles-drift 4.2s linear infinite;
+  animation: site-particles-drift 10s linear infinite;
 }
 
 .site-background__readability {
   z-index: 2;
   background:
-    radial-gradient(circle at 50% 40%, transparent 0 22%, rgba(3, 7, 19, 0.18) 58%, rgba(3, 7, 19, 0.66) 100%),
+    radial-gradient(circle at 50% 40%, transparent 0 22%, rgba(3, 7, 19, 0.2) 58%, rgba(3, 7, 19, 0.68) 100%),
     linear-gradient(180deg, rgba(3, 7, 19, 0.22), rgba(3, 7, 19, 0.72));
 }
 
 .site-background__grain {
   z-index: 3;
-  opacity: 0.05;
+  opacity: 0.045;
   background-image: repeating-radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.8) 0 0.65px, transparent 0.75px 3px);
   background-size: 5px 5px;
-}
-
-@keyframes site-wave-gold-primary {
-  from { transform: translate3d(-60%, -0.6rem, 0) rotate(-9deg); background-position: 0 0; }
-  to { transform: translate3d(-40%, 0.6rem, 0) rotate(-9deg); background-position: 42rem 0; }
-}
-
-@keyframes site-wave-gold-secondary {
-  from { transform: translate3d(-42%, 0.5rem, 0) rotate(7deg); background-position: 0 0; }
-  to { transform: translate3d(-58%, -0.5rem, 0) rotate(7deg); background-position: -42rem 0; }
-}
-
-@keyframes site-wave-blue {
-  from { transform: translate3d(-57%, 0.4rem, 0) rotate(-4deg); background-position: 0 0; }
-  to { transform: translate3d(-43%, -0.4rem, 0) rotate(-4deg); background-position: 42rem 0; }
 }
 
 @keyframes site-line-chase {
@@ -238,14 +174,26 @@ body {
   to { background-position: 0 78px, 78px 0, 390px 390px; }
 }
 
-@keyframes site-flow-scan {
-  from { background-position: 0 0, 0 0; }
-  to { background-position: 340px -220px, -280px 180px; }
+@keyframes site-contour-drift {
+  from {
+    transform: translate3d(-1.5%, -1%, 0) scale(1);
+    background-position: 0 0, 0 0;
+  }
+  to {
+    transform: translate3d(1.5%, 1.5%, 0) scale(1.035);
+    background-position: 48px -36px, -42px 54px;
+  }
 }
 
 @keyframes site-particles-drift {
-  from { transform: translate3d(0, 0, 0); background-position: 0 0, 70px 38px, 140px 118px; }
-  to { transform: translate3d(0, -24px, 0); background-position: 92px -120px, -58px -170px, 230px -232px; }
+  from {
+    transform: translate3d(0, 0, 0);
+    background-position: 0 0, 70px 38px, 140px 118px;
+  }
+  to {
+    transform: translate3d(0, -18px, 0);
+    background-position: 74px -88px, -44px -126px, 204px -170px;
+  }
 }
 
 @keyframes site-depth-drift {
@@ -256,50 +204,32 @@ body {
 @media (max-width: 640px) {
   .site-background__grid {
     height: 74vh;
-    opacity: 0.24;
+    opacity: 0.2;
     background-size: 60px 60px, 60px 60px, 300px 300px;
   }
 
-  .site-background__wave {
-    width: 210vw;
-    filter: drop-shadow(0 0 14px rgba(212, 175, 55, 0.2));
-  }
-
-  .site-background__wave--gold-primary {
-    top: 34%;
-    height: 2.8rem;
-  }
-
-  .site-background__wave--gold-secondary {
-    top: 68%;
-    height: 3rem;
-  }
-
-  .site-background__wave--blue {
-    top: 20%;
-    height: 2.8rem;
+  .site-background__contours {
+    opacity: 0.22;
   }
 
   .site-background__particles {
-    opacity: 0.44;
-    background-size: 130px 130px, 190px 190px, 260px 260px;
+    opacity: 0.38;
+    background-size: 140px 140px, 210px 210px, 280px 280px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .site-background__depth,
   .site-background__grid,
-  .site-background__flow,
-  .site-background__wave,
+  .site-background__contours,
   .site-background__line,
   .site-background__particles {
     animation: none;
   }
 
-  .site-background__wave--gold-primary { transform: translate3d(-50%, 0, 0) rotate(-9deg); }
-  .site-background__wave--gold-secondary { transform: translate3d(-50%, 0, 0) rotate(7deg); }
-  .site-background__wave--blue { transform: translate3d(-50%, 0, 0) rotate(-4deg); }
-  .site-background__line { stroke-dashoffset: -360; }
+  .site-background__line {
+    stroke-dashoffset: -360;
+  }
 }
 
 a {
