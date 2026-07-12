@@ -61,11 +61,24 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <div className="site-background" aria-hidden="true">
-          <div className="site-background__aurora" />
-          <div className="site-background__beam site-background__beam--one" />
-          <div className="site-background__beam site-background__beam--two" />
-          <div className="site-background__beam site-background__beam--three" />
+          <div className="site-background__depth" />
           <div className="site-background__grid" />
+          <div className="site-background__flow" />
+          <div className="site-background__wave site-background__wave--gold-primary" />
+          <div className="site-background__wave site-background__wave--gold-secondary" />
+          <div className="site-background__wave site-background__wave--blue" />
+          <svg
+            className="site-background__lines"
+            viewBox="0 0 1440 900"
+            preserveAspectRatio="none"
+            focusable="false"
+          >
+            <path className="site-background__line site-background__line--gold" d="M -120 610 C 185 440 360 720 650 545 S 1040 330 1560 470" />
+            <path className="site-background__line site-background__line--blue" d="M -120 305 C 185 185 405 410 675 315 S 1010 180 1560 250" />
+            <path className="site-background__line site-background__line--gold site-background__line--thin" d="M -140 745 C 215 620 450 710 735 650 S 1100 555 1580 630" />
+          </svg>
+          <div className="site-background__particles" />
+          <div className="site-background__readability" />
           <div className="site-background__grain" />
         </div>
 
