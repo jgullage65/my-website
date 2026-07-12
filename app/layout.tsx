@@ -60,7 +60,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <div className="min-h-screen overflow-x-hidden">
+        <div className="site-background" aria-hidden="true">
+          <div className="site-background__glow site-background__glow--gold" />
+          <div className="site-background__glow site-background__glow--blue" />
+          <div className="site-background__glow site-background__glow--navy" />
+          <div className="site-background__grid" />
+        </div>
+
+        <div className="relative z-10 min-h-screen overflow-x-hidden">
           <header className="sticky top-0 z-50 border-b border-[rgba(212,175,55,0.16)] bg-[rgba(3,7,19,0.78)] backdrop-blur-xl">
             <div className="mx-auto my-2 flex min-h-14 w-[calc(100%-1.5rem)] max-w-[90rem] items-center justify-between gap-5 rounded-2xl border border-[rgba(212,175,55,0.22)] bg-[rgba(5,12,27,0.88)] px-4 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.05)] sm:w-[calc(100%-3rem)] sm:px-5 lg:px-6">
               <Link href="/" className="group flex min-w-0 items-center gap-3">
@@ -121,7 +128,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </nav>
           </header>
 
-          <main className="min-h-[70vh]">{children}</main>
+          <main className="site-page-shell min-h-[70vh]">{children}</main>
 
           <footer className="mt-24 border-t border-[var(--border)] bg-[rgba(4,8,24,0.82)]">
             <div className="mx-auto grid w-full max-w-[90rem] gap-10 px-6 py-14 sm:px-8 md:grid-cols-[1.35fr_0.8fr_1fr] lg:px-10">
