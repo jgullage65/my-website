@@ -65,15 +65,34 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <div className="site-background__grid" />
           <div className="site-background__contours" />
           <svg
-            className="site-background__lines"
+            className="site-background__field"
             viewBox="0 0 1440 900"
             preserveAspectRatio="none"
             focusable="false"
           >
-            <path className="site-background__line site-background__line--gold" d="M -120 610 C 185 440 360 720 650 545 S 1040 330 1560 470" />
-            <path className="site-background__line site-background__line--blue" d="M -120 305 C 185 185 405 410 675 315 S 1010 180 1560 250" />
-            <path className="site-background__line site-background__line--gold site-background__line--thin" d="M -140 745 C 215 620 450 710 735 650 S 1100 555 1580 630" />
+            <g className="site-background__field-band site-background__field-band--gold">
+              <path d="M-180 90 C90 10 250 175 470 95 S820 5 1080 105 S1370 175 1620 65" />
+              <path d="M-180 150 C80 70 255 235 485 155 S825 70 1095 165 S1370 235 1620 125" />
+              <path d="M-180 215 C75 130 260 300 500 220 S830 135 1110 230 S1380 300 1620 190" />
+              <path d="M-180 285 C70 195 270 365 520 285 S845 200 1130 295 S1390 365 1620 255" />
+              <path d="M-180 360 C65 270 280 440 540 360 S860 275 1150 370 S1400 440 1620 330" />
+              <path d="M-180 440 C60 350 290 520 560 440 S875 355 1170 450 S1410 520 1620 410" />
+              <path d="M-180 525 C55 435 300 605 580 525 S890 440 1190 535 S1420 605 1620 495" />
+              <path d="M-180 615 C50 525 310 695 600 615 S905 530 1210 625 S1430 695 1620 585" />
+              <path d="M-180 710 C45 620 320 790 620 710 S920 625 1230 720 S1440 790 1620 680" />
+              <path d="M-180 810 C40 720 330 890 640 810 S935 725 1250 820 S1450 890 1620 780" />
+            </g>
+            <g className="site-background__field-band site-background__field-band--blue">
+              <path d="M-220 55 C120 210 300 -25 570 105 S925 230 1180 80 S1450 -10 1660 145" />
+              <path d="M-220 190 C110 345 315 110 590 240 S940 365 1200 215 S1460 125 1660 280" />
+              <path d="M-220 330 C100 485 330 250 610 380 S955 505 1220 355 S1470 265 1660 420" />
+              <path d="M-220 475 C90 630 345 395 630 525 S970 650 1240 500 S1480 410 1660 565" />
+              <path d="M-220 625 C80 780 360 545 650 675 S985 800 1260 650 S1490 560 1660 715" />
+              <path d="M-220 780 C70 935 375 700 670 830 S1000 955 1280 805 S1500 715 1660 870" />
+            </g>
           </svg>
+          <div className="site-background__nodes" />
+          <div className="site-background__scan" />
           <div className="site-background__particles" />
           <div className="site-background__readability" />
           <div className="site-background__grain" />
