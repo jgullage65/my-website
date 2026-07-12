@@ -41,15 +41,18 @@ body {
   isolation: isolate;
   contain: paint;
   background:
-    radial-gradient(circle at 16% 12%, rgba(17, 27, 72, 0.72), transparent 30%),
-    radial-gradient(circle at 82% 18%, rgba(10, 34, 72, 0.68), transparent 34%),
-    linear-gradient(180deg, #030713 0%, #060a1e 48%, #030713 100%);
+    radial-gradient(circle at 18% 14%, rgba(22, 35, 92, 0.9), transparent 34%),
+    radial-gradient(circle at 82% 20%, rgba(8, 42, 88, 0.82), transparent 36%),
+    radial-gradient(circle at 52% 78%, rgba(88, 58, 10, 0.18), transparent 38%),
+    linear-gradient(180deg, #020611 0%, #071027 48%, #020611 100%);
 }
 
 .site-background__depth,
 .site-background__grid,
 .site-background__contours,
-.site-background__lines,
+.site-background__field,
+.site-background__nodes,
+.site-background__scan,
 .site-background__particles,
 .site-background__readability,
 .site-background__grain {
@@ -67,122 +70,189 @@ body {
 }
 
 .site-background__depth {
-  opacity: 0.82;
+  opacity: 0.95;
   background:
-    radial-gradient(58rem 28rem at 18% 26%, rgba(212, 175, 55, 0.13), transparent 72%),
-    radial-gradient(48rem 26rem at 78% 66%, rgba(37, 99, 235, 0.14), transparent 74%),
-    radial-gradient(32rem 22rem at 54% 42%, rgba(212, 175, 55, 0.06), transparent 78%);
-  animation: site-depth-drift 14s ease-in-out infinite alternate;
+    radial-gradient(62rem 34rem at 12% 28%, rgba(212, 175, 55, 0.17), transparent 72%),
+    radial-gradient(58rem 32rem at 88% 62%, rgba(37, 99, 235, 0.17), transparent 74%),
+    radial-gradient(38rem 24rem at 54% 42%, rgba(212, 175, 55, 0.08), transparent 78%);
+  animation: site-depth-drift 12s ease-in-out infinite alternate;
 }
 
 .site-background__grid {
-  left: -10vw;
-  right: -10vw;
-  bottom: -30vh;
-  height: 92vh;
+  left: -14vw;
+  right: -14vw;
+  bottom: -32vh;
+  height: 100vh;
   top: auto;
-  opacity: 0.26;
-  transform: perspective(720px) rotateX(64deg) translateY(5vh);
+  opacity: 0.34;
+  transform: perspective(760px) rotateX(63deg) translateY(4vh);
   transform-origin: bottom center;
   background-image:
-    linear-gradient(rgba(212, 175, 55, 0.16) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(96, 165, 250, 0.12) 1px, transparent 1px),
-    linear-gradient(90deg, transparent 0 49%, rgba(212, 175, 55, 0.18) 50%, transparent 51% 100%);
-  background-size: 78px 78px, 78px 78px, 390px 390px;
-  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.82), transparent 78%);
-  animation: site-grid-flow 7s linear infinite;
+    linear-gradient(rgba(212, 175, 55, 0.18) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(96, 165, 250, 0.16) 1px, transparent 1px),
+    linear-gradient(90deg, transparent 0 49%, rgba(212, 175, 55, 0.24) 50%, transparent 51% 100%);
+  background-size: 72px 72px, 72px 72px, 360px 360px;
+  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.94), rgba(0, 0, 0, 0.4) 62%, transparent 94%);
+  animation: site-grid-flow 6.5s linear infinite;
 }
 
 .site-background__contours {
-  inset: -14%;
-  opacity: 0.28;
+  inset: -12%;
+  opacity: 0.4;
   background-image:
-    repeating-radial-gradient(ellipse at 22% 38%, transparent 0 38px, rgba(212, 175, 55, 0.14) 40px, transparent 42px 68px),
-    repeating-radial-gradient(ellipse at 78% 58%, transparent 0 46px, rgba(96, 165, 250, 0.1) 48px, transparent 50px 82px);
-  background-size: 118% 118%, 124% 124%;
-  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 78%);
-  animation: site-contour-drift 11s ease-in-out infinite alternate;
+    repeating-radial-gradient(ellipse at 16% 34%, transparent 0 34px, rgba(212, 175, 55, 0.17) 36px, transparent 38px 58px),
+    repeating-radial-gradient(ellipse at 82% 56%, transparent 0 40px, rgba(96, 165, 250, 0.13) 42px, transparent 44px 68px),
+    repeating-radial-gradient(ellipse at 50% 86%, transparent 0 46px, rgba(212, 175, 55, 0.09) 48px, transparent 50px 78px);
+  background-size: 116% 116%, 122% 122%, 128% 128%;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.96), rgba(0, 0, 0, 0.66) 62%, transparent 94%);
+  animation: site-contour-drift 10s ease-in-out infinite alternate;
 }
 
-.site-background__lines {
+.site-background__field {
   width: 100%;
   height: 100%;
-  opacity: 0.56;
+  opacity: 0.72;
   mix-blend-mode: screen;
+  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.12));
+  animation: site-field-drift 9s ease-in-out infinite alternate;
 }
 
-.site-background__line {
+.site-background__field-band {
   fill: none;
   stroke-linecap: round;
-  stroke-dasharray: 22 34 140 820;
-  stroke-width: 1.6;
+  stroke-width: 1.1;
   vector-effect: non-scaling-stroke;
-  animation: site-line-chase 7s linear infinite;
 }
 
-.site-background__line--gold {
-  stroke: rgba(255, 225, 137, 0.66);
-  filter: drop-shadow(0 0 9px rgba(212, 175, 55, 0.3));
+.site-background__field-band path {
+  stroke-dasharray: 16 24 90 290;
+  animation: site-line-chase 8s linear infinite;
 }
 
-.site-background__line--blue {
-  stroke: rgba(96, 165, 250, 0.46);
-  stroke-dasharray: 18 46 120 760;
-  animation-duration: 8.5s;
+.site-background__field-band--gold {
+  stroke: rgba(255, 220, 120, 0.42);
+}
+
+.site-background__field-band--gold path:nth-child(2n) {
+  stroke: rgba(212, 175, 55, 0.25);
+  animation-duration: 10s;
   animation-direction: reverse;
 }
 
-.site-background__line--thin {
-  stroke-width: 1;
-  opacity: 0.54;
-  animation-duration: 9s;
+.site-background__field-band--gold path:nth-child(3n) {
+  stroke-width: 1.45;
+  stroke: rgba(255, 235, 174, 0.52);
+}
+
+.site-background__field-band--blue {
+  stroke: rgba(96, 165, 250, 0.3);
+}
+
+.site-background__field-band--blue path {
+  animation-duration: 11s;
+  animation-direction: reverse;
+}
+
+.site-background__field-band--blue path:nth-child(2n) {
+  stroke: rgba(147, 197, 253, 0.22);
+  animation-duration: 13s;
+  animation-direction: normal;
+}
+
+.site-background__nodes {
+  opacity: 0.62;
+  background-image:
+    radial-gradient(circle, rgba(255, 235, 174, 0.95) 0 1.4px, rgba(212, 175, 55, 0.28) 1.7px, transparent 3px),
+    radial-gradient(circle, rgba(96, 165, 250, 0.78) 0 1.2px, rgba(37, 99, 235, 0.2) 1.6px, transparent 3px),
+    radial-gradient(circle, rgba(212, 175, 55, 0.7) 0 1px, transparent 2.4px);
+  background-size: 118px 118px, 176px 176px, 246px 246px;
+  background-position: 0 0, 52px 34px, 126px 88px;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.95), transparent 92%);
+  animation: site-nodes-drift 12s linear infinite;
+}
+
+.site-background__scan {
+  left: -30%;
+  right: -30%;
+  top: -45%;
+  height: 70%;
+  opacity: 0.22;
+  transform: rotate(-8deg);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(212, 175, 55, 0.02) 38%,
+    rgba(255, 225, 137, 0.28) 49%,
+    rgba(96, 165, 250, 0.12) 54%,
+    transparent 68%
+  );
+  filter: blur(12px);
+  animation: site-scan-pass 11s ease-in-out infinite;
 }
 
 .site-background__particles {
-  opacity: 0.48;
+  opacity: 0.5;
   background-image:
-    radial-gradient(circle, rgba(255, 232, 154, 0.9) 0 1px, transparent 1.9px),
-    radial-gradient(circle, rgba(96, 165, 250, 0.52) 0 1px, transparent 2px),
-    radial-gradient(circle, rgba(212, 175, 55, 0.46) 0 1px, transparent 2px);
-  background-size: 170px 170px, 250px 250px, 330px 330px;
+    radial-gradient(circle, rgba(255, 232, 154, 0.92) 0 1px, transparent 1.9px),
+    radial-gradient(circle, rgba(96, 165, 250, 0.56) 0 1px, transparent 2px),
+    radial-gradient(circle, rgba(212, 175, 55, 0.48) 0 1px, transparent 2px);
+  background-size: 160px 160px, 230px 230px, 320px 320px;
   background-position: 0 0, 70px 38px, 140px 118px;
-  mask-image: radial-gradient(circle at 50% 46%, rgba(0, 0, 0, 0.82), transparent 78%);
-  animation: site-particles-drift 10s linear infinite;
+  mask-image: radial-gradient(circle at 50% 46%, rgba(0, 0, 0, 0.88), transparent 86%);
+  animation: site-particles-drift 12s linear infinite;
 }
 
 .site-background__readability {
   z-index: 2;
   background:
-    radial-gradient(circle at 50% 40%, transparent 0 22%, rgba(3, 7, 19, 0.2) 58%, rgba(3, 7, 19, 0.68) 100%),
-    linear-gradient(180deg, rgba(3, 7, 19, 0.22), rgba(3, 7, 19, 0.72));
+    radial-gradient(circle at 50% 36%, transparent 0 18%, rgba(3, 7, 19, 0.1) 50%, rgba(3, 7, 19, 0.46) 100%),
+    linear-gradient(180deg, rgba(3, 7, 19, 0.1), rgba(3, 7, 19, 0.58));
 }
 
 .site-background__grain {
   z-index: 3;
-  opacity: 0.045;
+  opacity: 0.05;
   background-image: repeating-radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.8) 0 0.65px, transparent 0.75px 3px);
   background-size: 5px 5px;
 }
 
 @keyframes site-line-chase {
   from { stroke-dashoffset: 0; }
-  to { stroke-dashoffset: -1016; }
+  to { stroke-dashoffset: -420; }
+}
+
+@keyframes site-field-drift {
+  from { transform: translate3d(-1.2%, -0.8%, 0) scale(1.02); }
+  to { transform: translate3d(1.2%, 1%, 0) scale(1.05); }
 }
 
 @keyframes site-grid-flow {
   from { background-position: 0 0, 0 0, 0 0; }
-  to { background-position: 0 78px, 78px 0, 390px 390px; }
+  to { background-position: 0 72px, 72px 0, 360px 360px; }
 }
 
 @keyframes site-contour-drift {
   from {
-    transform: translate3d(-1.5%, -1%, 0) scale(1);
-    background-position: 0 0, 0 0;
+    transform: translate3d(-1.8%, -1.4%, 0) scale(1);
+    background-position: 0 0, 0 0, 0 0;
   }
   to {
-    transform: translate3d(1.5%, 1.5%, 0) scale(1.035);
-    background-position: 48px -36px, -42px 54px;
+    transform: translate3d(1.8%, 1.5%, 0) scale(1.045);
+    background-position: 64px -46px, -58px 72px, 42px -54px;
   }
+}
+
+@keyframes site-nodes-drift {
+  from { background-position: 0 0, 52px 34px, 126px 88px; }
+  to { background-position: 118px -118px, -124px -142px, 246px -158px; }
+}
+
+@keyframes site-scan-pass {
+  0%, 12% { transform: translate3d(0, -30%, 0) rotate(-8deg); opacity: 0; }
+  24% { opacity: 0.2; }
+  52% { opacity: 0.28; }
+  78% { opacity: 0.16; }
+  100% { transform: translate3d(0, 235%, 0) rotate(-8deg); opacity: 0; }
 }
 
 @keyframes site-particles-drift {
@@ -191,30 +261,42 @@ body {
     background-position: 0 0, 70px 38px, 140px 118px;
   }
   to {
-    transform: translate3d(0, -18px, 0);
-    background-position: 74px -88px, -44px -126px, 204px -170px;
+    transform: translate3d(0, -22px, 0);
+    background-position: 92px -112px, -58px -152px, 222px -188px;
   }
 }
 
 @keyframes site-depth-drift {
   from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
-  to { transform: translate3d(1.5%, 1%, 0) scale(1.04); }
+  to { transform: translate3d(1.5%, 1%, 0) scale(1.05); }
 }
 
 @media (max-width: 640px) {
   .site-background__grid {
-    height: 74vh;
-    opacity: 0.2;
-    background-size: 60px 60px, 60px 60px, 300px 300px;
+    height: 78vh;
+    opacity: 0.24;
+    background-size: 58px 58px, 58px 58px, 290px 290px;
   }
 
   .site-background__contours {
-    opacity: 0.22;
+    opacity: 0.28;
   }
 
+  .site-background__field {
+    width: 165%;
+    left: -32.5%;
+    opacity: 0.48;
+  }
+
+  .site-background__nodes,
   .site-background__particles {
     opacity: 0.38;
-    background-size: 140px 140px, 210px 210px, 280px 280px;
+  }
+
+  .site-background__readability {
+    background:
+      radial-gradient(circle at 50% 34%, transparent 0 12%, rgba(3, 7, 19, 0.14) 48%, rgba(3, 7, 19, 0.58) 100%),
+      linear-gradient(180deg, rgba(3, 7, 19, 0.18), rgba(3, 7, 19, 0.68));
   }
 }
 
@@ -222,13 +304,12 @@ body {
   .site-background__depth,
   .site-background__grid,
   .site-background__contours,
-  .site-background__line,
+  .site-background__field,
+  .site-background__field-band path,
+  .site-background__nodes,
+  .site-background__scan,
   .site-background__particles {
     animation: none;
-  }
-
-  .site-background__line {
-    stroke-dashoffset: -360;
   }
 }
 
