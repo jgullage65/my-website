@@ -59,6 +59,15 @@ body {
   pointer-events: none;
 }
 
+
+.site-page-shell > [class~="bg-[#030713]"] {
+  background-color: transparent;
+}
+
+.site-page-shell [class*="blur-2xl"][class*="radial-gradient"] {
+  display: none;
+}
+
 .site-background__depth {
   opacity: 0.8;
   background:
@@ -99,11 +108,11 @@ body {
 .site-background__wave {
   left: 50%;
   width: 170vw;
-  height: 9rem;
+  height: 4.6rem;
   border-radius: 999rem;
-  opacity: 0.58;
+  opacity: 0.72;
   mix-blend-mode: screen;
-  filter: blur(9px);
+  filter: drop-shadow(0 0 18px rgba(212, 175, 55, 0.22));
   background-repeat: repeat-x;
   background-size: 42rem 100%;
   will-change: transform, background-position;
@@ -112,11 +121,11 @@ body {
 .site-background__wave::after {
   content: "";
   position: absolute;
-  inset: 38% 0;
+  inset: 45% 0;
   border-radius: inherit;
-  background: rgba(255, 241, 184, 0.5);
-  filter: blur(10px);
-  opacity: 0.5;
+  background: rgba(255, 241, 184, 0.72);
+  filter: blur(3px);
+  opacity: 0.62;
 }
 
 .site-background__wave--gold-primary {
@@ -128,8 +137,8 @@ body {
 
 .site-background__wave--gold-secondary {
   top: 66%;
-  height: 6rem;
-  opacity: 0.42;
+  height: 3.4rem;
+  opacity: 0.52;
   background-image: linear-gradient(90deg, transparent 0%, rgba(212, 175, 55, 0.08) 22%, rgba(255, 218, 122, 0.56) 46%, rgba(212, 175, 55, 0.16) 58%, transparent 78%);
   transform: translate3d(-50%, 0, 0) rotate(7deg);
   animation: site-wave-gold-secondary 3.6s linear infinite;
@@ -137,8 +146,8 @@ body {
 
 .site-background__wave--blue {
   top: 22%;
-  height: 5.5rem;
-  opacity: 0.36;
+  height: 3.2rem;
+  opacity: 0.46;
   background-image: linear-gradient(90deg, transparent 0%, rgba(37, 99, 235, 0.04) 20%, rgba(96, 165, 250, 0.42) 43%, rgba(147, 197, 253, 0.34) 54%, transparent 78%);
   transform: translate3d(-50%, 0, 0) rotate(-4deg);
   animation: site-wave-blue 4.8s linear infinite reverse;
@@ -253,22 +262,22 @@ body {
 
   .site-background__wave {
     width: 210vw;
-    filter: blur(8px);
+    filter: drop-shadow(0 0 14px rgba(212, 175, 55, 0.2));
   }
 
   .site-background__wave--gold-primary {
     top: 34%;
-    height: 6rem;
+    height: 2.8rem;
   }
 
   .site-background__wave--gold-secondary {
     top: 68%;
-    height: 4.5rem;
+    height: 3rem;
   }
 
   .site-background__wave--blue {
     top: 20%;
-    height: 4rem;
+    height: 2.8rem;
   }
 
   .site-background__particles {
