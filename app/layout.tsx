@@ -48,7 +48,6 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: "/", label: "Home" },
-  { href: "/#work", label: "Work" },
   { href: "/ai-tools", label: "AI Systems" },
   { href: "/services", label: "Services" },
   { href: "/about", label: "About" },
