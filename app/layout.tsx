@@ -63,10 +63,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="site-background" aria-hidden="true">
           <div className="site-background__depth" />
           <div className="site-background__grid" />
-          <div className="site-background__flow" />
-          <div className="site-background__wave site-background__wave--gold-primary" />
-          <div className="site-background__wave site-background__wave--gold-secondary" />
-          <div className="site-background__wave site-background__wave--blue" />
+          <div className="site-background__contours" />
           <svg
             className="site-background__lines"
             viewBox="0 0 1440 900"
