@@ -63,33 +63,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="site-background" aria-hidden="true">
           <div className="site-background__depth" />
           <div className="site-background__grid" />
+          <div className="site-background__flow" />
+          <div className="site-background__wave site-background__wave--gold-primary" />
+          <div className="site-background__wave site-background__wave--gold-secondary" />
+          <div className="site-background__wave site-background__wave--blue" />
           <svg
-            className="site-background__ribbons"
+            className="site-background__lines"
             viewBox="0 0 1440 900"
             preserveAspectRatio="none"
             focusable="false"
           >
-            <defs>
-              <linearGradient id="ribbon-gold" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(212,175,55,0)" />
-                <stop offset="34%" stopColor="rgba(245,158,11,0.62)" />
-                <stop offset="58%" stopColor="rgba(255,229,140,0.82)" />
-                <stop offset="100%" stopColor="rgba(212,175,55,0)" />
-              </linearGradient>
-              <linearGradient id="ribbon-blue" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="rgba(37,99,235,0)" />
-                <stop offset="45%" stopColor="rgba(96,165,250,0.42)" />
-                <stop offset="100%" stopColor="rgba(37,99,235,0)" />
-              </linearGradient>
-              <filter id="ribbon-blur" x="-12%" y="-80%" width="124%" height="260%">
-                <feGaussianBlur stdDeviation="7" />
-              </filter>
-            </defs>
-            <path className="site-background__ribbon site-background__ribbon--gold site-background__ribbon--soft" d="M -160 590 C 210 390 360 760 690 520 S 1090 250 1600 430" />
-            <path className="site-background__ribbon site-background__ribbon--gold" d="M -160 585 C 210 385 360 755 690 515 S 1090 245 1600 425" />
-            <path className="site-background__ribbon site-background__ribbon--blue site-background__ribbon--soft" d="M -150 325 C 170 170 390 430 645 320 S 1020 150 1580 235" />
-            <path className="site-background__ribbon site-background__ribbon--blue" d="M -150 320 C 170 165 390 425 645 315 S 1020 145 1580 230" />
-            <path className="site-background__ribbon site-background__ribbon--gold site-background__ribbon--thin" d="M -180 735 C 175 615 405 710 675 645 S 1045 535 1620 625" />
+            <path className="site-background__line site-background__line--gold" d="M -120 610 C 185 440 360 720 650 545 S 1040 330 1560 470" />
+            <path className="site-background__line site-background__line--blue" d="M -120 305 C 185 185 405 410 675 315 S 1010 180 1560 250" />
+            <path className="site-background__line site-background__line--gold site-background__line--thin" d="M -140 745 C 215 620 450 710 735 650 S 1100 555 1580 630" />
           </svg>
           <div className="site-background__particles" />
           <div className="site-background__readability" />
