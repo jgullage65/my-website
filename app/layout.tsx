@@ -115,7 +115,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </span>
               </Link>
 
-              <nav className="hidden items-center gap-7 text-xs font-bold text-slate-300 lg:flex">
+              <nav className="hidden -translate-x-10 items-center gap-7 text-xs font-bold text-slate-300 lg:flex xl:-translate-x-14">
                 {navItems.map((item) => (
                   <Link
                     key={item.href}
