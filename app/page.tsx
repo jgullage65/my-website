@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { AnimatePresence, motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { Variants } from "framer-motion";
-import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import { useId, useState } from "react";
 
 const fadeUp: Variants = {
@@ -105,33 +105,6 @@ function ProductMedia({ src, alt, label, className = "", ratio = "aspect-[16/10]
   );
 }
 
-function HeroCollage() {
-  const reduce = useReducedMotion();
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
-  const sx = useSpring(x, { stiffness: 80, damping: 22 });
-  const sy = useSpring(y, { stiffness: 80, damping: 22 });
-  const px = useTransform(sx, [-0.5, 0.5], [-20, 20]);
-  const py = useTransform(sy, [-0.5, 0.5], [-12, 12]);
-  const backPx = useTransform(px, (v) => v * -0.35);
-  const backPy = useTransform(py, (v) => v * -0.35);
-  function move(e: MouseEvent<HTMLDivElement>) {
-    const r = e.currentTarget.getBoundingClientRect();
-    x.set((e.clientX - r.left) / r.width - 0.5);
-    y.set((e.clientY - r.top) / r.height - 0.5);
-  }
-  return (
-    <motion.div variants={mediaIn} onMouseMove={move} onMouseLeave={() => { x.set(0); y.set(0); }} className="relative min-h-[27rem] sm:min-h-[34rem] lg:min-h-[43rem] [perspective:1400px]">
-      <div className="absolute bottom-12 left-1/2 h-24 w-[76%] -translate-x-1/2 rounded-[50%] border border-[rgba(212,175,55,.35)] bg-[radial-gradient(circle,rgba(245,158,11,.34),transparent_58%)] blur-[1px]" />
-      <div className="absolute left-1/2 top-1/2 h-80 w-80 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[rgba(212,175,55,.18)] blur-3xl" />
-      <motion.div style={reduce ? undefined : { x: backPx, y: backPy }} className="absolute left-[8%] top-[4%] w-[76%] -rotate-3"><ProductMedia alt="Premium business website placeholder" label="Premium website" /></motion.div>
-      <motion.div animate={reduce ? undefined : { y: [0, -10, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }} className="absolute right-[1%] top-[27%] z-20 w-[58%] rotate-2"><ProductMedia alt="Selected product placeholder" label="Selected product" ratio="aspect-[16/11]" /></motion.div>
-      <motion.div style={reduce ? undefined : { x: px, y: py }} className="absolute bottom-[10%] left-[2%] z-30 w-[40%] -rotate-6"><ProductMedia alt="AI system placeholder" label="AI copilot" ratio="aspect-[4/5]" /></motion.div>
-      <motion.div animate={reduce ? undefined : { y: [0, 9, 0] }} transition={{ duration: 8.5, repeat: Infinity, ease: "easeInOut" }} className="absolute bottom-[2%] right-[14%] z-40 w-[46%] rotate-1"><ProductMedia alt="Custom software placeholder" label="Business software" ratio="aspect-[16/9]" /></motion.div>
-    </motion.div>
-  );
-}
-
 export default function HomePage() {
   const [active, setActive] = useState(0);
   const tabRoot = useId();
@@ -148,16 +121,15 @@ export default function HomePage() {
 
   return (
     <div className="overflow-hidden bg-[#030713] text-white">
-      <Section className="relative mx-auto grid max-w-[94rem] gap-8 px-5 pb-16 pt-14 sm:px-8 lg:grid-cols-[.76fr_1.24fr] lg:px-10 lg:pb-20 lg:pt-20">
-        <div className="absolute inset-x-0 top-0 h-[48rem] bg-[radial-gradient(circle_at_10%_20%,rgba(212,175,55,.14),transparent_28rem),radial-gradient(circle_at_82%_18%,rgba(9,20,38,.34),transparent_36rem)]" />
+      <Section className="relative mx-auto max-w-[94rem] px-5 py-14 sm:px-8 sm:py-16 lg:px-10 lg:py-20">
+        <div className="absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_10%_20%,rgba(212,175,55,.14),transparent_28rem),radial-gradient(circle_at_82%_18%,rgba(9,20,38,.34),transparent_36rem)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
-        <motion.div variants={fadeUp} className="relative z-10 self-center py-6">
+        <motion.div variants={fadeUp} className="relative z-10 max-w-7xl">
           <p className="text-xs font-black uppercase tracking-[.34em] text-[var(--gold)]">JG Creative Studio</p>
-          <h1 className="mt-5 max-w-2xl text-5xl font-black leading-[.95] tracking-[-.065em] sm:text-6xl xl:text-[5.2rem]">Premium websites.<span className="block">AI systems built for <span className="text-[var(--gold)]">real business.</span></span></h1>
-          <p className="mt-6 max-w-xl text-base leading-8 text-[var(--muted)] sm:text-lg">JG Creative Studio builds high-performance websites, custom AI systems, automation, and business software that help companies attract customers, operate smarter, and grow.</p>
+          <h1 className="mt-5 max-w-6xl text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl lg:text-6xl xl:text-[4.75rem]">Premium websites. AI systems built for <span className="text-[var(--gold)]">real business.</span></h1>
+          <p className="mt-6 max-w-3xl text-base leading-7 text-[var(--muted)] sm:text-lg sm:leading-8">JG Creative Studio builds high-performance websites, custom AI systems, automation, and business software that help companies attract customers, operate smarter, and grow.</p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row"><GoldButton href="/contact">Start a Project →</GoldButton><OutlineButton href="/#work">Explore Our Work ↗</OutlineButton></div>
         </motion.div>
-        <HeroCollage />
       </Section>
 
       <Section id="work" className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 text-center sm:px-8 lg:px-10 lg:py-20">
