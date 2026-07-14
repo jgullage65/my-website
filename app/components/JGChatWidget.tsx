@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   JG_ASSISTANT_STORAGE_KEY,
   buildJGAssistantView,
@@ -14,130 +20,151 @@ import {
   submitJGAssistantInput,
   syncJGAssistantRoute,
   type JGAssistantSession,
-} from "../lib/jgAssistantFlow";
-
-function readStoredSession(pathname: string): JGAssistantSession {
-  if (typeof window === "undefined") return createInitialJGAssistantSession(pathname);
-  return parseStoredJGAssistantSession(
-    window.sessionStorage.getItem(JG_ASSISTANT_STORAGE_KEY),
-    pathname,
-  );
-}
-
-function routeLabel(pathname: string) {
-  if (pathname.startsWith("/services")) return "Services guide";
-  if (pathname.startsWith("/ai-tools")) return "AI systems guide";
-  if (pathname.startsWith("/examples")) return "Portfolio guide";
-  if (pathname.startsWith("/contact")) return "Project guide";
-  if (pathname.startsWith("/about")) return "Studio guide";
-  return "Website guide";
-}
+} from "@/app/lib/jgAssistantFlow";
 
 export default function JGChatWidget() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [loaded, setLoaded] = useState(false);
   const [session, setSession] = useState<JGAssistantSession>(() =>
     createInitialJGAssistantSession(pathname),
   );
+
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const view = useMemo(() => buildJGAssistantView(session), [session]);
 
   useEffect(() => {
-    setSession(readStoredSession(pathname));
-    setLoaded(true);
+    const stored = window.sessionStorage.getItem(
+      JG_ASSISTANT_STORAGE_KEY,
+    );
+
+    setSession(parseStoredJGAssistantSession(stored, pathname));
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
-    if (!loaded) return;
-    setSession((current) => syncJGAssistantRoute(current, pathname));
-  }, [loaded, pathname]);
+    if (!hydrated) return;
+
+    setSession((current) =>
+      syncJGAssistantRoute(current, pathname),
+    );
+  }, [hydrated, pathname]);
 
   useEffect(() => {
-    if (!loaded) return;
-    window.sessionStorage.setItem(JG_ASSISTANT_STORAGE_KEY, JSON.stringify(session));
-  }, [loaded, session]);
+    if (!hydrated) return;
+
+    window.sessionStorage.setItem(
+      JG_ASSISTANT_STORAGE_KEY,
+      JSON.stringify(session),
+    );
+  }, [hydrated, session]);
 
   useEffect(() => {
     if (!open) return;
-    const timeout = window.setTimeout(() => {
+
+    const timeoutId = window.setTimeout(() => {
       scrollRef.current?.scrollTo({
         top: scrollRef.current.scrollHeight,
         behavior: "smooth",
       });
     }, 30);
-    return () => window.clearTimeout(timeout);
-  }, [open, session.messages.length]);
 
-  const view = useMemo(() => buildJGAssistantView(session), [session]);
-  const latestAssistantId = useMemo(() => {
-    for (let index = session.messages.length - 1; index >= 0; index -= 1) {
-      if (session.messages[index]?.role === "assistant") return session.messages[index].id;
-    }
-    return null;
-  }, [session.messages]);
+    return () => window.clearTimeout(timeoutId);
+  }, [open, session.messages.length, view.options.length]);
 
-  const restart = () => {
+  function restartAssistant() {
     const fresh = createInitialJGAssistantSession(pathname);
     setSession(fresh);
     setInputValue("");
     setMenuOpen(false);
-    window.sessionStorage.setItem(JG_ASSISTANT_STORAGE_KEY, JSON.stringify(fresh));
-  };
 
-  const chooseOption = (id: string, label: string) => {
-    setSession((current) => chooseJGAssistantOption(current, id, label));
-    setInputValue("");
-  };
+    window.sessionStorage.setItem(
+      JG_ASSISTANT_STORAGE_KEY,
+      JSON.stringify(fresh),
+    );
+  }
 
-  const submitInput = (event?: FormEvent) => {
-    event?.preventDefault();
+  function chooseOption(id: string, label: string) {
+    setSession((current) =>
+      chooseJGAssistantOption(current, id, label),
+    );
+  }
+
+  function submitInput(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
     const value = inputValue.trim();
     if (!value) return;
-    setSession((current) => submitJGAssistantInput(current, value));
-    setInputValue("");
-  };
 
-  const contactUrl = buildJGContactUrl(session.answers);
-  const emailUrl = buildJGDirectEmailUrl(session.answers);
+    setSession((current) =>
+      submitJGAssistantInput(current, value),
+    );
+    setInputValue("");
+  }
+
+  const finalAssistantMessageId = useMemo(() => {
+    for (
+      let index = session.messages.length - 1;
+      index >= 0;
+      index -= 1
+    ) {
+      if (session.messages[index].role === "assistant") {
+        return session.messages[index].id;
+      }
+    }
+
+    return null;
+  }, [session.messages]);
 
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
+        className={[
+          "fixed bottom-5 right-5 z-[80]",
+          "flex h-14 w-14 items-center justify-center rounded-2xl",
+          "border border-[rgba(212,175,55,0.42)]",
+          "bg-[linear-gradient(145deg,#111c48,#050b1d)]",
+          "text-[var(--gold)]",
+          "shadow-[0_18px_45px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)]",
+          "transition duration-200 hover:-translate-y-0.5",
+        ].join(" ")}
         aria-label={open ? "Close JG Assistant" : "Open JG Assistant"}
         aria-expanded={open}
-        className={[
-          "fixed bottom-5 right-5 z-[80] flex h-14 w-14 items-center justify-center rounded-2xl",
-          "border border-[rgba(212,175,55,0.42)] bg-[linear-gradient(145deg,#101a43,#050b1d)]",
-          "text-[var(--gold)] shadow-[0_18px_42px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.08)]",
-          "transition duration-200 hover:-translate-y-0.5 hover:border-[rgba(245,158,11,0.62)]",
-          open ? "pointer-events-none translate-y-2 opacity-0" : "opacity-100",
-        ].join(" ")}
+        aria-controls="jg-assistant-panel"
       >
-        <span className="text-lg font-black tracking-[0.08em]">JG</span>
+        <span className="text-lg font-black tracking-[0.08em]">
+          JG
+        </span>
       </button>
 
       {open ? (
         <section
+          id="jg-assistant-panel"
           aria-label="JG Assistant"
           className={[
-            "fixed inset-x-3 bottom-3 z-[90] flex h-[min(760px,calc(100dvh-1.5rem))] flex-col overflow-hidden rounded-[24px]",
-            "border border-[rgba(212,175,55,0.24)] bg-[#050b1d]",
-            "shadow-[0_32px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.05)]",
-            "sm:inset-x-auto sm:bottom-5 sm:right-5 sm:h-[min(700px,calc(100dvh-2.5rem))] sm:w-[430px]",
+            "fixed bottom-20 right-4 z-[79]",
+            "flex h-[min(680px,calc(100vh-7rem))] w-[calc(100vw-2rem)] max-w-[430px] flex-col overflow-hidden",
+            "rounded-[24px] border border-[rgba(212,175,55,0.24)]",
+            "bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))]",
+            "shadow-[0_30px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.05)]",
+            "sm:right-5",
           ].join(" ")}
         >
-          <header className="relative flex items-center gap-3 border-b border-white/[0.07] bg-[linear-gradient(180deg,rgba(15,25,60,0.98),rgba(6,12,31,0.98))] px-4 py-3.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(212,175,55,0.4)] bg-[#07101f] text-xs font-black tracking-[0.08em] text-[var(--gold)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <header className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(212,175,55,0.38)] bg-[linear-gradient(145deg,#101a43,#050b1d)] text-xs font-black tracking-[0.08em] text-[var(--gold)]">
               JG
             </div>
+
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-black text-white">JG Assistant</p>
-              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.13em] text-[var(--gold)]">
-                {routeLabel(pathname)}
+              <p className="truncate text-sm font-black text-white">
+                JG Assistant
+              </p>
+              <p className="truncate text-[11px] font-medium text-slate-400">
+                Project guidance and quick answers
               </p>
             </div>
 
@@ -145,23 +172,31 @@ export default function JGChatWidget() {
               <button
                 type="button"
                 onClick={() => setMenuOpen((current) => !current)}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-lg text-slate-200 transition hover:border-[rgba(212,175,55,0.3)] hover:text-[var(--gold)]"
                 aria-label="Open assistant menu"
+                aria-haspopup="menu"
                 aria-expanded={menuOpen}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-bold text-slate-200 transition hover:border-[rgba(212,175,55,0.35)] hover:text-[var(--gold)]"
               >
                 ⋯
               </button>
+
               {menuOpen ? (
-                <div className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl border border-[rgba(212,175,55,0.22)] bg-[#07101f] p-1.5 shadow-2xl">
+                <div
+                  role="menu"
+                  className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl border border-[rgba(212,175,55,0.2)] bg-[#070d21] p-1.5 shadow-2xl"
+                >
                   <button
                     type="button"
-                    onClick={restart}
+                    role="menuitem"
+                    onClick={restartAssistant}
                     className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]"
                   >
                     Restart conversation
                   </button>
+
                   <button
                     type="button"
+                    role="menuitem"
                     onClick={() => {
                       setMenuOpen(false);
                       setOpen(false);
@@ -173,104 +208,146 @@ export default function JGChatWidget() {
                 </div>
               ) : null}
             </div>
-
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              aria-label="Close JG Assistant"
-              className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-lg text-slate-200 transition hover:border-[rgba(212,175,55,0.35)] hover:text-[var(--gold)]"
-            >
-              ×
-            </button>
           </header>
 
-          <div ref={scrollRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5">
+          <div
+            ref={scrollRef}
+            className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3.5 py-4"
+          >
             {session.messages.map((message) => {
               const incoming = message.role === "assistant";
-              const showActions = incoming && message.id === latestAssistantId;
+              const showActions =
+                incoming &&
+                message.id === finalAssistantMessageId &&
+                view.options.length > 0;
 
               return (
-                <div key={message.id} className={incoming ? "flex justify-start" : "flex justify-end"}>
-                  <div className={incoming ? "max-w-[94%]" : "max-w-[84%]"}>
+                <div
+                  key={message.id}
+                  className={incoming ? "flex justify-start" : "flex justify-end"}
+                >
+                  <div className={incoming ? "max-w-[92%]" : "max-w-[84%]"}>
                     <div
                       className={[
                         "whitespace-pre-wrap text-sm leading-6",
                         incoming
-                          ? "relative overflow-hidden rounded-2xl border border-[rgba(212,175,55,0.18)] bg-[linear-gradient(145deg,rgba(13,24,55,0.96),rgba(6,12,30,0.96))] px-4 py-3.5 text-slate-100 shadow-[0_16px_34px_rgba(0,0,0,0.24)]"
-                          : "rounded-2xl rounded-br-md bg-[linear-gradient(180deg,#d9b73f,#b4871d)] px-4 py-3 text-[#07101f] shadow-[0_12px_24px_rgba(212,175,55,0.16)]",
+                          ? [
+                              "relative overflow-hidden rounded-2xl",
+                              "border border-[rgba(212,175,55,0.18)]",
+                              "bg-[linear-gradient(180deg,rgba(16,25,58,0.88),rgba(8,14,34,0.94))]",
+                              "px-4 py-3.5 text-slate-100",
+                              "shadow-[0_14px_35px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.04)]",
+                            ].join(" ")
+                          : [
+                              "rounded-2xl rounded-br-md",
+                              "bg-[linear-gradient(180deg,#d7b43c,#aa7f18)]",
+                              "px-4 py-3 text-[#07101f]",
+                              "font-semibold",
+                              "shadow-[0_10px_24px_rgba(212,175,55,0.14)]",
+                            ].join(" "),
                       ].join(" ")}
                     >
                       {incoming ? (
-                        <span className="absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-[rgba(245,158,11,0.7)] to-transparent" />
+                        <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-[var(--gold)]/70 to-transparent" />
                       ) : null}
-                      <p className="relative m-0">{message.text}</p>
+
+                      <span className="relative">{message.text}</span>
+
+                      {showActions ? (
+                        <div className="relative mt-3 flex flex-wrap gap-2">
+                          {view.options.map((option) => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() =>
+                                chooseOption(option.id, option.label)
+                              }
+                              className={[
+                                "rounded-full border border-[rgba(212,175,55,0.24)]",
+                                "bg-[rgba(4,9,24,0.72)] px-3 py-2",
+                                "text-left text-xs font-bold leading-4 text-slate-100",
+                                "transition hover:-translate-y-px hover:border-[rgba(212,175,55,0.5)] hover:text-[var(--gold)]",
+                              ].join(" ")}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
-
-                    {showActions && view.options.length > 0 ? (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {view.options.map((option) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => chooseOption(option.id, option.label)}
-                            className="rounded-full border border-[rgba(212,175,55,0.26)] bg-[rgba(8,16,38,0.92)] px-3 py-2 text-left text-xs font-bold text-slate-100 transition hover:-translate-y-0.5 hover:border-[rgba(245,158,11,0.52)] hover:text-[var(--gold)]"
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    {showActions && session.step === "handoff" ? (
-                      <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                        <Link
-                          href={contactUrl}
-                          className="rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-3 py-2.5 text-center text-xs font-black text-[#07101f] transition hover:-translate-y-0.5"
-                        >
-                          Open project request
-                        </Link>
-                        <a
-                          href={emailUrl}
-                          className="rounded-xl border border-[rgba(212,175,55,0.3)] bg-[rgba(8,16,38,0.92)] px-3 py-2.5 text-center text-xs font-black text-slate-100 transition hover:-translate-y-0.5 hover:text-[var(--gold)]"
-                        >
-                          Email James directly
-                        </a>
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               );
             })}
+
+            {session.step === "handoff" ? (
+              <div className="rounded-2xl border border-[rgba(212,175,55,0.22)] bg-[rgba(5,11,28,0.82)] p-3.5">
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--gold)]">
+                  Ready when you are
+                </p>
+
+                <div className="mt-3 grid gap-2">
+                  <Link
+                    href={buildJGContactUrl(session.answers)}
+                    className="rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-4 py-3 text-center text-sm font-black text-[#07101f] transition hover:-translate-y-0.5"
+                  >
+                    Open project request
+                  </Link>
+
+                  <a
+                    href={buildJGDirectEmailUrl(session.answers)}
+                    className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-bold text-slate-100 transition hover:border-[rgba(212,175,55,0.3)] hover:text-[var(--gold)]"
+                  >
+                    Email James directly
+                  </a>
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          <footer className="border-t border-white/[0.07] bg-[rgba(3,7,19,0.96)] p-3.5">
-            {view.inputPlaceholder ? (
-              <form onSubmit={submitInput} className="flex items-end gap-2">
+          {view.inputPlaceholder ? (
+            <form
+              onSubmit={submitInput}
+              className="border-t border-white/[0.07] p-3"
+            >
+              <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-[rgba(3,7,19,0.9)] p-2">
                 <input
                   value={inputValue}
-                  onChange={(event) => setInputValue(event.target.value)}
+                  onChange={(event) =>
+                    setInputValue(event.target.value)
+                  }
                   placeholder={view.inputPlaceholder}
-                  autoComplete={session.expectedInput === "email" ? "email" : session.expectedInput === "phone" ? "tel" : "off"}
-                  inputMode={session.expectedInput === "email" ? "email" : session.expectedInput === "phone" ? "tel" : "text"}
-                  className="min-h-11 flex-1 rounded-xl border border-white/10 bg-[rgba(9,18,43,0.9)] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-500 focus:border-[rgba(212,175,55,0.45)]"
+                  className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm text-white outline-none placeholder:text-slate-500"
+                  autoComplete={
+                    session.expectedInput === "email"
+                      ? "email"
+                      : session.expectedInput === "phone"
+                        ? "tel"
+                        : "off"
+                  }
+                  inputMode={
+                    session.expectedInput === "email"
+                      ? "email"
+                      : session.expectedInput === "phone"
+                        ? "tel"
+                        : "text"
+                  }
                 />
+
                 <button
                   type="submit"
                   disabled={!inputValue.trim()}
-                  className="min-h-11 rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-4 text-sm font-black text-[#07101f] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-4 py-2.5 text-xs font-black text-[#07101f] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   Send
                 </button>
-              </form>
-            ) : (
-              <div className="flex items-center justify-between gap-3 text-[11px] text-slate-500">
-                <span>Your conversation is remembered in this browser session.</span>
-                <Link href="/contact" className="shrink-0 font-semibold text-slate-400 hover:text-[var(--gold)]">
-                  Contact
-                </Link>
               </div>
-            )}
-          </footer>
+            </form>
+          ) : (
+            <div className="border-t border-white/[0.06] px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+              Your conversation is remembered in this browser session
+            </div>
+          )}
         </section>
       ) : null}
     </>
