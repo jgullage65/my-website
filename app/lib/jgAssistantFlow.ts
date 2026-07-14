@@ -70,11 +70,7 @@ export type JGAssistantSession = {
   lastLearnTopic: string | null;
 };
 
-export type AssistantOption = {
-  id: string;
-  label: string;
-};
-
+export type AssistantOption = { id: string; label: string };
 export type AssistantView = {
   options: AssistantOption[];
   inputPlaceholder: string | null;
@@ -111,17 +107,6 @@ function user(text: string): AssistantMessage {
   return { id: messageId(), role: "user", text };
 }
 
-function routeName(pathname: string): string {
-  if (pathname === "/") return "Home";
-  if (pathname.startsWith("/services")) return "Services";
-  if (pathname.startsWith("/ai-tools")) return "AI Systems";
-  if (pathname.startsWith("/examples")) return "Portfolio";
-  if (pathname.startsWith("/about")) return "About";
-  if (pathname.startsWith("/contact")) return "Contact";
-  if (pathname.startsWith("/faq")) return "FAQ";
-  return "JG Creative Studio";
-}
-
 function openingCopy(pathname: string): string {
   if (pathname.startsWith("/services")) {
     return "You’re looking at Services. I can help you figure out what to buy, or explain which service best fits what you are trying to accomplish.";
@@ -142,6 +127,17 @@ function openingCopy(pathname: string): string {
     return "You’re on Quick Answers. I can explain a service, process, timeline, or help you start a project.";
   }
   return "Hey, I’m the JG Assistant. I can help you figure out what you want to buy or answer questions about websites, AI systems, design, and how the process works.";
+}
+
+function routeName(pathname: string): string {
+  if (pathname === "/") return "Home";
+  if (pathname.startsWith("/services")) return "Services";
+  if (pathname.startsWith("/ai-tools")) return "AI Systems";
+  if (pathname.startsWith("/examples")) return "Portfolio";
+  if (pathname.startsWith("/about")) return "About";
+  if (pathname.startsWith("/contact")) return "Contact";
+  if (pathname.startsWith("/faq")) return "FAQ";
+  return "JG Creative Studio";
 }
 
 export function createInitialJGAssistantSession(pathname: string): JGAssistantSession {
@@ -167,19 +163,20 @@ export function parseStoredJGAssistantSession(
     if (parsed.version !== 2 || !Array.isArray(parsed.messages)) {
       return createInitialJGAssistantSession(pathname);
     }
+    const messages = parsed.messages.filter(
+      (item): item is AssistantMessage =>
+        Boolean(
+          item &&
+            typeof item.id === "string" &&
+            (item.role === "assistant" || item.role === "user") &&
+            typeof item.text === "string",
+        ),
+    );
     return {
       ...createInitialJGAssistantSession(pathname),
       ...parsed,
       activePathname: pathname,
-      messages: parsed.messages.filter(
-        (item): item is AssistantMessage =>
-          Boolean(
-            item &&
-              typeof item.id === "string" &&
-              (item.role === "assistant" || item.role === "user") &&
-              typeof item.text === "string",
-          ),
-      ),
+      messages: messages.length ? messages : [assistant(openingCopy(pathname))],
       answers: { ...emptyAnswers(), ...(parsed.answers ?? {}) },
     };
   } catch {
@@ -270,7 +267,6 @@ function learnAnswer(optionId: string): string {
       return "Pricing is based on scope, complexity, content, integrations, and how custom the project needs to be. The assistant can collect enough information for a clear quote instead of guessing from one sentence.";
     case "learn_support":
       return "Yes. Ongoing support can cover updates, maintenance, content changes, system improvements, and continued help after launch, depending on the project.";
-    case "learn_service_fit":
     default:
       return "The right service depends on the outcome. A website is best when the business needs stronger credibility or conversion. Design work fits a specific promotion or campaign. An AI system fits repeated work that should become faster, more consistent, or automated.";
   }
@@ -281,24 +277,26 @@ export function chooseJGAssistantOption(
   optionId: string,
   label: string,
 ): JGAssistantSession {
-  if (optionId === "intent_buy") {
-    return withExchange(
-      session,
-      label,
-      "Great. What are you looking to build or buy?",
-      { intent: "buy", step: "service", expectedInput: null },
-    );
+  if (optionId === "intent_buy" || optionId === "start_project") {
+    return withExchange(session, label, "Great. What are you looking to build or buy?", {
+      intent: "buy",
+      step: "service",
+      expectedInput: null,
+    });
   }
-
   if (optionId === "intent_learn") {
-    return withExchange(
-      session,
-      label,
-      "What would you like to find out?",
-      { intent: "learn", step: "learn_topics", expectedInput: null },
-    );
+    return withExchange(session, label, "What would you like to find out?", {
+      intent: "learn",
+      step: "learn_topics",
+      expectedInput: null,
+    });
   }
-
+  if (optionId === "learn_another") {
+    return withExchange(session, label, "What else would you like to find out?", {
+      step: "learn_topics",
+      expectedInput: null,
+    });
+  }
   if (optionId.startsWith("learn_")) {
     return withExchange(session, label, learnAnswer(optionId), {
       intent: "learn",
@@ -307,22 +305,6 @@ export function chooseJGAssistantOption(
       lastLearnTopic: optionId,
     });
   }
-
-  if (optionId === "learn_another") {
-    return withExchange(session, label, "What else would you like to find out?", {
-      step: "learn_topics",
-      expectedInput: null,
-    });
-  }
-
-  if (optionId === "start_project") {
-    return withExchange(session, label, "Great. What are you looking to build or buy?", {
-      intent: "buy",
-      step: "service",
-      expectedInput: null,
-    });
-  }
-
   if (optionId.startsWith("service_")) {
     const service = optionId.replace("service_", "") as AssistantService;
     const answers = { ...session.answers, service };
@@ -344,14 +326,11 @@ export function chooseJGAssistantOption(
         step: "ai_goal",
       });
     }
-    return withExchange(
-      session,
-      label,
-      "No problem. What type of business do you run? I’ll use that to narrow down the best fit.",
-      { answers, expectedInput: "businessType" },
-    );
+    return withExchange(session, label, "What type of business do you run?", {
+      answers,
+      expectedInput: "businessType",
+    });
   }
-
   if (optionId.startsWith("website_")) {
     const websiteType = optionId.replace("website_", "") as AssistantAnswers["websiteType"];
     return withExchange(session, label, "What type of business is the website for?", {
@@ -359,26 +338,18 @@ export function chooseJGAssistantOption(
       expectedInput: "businessType",
     });
   }
-
   if (optionId.startsWith("domain_")) {
     const domainHave = optionId.replace("domain_", "") as AssistantAnswers["domainHave"];
-    if (domainHave === "yes") {
-      return withExchange(session, label, "What is the domain name?", {
-        answers: { ...session.answers, domainHave },
-        expectedInput: "domain",
-      });
-    }
     return withExchange(
       session,
       label,
-      "That’s fine. What is the main goal of the website?",
+      domainHave === "yes" ? "What is the domain name?" : "What is the main goal of the website?",
       {
         answers: { ...session.answers, domainHave },
-        expectedInput: "goal",
+        expectedInput: domainHave === "yes" ? "domain" : "goal",
       },
     );
   }
-
   if (optionId.startsWith("promo_")) {
     const promoType = optionId.replace("promo_", "") as AssistantAnswers["promoType"];
     return withExchange(session, label, "What are you promoting?", {
@@ -386,7 +357,6 @@ export function chooseJGAssistantOption(
       expectedInput: "promoWhat",
     });
   }
-
   if (optionId.startsWith("assets_")) {
     const promoAssets = optionId.replace("assets_", "") as AssistantAnswers["promoAssets"];
     return withExchange(session, label, "When do you need it?", {
@@ -394,7 +364,6 @@ export function chooseJGAssistantOption(
       step: "promo_deadline",
     });
   }
-
   if (optionId.startsWith("deadline_")) {
     const promoDeadline = optionId.replace("deadline_", "") as AssistantAnswers["promoDeadline"];
     return withExchange(session, label, "What is the main goal of the promotion?", {
@@ -402,7 +371,6 @@ export function chooseJGAssistantOption(
       expectedInput: "goal",
     });
   }
-
   if (optionId.startsWith("aigoal_")) {
     const aiGoal = optionId.replace("aigoal_", "") as AssistantAnswers["aiGoal"];
     return withExchange(session, label, "Where should the AI help happen?", {
@@ -410,7 +378,6 @@ export function chooseJGAssistantOption(
       step: "ai_where",
     });
   }
-
   if (optionId.startsWith("aiwhere_")) {
     const aiWhere = optionId.replace("aiwhere_", "") as AssistantAnswers["aiWhere"];
     return withExchange(session, label, "What level of setup are you looking for?", {
@@ -418,7 +385,6 @@ export function chooseJGAssistantOption(
       step: "ai_setup",
     });
   }
-
   if (optionId.startsWith("aisetup_")) {
     const aiSetupType = optionId.replace("aisetup_", "") as AssistantAnswers["aiSetupType"];
     return withExchange(session, label, "What type of business is this for?", {
@@ -426,7 +392,6 @@ export function chooseJGAssistantOption(
       expectedInput: "businessType",
     });
   }
-
   if (optionId.startsWith("followup_")) {
     const followUp = optionId.replace("followup_", "") as FollowUpMethod;
     return withExchange(
@@ -441,7 +406,6 @@ export function chooseJGAssistantOption(
       },
     );
   }
-
   return session;
 }
 
@@ -463,21 +427,17 @@ export function submitJGAssistantInput(
       });
     }
     if (answers.service === "flyers") {
-      return withExchange(
-        session,
-        text,
-        "Do you already have a logo, photos, or brand colors to use?",
-        { answers, expectedInput: null, step: "promo_assets" },
-      );
+      return withExchange(session, text, "Do you already have a logo, photos, or brand colors to use?", {
+        answers,
+        expectedInput: null,
+        step: "promo_assets",
+      });
     }
-    return withExchange(
-      session,
-      text,
-      "What is the biggest result you want from this project?",
-      { answers, expectedInput: "goal" },
-    );
+    return withExchange(session, text, "What is the biggest result you want from this project?", {
+      answers,
+      expectedInput: "goal",
+    });
   }
-
   if (session.expectedInput === "domain") {
     answers.domainValue = text;
     return withExchange(session, text, "What is the main goal of the website?", {
@@ -485,7 +445,6 @@ export function submitJGAssistantInput(
       expectedInput: "goal",
     });
   }
-
   if (session.expectedInput === "promoWhat") {
     answers.promoWhat = text;
     return withExchange(session, text, "What type of business is this for?", {
@@ -493,7 +452,6 @@ export function submitJGAssistantInput(
       expectedInput: "businessType",
     });
   }
-
   if (session.expectedInput === "goal") {
     answers.goal = text;
     return withExchange(session, text, "What is the best way to follow up with you?", {
@@ -502,18 +460,8 @@ export function submitJGAssistantInput(
       step: "follow_up",
     });
   }
-
-  if (session.expectedInput === "email") {
-    answers.email = text;
-    return withExchange(
-      session,
-      text,
-      "Perfect. I saved everything you shared. You can open the project request with the details already filled in, or email James directly.",
-      { answers, expectedInput: null, step: "handoff" },
-    );
-  }
-
-  answers.phone = text;
+  if (session.expectedInput === "email") answers.email = text;
+  if (session.expectedInput === "phone") answers.phone = text;
   return withExchange(
     session,
     text,
@@ -535,126 +483,78 @@ export function buildJGAssistantView(session: JGAssistantSession): AssistantView
     return { options: [], inputPlaceholder: placeholders[session.expectedInput] };
   }
 
-  switch (session.step) {
-    case "opening":
-      return {
-        options: [
-          { id: "intent_buy", label: "I want to start a project" },
-          { id: "intent_learn", label: "I want to find something out" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "service":
-      return {
-        options: [
-          { id: "service_website", label: "Website" },
-          { id: "service_ai", label: "AI System" },
-          { id: "service_flyers", label: "Flyers / Social" },
-          { id: "service_not_sure", label: "Not sure yet" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "website_type":
-      return {
-        options: [
-          { id: "website_one_page", label: "One-page site" },
-          { id: "website_multi_page", label: "Multi-page business site" },
-          { id: "website_store", label: "Online store" },
-          { id: "website_not_sure", label: "Not sure yet" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "domain_have":
-      return {
-        options: [
-          { id: "domain_yes", label: "Yes" },
-          { id: "domain_no", label: "No" },
-          { id: "domain_not_sure", label: "Not sure" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "promo_type":
-      return {
-        options: [
-          { id: "promo_flyer", label: "Flyer / promo" },
-          { id: "promo_social_pack", label: "Social media pack" },
-          { id: "promo_both", label: "Both" },
-          { id: "promo_not_sure", label: "Not sure yet" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "promo_assets":
-      return {
-        options: [
-          { id: "assets_yes", label: "Yes" },
-          { id: "assets_some", label: "Some of it" },
-          { id: "assets_no", label: "No" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "promo_deadline":
-      return {
-        options: [
-          { id: "deadline_asap", label: "ASAP" },
-          { id: "deadline_few_days", label: "Within a few days" },
-          { id: "deadline_next_week", label: "Next week" },
-          { id: "deadline_no_rush", label: "No rush" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "ai_goal":
-      return {
-        options: [
-          { id: "aigoal_faster_replies", label: "Faster customer replies" },
-          { id: "aigoal_reviews_followups", label: "Reviews / follow-ups" },
-          { id: "aigoal_automating_tasks", label: "Automate repeated tasks" },
-          { id: "aigoal_better_marketing", label: "Marketing / content" },
-          { id: "aigoal_not_sure", label: "Not sure yet" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "ai_where":
-      return {
-        options: [
-          { id: "aiwhere_website", label: "Website" },
-          { id: "aiwhere_email", label: "Email" },
-          { id: "aiwhere_text_phone", label: "Text / Phone" },
-          { id: "aiwhere_social", label: "Social media" },
-          { id: "aiwhere_not_sure", label: "Not sure yet" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "ai_setup":
-      return {
-        options: [
-          { id: "aisetup_basic", label: "Basic guided setup" },
-          { id: "aisetup_pro", label: "Custom automation" },
-          { id: "aisetup_not_sure", label: "Not sure yet" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "follow_up":
-      return {
-        options: [
-          { id: "followup_email", label: "Email" },
-          { id: "followup_phone", label: "Phone / Text" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "learn_topics":
-      return { options: learnTopicOptions(session.activePathname), inputPlaceholder: null };
-    case "learn_follow_up":
-      return {
-        options: [
-          { id: "learn_another", label: "Ask about something else" },
-          { id: "start_project", label: "Start a project" },
-        ],
-        inputPlaceholder: null,
-      };
-    case "handoff":
-    default:
-      return { options: [], inputPlaceholder: null };
+  const optionsByStep: Partial<Record<AssistantStep, AssistantOption[]>> = {
+    opening: [
+      { id: "intent_buy", label: "I want to start a project" },
+      { id: "intent_learn", label: "I want to find something out" },
+    ],
+    service: [
+      { id: "service_website", label: "Website" },
+      { id: "service_ai", label: "AI System" },
+      { id: "service_flyers", label: "Flyers / Social" },
+      { id: "service_not_sure", label: "Not sure yet" },
+    ],
+    website_type: [
+      { id: "website_one_page", label: "One-page site" },
+      { id: "website_multi_page", label: "Multi-page business site" },
+      { id: "website_store", label: "Online store" },
+      { id: "website_not_sure", label: "Not sure yet" },
+    ],
+    domain_have: [
+      { id: "domain_yes", label: "Yes" },
+      { id: "domain_no", label: "No" },
+      { id: "domain_not_sure", label: "Not sure" },
+    ],
+    promo_type: [
+      { id: "promo_flyer", label: "Flyer / promo" },
+      { id: "promo_social_pack", label: "Social media pack" },
+      { id: "promo_both", label: "Both" },
+      { id: "promo_not_sure", label: "Not sure yet" },
+    ],
+    promo_assets: [
+      { id: "assets_yes", label: "Yes" },
+      { id: "assets_some", label: "Some of it" },
+      { id: "assets_no", label: "No" },
+    ],
+    promo_deadline: [
+      { id: "deadline_asap", label: "ASAP" },
+      { id: "deadline_few_days", label: "Within a few days" },
+      { id: "deadline_next_week", label: "Next week" },
+      { id: "deadline_no_rush", label: "No rush" },
+    ],
+    ai_goal: [
+      { id: "aigoal_faster_replies", label: "Faster customer replies" },
+      { id: "aigoal_reviews_followups", label: "Reviews / follow-ups" },
+      { id: "aigoal_automating_tasks", label: "Automate repeated tasks" },
+      { id: "aigoal_better_marketing", label: "Marketing / content" },
+      { id: "aigoal_not_sure", label: "Not sure yet" },
+    ],
+    ai_where: [
+      { id: "aiwhere_website", label: "Website" },
+      { id: "aiwhere_email", label: "Email" },
+      { id: "aiwhere_text_phone", label: "Text / Phone" },
+      { id: "aiwhere_social", label: "Social media" },
+      { id: "aiwhere_not_sure", label: "Not sure yet" },
+    ],
+    ai_setup: [
+      { id: "aisetup_basic", label: "Basic guided setup" },
+      { id: "aisetup_pro", label: "Custom automation" },
+      { id: "aisetup_not_sure", label: "Not sure yet" },
+    ],
+    follow_up: [
+      { id: "followup_email", label: "Email" },
+      { id: "followup_phone", label: "Phone / Text" },
+    ],
+    learn_follow_up: [
+      { id: "learn_another", label: "Ask about something else" },
+      { id: "start_project", label: "Start a project" },
+    ],
+  };
+
+  if (session.step === "learn_topics") {
+    return { options: learnTopicOptions(session.activePathname), inputPlaceholder: null };
   }
+  return { options: optionsByStep[session.step] ?? [], inputPlaceholder: null };
 }
 
 export function buildJGContactUrl(answers: AssistantAnswers): string {
@@ -685,13 +585,14 @@ export function buildJGContactUrl(answers: AssistantAnswers): string {
     answers.aiWhere ? `AI location: ${answers.aiWhere}` : "",
     answers.aiSetupType ? `AI setup: ${answers.aiSetupType}` : "",
   ].filter(Boolean);
-
   if (notes.length) params.set("notes_from_chatbot", notes.join(" | "));
   return `/contact?${params.toString()}`;
 }
 
 export function buildJGDirectEmailUrl(answers: AssistantAnswers): string {
   const subject = encodeURIComponent("New inquiry from JG Creative Studio website");
-  const body = encodeURIComponent(`Hi James,\n\nI was chatting with the JG Assistant and wanted to reach out directly.\n\nService needed:\n${answers.service || "Not specified"}\n\nBusiness type:\n${answers.businessType || "Not specified"}\n\nGoal:\n${answers.goal || "Not specified"}\n\nPreferred follow-up:\n${answers.followUp || "Not specified"}\n\nEmail:\n${answers.email || "Not provided"}\n\nPhone:\n${answers.phone || "Not provided"}\n\nThanks!`);
+  const body = encodeURIComponent(
+    `Hi James,\n\nI was chatting with the JG Assistant and wanted to reach out directly.\n\nService needed:\n${answers.service || "Not specified"}\n\nBusiness type:\n${answers.businessType || "Not specified"}\n\nGoal:\n${answers.goal || "Not specified"}\n\nPreferred follow-up:\n${answers.followUp || "Not specified"}\n\nEmail:\n${answers.email || "Not provided"}\n\nPhone:\n${answers.phone || "Not provided"}\n\nThanks!`,
+  );
   return `mailto:hello@jgcreativestudios.com?subject=${subject}&body=${body}`;
 }
