@@ -34,7 +34,11 @@ export default function JGChatWidget() {
 
   useEffect(() => {
     if (!hydrated) return;
-    setSession((current) => syncJGAssistantRoute(current, pathname));
+    setSession((current) =>
+      current.step === "opening"
+        ? createInitialJGAssistantSession(pathname)
+        : syncJGAssistantRoute(current, pathname),
+    );
   }, [hydrated, pathname]);
 
   useEffect(() => {
