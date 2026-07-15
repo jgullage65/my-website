@@ -1,30 +1,41 @@
-export const JG_ASSISTANT_STORAGE_KEY = "jg-assistant-session-v12";
+export const JG_ASSISTANT_STORAGE_KEY = "jg-assistant-session-v13";
 
 export type AssistantIntent = "buy" | "learn" | null;
 export type AssistantService = "website" | "design" | "ai" | "not_sure" | null;
 export type FollowUpMethod = "email" | "phone" | null;
-export type ExpectedInput = "custom_business" | "custom_project_need" | "email" | "phone" | null;
+export type ExpectedInput = "custom_business" | "custom_goal" | "email" | "phone" | null;
 export type AssistantMessage = { id: string; role: "assistant" | "user"; text: string };
+
 export type AssistantAnswers = {
   service: AssistantService;
   businessType: string;
-  projectNeed: string;
+  goal: string;
+  currentSituation: string;
+  frustration: string;
+  budget: string;
+  timeline: string;
   followUp: FollowUpMethod;
   email: string;
   phone: string;
 };
+
 export type AssistantStep =
   | "opening"
   | "learn_menu"
   | "learn_service_menu"
   | "learn_detail_menu"
   | "business_type"
-  | "project_need"
+  | "goal"
+  | "current_situation"
+  | "frustration"
+  | "budget"
+  | "timeline"
   | "recommendation"
   | "follow_up"
   | "handoff";
+
 export type JGAssistantSession = {
-  version: 12;
+  version: 13;
   intent: AssistantIntent;
   step: AssistantStep;
   expectedInput: ExpectedInput;
@@ -32,22 +43,30 @@ export type JGAssistantSession = {
   messages: AssistantMessage[];
   answers: AssistantAnswers;
 };
+
 export type AssistantOption = { id: string; label: string };
 export type AssistantView = { options: AssistantOption[]; inputPlaceholder: string | null };
 
 type Recommendation = {
   service: Exclude<AssistantService, null>;
   title: string;
-  reason: string;
+  summary: string;
+  why: string;
   pricing: string;
   timeline: string;
   included: string;
 };
 
+type ScoreCard = Record<"website" | "design" | "ai", number>;
+
 const emptyAnswers = (): AssistantAnswers => ({
   service: null,
   businessType: "",
-  projectNeed: "",
+  goal: "",
+  currentSituation: "",
+  frustration: "",
+  budget: "",
+  timeline: "",
   followUp: null,
   email: "",
   phone: "",
@@ -69,52 +88,128 @@ const exchange = (
 });
 
 const openingText = (pathname: string) => {
-  if (pathname.startsWith("/pricing")) return "I can explain pricing or guide you to the right project based on what your business needs.";
-  if (pathname.startsWith("/services")) return "I can explain the services or recommend the best fit based on the problem you want to solve.";
-  if (pathname.startsWith("/ai-tools")) return "I can explain the AI options or determine whether AI is actually the right solution for your business.";
-  return "Hey, I’m the JG Assistant. I can help you learn about the services or recommend the right project for your business.";
+  if (pathname.startsWith("/pricing")) {
+    return "I can explain pricing or guide you to the right project based on what your business actually needs.";
+  }
+  if (pathname.startsWith("/services")) {
+    return "I can explain the services or recommend the best fit after learning a little about your business.";
+  }
+  if (pathname.startsWith("/ai-tools")) {
+    return "I can explain the AI options or help determine whether AI is truly the right solution for your business.";
+  }
+  return "Hey, I’m the JG Assistant. I can help you learn about the services or guide you through the right project for your business.";
 };
 
-const normalize = (value: string) => value.toLowerCase();
+const normalize = (value: string) => value.trim().toLowerCase();
+const includesAny = (value: string, signals: string[]) => signals.some((signal) => value.includes(signal));
 
-const resolveRecommendation = (answers: AssistantAnswers): Recommendation => {
-  const need = normalize(answers.projectNeed);
+const add = (scores: ScoreCard, service: keyof ScoreCard, amount: number) => {
+  scores[service] += amount;
+};
+
+const scoreAnswers = (answers: AssistantAnswers): ScoreCard => {
+  const scores: ScoreCard = { website: 0, design: 0, ai: 0 };
+  const goal = normalize(answers.goal);
+  const situation = normalize(answers.currentSituation);
+  const frustration = normalize(answers.frustration);
+  const budget = normalize(answers.budget);
+  const timeline = normalize(answers.timeline);
+
+  if (includesAny(goal, ["lead", "call", "booking", "credibility", "trust", "online", "website", "sell", "e-commerce", "ecommerce"])) {
+    add(scores, "website", 4);
+  }
+  if (includesAny(goal, ["brand", "branding", "flyer", "graphic", "social", "visual", "promotion", "logo"])) {
+    add(scores, "design", 4);
+  }
+  if (includesAny(goal, ["automate", "automation", "save time", "workflow", "repetitive", "support", "organize", "connect tools", "qualify"])) {
+    add(scores, "ai", 4);
+  }
+
+  if (situation.includes("starting from scratch")) add(scores, "website", 3);
+  if (situation.includes("website is outdated")) add(scores, "website", 5);
+  if (situation.includes("good website")) {
+    add(scores, "design", 1);
+    add(scores, "ai", 1);
+  }
+  if (situation.includes("use some ai")) add(scores, "ai", 3);
+  if (situation.includes("just exploring")) {
+    add(scores, "website", 1);
+    add(scores, "design", 1);
+    add(scores, "ai", 1);
+  }
+
+  if (frustration.includes("losing leads")) add(scores, "website", 4);
+  if (frustration.includes("manual work")) add(scores, "ai", 5);
+  if (frustration.includes("website looks outdated")) add(scores, "website", 5);
+  if (frustration.includes("better branding")) add(scores, "design", 5);
+  if (frustration.includes("several things")) {
+    add(scores, "website", 2);
+    add(scores, "design", 2);
+    add(scores, "ai", 2);
+  }
+
+  if (budget.includes("under $500")) {
+    add(scores, "design", 1);
+    add(scores, "website", 1);
+    add(scores, "ai", 1);
+  }
+  if (budget.includes("$500 to $1,500") || budget.includes("$1,500 to $5,000") || budget.includes("$5,000+")) {
+    add(scores, "website", 1);
+    add(scores, "ai", 1);
+  }
+
+  if (timeline.includes("as soon as possible")) {
+    add(scores, "design", 1);
+    add(scores, "website", 1);
+  }
+
+  return scores;
+};
+
+const recommendationCopy = (
+  service: Exclude<AssistantService, null>,
+  answers: AssistantAnswers,
+): Recommendation => {
   const business = answers.businessType || "business";
+  const goal = answers.goal || "your main goal";
+  const frustration = answers.frustration || "the current problem";
+  const situation = answers.currentSituation || "your current setup";
 
-  const aiSignals = ["automate", "automation", "repetitive", "admin", "workflow", "save time", "support", "qualify", "organize", "connect tools"];
-  const designSignals = ["flyer", "logo", "branding", "brand", "social", "graphic", "promotion", "event", "menu", "brochure", "visual"];
-  const websiteSignals = ["website", "leads", "calls", "bookings", "credibility", "trust", "sell online", "ecommerce", "outdated", "online presence", "seo"];
-
-  if (aiSignals.some((signal) => need.includes(signal))) {
+  if (service === "ai") {
     return {
-      service: "ai",
+      service,
       title: "AI Workflow System",
-      reason: `You described a process problem for your ${business}, so the strongest fit is an AI workflow system rather than a website or design package. The goal is to remove repeated manual work and improve the exact workflow you identified.`,
+      summary: `For your ${business}, the strongest fit is an AI Workflow System. You want to ${goal.toLowerCase()}, and your biggest frustration is ${frustration.toLowerCase()}. This recommendation focuses on removing repeated work instead of adding another tool you still have to manage manually.`,
+      why: `AI ranks above a website or design package here because your answers point to an operational problem, not primarily a visibility or branding problem. With ${situation.toLowerCase()}, the highest-value move is improving the workflow itself so the same work takes less time and fewer manual steps.`,
       pricing: "AI starter setups currently begin at $39+. More advanced automations begin at $149+ after the workflow, tools, permissions, and integrations are confirmed.",
       timeline: "Simple setups can move quickly. Connected or multi-step automations take longer because each trigger, action, permission, and failure case must be tested.",
-      included: "Workflow review, solution mapping, setup, testing, revisions, and a clear handoff for using the system.",
+      included: "Workflow review, solution mapping, setup, integration configuration, testing, revisions, and a clear handoff for using the system.",
     };
   }
 
-  if (designSignals.some((signal) => need.includes(signal))) {
+  if (service === "design") {
     return {
-      service: "design",
+      service,
       title: "Focused Design Package",
-      reason: `Your need is primarily visual and promotional, so a focused design package is the cleanest solution for your ${business}. A website or AI build would add scope without solving the immediate problem better.`,
+      summary: `For your ${business}, the strongest fit is a Focused Design Package. You want to ${goal.toLowerCase()}, and ${frustration.toLowerCase()} is the clearest issue to solve first. This gives you the visual assets you need without forcing a larger website or AI project.` ,
+      why: `Design ranks above the alternatives because the problem you described is mainly visual, promotional, or brand-related. A website build would add unnecessary scope, while automation would not directly improve how the business is presented to customers.`,
       pricing: "Single designs begin at $20+, and a three-design flyer pack begins at $49+. Larger branding or multi-asset projects are scoped before work begins.",
       timeline: "Small design requests can usually move quickly. Larger coordinated sets require more asset preparation and review rounds.",
       included: "Goal and format review, brand asset collection, first draft, revisions, and final production-ready files.",
     };
   }
 
-  if (websiteSignals.some((signal) => need.includes(signal))) {
-    const refresh = need.includes("outdated") || need.includes("refresh") || need.includes("existing");
+  if (service === "website") {
+    const refresh = normalize(answers.currentSituation).includes("outdated") || normalize(answers.frustration).includes("outdated");
     return {
-      service: "website",
+      service,
       title: refresh ? "Website Refresh" : "Business Website",
-      reason: refresh
-        ? `You already have an online presence but described a trust or presentation problem. A website refresh is the most direct way to improve credibility and conversion without rebuilding more than necessary.`
-        : `Your goal depends on people finding, trusting, and contacting your ${business}. A business website is the best foundation because it can support credibility, lead capture, calls, bookings, and future growth in one place.`,
+      summary: refresh
+        ? `For your ${business}, the strongest fit is a Website Refresh. Your current website is getting in the way of ${goal.toLowerCase()}, so the priority is improving trust, clarity, and conversion without rebuilding more than necessary.`
+        : `For your ${business}, the strongest fit is a Business Website. You want to ${goal.toLowerCase()}, and your answers show that customers need a clearer place to find, trust, and contact the business.`,
+      why: refresh
+        ? "A refresh ranks above design-only work because the problem lives inside the customer journey, not just in a single visual asset. It also ranks above AI because the immediate gap is credibility and conversion, not internal workflow efficiency."
+        : `A website ranks above the alternatives because your answers point to visibility, trust, lead capture, calls, bookings, or online sales. It creates the foundation those goals depend on, while design or AI alone would only solve part of the problem.`,
       pricing: "Website refreshes begin at $79+, starter websites at $129+, and business websites at $249+. Final pricing depends on page count, content, and required features.",
       timeline: "A refresh can move quickly when content is ready. New websites take longer because they include structure, content placement, responsive testing, review, and launch.",
       included: "Scope, page structure, content and asset placement, responsive build, review, revisions, testing, and launch support.",
@@ -124,11 +219,28 @@ const resolveRecommendation = (answers: AssistantAnswers): Recommendation => {
   return {
     service: "not_sure",
     title: "Project Review",
-    reason: `Your need does not cleanly fit one package yet. The best recommendation is a short project review so James can identify whether the smallest effective solution is website, design, AI, or a combination without overselling you.`,
+    summary: `Your answers point to more than one possible solution for your ${business}. A short Project Review is the safest recommendation so James can confirm the smallest effective scope without forcing you into the wrong service.`,
+    why: "The scoring is too close or the need is still unclear. Recommending a website, design package, or AI system now would be guessing. A project review keeps the next step specific while avoiding an oversized or mismatched project.",
     pricing: "James will confirm the simplest suitable option before giving a starting price.",
     timeline: "Timing is confirmed once the actual scope and required assets are clear.",
     included: "Problem review, service recommendation, scope outline, starting price, and next-step plan.",
   };
+};
+
+const resolveRecommendation = (answers: AssistantAnswers): Recommendation => {
+  const scores = scoreAnswers(answers);
+  const ranked = (Object.entries(scores) as [keyof ScoreCard, number][]).sort((a, b) => b[1] - a[1]);
+  const [first, second] = ranked;
+  const unclear =
+    normalize(answers.goal).includes("not sure") ||
+    normalize(answers.frustration).includes("not sure") ||
+    normalize(answers.currentSituation).includes("just exploring");
+
+  if (first[1] < 4 || first[1] - second[1] < 2 || unclear) {
+    return recommendationCopy("not_sure", answers);
+  }
+
+  return recommendationCopy(first[0], answers);
 };
 
 const learnPricing = (service: AssistantService) => {
@@ -152,9 +264,32 @@ const learnTimeline = (service: AssistantService) => {
   return "Timing is confirmed after the problem and scope are clear.";
 };
 
+const startProject = (session: JGAssistantSession, label: string): JGAssistantSession => {
+  return exchange(session, label, "What type of business is this for?", {
+    intent: "buy",
+    step: "business_type",
+    expectedInput: null,
+    answers: emptyAnswers(),
+  });
+};
+
+const finishQualification = (
+  session: JGAssistantSession,
+  label: string,
+  answers: AssistantAnswers,
+): JGAssistantSession => {
+  const recommendation = resolveRecommendation(answers);
+  answers.service = recommendation.service;
+  return exchange(session, label, `${recommendation.title}\n\n${recommendation.summary}`, {
+    answers,
+    step: "recommendation",
+    expectedInput: null,
+  });
+};
+
 export function createInitialJGAssistantSession(pathname: string): JGAssistantSession {
   return {
-    version: 12,
+    version: 13,
     intent: null,
     step: "opening",
     expectedInput: null,
@@ -168,10 +303,13 @@ export function parseStoredJGAssistantSession(raw: string | null, pathname: stri
   if (!raw) return createInitialJGAssistantSession(pathname);
   try {
     const parsed = JSON.parse(raw) as Partial<JGAssistantSession>;
-    if (parsed.version !== 12 || !Array.isArray(parsed.messages)) return createInitialJGAssistantSession(pathname);
+    if (parsed.version !== 13 || !Array.isArray(parsed.messages)) {
+      return createInitialJGAssistantSession(pathname);
+    }
     return {
       ...createInitialJGAssistantSession(pathname),
       ...parsed,
+      version: 13,
       activePathname: pathname,
       answers: { ...emptyAnswers(), ...(parsed.answers ?? {}) },
     };
@@ -190,16 +328,10 @@ export function chooseJGAssistantOption(
   optionId: string,
   label: string,
 ): JGAssistantSession {
-  let answers = { ...session.answers };
+  const answers = { ...session.answers };
 
-  if (optionId === "intent_buy" || optionId === "learn_start_project") {
-    answers = emptyAnswers();
-    return exchange(session, label, "What type of business is this for?", {
-      intent: "buy",
-      step: "business_type",
-      expectedInput: null,
-      answers,
-    });
+  if (optionId === "intent_buy" || optionId === "learn_start_project" || optionId === "learn_fit") {
+    return startProject(session, label);
   }
 
   if (optionId === "intent_learn" || optionId === "learn_back") {
@@ -229,11 +361,12 @@ export function chooseJGAssistantOption(
   }
 
   if (optionId === "learn_support") {
-    return exchange(session, label, "Ongoing support can cover updates, fixes, content changes, troubleshooting, and continued improvements after delivery.", {
-      intent: "learn",
-      step: "learn_menu",
-      expectedInput: null,
-    });
+    return exchange(
+      session,
+      label,
+      "Ongoing support can cover updates, fixes, content changes, troubleshooting, and continued improvements after delivery.",
+      { intent: "learn", step: "learn_menu", expectedInput: null },
+    );
   }
 
   if (optionId === "learn_detail_pricing") {
@@ -249,46 +382,91 @@ export function chooseJGAssistantOption(
   if (optionId.startsWith("business_")) {
     if (optionId === "business_other") {
       return exchange(session, label, "Type the business type below.", {
+        intent: "buy",
         step: "business_type",
         expectedInput: "custom_business",
       });
     }
     answers.businessType = label;
-    return exchange(session, label, "What is the main problem you want this project to solve?", {
+    return exchange(session, label, "What is the primary goal for this project?", {
+      intent: "buy",
       answers,
-      step: "project_need",
+      step: "goal",
       expectedInput: null,
     });
   }
 
-  if (optionId.startsWith("need_")) {
-    if (optionId === "need_other") {
-      return exchange(session, label, "Describe the main problem or result you want below.", {
-        step: "project_need",
-        expectedInput: "custom_project_need",
+  if (optionId.startsWith("goal_")) {
+    if (optionId === "goal_other") {
+      return exchange(session, label, "Describe the main result you want below.", {
+        intent: "buy",
+        step: "goal",
+        expectedInput: "custom_goal",
       });
     }
-    answers.projectNeed = label;
-    const recommendation = resolveRecommendation(answers);
-    answers.service = recommendation.service;
-    return exchange(session, label, `${recommendation.title}\n\n${recommendation.reason}\n\nWould you like to review the recommendation or start the project?`, {
+    answers.goal = label;
+    return exchange(session, label, "Which best describes your current situation?", {
       answers,
+      step: "current_situation",
+      expectedInput: null,
+    });
+  }
+
+  if (optionId.startsWith("situation_")) {
+    answers.currentSituation = label;
+    return exchange(session, label, "What is your biggest frustration right now?", {
+      answers,
+      step: "frustration",
+      expectedInput: null,
+    });
+  }
+
+  if (optionId.startsWith("frustration_")) {
+    answers.frustration = label;
+    return exchange(session, label, "What budget range are you considering?", {
+      answers,
+      step: "budget",
+      expectedInput: null,
+    });
+  }
+
+  if (optionId.startsWith("budget_")) {
+    answers.budget = label;
+    return exchange(session, label, "When are you hoping to move forward?", {
+      answers,
+      step: "timeline",
+      expectedInput: null,
+    });
+  }
+
+  if (optionId.startsWith("timeline_")) {
+    answers.timeline = label;
+    return finishQualification(session, label, answers);
+  }
+
+  if (optionId === "recommend_price") {
+    return exchange(session, label, resolveRecommendation(answers).pricing, {
       step: "recommendation",
       expectedInput: null,
     });
   }
-
-  if (optionId === "recommend_price") {
-    return exchange(session, label, resolveRecommendation(answers).pricing, { step: "recommendation", expectedInput: null });
-  }
   if (optionId === "recommend_included") {
-    return exchange(session, label, resolveRecommendation(answers).included, { step: "recommendation", expectedInput: null });
+    return exchange(session, label, resolveRecommendation(answers).included, {
+      step: "recommendation",
+      expectedInput: null,
+    });
   }
   if (optionId === "recommend_timeline") {
-    return exchange(session, label, resolveRecommendation(answers).timeline, { step: "recommendation", expectedInput: null });
+    return exchange(session, label, resolveRecommendation(answers).timeline, {
+      step: "recommendation",
+      expectedInput: null,
+    });
   }
   if (optionId === "recommend_why") {
-    return exchange(session, label, resolveRecommendation(answers).reason, { step: "recommendation", expectedInput: null });
+    return exchange(session, label, resolveRecommendation(answers).why, {
+      step: "recommendation",
+      expectedInput: null,
+    });
   }
   if (optionId === "recommend_start") {
     return exchange(session, label, "How would you like James to reach you?", {
@@ -297,12 +475,11 @@ export function chooseJGAssistantOption(
     });
   }
   if (optionId === "recommend_change") {
-    answers.projectNeed = "";
-    answers.service = null;
-    return exchange(session, label, "What is the main problem you want this project to solve?", {
-      answers,
-      step: "project_need",
+    return exchange(session, label, "No problem. Let’s restart the project questions so the recommendation can be recalculated cleanly. What type of business is this for?", {
+      intent: "buy",
+      step: "business_type",
       expectedInput: null,
+      answers: emptyAnswers(),
     });
   }
 
@@ -316,14 +493,14 @@ export function chooseJGAssistantOption(
   }
   if (optionId === "followup_phone") {
     answers.followUp = "phone";
-    return exchange(session, label, "Enter the best phone number to call or text below.", {
+    return exchange(session, label, "Enter your best phone number below.", {
       answers,
       step: "follow_up",
       expectedInput: "phone",
     });
   }
   if (optionId === "project_not_ready") {
-    return exchange(session, label, "No problem. Your recommendation is still here if you want to review it again.", {
+    return exchange(session, label, "No problem. Your recommendation and answers are still here whenever you are ready.", {
       step: "recommendation",
       expectedInput: null,
     });
@@ -331,30 +508,30 @@ export function chooseJGAssistantOption(
 
   return exchange(session, label, "Choose one of the available next steps below.", {
     step: session.step,
-    expectedInput: null,
+    expectedInput: session.expectedInput,
   });
 }
 
 export function submitJGAssistantInput(session: JGAssistantSession, raw: string): JGAssistantSession {
   const value = raw.trim();
+  if (!value) return session;
   const answers = { ...session.answers };
 
   if (session.expectedInput === "custom_business") {
     answers.businessType = value;
-    return exchange(session, value, "What is the main problem you want this project to solve?", {
+    return exchange(session, value, "What is the primary goal for this project?", {
+      intent: "buy",
       answers,
-      step: "project_need",
+      step: "goal",
       expectedInput: null,
     });
   }
 
-  if (session.expectedInput === "custom_project_need") {
-    answers.projectNeed = value;
-    const recommendation = resolveRecommendation(answers);
-    answers.service = recommendation.service;
-    return exchange(session, value, `${recommendation.title}\n\n${recommendation.reason}\n\nWould you like to review the recommendation or start the project?`, {
+  if (session.expectedInput === "custom_goal") {
+    answers.goal = value;
+    return exchange(session, value, "Which best describes your current situation?", {
       answers,
-      step: "recommendation",
+      step: "current_situation",
       expectedInput: null,
     });
   }
@@ -381,6 +558,25 @@ export function submitJGAssistantInput(session: JGAssistantSession, raw: string)
 }
 
 export function buildJGAssistantView(session: JGAssistantSession): AssistantView {
+  const recommendation = resolveRecommendation(session.answers);
+
+  const recommendationOptions: AssistantOption[] =
+    recommendation.service === "not_sure"
+      ? [
+          { id: "recommend_why", label: "Why a Project Review?" },
+          { id: "recommend_included", label: "What Happens Next" },
+          { id: "recommend_start", label: "Start My Project" },
+          { id: "recommend_change", label: "Change My Answers" },
+        ]
+      : [
+          { id: "recommend_why", label: "Why This Recommendation?" },
+          { id: "recommend_price", label: "Estimated Starting Price" },
+          { id: "recommend_included", label: "What’s Included" },
+          { id: "recommend_timeline", label: "Typical Timeline" },
+          { id: "recommend_start", label: "Start My Project" },
+          { id: "recommend_change", label: "Change My Answers" },
+        ];
+
   const optionMap: Record<AssistantStep, AssistantOption[]> = {
     opening: [
       { id: "intent_buy", label: "I Want to Start a Project" },
@@ -388,6 +584,7 @@ export function buildJGAssistantView(session: JGAssistantSession): AssistantView
     ],
     learn_menu: [
       { id: "learn_pricing", label: "Pricing & Packages" },
+      { id: "learn_fit", label: "Which Service Fits My Business?" },
       { id: "learn_process", label: "Process & What’s Included" },
       { id: "learn_timeline", label: "Typical Timeline" },
       { id: "learn_support", label: "Ongoing Support" },
@@ -415,25 +612,45 @@ export function buildJGAssistantView(session: JGAssistantSession): AssistantView
       { id: "business_personal", label: "Personal Brand" },
       { id: "business_other", label: "Other" },
     ],
-    project_need: [
-      { id: "need_leads", label: "Get More Leads" },
-      { id: "need_calls", label: "Get More Calls / Bookings" },
-      { id: "need_credibility", label: "Improve Trust / Credibility" },
-      { id: "need_outdated", label: "Fix an Outdated Website" },
-      { id: "need_sales", label: "Sell Products Online" },
-      { id: "need_design", label: "Create Flyers / Branding / Graphics" },
-      { id: "need_automation", label: "Save Time / Automate Repetitive Work" },
-      { id: "need_support", label: "Improve Customer Support" },
-      { id: "need_other", label: "Something Else" },
+    goal: [
+      { id: "goal_leads", label: "Get More Leads" },
+      { id: "goal_calls", label: "Get More Calls / Bookings" },
+      { id: "goal_credibility", label: "Improve Trust / Credibility" },
+      { id: "goal_sales", label: "Sell Products Online" },
+      { id: "goal_design", label: "Improve Branding / Visuals" },
+      { id: "goal_automation", label: "Save Time / Automate Work" },
+      { id: "goal_support", label: "Improve Customer Support" },
+      { id: "goal_other", label: "Something Else" },
     ],
-    recommendation: [
-      { id: "recommend_why", label: "Why This Recommendation?" },
-      { id: "recommend_price", label: "Estimated Starting Price" },
-      { id: "recommend_included", label: "What’s Included" },
-      { id: "recommend_timeline", label: "Typical Timeline" },
-      { id: "recommend_start", label: "Start My Project" },
-      { id: "recommend_change", label: "Change My Need" },
+    current_situation: [
+      { id: "situation_scratch", label: "Starting From Scratch" },
+      { id: "situation_outdated", label: "Existing Website Is Outdated" },
+      { id: "situation_good_site", label: "Already Have a Good Website" },
+      { id: "situation_ai", label: "Already Use Some AI Tools" },
+      { id: "situation_exploring", label: "Just Exploring" },
     ],
+    frustration: [
+      { id: "frustration_leads", label: "Losing Leads" },
+      { id: "frustration_manual", label: "Too Much Manual Work" },
+      { id: "frustration_outdated", label: "Website Looks Outdated" },
+      { id: "frustration_branding", label: "Need Better Branding" },
+      { id: "frustration_several", label: "Need Several Things" },
+      { id: "frustration_unsure", label: "Not Sure" },
+    ],
+    budget: [
+      { id: "budget_under_500", label: "Under $500" },
+      { id: "budget_500_1500", label: "$500 to $1,500" },
+      { id: "budget_1500_5000", label: "$1,500 to $5,000" },
+      { id: "budget_5000_plus", label: "$5,000+" },
+      { id: "budget_unsure", label: "Not Sure Yet" },
+    ],
+    timeline: [
+      { id: "timeline_asap", label: "As Soon As Possible" },
+      { id: "timeline_month", label: "This Month" },
+      { id: "timeline_one_three", label: "1 to 3 Months" },
+      { id: "timeline_planning", label: "Just Planning" },
+    ],
+    recommendation: recommendationOptions,
     follow_up: session.expectedInput
       ? []
       : [
@@ -446,13 +663,13 @@ export function buildJGAssistantView(session: JGAssistantSession): AssistantView
 
   const placeholders: Record<Exclude<ExpectedInput, null>, string> = {
     custom_business: "Type your business type",
-    custom_project_need: "Describe the problem or result you want",
+    custom_goal: "Describe the result you want",
     email: "Enter your email",
     phone: "Enter your phone number",
   };
 
   return {
-    options: optionMap[session.step],
+    options: session.expectedInput ? [] : optionMap[session.step],
     inputPlaceholder: session.expectedInput ? placeholders[session.expectedInput] : null,
   };
 }
@@ -461,12 +678,17 @@ export function buildJGContactUrl(answers: AssistantAnswers): string {
   const params = new URLSearchParams();
   params.set("service", answers.service ?? "not_sure");
   if (answers.businessType) params.set("business_type", answers.businessType);
-  if (answers.projectNeed) params.set("project_need", answers.projectNeed);
+  if (answers.goal) params.set("project_need", answers.goal);
+  if (answers.currentSituation) params.set("current_situation", answers.currentSituation);
+  if (answers.frustration) params.set("biggest_frustration", answers.frustration);
+  if (answers.budget) params.set("budget", answers.budget);
+  if (answers.timeline) params.set("timeline", answers.timeline);
   if (answers.followUp) params.set("preferred_contact", answers.followUp);
   if (answers.email) params.set("email", answers.email);
   if (answers.phone) params.set("phone", answers.phone);
+
   const recommendation = resolveRecommendation(answers);
-  params.set("notes_from_chatbot", `${recommendation.title}: ${recommendation.reason}`);
+  params.set("notes_from_chatbot", `${recommendation.title}: ${recommendation.summary}`);
   return `/contact?${params.toString()}`;
 }
 
@@ -474,7 +696,7 @@ export function buildJGDirectEmailUrl(answers: AssistantAnswers): string {
   const recommendation = resolveRecommendation(answers);
   const subject = encodeURIComponent(`New ${recommendation.title} inquiry from JG Creative Studio website`);
   const body = encodeURIComponent(
-    `Hi James,\n\nBusiness: ${answers.businessType || "Not specified"}\nNeed: ${answers.projectNeed || "Not specified"}\nRecommended service: ${recommendation.title}\n\nWhy:\n${recommendation.reason}\n\nEmail: ${answers.email || "Not provided"}\nPhone: ${answers.phone || "Not provided"}`,
+    `Hi James,\n\nBusiness: ${answers.businessType || "Not specified"}\nPrimary goal: ${answers.goal || "Not specified"}\nCurrent situation: ${answers.currentSituation || "Not specified"}\nBiggest frustration: ${answers.frustration || "Not specified"}\nBudget: ${answers.budget || "Not specified"}\nTimeline: ${answers.timeline || "Not specified"}\nRecommended service: ${recommendation.title}\n\nRecommendation summary:\n${recommendation.summary}\n\nEmail: ${answers.email || "Not provided"}\nPhone: ${answers.phone || "Not provided"}`,
   );
   return `mailto:hello@jgcreativestudios.com?subject=${subject}&body=${body}`;
 }

@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import type { ReactNode } from "react";
-import { useState } from "react";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 28 },
@@ -37,30 +36,6 @@ const capabilities = [
   "Scheduling Systems",
   "Reporting Systems",
   "Multi-step AI Workflows",
-] as const;
-
-const systemStories = [
-  {
-    label: "Operate",
-    title: "Internal systems that give your team answers, actions, and visibility.",
-    copy: "Build searchable knowledge assistants, internal business systems, executive dashboards, reporting layers, and automated workflows around the way your company already works.",
-    points: ["Permission-aware knowledge", "Role-based dashboards", "Document and data workflows", "Clear human approval points"],
-    media: "Internal command system",
-  },
-  {
-    label: "Serve",
-    title: "Customer-facing AI that improves response quality without feeling generic.",
-    copy: "Create support AI, sales assistants, client portals, scheduling systems, and CRM automation that help customers move forward while keeping your team in control.",
-    points: ["Support and sales routing", "Client portal experiences", "CRM and calendar logic", "Escalation paths for real people"],
-    media: "Client experience layer",
-  },
-  {
-    label: "Scale",
-    title: "Custom SaaS foundations and integrations for workflows off-the-shelf tools miss.",
-    copy: "Design and build custom software, AI integrations, multi-step AI workflows, and reporting systems that connect your operations instead of adding another isolated tool.",
-    points: ["Custom SaaS architecture", "API and tool integrations", "Multi-step workflow orchestration", "Launch-ready product interfaces"],
-    media: "Custom SaaS architecture",
-  },
 ] as const;
 
 const buildPhases = [
@@ -101,9 +76,6 @@ function MediaPlaceholder({ label, ratio = "aspect-[16/10]" }: { label: string; 
 }
 
 export default function AISystemsPageClient() {
-  const [active, setActive] = useState(0);
-  const current = systemStories[active];
-
   return (
     <div className="overflow-hidden bg-[#030713] text-white">
       <Section className="relative mx-auto grid max-w-[94rem] gap-10 px-5 pb-16 pt-16 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-10 lg:pb-24 lg:pt-24">
@@ -125,20 +97,8 @@ export default function AISystemsPageClient() {
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">What we build</motion.p>
         <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">A full AI systems partner, not a chatbot shop.</motion.h2>
         <motion.div variants={fadeUp} className="mt-10 flex flex-wrap justify-center gap-3">
-          {capabilities.map((item) => <span key={item} className="rounded-full border border-[rgba(212,175,55,.18)] bg-white/[.035] px-4 py-2 text-sm font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,.04)]">{item}</span>)}
+          {capabilities.map((item) => <span key={item} className="rounded-full border border-[rgba(212,175,55,.42)] bg-[linear-gradient(180deg,#ffd56a,#c89426)] px-4 py-2 text-sm font-black text-[#06101f] shadow-[0_12px_30px_rgba(212,175,55,.20),inset_0_1px_0_rgba(255,255,255,.55)]">{item}</span>)}
         </motion.div>
-      </Section>
-
-      <Section className="mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.84fr_1.16fr] lg:px-10">
-        <motion.div variants={fadeUp}>
-          <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">System layers</p>
-          <h2 className="mt-4 text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl">Strategy, interface, automation, and intelligence in one build.</h2>
-          <div className="mt-8 flex flex-wrap gap-2">
-            {systemStories.map((story, index) => <button key={story.label} onClick={() => setActive(index)} className={`rounded-lg border px-4 py-2 text-xs font-black transition ${active === index ? "border-[var(--gold)] bg-[var(--gold)] text-[#06101f]" : "border-[rgba(212,175,55,.13)] bg-white/[.03] text-white hover:border-[rgba(212,175,55,.42)]"}`}>{story.label}</button>)}
-          </div>
-          <AnimatePresence mode="wait"><motion.div key={current.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.3 }} className="mt-8"><h3 className="text-2xl font-black tracking-[-.035em]">{current.title}</h3><p className="mt-4 max-w-xl leading-7 text-[var(--muted)]">{current.copy}</p><ul className="mt-6 grid gap-3">{current.points.map((point) => <li key={point} className="flex gap-3 text-sm font-bold text-slate-200"><span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--gold)] shadow-[0_0_18px_rgba(212,175,55,.6)]" />{point}</li>)}</ul></motion.div></AnimatePresence>
-        </motion.div>
-        <motion.div variants={mediaIn}><AnimatePresence mode="wait"><motion.div key={current.media} initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.01 }} transition={{ duration: 0.35 }}><MediaPlaceholder label={current.media} ratio="aspect-[16/11]" /></motion.div></AnimatePresence></motion.div>
       </Section>
 
       <Section className="mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
