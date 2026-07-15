@@ -38,7 +38,7 @@ const aiTabs = [
     description: "Automation flows that remove repetitive work while keeping the important decisions visible to your team.",
     lines: ["Intake to follow-up workflows", "Notification and task logic", "Documented business rules", "Clean handoff states"],
     mediaLabel: "Automation command center",
-    mediaSrc: undefined,
+    mediaSrc: "/image/Screenshot 2026-07-15 4.10.09 PM.png",
   },
   {
     id: "integrations",
