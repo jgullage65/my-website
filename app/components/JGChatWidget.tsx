@@ -2,13 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  FormEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   JG_ASSISTANT_STORAGE_KEY,
   buildJGAssistantView,
@@ -28,49 +22,30 @@ export default function JGChatWidget() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [session, setSession] = useState<JGAssistantSession>(() =>
-    createInitialJGAssistantSession(pathname),
-  );
-
+  const [session, setSession] = useState<JGAssistantSession>(() => createInitialJGAssistantSession(pathname));
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const view = useMemo(() => buildJGAssistantView(session), [session]);
 
   useEffect(() => {
-    const stored = window.sessionStorage.getItem(
-      JG_ASSISTANT_STORAGE_KEY,
-    );
-
-    setSession(parseStoredJGAssistantSession(stored, pathname));
+    setSession(parseStoredJGAssistantSession(window.sessionStorage.getItem(JG_ASSISTANT_STORAGE_KEY), pathname));
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-
-    setSession((current) =>
-      syncJGAssistantRoute(current, pathname),
-    );
+    setSession((current) => syncJGAssistantRoute(current, pathname));
   }, [hydrated, pathname]);
 
   useEffect(() => {
     if (!hydrated) return;
-
-    window.sessionStorage.setItem(
-      JG_ASSISTANT_STORAGE_KEY,
-      JSON.stringify(session),
-    );
+    window.sessionStorage.setItem(JG_ASSISTANT_STORAGE_KEY, JSON.stringify(session));
   }, [hydrated, session]);
 
   useEffect(() => {
     if (!open) return;
-
     const timeoutId = window.setTimeout(() => {
-      scrollRef.current?.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth",
-      });
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     }, 30);
-
     return () => window.clearTimeout(timeoutId);
   }, [open, session.messages.length, view.options.length]);
 
@@ -79,42 +54,25 @@ export default function JGChatWidget() {
     setSession(fresh);
     setInputValue("");
     setMenuOpen(false);
-
-    window.sessionStorage.setItem(
-      JG_ASSISTANT_STORAGE_KEY,
-      JSON.stringify(fresh),
-    );
+    window.sessionStorage.setItem(JG_ASSISTANT_STORAGE_KEY, JSON.stringify(fresh));
   }
 
   function chooseOption(id: string, label: string) {
-    setSession((current) =>
-      chooseJGAssistantOption(current, id, label),
-    );
+    setSession((current) => chooseJGAssistantOption(current, id, label));
   }
 
   function submitInput(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     const value = inputValue.trim();
     if (!value) return;
-
-    setSession((current) =>
-      submitJGAssistantInput(current, value),
-    );
+    setSession((current) => submitJGAssistantInput(current, value));
     setInputValue("");
   }
 
   const finalAssistantMessageId = useMemo(() => {
-    for (
-      let index = session.messages.length - 1;
-      index >= 0;
-      index -= 1
-    ) {
-      if (session.messages[index].role === "assistant") {
-        return session.messages[index].id;
-      }
+    for (let index = session.messages.length - 1; index >= 0; index -= 1) {
+      if (session.messages[index].role === "assistant") return session.messages[index].id;
     }
-
     return null;
   }, [session.messages]);
 
@@ -123,51 +81,26 @@ export default function JGChatWidget() {
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className={[
-          "fixed bottom-5 right-5 z-[80]",
-          "flex h-14 w-14 items-center justify-center rounded-2xl",
-          "border border-[rgba(212,175,55,0.42)]",
-          "bg-[linear-gradient(145deg,#111c48,#050b1d)]",
-          "text-[var(--gold)]",
-          "shadow-[0_18px_45px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)]",
-          "transition duration-200 hover:-translate-y-0.5",
-        ].join(" ")}
+        className="fixed bottom-5 right-5 z-[80] flex h-14 w-14 items-center justify-center rounded-2xl border border-[rgba(212,175,55,0.42)] bg-[linear-gradient(145deg,#111c48,#050b1d)] text-[var(--gold)] shadow-[0_18px_45px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition duration-200 hover:-translate-y-0.5"
         aria-label={open ? "Close JG Assistant" : "Open JG Assistant"}
         aria-expanded={open}
         aria-controls="jg-assistant-panel"
       >
-        <span className="text-lg font-black tracking-[0.08em]">
-          JG
-        </span>
+        <span className="text-lg font-black tracking-[0.08em]">JG</span>
       </button>
 
       {open ? (
         <section
           id="jg-assistant-panel"
           aria-label="JG Assistant"
-          className={[
-            "fixed bottom-20 right-4 z-[79]",
-            "flex h-[min(680px,calc(100vh-7rem))] w-[calc(100vw-2rem)] max-w-[430px] flex-col overflow-hidden",
-            "rounded-[24px] border border-[rgba(212,175,55,0.24)]",
-            "bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))]",
-            "shadow-[0_30px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.05)]",
-            "sm:right-5",
-          ].join(" ")}
+          className="fixed bottom-20 right-4 z-[79] flex h-[min(680px,calc(100vh-7rem))] w-[calc(100vw-2rem)] max-w-[430px] flex-col overflow-hidden rounded-[24px] border border-[rgba(212,175,55,0.24)] bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] shadow-[0_30px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.05)] sm:right-5"
         >
           <header className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(212,175,55,0.38)] bg-[linear-gradient(145deg,#101a43,#050b1d)] text-xs font-black tracking-[0.08em] text-[var(--gold)]">
-              JG
-            </div>
-
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(212,175,55,0.38)] bg-[linear-gradient(145deg,#101a43,#050b1d)] text-xs font-black tracking-[0.08em] text-[var(--gold)]">JG</div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-black text-white">
-                JG Assistant
-              </p>
-              <p className="truncate text-[11px] font-medium text-slate-400">
-                Project guidance and quick answers
-              </p>
+              <p className="truncate text-sm font-black text-white">JG Assistant</p>
+              <p className="truncate text-[11px] font-medium text-slate-400">Project guidance and quick answers</p>
             </div>
-
             <div className="relative">
               <button
                 type="button"
@@ -179,95 +112,40 @@ export default function JGChatWidget() {
               >
                 ⋯
               </button>
-
               {menuOpen ? (
-                <div
-                  role="menu"
-                  className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl border border-[rgba(212,175,55,0.2)] bg-[#070d21] p-1.5 shadow-2xl"
-                >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={restartAssistant}
-                    className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]"
-                  >
-                    Restart conversation
-                  </button>
-
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setOpen(false);
-                    }}
-                    className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]"
-                  >
-                    Close assistant
-                  </button>
+                <div role="menu" className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl border border-[rgba(212,175,55,0.2)] bg-[#070d21] p-1.5 shadow-2xl">
+                  <button type="button" role="menuitem" onClick={restartAssistant} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]">Restart conversation</button>
+                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]">Close assistant</button>
                 </div>
               ) : null}
             </div>
           </header>
 
-          <div
-            ref={scrollRef}
-            className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3.5 py-4"
-          >
+          <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3.5 py-4">
             {session.messages.map((message) => {
               const incoming = message.role === "assistant";
-              const showActions =
-                incoming &&
-                message.id === finalAssistantMessageId &&
-                view.options.length > 0;
-
+              const showActions = incoming && message.id === finalAssistantMessageId && view.options.length > 0;
               return (
-                <div
-                  key={message.id}
-                  className={incoming ? "flex justify-start" : "flex justify-end"}
-                >
+                <div key={message.id} className={incoming ? "flex justify-start" : "flex justify-end"}>
                   <div className={incoming ? "max-w-[92%]" : "max-w-[84%]"}>
                     <div
                       className={[
                         "whitespace-pre-wrap text-sm leading-6",
                         incoming
-                          ? [
-                              "relative overflow-hidden rounded-2xl",
-                              "border border-[rgba(212,175,55,0.18)]",
-                              "bg-[linear-gradient(180deg,rgba(16,25,58,0.88),rgba(8,14,34,0.94))]",
-                              "px-4 py-3.5 text-slate-100",
-                              "shadow-[0_14px_35px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.04)]",
-                            ].join(" ")
-                          : [
-                              "rounded-2xl rounded-br-md",
-                              "bg-[linear-gradient(180deg,#d7b43c,#aa7f18)]",
-                              "px-4 py-3 text-[#07101f]",
-                              "font-semibold",
-                              "shadow-[0_10px_24px_rgba(212,175,55,0.14)]",
-                            ].join(" "),
+                          ? "relative overflow-hidden rounded-2xl border border-[rgba(212,175,55,0.18)] bg-[linear-gradient(180deg,rgba(16,25,58,0.88),rgba(8,14,34,0.94))] px-4 py-3.5 text-slate-100 shadow-[0_14px_35px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.04)]"
+                          : "rounded-2xl rounded-br-md bg-[linear-gradient(180deg,#d7b43c,#aa7f18)] px-4 py-3 font-semibold text-[#07101f] shadow-[0_10px_24px_rgba(212,175,55,0.14)]",
                       ].join(" ")}
                     >
-                      {incoming ? (
-                        <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-[var(--gold)]/70 to-transparent" />
-                      ) : null}
-
+                      {incoming ? <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-[var(--gold)]/70 to-transparent" /> : null}
                       <span className="relative">{message.text}</span>
-
                       {showActions ? (
-                        <div className="relative mt-3 flex flex-wrap gap-2">
+                        <div className="relative mt-3 flex w-full flex-col gap-2">
                           {view.options.map((option) => (
                             <button
                               key={option.id}
                               type="button"
-                              onClick={() =>
-                                chooseOption(option.id, option.label)
-                              }
-                              className={[
-                                "rounded-full border border-[rgba(212,175,55,0.24)]",
-                                "bg-[rgba(4,9,24,0.72)] px-3 py-2",
-                                "text-left text-xs font-bold leading-4 text-slate-100",
-                                "transition hover:-translate-y-px hover:border-[rgba(212,175,55,0.5)] hover:text-[var(--gold)]",
-                              ].join(" ")}
+                              onClick={() => chooseOption(option.id, option.label)}
+                              className="w-full rounded-xl border border-[rgba(212,175,55,0.24)] bg-[rgba(4,9,24,0.72)] px-3.5 py-3 text-left text-xs font-bold leading-4 text-slate-100 transition hover:-translate-y-px hover:border-[rgba(212,175,55,0.5)] hover:text-[var(--gold)]"
                             >
                               {option.label}
                             </button>
@@ -282,71 +160,31 @@ export default function JGChatWidget() {
 
             {session.step === "handoff" ? (
               <div className="rounded-2xl border border-[rgba(212,175,55,0.22)] bg-[rgba(5,11,28,0.82)] p-3.5">
-                <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--gold)]">
-                  Ready when you are
-                </p>
-
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--gold)]">Ready when you are</p>
                 <div className="mt-3 grid gap-2">
-                  <Link
-                    href={buildJGContactUrl(session.answers)}
-                    className="rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-4 py-3 text-center text-sm font-black text-[#07101f] transition hover:-translate-y-0.5"
-                  >
-                    Open project request
-                  </Link>
-
-                  <a
-                    href={buildJGDirectEmailUrl(session.answers)}
-                    className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-bold text-slate-100 transition hover:border-[rgba(212,175,55,0.3)] hover:text-[var(--gold)]"
-                  >
-                    Email James directly
-                  </a>
+                  <Link href={buildJGContactUrl(session.answers)} className="rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-4 py-3 text-center text-sm font-black text-[#07101f] transition hover:-translate-y-0.5">Open project request</Link>
+                  <a href={buildJGDirectEmailUrl(session.answers)} className="rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-bold text-slate-100 transition hover:border-[rgba(212,175,55,0.3)] hover:text-[var(--gold)]">Email James directly</a>
                 </div>
               </div>
             ) : null}
           </div>
 
           {view.inputPlaceholder ? (
-            <form
-              onSubmit={submitInput}
-              className="border-t border-white/[0.07] p-3"
-            >
+            <form onSubmit={submitInput} className="border-t border-white/[0.07] p-3">
               <div className="flex items-end gap-2 rounded-2xl border border-white/10 bg-[rgba(3,7,19,0.9)] p-2">
                 <input
                   value={inputValue}
-                  onChange={(event) =>
-                    setInputValue(event.target.value)
-                  }
+                  onChange={(event) => setInputValue(event.target.value)}
                   placeholder={view.inputPlaceholder}
                   className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm text-white outline-none placeholder:text-slate-500"
-                  autoComplete={
-                    session.expectedInput === "email"
-                      ? "email"
-                      : session.expectedInput === "phone"
-                        ? "tel"
-                        : "off"
-                  }
-                  inputMode={
-                    session.expectedInput === "email"
-                      ? "email"
-                      : session.expectedInput === "phone"
-                        ? "tel"
-                        : "text"
-                  }
+                  autoComplete={session.expectedInput === "email" ? "email" : session.expectedInput === "phone" ? "tel" : "off"}
+                  inputMode={session.expectedInput === "email" ? "email" : session.expectedInput === "phone" ? "tel" : "text"}
                 />
-
-                <button
-                  type="submit"
-                  disabled={!inputValue.trim()}
-                  className="rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-4 py-2.5 text-xs font-black text-[#07101f] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  Send
-                </button>
+                <button type="submit" disabled={!inputValue.trim()} className="rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-4 py-2.5 text-xs font-black text-[#07101f] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-45">Send</button>
               </div>
             </form>
           ) : (
-            <div className="border-t border-white/[0.06] px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-              Your conversation is remembered in this browser session
-            </div>
+            <div className="border-t border-white/[0.06] px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">Your conversation is remembered in this browser session</div>
           )}
         </section>
       ) : null}
