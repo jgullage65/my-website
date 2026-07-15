@@ -20,25 +20,7 @@ const mediaIn: Variants = {
   show: { opacity: 1, y: 0, rotateX: 0, scale: 1, transition: { duration: 0.85, ease: [0.16, 1, 0.3, 1] } },
 };
 
-const capabilities = [
-  "AI Copilots",
-  "Customer Support AI",
-  "Internal Knowledge Assistants",
-  "Sales Assistants",
-  "Workflow Automation",
-  "Client Portals",
-  "Internal Business Systems",
-  "Executive Dashboards",
-  "Custom SaaS",
-  "AI Integrations",
-  "AI Document Systems",
-  "CRM Automation",
-  "Scheduling Systems",
-  "Reporting Systems",
-  "Multi-step AI Workflows",
-] as const;
-
-const mobileCapabilityGroups = [
+const capabilityGroups = [
   {
     number: "01",
     title: "AI that works with your team",
@@ -131,23 +113,19 @@ export default function AISystemsPageClient() {
 
       <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-16 text-center sm:px-8 sm:py-20 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">What we build</motion.p>
-        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-[2.35rem] font-black leading-[.98] tracking-[-.055em] sm:text-6xl">A full AI systems partner, not a chatbot shop.</motion.h2>
-        <motion.p variants={fadeUp} className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:hidden">Strategy, software, and automation designed as one connected operating system for the business.</motion.p>
+        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-[2.35rem] font-black leading-[.98] tracking-[-.055em] sm:text-5xl lg:text-6xl">A full AI systems partner, not a chatbot shop.</motion.h2>
+        <motion.p variants={fadeUp} className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base sm:leading-7">Strategy, software, and automation designed as one connected operating system for the business.</motion.p>
 
-        <motion.div variants={fadeUp} className="mt-10 hidden flex-wrap justify-center gap-3 sm:flex">
-          {capabilities.map((item) => <span key={item} className="rounded-full border border-[rgba(212,175,55,.42)] bg-[linear-gradient(180deg,#ffd56a,#c89426)] px-4 py-2 text-sm font-black text-[#06101f] shadow-[0_12px_30px_rgba(212,175,55,.20),inset_0_1px_0_rgba(255,255,255,.55)]">{item}</span>)}
-        </motion.div>
-
-        <motion.div variants={fadeUp} className="mt-10 border-y border-[rgba(212,175,55,.28)] text-left sm:hidden">
-          {mobileCapabilityGroups.map((group, groupIndex) => (
-            <div key={group.number} className={groupIndex > 0 ? "border-t border-white/[.08] py-8" : "py-8"}>
-              <div className="grid grid-cols-[2.35rem_minmax(0,1fr)] items-start gap-4">
-                <span className="pt-1 text-xs font-black tracking-[.18em] text-[var(--gold)]">{group.number}</span>
-                <div>
-                  <h3 className="text-xl font-black leading-tight tracking-[-.035em] text-white">{group.title}</h3>
-                  <ul className="mt-5 grid gap-x-5 gap-y-3 min-[390px]:grid-cols-2">
+        <motion.div variants={fadeUp} className="mt-10 border-y border-[rgba(212,175,55,.28)] text-left lg:grid lg:grid-cols-3 lg:divide-x lg:divide-white/[.08]">
+          {capabilityGroups.map((group, groupIndex) => (
+            <div key={group.number} className={`${groupIndex > 0 ? "border-t border-white/[.08] lg:border-t-0" : ""} py-8 lg:px-8 lg:py-10`}>
+              <div className="grid grid-cols-[2.35rem_minmax(0,1fr)] items-start gap-4 lg:block">
+                <span className="pt-1 text-xs font-black tracking-[.18em] text-[var(--gold)] lg:block lg:pt-0">{group.number}</span>
+                <div className="lg:mt-5">
+                  <h3 className="text-xl font-black leading-tight tracking-[-.035em] text-white sm:text-2xl">{group.title}</h3>
+                  <ul className="mt-5 grid gap-x-5 gap-y-3 min-[390px]:grid-cols-2 lg:grid-cols-1 lg:gap-y-4">
                     {group.items.map((item, itemIndex) => (
-                      <li key={item} className={`grid grid-cols-[.45rem_minmax(0,1fr)] items-start gap-2.5 text-sm leading-5 text-slate-200 ${itemIndex === group.items.length - 1 ? "min-[390px]:col-span-2" : ""}`}>
+                      <li key={item} className={`grid grid-cols-[.45rem_minmax(0,1fr)] items-start gap-2.5 text-sm leading-5 text-slate-200 sm:text-[.95rem] sm:leading-6 ${itemIndex === group.items.length - 1 ? "min-[390px]:col-span-2 lg:col-span-1" : ""}`}>
                         <span className="mt-[.42rem] h-1.5 w-1.5 rounded-full bg-[var(--gold)] shadow-[0_0_12px_rgba(212,175,55,.55)]" />
                         <span>{item}</span>
                       </li>
@@ -158,7 +136,7 @@ export default function AISystemsPageClient() {
             </div>
           ))}
         </motion.div>
-        <motion.p variants={fadeUp} className="mt-6 text-[.62rem] font-black uppercase tracking-[.24em] text-slate-500 sm:hidden">Built as one connected system</motion.p>
+        <motion.p variants={fadeUp} className="mt-6 text-[.62rem] font-black uppercase tracking-[.24em] text-slate-500">Built as one connected system</motion.p>
       </Section>
 
       <Section className="mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
