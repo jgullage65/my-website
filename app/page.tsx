@@ -29,6 +29,7 @@ const aiTabs = [
     description: "Custom copilots that answer questions, capture context, qualify requests, and guide people toward the next best action.",
     lines: ["Knowledge and offer design", "Lead intake and routing", "Human handoff paths", "Website or internal deployment"],
     mediaLabel: "AI copilot workspace",
+    mediaSrc: "/images/Screenshot 2026-07-15 12.02.13 PM.png",
   },
   {
     id: "automation",
@@ -37,6 +38,7 @@ const aiTabs = [
     description: "Automation flows that remove repetitive work while keeping the important decisions visible to your team.",
     lines: ["Intake to follow-up workflows", "Notification and task logic", "Documented business rules", "Clean handoff states"],
     mediaLabel: "Automation command center",
+    mediaSrc: undefined,
   },
   {
     id: "integrations",
@@ -45,6 +47,7 @@ const aiTabs = [
     description: "Connect the systems your business already depends on so information moves without copy-paste bottlenecks.",
     lines: ["CRM and form connections", "Scheduling and email flows", "Payment and account paths", "Data sync planning"],
     mediaLabel: "Integration architecture preview",
+    mediaSrc: undefined,
   },
   {
     id: "systems",
@@ -53,6 +56,7 @@ const aiTabs = [
     description: "Purpose-built portals, workflow tools, and product foundations for workflows generic software cannot handle well.",
     lines: ["Custom portals and dashboards", "Role-based workflow design", "Product architecture", "Launch-ready implementation"],
     mediaLabel: "Custom business software",
+    mediaSrc: undefined,
   },
 ] as const;
 
@@ -155,7 +159,7 @@ export default function HomePage() {
           <AnimatePresence mode="wait"><motion.div key={current.id} id={`${tabRoot}-${current.id}-panel`} role="tabpanel" aria-labelledby={`${tabRoot}-${current.id}-tab`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: .3 }} className="mt-8"><h3 className="text-2xl font-black tracking-[-.035em]">{current.heading}</h3><p className="mt-4 max-w-xl leading-7 text-[var(--muted)]">{current.description}</p><ul className="mt-6 grid gap-3">{current.lines.map(line => <li key={line} className="flex gap-3 text-sm font-bold text-slate-200"><span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--gold)] shadow-[0_0_18px_rgba(212,175,55,.6)]" />{line}</li>)}</ul></motion.div></AnimatePresence>
           <div className="mt-8"><GoldButton href="/ai-tools">Explore AI Systems →</GoldButton></div>
         </motion.div>
-        <motion.div variants={mediaIn} className="relative"><div className="absolute -inset-5 rounded-[2.5rem] bg-[radial-gradient(circle_at_50%_80%,rgba(212,175,55,.18),transparent_55%)] blur-2xl" /><AnimatePresence mode="wait"><motion.div key={current.mediaLabel} initial={{ opacity: 0, scale: .98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.01 }} transition={{ duration: .35 }}><ProductMedia alt={`${current.mediaLabel} placeholder`} label={current.mediaLabel} ratio="aspect-[16/11]" className="rounded-[1.6rem] lg:mt-16" /></motion.div></AnimatePresence></motion.div>
+        <motion.div variants={mediaIn} className="relative"><div className="absolute -inset-5 rounded-[2.5rem] bg-[radial-gradient(circle_at_50%_80%,rgba(212,175,55,.18),transparent_55%)] blur-2xl" /><AnimatePresence mode="wait"><motion.div key={current.mediaLabel} initial={{ opacity: 0, scale: .98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.01 }} transition={{ duration: .35 }}><ProductMedia src={current.mediaSrc} alt={current.mediaLabel} label={current.mediaLabel} ratio="aspect-[16/11]" className="rounded-[1.6rem] lg:mt-16" /></motion.div></AnimatePresence></motion.div>
       </Section>
 
       <Section className="mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
