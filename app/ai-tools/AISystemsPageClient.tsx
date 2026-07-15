@@ -123,9 +123,9 @@ export default function AISystemsPageClient() {
                 <span className="pt-1 text-xs font-black tracking-[.18em] text-[var(--gold)] lg:block lg:pt-0">{group.number}</span>
                 <div className="lg:mt-5">
                   <h3 className="text-xl font-black leading-tight tracking-[-.035em] text-white sm:text-2xl">{group.title}</h3>
-                  <ul className="mt-5 grid gap-x-5 gap-y-3 min-[390px]:grid-cols-2 lg:grid-cols-1 lg:gap-y-4">
-                    {group.items.map((item, itemIndex) => (
-                      <li key={item} className={`grid grid-cols-[.45rem_minmax(0,1fr)] items-start gap-2.5 text-sm leading-5 text-slate-200 sm:text-[.95rem] sm:leading-6 ${itemIndex === group.items.length - 1 ? "min-[390px]:col-span-2 lg:col-span-1" : ""}`}>
+                  <ul className="mt-5 grid grid-cols-1 gap-x-5 gap-y-3 md:grid-cols-2 lg:grid-cols-1 lg:gap-y-4">
+                    {group.items.map((item) => (
+                      <li key={item} className="grid grid-cols-[.45rem_max-content] items-start gap-2.5 whitespace-nowrap text-[.82rem] leading-5 text-slate-200 min-[390px]:text-sm sm:text-[.95rem] sm:leading-6">
                         <span className="mt-[.42rem] h-1.5 w-1.5 rounded-full bg-[var(--gold)] shadow-[0_0_12px_rgba(212,175,55,.55)]" />
                         <span>{item}</span>
                       </li>
