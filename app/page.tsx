@@ -47,7 +47,7 @@ const aiTabs = [
     description: "Connect the systems your business already depends on so information moves without copy-paste bottlenecks.",
     lines: ["CRM and form connections", "Scheduling and email flows", "Payment and account paths", "Data sync planning"],
     mediaLabel: "Integration architecture preview",
-    mediaSrc: undefined,
+    mediaSrc: "/image/Screenshot 2026-07-15 4.32.58 PM.png",
   },
   {
     id: "systems",
