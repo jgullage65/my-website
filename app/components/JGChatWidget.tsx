@@ -18,7 +18,7 @@ import {
 
 export default function JGChatWidget() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [inputValue, setInputValue] = useState("");
