@@ -11,6 +11,3 @@ export type AssistantAnswers = {
   goal: string;
   aiGoal: string;
   followUp: FollowUpMethod;
-  email: string;
-  phone: string;
-};
