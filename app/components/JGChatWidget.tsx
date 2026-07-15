@@ -18,7 +18,7 @@ import {
 
 export default function JGChatWidget() {
   const pathname = usePathname();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [inputValue, setInputValue] = useState("");
@@ -28,6 +28,7 @@ export default function JGChatWidget() {
 
   useEffect(() => {
     setSession(parseStoredJGAssistantSession(window.sessionStorage.getItem(JG_ASSISTANT_STORAGE_KEY), pathname));
+    setOpen(window.matchMedia("(min-width: 1200px)").matches);
     setHydrated(true);
   }, []);
 
@@ -78,22 +79,24 @@ export default function JGChatWidget() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="fixed bottom-5 right-5 z-[80] flex h-14 w-14 items-center justify-center rounded-2xl border border-[rgba(212,175,55,0.42)] bg-[linear-gradient(145deg,#111c48,#050b1d)] text-[var(--gold)] shadow-[0_18px_45px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition duration-200 hover:-translate-y-0.5"
-        aria-label={open ? "Close JG Assistant" : "Open JG Assistant"}
-        aria-expanded={open}
-        aria-controls="jg-assistant-panel"
-      >
-        <span className="text-lg font-black tracking-[0.08em]">JG</span>
-      </button>
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-5 right-5 z-[80] flex h-14 w-14 items-center justify-center rounded-2xl border border-[rgba(212,175,55,0.42)] bg-[linear-gradient(145deg,#111c48,#050b1d)] text-[var(--gold)] shadow-[0_18px_45px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition duration-200 hover:-translate-y-0.5"
+          aria-label="Open JG Assistant"
+          aria-expanded={false}
+          aria-controls="jg-assistant-panel"
+        >
+          <span className="text-lg font-black tracking-[0.08em]">JG</span>
+        </button>
+      ) : null}
 
       {open ? (
         <section
           id="jg-assistant-panel"
           aria-label="JG Assistant"
-          className="fixed bottom-20 right-4 z-[79] flex h-[min(680px,calc(100vh-7rem))] w-[calc(100vw-2rem)] max-w-[430px] flex-col overflow-hidden rounded-[24px] border border-[rgba(212,175,55,0.24)] bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] shadow-[0_30px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.05)] sm:right-5"
+          className="fixed inset-0 z-[81] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none border-0 bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] shadow-[0_30px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.05)] sm:inset-auto sm:bottom-20 sm:right-5 sm:h-[min(680px,calc(100vh-7rem))] sm:w-[calc(100vw-2rem)] sm:max-w-[430px] sm:rounded-[24px] sm:border sm:border-[rgba(212,175,55,0.24)] xl:bottom-0 xl:right-0 xl:h-[min(760px,100vh)] xl:max-w-[430px] xl:rounded-none xl:rounded-tl-[24px] xl:border-b-0 xl:border-r-0"
         >
           <header className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3.5">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(212,175,55,0.38)] bg-[linear-gradient(145deg,#101a43,#050b1d)] text-xs font-black tracking-[0.08em] text-[var(--gold)]">JG</div>
