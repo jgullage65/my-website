@@ -50,6 +50,16 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/ai-tools", label: "AI Systems" },
   { href: "/services", label: "Services" },
+  { href: "/pricing", label: "Pricing" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
+];
+
+const footerNavItems = [
+  { href: "/services", label: "Websites" },
+  { href: "/ai-tools", label: "AI Systems" },
+  { href: "/services", label: "Services" },
+  { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
@@ -163,11 +173,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
           <footer className="mt-24 border-t border-[var(--border)] bg-[rgba(4,8,24,0.82)]">
             <div className="mx-auto grid w-full max-w-[90rem] gap-10 px-6 py-14 sm:px-8 md:grid-cols-[1.35fr_0.8fr_1fr] lg:px-10">
-              <div>
+              <div className="text-center md:text-left">
                 <p className="text-lg font-black uppercase tracking-[0.14em] text-white">
                   JG Creative Studio
                 </p>
-                <p className="mt-4 max-w-xl text-sm leading-7 text-[var(--muted)]">
+                <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-[var(--muted)] md:mx-0">
                   We build premium websites, practical AI business systems, and
                   custom growth technology designed to help businesses operate
                   better and win more customers.
@@ -177,20 +187,20 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </p>
               </div>
 
-              <div>
+              <div className="text-center md:text-left">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--gold)]">
                   Explore
                 </p>
-                <div className="mt-5 grid gap-3 text-sm font-semibold text-slate-300">
-                  <Link href="/services" className="hover:text-white">Websites</Link>
-                  <Link href="/ai-tools" className="hover:text-white">AI Systems</Link>
-                  <Link href="/examples" className="hover:text-white">Portfolio</Link>
-                  <Link href="/about" className="hover:text-white">About</Link>
-                  <Link href="/contact" className="hover:text-white">Contact</Link>
+                <div className="mt-5 grid grid-cols-3 gap-x-4 gap-y-4 text-sm font-semibold text-slate-300 md:grid-cols-1 md:gap-3">
+                  {footerNavItems.map((item) => (
+                    <Link key={`${item.label}-${item.href}`} href={item.href} className="hover:text-white">
+                      {item.label}
+                    </Link>
+                  ))}
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-[rgba(212,175,55,0.24)] bg-[#030713] p-7 shadow-[0_24px_60px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.05)]">
+              <div className="rounded-3xl border border-[rgba(212,175,55,0.24)] bg-[#030713] p-7 text-center shadow-[0_24px_60px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.05)] md:text-left">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--gold)]">
                   Build something useful
                 </p>
@@ -207,7 +217,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             </div>
 
             <div className="border-t border-white/[0.06]">
-              <div className="mx-auto flex w-full max-w-[90rem] flex-col gap-2 px-6 py-5 text-xs text-slate-500 sm:px-8 md:flex-row md:items-center md:justify-between lg:px-10">
+              <div className="mx-auto flex w-full max-w-[90rem] flex-col items-center gap-2 px-6 py-5 text-center text-xs text-slate-500 sm:px-8 md:flex-row md:justify-between md:text-left lg:px-10">
                 <p>© {year} JG Creative Studio. All rights reserved.</p>
                 <a
                   href="mailto:hello@jgcreativestudios.com"
