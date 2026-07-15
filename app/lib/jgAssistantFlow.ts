@@ -1,4 +1,4 @@
-export const JG_ASSISTANT_STORAGE_KEY = "jg-assistant-session-v8";
+export const JG_ASSISTANT_STORAGE_KEY = "jg-assistant-session-v9";
 
 export type AssistantIntent = "buy" | "learn" | null;
 export type AssistantService = "website" | "design" | "ai" | "not_sure" | null;
@@ -9,11 +9,4 @@ export type AssistantAnswers = {
   service: AssistantService;
   businessType: string;
   projectNeed: string;
-  followUp: FollowUpMethod;
-  email: string;
-  phone: string;
-};
-export type AssistantStep =
-  | "opening"
-  | "learn_menu"
- 
+  followUp
