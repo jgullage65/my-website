@@ -94,7 +94,7 @@ function OutlineButton({ href, children }: { href: string; children: ReactNode }
 function ProductMedia({ src, alt, label, className = "", ratio = "aspect-[16/10]" }: { src?: string; alt: string; label: string; className?: string; ratio?: string }) {
   return (
     <div className={`group relative overflow-hidden rounded-[1.15rem] border border-[rgba(212,175,55,.18)] bg-[#030711] shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_0_1px_rgba(255,255,255,.035)_inset] ${ratio} ${className}`}>
-      {src ? <img src={src} alt={alt} className="h-full w-full object-cover" /> : null}
+      {src ? <img src={src} alt={alt} className={`h-full w-full ${alt === "Integration architecture preview" ? "object-contain" : "object-cover"}`} /> : null}
       {!src ? (
         <div aria-label={alt} className="absolute inset-0 bg-[radial-gradient(circle_at_72%_17%,rgba(245,158,11,.24),transparent_12rem),radial-gradient(circle_at_18%_84%,rgba(8,18,34,.68),transparent_17rem),linear-gradient(145deg,rgba(5,10,22,.99),rgba(2,5,14,.995))]">
           <div className="absolute inset-3 rounded-[.9rem] border border-[rgba(212,175,55,.10)] bg-[linear-gradient(135deg,rgba(255,255,255,.07),rgba(255,255,255,.014))]" />
