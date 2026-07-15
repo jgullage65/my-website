@@ -154,13 +154,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </div>
             </div>
 
-            <nav className="border-t border-white/[0.05] px-4 py-2 lg:hidden">
-              <div className="mx-auto flex max-w-full items-center gap-5 overflow-x-auto text-sm font-semibold text-slate-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <nav className="border-t border-white/[0.05] px-2 py-2 lg:hidden">
+              <div className="mx-auto grid w-full grid-cols-6 items-center overflow-hidden text-[0.64rem] font-semibold text-slate-300 min-[390px]:text-[0.7rem]">
                 {navItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="shrink-0 transition-colors hover:text-[var(--gold)]"
+                    className="min-w-0 whitespace-nowrap text-center transition-colors hover:text-[var(--gold)]"
                   >
                     {item.label}
                   </Link>
