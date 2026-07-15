@@ -93,13 +93,13 @@ export default function AboutPageClient() {
         <div className="absolute inset-x-0 top-0 h-[52rem] bg-[radial-gradient(circle_at_12%_18%,rgba(212,175,55,.16),transparent_28rem),radial-gradient(circle_at_82%_12%,rgba(14,22,62,.72),transparent_38rem)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
         <PortraitCard />
-        <motion.div variants={fadeUp} className="relative z-10 self-center">
+        <motion.div variants={fadeUp} className="relative z-10 self-center text-center lg:text-left">
           <p className="text-xs font-black uppercase tracking-[.34em] text-[var(--gold)]">About JG Creative Studio</p>
-          <h1 className="mt-5 max-w-4xl text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-6xl xl:text-[5.25rem]">A creative technology studio for <span className="text-[var(--gold)]">modern business.</span></h1>
-          <p className="mt-6 max-w-2xl text-base leading-8 text-[var(--muted)] sm:text-lg">JG Creative Studio helps businesses look sharper, communicate clearly, and operate smarter through premium websites, AI systems, automation, and custom business technology.</p>
-          <p className="mt-5 max-w-2xl leading-8 text-slate-300">I’m James Gullage, a founder, developer, stay-at-home dad, and lifelong technology learner. I care about making advanced tools feel practical, understandable, and genuinely useful for the people running the business.</p>
-          <div className="mt-8 flex flex-wrap gap-3">{focusAreas.map((area) => <Tag key={area}>{area}</Tag>)}</div>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row"><GoldButton href="/contact">Start a Project</GoldButton><OutlineButton href="/services">View Services</OutlineButton></div>
+          <h1 className="mx-auto mt-5 max-w-4xl text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-6xl lg:mx-0 xl:text-[5.25rem]">A creative technology studio for <span className="text-[var(--gold)]">modern business.</span></h1>
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-[var(--muted)] sm:text-lg lg:mx-0">JG Creative Studio helps businesses look sharper, communicate clearly, and operate smarter through premium websites, AI systems, automation, and custom business technology.</p>
+          <p className="mx-auto mt-5 max-w-2xl leading-8 text-slate-300 lg:mx-0">I’m James Gullage, a founder, developer, stay-at-home dad, and lifelong technology learner. I care about making advanced tools feel practical, understandable, and genuinely useful for the people running the business.</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3 lg:justify-start">{focusAreas.map((area) => <Tag key={area}>{area}</Tag>)}</div>
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start"><GoldButton href="/contact">Start a Project</GoldButton><OutlineButton href="/services">View Services</OutlineButton></div>
         </motion.div>
       </Section>
 
@@ -110,10 +110,10 @@ export default function AboutPageClient() {
       </Section>
 
       <Section className="mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-10">
-        <motion.div variants={fadeUp} className="self-center">
+        <motion.div variants={fadeUp} className="self-center text-center lg:text-left">
           <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Why it started</p>
-          <h2 className="mt-4 text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl">Better businesses deserve better digital systems.</h2>
-          <p className="mt-6 max-w-2xl leading-8 text-[var(--muted)]">A lot of businesses do excellent work, but their website, marketing, software, or internal process does not reflect that quality. JG Creative Studio exists to close that gap with technology that feels premium on the outside and practical behind the scenes.</p>
+          <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl lg:mx-0">Better businesses deserve better digital systems.</h2>
+          <p className="mx-auto mt-6 max-w-2xl leading-8 text-[var(--muted)] lg:mx-0">A lot of businesses do excellent work, but their website, marketing, software, or internal process does not reflect that quality. JG Creative Studio exists to close that gap with technology that feels premium on the outside and practical behind the scenes.</p>
         </motion.div>
         <motion.div variants={mediaIn} className="rounded-[1.55rem] border border-[rgba(212,175,55,.16)] bg-[#030711] p-5 shadow-[0_30px_90px_rgba(0,0,0,.42)]">
           <div className="grid gap-4">{storyPoints.map(([title, desc]) => <div key={title} className="rounded-[1.1rem] border border-[rgba(212,175,55,.12)] bg-white/[.035] p-5"><p className="text-xs font-black uppercase tracking-[.24em] text-[var(--gold)]">{title}</p><p className="mt-3 leading-7 text-slate-300">{desc}</p></div>)}</div>
@@ -121,12 +121,12 @@ export default function AboutPageClient() {
       </Section>
 
       <Section className="mx-auto max-w-[94rem] px-5 py-10 sm:px-8 lg:px-10">
-        <motion.div variants={fadeUp} className="flex flex-col items-start justify-between gap-4 rounded-2xl border border-[rgba(212,175,55,.18)] bg-[#050b18] p-6 shadow-[0_18px_50px_rgba(0,0,0,.28)] md:flex-row md:items-center">
+        <motion.div variants={fadeUp} className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-5 rounded-2xl border border-[rgba(212,175,55,.18)] bg-[#050b18] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:p-6">
           <div>
             <p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Let’s build something useful</p>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]"><span className="font-black text-white">Bring the business problem.</span> I’ll help choose the cleanest path.</p>
+            <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--muted)]"><span className="font-black text-white">Bring the business problem.</span> I’ll help choose the cleanest path.</p>
           </div>
-          <div className="flex shrink-0 flex-col gap-3 sm:flex-row"><GoldButton href="/contact">Contact</GoldButton><OutlineButton href="/ai-tools">AI Systems</OutlineButton></div>
+          <div className="flex shrink-0 flex-col justify-center gap-3 sm:flex-row"><GoldButton href="/contact">Contact</GoldButton><OutlineButton href="/ai-tools">AI Systems</OutlineButton></div>
         </motion.div>
       </Section>
     </div>
