@@ -160,8 +160,8 @@ export default function HomePage() {
 
       <Section className="mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.88fr_1.12fr] lg:px-10 lg:py-20">
         <motion.div variants={fadeUp} className="self-center">
-          <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">AI Systems</p>
-          <h2 className="mt-4 text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl">Smarter systems.<br />Stronger businesses.</h2>
+          <p className="text-center text-xs font-black uppercase tracking-[.32em] text-[var(--gold)] sm:text-left">AI Systems</p>
+          <h2 className="mt-4 text-center text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-left sm:text-6xl">Smarter systems.<br />Stronger businesses.</h2>
           <div role="tablist" aria-label="AI system capabilities" onKeyDown={onTabKeyDown} className="mt-8 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {aiTabs.map((tab, i) => <button key={tab.id} id={`${tabRoot}-${tab.id}-tab`} role="tab" aria-selected={active === i} aria-controls={`${tabRoot}-${tab.id}-panel`} tabIndex={active === i ? 0 : -1} onClick={() => setActive(i)} className={`w-full rounded-lg border px-3 py-2 text-xs font-black transition sm:w-auto sm:px-4 ${active === i ? "border-[var(--gold)] bg-[var(--gold)] text-[#06101f]" : "border-[rgba(212,175,55,.13)] bg-white/[.03] text-white hover:border-[rgba(212,175,55,.42)]"}`}>{tab.label}</button>)}
           </div>
