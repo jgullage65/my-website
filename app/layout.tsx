@@ -219,12 +219,18 @@ export default function RootLayout({ children }: { children: ReactNode }) {
             <div className="border-t border-white/[0.06]">
               <div className="mx-auto flex w-full max-w-[90rem] flex-col items-center gap-2 px-6 py-5 text-center text-xs text-slate-500 sm:px-8 md:flex-row md:justify-between md:text-left lg:px-10">
                 <p>© {year} JG Creative Studio. All rights reserved.</p>
-                <a
-                  href="mailto:hello@jgcreativestudios.com"
-                  className="transition-colors hover:text-[var(--gold)]"
-                >
-                  hello@jgcreativestudios.com
-                </a>
+                <div className="flex items-center gap-2">
+                  <a
+                    href="mailto:hello@jgcreativestudios.com"
+                    className="transition-colors hover:text-[var(--gold)]"
+                  >
+                    hello@jgcreativestudios.com
+                  </a>
+                  <span aria-hidden="true">•</span>
+                  <Link href="/faq" className="transition-colors hover:text-[var(--gold)]">
+                    FAQ
+                  </Link>
+                </div>
               </div>
             </div>
           </footer>
