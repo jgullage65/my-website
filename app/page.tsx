@@ -4,7 +4,7 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { Variants } from "framer-motion";
 import type { KeyboardEvent, ReactNode } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 28 },
@@ -115,6 +115,14 @@ export default function HomePage() {
   const tabRoot = useId();
   const current = aiTabs[active];
 
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActive(currentActive => (currentActive + 1) % aiTabs.length);
+    }, 6000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
   function onTabKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
@@ -154,8 +162,8 @@ export default function HomePage() {
         <motion.div variants={fadeUp} className="self-center">
           <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">AI Systems</p>
           <h2 className="mt-4 text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl">Smarter systems.<br />Stronger businesses.</h2>
-          <div role="tablist" aria-label="AI system capabilities" onKeyDown={onTabKeyDown} className="mt-8 flex flex-wrap gap-2">
-            {aiTabs.map((tab, i) => <button key={tab.id} id={`${tabRoot}-${tab.id}-tab`} role="tab" aria-selected={active === i} aria-controls={`${tabRoot}-${tab.id}-panel`} tabIndex={active === i ? 0 : -1} onClick={() => setActive(i)} className={`rounded-lg border px-4 py-2 text-xs font-black transition ${active === i ? "border-[var(--gold)] bg-[var(--gold)] text-[#06101f]" : "border-[rgba(212,175,55,.13)] bg-white/[.03] text-white hover:border-[rgba(212,175,55,.42)]"}`}>{tab.label}</button>)}
+          <div role="tablist" aria-label="AI system capabilities" onKeyDown={onTabKeyDown} className="mt-8 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            {aiTabs.map((tab, i) => <button key={tab.id} id={`${tabRoot}-${tab.id}-tab`} role="tab" aria-selected={active === i} aria-controls={`${tabRoot}-${tab.id}-panel`} tabIndex={active === i ? 0 : -1} onClick={() => setActive(i)} className={`w-full rounded-lg border px-3 py-2 text-xs font-black transition sm:w-auto sm:px-4 ${active === i ? "border-[var(--gold)] bg-[var(--gold)] text-[#06101f]" : "border-[rgba(212,175,55,.13)] bg-white/[.03] text-white hover:border-[rgba(212,175,55,.42)]"}`}>{tab.label}</button>)}
           </div>
           <AnimatePresence mode="wait"><motion.div key={current.id} id={`${tabRoot}-${current.id}-panel`} role="tabpanel" aria-labelledby={`${tabRoot}-${current.id}-tab`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: .3 }} className="mt-8"><h3 className="text-2xl font-black tracking-[-.035em]">{current.heading}</h3><p className="mt-4 max-w-xl leading-7 text-[var(--muted)]">{current.description}</p><ul className="mt-6 grid gap-3">{current.lines.map(line => <li key={line} className="flex gap-3 text-sm font-bold text-slate-200"><span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--gold)] shadow-[0_0_18px_rgba(212,175,55,.6)]" />{line}</li>)}</ul></motion.div></AnimatePresence>
           <div className="mt-8"><GoldButton href="/ai-tools">Explore AI Systems →</GoldButton></div>
