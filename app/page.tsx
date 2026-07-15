@@ -56,7 +56,7 @@ const aiTabs = [
     description: "Purpose-built portals, workflow tools, and product foundations for workflows generic software cannot handle well.",
     lines: ["Custom portals and dashboards", "Role-based workflow design", "Product architecture", "Launch-ready implementation"],
     mediaLabel: "Custom business software",
-    mediaSrc: undefined,
+    mediaSrc: "/image/Screenshot 2026-07-15 4.44.25 PM.png",
   },
 ] as const;
 
