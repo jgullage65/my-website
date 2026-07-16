@@ -61,7 +61,7 @@ const aiTabs = [
 ] as const;
 
 const workCards = [
-  ["Premium Websites", "Premium websites built to convert visitors into customers.", "View Website Work", "/services", "Premium website"],
+  ["Premium Websites", "Premium websites built to convert visitors into customers.", "View Website Work", "https://leadforgeapp.net", "Premium website"],
   ["AI Systems", "AI assistants that answer, automate, and help your team move faster.", "View AI Systems", "/ai-tools", "AI system"],
   ["Custom Software", "Purpose-built tools that simplify operations and support growth.", "View Custom Software", "/contact", "Custom software"],
 ] as const;
