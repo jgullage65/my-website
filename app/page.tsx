@@ -152,7 +152,7 @@ export default function HomePage() {
           {workCards.map(([title, desc, cta, href, label]) => (
             <motion.article variants={fadeUp} whileHover={{ y: -8, rotateX: 2 }} key={title} className="rounded-[1.45rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,.36)]">
               <ProductMedia alt={`${title} placeholder`} label={label} ratio="aspect-[16/11]" />
-              <div className="p-2 pt-5"><p className="text-[.62rem] font-black uppercase tracking-[.22em] text-[var(--gold)]">{title}</p><h3 className="mt-3 text-2xl font-black tracking-[-.04em]">{title === "Premium Websites" ? "High-converting websites built to perform." : title === "AI Systems" ? "Intelligent systems that automate and scale." : "Powerful software built for your workflow."}</h3><p className="mt-3 min-h-14 text-sm leading-6 text-[var(--muted)]">{desc}</p><Link href={href} className="mt-6 inline-flex text-sm font-black text-[var(--gold)]">{cta} →</Link></div>
+              <div className="p-2 pt-5"><p className="text-center text-[.62rem] font-black uppercase tracking-[.22em] text-[var(--gold)]">{title}</p><h3 className="mt-3 text-center text-2xl font-black tracking-[-.04em]">{title === "Premium Websites" ? "High-converting websites built to perform." : title === "AI Systems" ? "Intelligent systems that automate and scale." : "Powerful software built for your workflow."}</h3><p className="mt-3 min-h-14 text-sm leading-6 text-[var(--muted)]">{desc}</p><Link href={href} className="mt-6 inline-flex text-sm font-black text-[var(--gold)]">{cta} →</Link></div>
             </motion.article>
           ))}
         </div>
