@@ -174,16 +174,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <footer className="mt-24 border-t border-[var(--border)] bg-[rgba(4,8,24,0.82)]">
             <div className="mx-auto grid w-full max-w-[90rem] gap-10 px-6 py-14 sm:px-8 md:grid-cols-[1.35fr_0.8fr_1fr] lg:px-10">
               <div className="text-center md:text-left">
-                <p className="text-lg font-black uppercase tracking-[0.14em] text-white">
+                <p className="text-lg font-black uppercase tracking-[0.14em] text-[var(--gold)]">
                   JG Creative Studio
                 </p>
                 <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-[var(--muted)] md:mx-0">
                   We build premium websites, practical AI business systems, and
                   custom growth technology designed to help businesses operate
                   better and win more customers.
-                </p>
-                <p className="mt-5 text-sm text-slate-400">
-                  Built by the creator of <span className="font-bold text-[var(--gold)]">LEADFORGE</span>.
                 </p>
               </div>
 
