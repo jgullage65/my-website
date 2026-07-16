@@ -9,7 +9,6 @@ type PriceOption = {
   price: string;
   description: string;
   details: readonly string[];
-  badge?: string;
 };
 
 type PricingSection = {
@@ -56,7 +55,6 @@ const pricingSections: readonly PricingSection[] = [
           "Conversion-focused page structure",
           "Lead form and thank-you flow",
         ],
-        badge: "Most Popular",
       },
       {
         title: "Custom Website",
@@ -96,7 +94,6 @@ const pricingSections: readonly PricingSection[] = [
           "Business-specific information",
           "Testing and refinement",
         ],
-        badge: "Best Starting Point",
       },
       {
         title: "Workflow Automation",
@@ -145,7 +142,6 @@ const pricingSections: readonly PricingSection[] = [
           "Account-based access",
           "Custom features and workflows",
         ],
-        badge: "Built to Fit",
       },
       {
         title: "SaaS Foundations",
@@ -176,7 +172,6 @@ const pricingSections: readonly PricingSection[] = [
         price: "$60+",
         description: "A coordinated set of promotional graphics for a campaign or event.",
         details: ["Three designs", "Consistent visual direction", "Ready-to-post exports"],
-        badge: "Best Value",
       },
       {
         title: "Social Pack",
@@ -191,15 +186,8 @@ const pricingSections: readonly PricingSection[] = [
 function PriceCard({ option }: { option: PriceOption }) {
   return (
     <article className="relative flex h-full flex-col rounded-[1.35rem] border border-[rgba(212,175,55,.14)] bg-[linear-gradient(145deg,rgba(9,16,32,.96),rgba(2,5,14,.99))] p-6 shadow-[0_28px_80px_rgba(0,0,0,.34)]">
-      <div className="flex items-start justify-between gap-4">
-        <h3 className="text-2xl font-black tracking-[-.04em] text-white">{option.title}</h3>
-        {option.badge ? (
-          <span className="shrink-0 rounded-full border border-[rgba(212,175,55,.28)] bg-[var(--gold)] px-3 py-1 text-xs font-black text-[#06101f]">
-            {option.badge}
-          </span>
-        ) : null}
-      </div>
-      <p className="mt-3 text-3xl font-black text-[var(--gold)]">{option.price}</p>
+      <h3 className="text-center text-2xl font-black tracking-[-.04em] text-white">{option.title}</h3>
+      <p className="mt-3 text-center text-3xl font-black text-[var(--gold)]">{option.price}</p>
       <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{option.description}</p>
       <ul className="mt-5 grid gap-3 text-sm text-slate-200">
         {option.details.map((detail) => (
