@@ -151,7 +151,7 @@ export default function HomePage() {
         <div className="mt-10 grid gap-5 text-left md:grid-cols-2 xl:grid-cols-3">
           {workCards.map(([title, desc, cta, href, label]) => (
             <motion.article variants={fadeUp} whileHover={{ y: -8, rotateX: 2 }} key={title} className="rounded-[1.45rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,.36)]">
-              <ProductMedia alt={`${title} placeholder`} label={label} ratio="aspect-[16/11]" />
+              <ProductMedia src={title === "Premium Websites" ? "/image/Screenshot 2026-07-16 10.59.47 AM.png" : undefined} alt={title === "Premium Websites" ? "LeadForge premium website" : `${title} placeholder`} label={label} ratio="aspect-[16/11]" />
               <div className="p-2 pt-5 text-center">
                 <p className="text-[.62rem] font-black uppercase tracking-[.22em] text-[var(--gold)]">{title}</p>
                 <h3 className="mt-3 text-2xl font-black tracking-[-.04em]">
