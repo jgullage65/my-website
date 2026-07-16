@@ -13,6 +13,7 @@ import type { BuilderState } from "./AiBuilderClient";
 type Props = {
   builder: BuilderState;
   session: AiBuilderSession;
+  onSessionChange: (session: AiBuilderSession) => void;
   onBack: () => void;
 };
 
@@ -29,50 +30,92 @@ const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
   prohibited_claim: "Prohibited Claims",
 };
 
+function calculateCounts(
+  entries: BusinessContextEntry[],
+): AiBuilderSession["contextCounts"] {
+  const byCategory: AiBuilderSession["contextCounts"]["byCategory"] = {};
+
+  entries.forEach((entry) => {
+    byCategory[entry.category] =
+      (byCategory[entry.category] ?? 0) + 1;
+  });
+
+  return {
+    total: entries.length,
+    approved: entries.filter(
+      (entry) =>
+        entry.status === "approved" ||
+        entry.status === "corrected",
+    ).length,
+    proposed: entries.filter(
+      (entry) => entry.status === "proposed",
+    ).length,
+    archived: entries.filter(
+      (entry) => entry.status === "archived",
+    ).length,
+    byCategory,
+  };
+}
+
 export default function AiBuilderReview({
   builder,
   session,
+  onSessionChange,
   onBack,
 }: Props) {
-  const [entries, setEntries] = useState(session.contextEntries);
-  const [faqs, setFaqs] = useState(session.faqEntries);
-  const [editingEntry, setEditingEntry] = useState<string | null>(null);
-  const [editingFaq, setEditingFaq] = useState<string | null>(null);
+  const [editingEntry, setEditingEntry] =
+    useState<string | null>(null);
+  const [editingFaq, setEditingFaq] =
+    useState<string | null>(null);
 
   const grouped = useMemo(() => {
-    const map = new Map<BusinessContextCategory, BusinessContextEntry[]>();
+    const map = new Map<
+      BusinessContextCategory,
+      BusinessContextEntry[]
+    >();
 
-    entries.forEach((entry) => {
+    session.contextEntries.forEach((entry) => {
       const current = map.get(entry.category) ?? [];
       map.set(entry.category, current.concat(entry));
     });
 
     return Array.from(map.entries());
-  }, [entries]);
+  }, [session.contextEntries]);
+
+  const updateSession = (updates: Partial<AiBuilderSession>) => {
+    onSessionChange({
+      ...session,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    });
+  };
 
   const updateEntry = (
     id: string,
     updates: Partial<BusinessContextEntry>,
   ) => {
-    setEntries((current) =>
-      current.map((entry) =>
-        entry.id === id
-          ? {
-              ...entry,
-              ...updates,
-              updatedAt: new Date().toISOString(),
-            }
-          : entry,
-      ),
+    const contextEntries = session.contextEntries.map((entry) =>
+      entry.id === id
+        ? {
+            ...entry,
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          }
+        : entry,
     );
+
+    updateSession({
+      contextEntries,
+      contextCounts: calculateCounts(contextEntries),
+    });
   };
 
   const updateFaq = (
     id: string,
     updates: Partial<GeneratedFaqEntry>,
   ) => {
-    setFaqs((current) =>
-      current.map((faq) =>
+    updateSession({
+      faqEntries: session.faqEntries.map((faq) =>
         faq.id === id
           ? {
               ...faq,
@@ -81,41 +124,59 @@ export default function AiBuilderReview({
             }
           : faq,
       ),
-    );
+    });
   };
 
   const approveAll = () => {
     const now = new Date().toISOString();
 
-    setEntries((current) =>
-      current.map((entry) =>
-        entry.status === "archived"
-          ? entry
-          : {
-              ...entry,
-              status:
-                entry.status === "corrected"
-                  ? "corrected"
-                  : "approved",
-              updatedAt: now,
-            },
-      ),
+    const contextEntries = session.contextEntries.map((entry) =>
+      entry.status === "archived"
+        ? entry
+        : {
+            ...entry,
+            status:
+              entry.status === "corrected"
+                ? "corrected" as const
+                : "approved" as const,
+            updatedAt: now,
+          },
     );
 
-    setFaqs((current) =>
-      current.map((faq) =>
-        faq.status === "archived"
-          ? faq
-          : {
-              ...faq,
-              status:
-                faq.status === "corrected"
-                  ? "corrected"
-                  : "approved",
-              updatedAt: now,
-            },
-      ),
+    const faqEntries = session.faqEntries.map((faq) =>
+      faq.status === "archived"
+        ? faq
+        : {
+            ...faq,
+            status:
+              faq.status === "corrected"
+                ? "corrected" as const
+                : "approved" as const,
+            updatedAt: now,
+          },
     );
+
+    updateSession({
+      status: "ready",
+      contextEntries,
+      faqEntries,
+      contextCounts: calculateCounts(contextEntries),
+      buildProgress: session.buildProgress.map((item) =>
+        item.stage === "preparing_demo"
+          ? {
+              ...item,
+              message: "Business knowledge approved",
+              completed: true,
+              count:
+                contextEntries.filter(
+                  (entry) =>
+                    entry.status === "approved" ||
+                    entry.status === "corrected",
+                ).length,
+            }
+          : item,
+      ),
+    });
   };
 
   return (
@@ -151,6 +212,25 @@ export default function AiBuilderReview({
             Approve all knowledge
           </button>
         </div>
+      </section>
+
+      <section className="grid gap-3 sm:grid-cols-4">
+        <Stat
+          label="Total"
+          value={session.contextCounts.total}
+        />
+        <Stat
+          label="Approved"
+          value={session.contextCounts.approved}
+        />
+        <Stat
+          label="Proposed"
+          value={session.contextCounts.proposed}
+        />
+        <Stat
+          label="Removed"
+          value={session.contextCounts.archived}
+        />
       </section>
 
       <section className="space-y-5">
@@ -303,7 +383,7 @@ export default function AiBuilderReview({
         </div>
 
         <div className="space-y-3">
-          {faqs.map((faq) => {
+          {session.faqEntries.map((faq) => {
             const editing = editingFaq === faq.id;
 
             return (
@@ -396,30 +476,6 @@ export default function AiBuilderReview({
           })}
         </div>
       </section>
-
-      <section className="grid gap-5 lg:grid-cols-2">
-        <AttentionPanel
-          title="Conflicts"
-          emptyMessage="No conflicts were detected."
-          items={session.conflicts.map((conflict) => ({
-            id: conflict.id,
-            title: conflict.topic,
-            detail: `${conflict.firstStatement} / ${conflict.secondStatement}`,
-            question: conflict.suggestedQuestion,
-          }))}
-        />
-
-        <AttentionPanel
-          title="Missing Information"
-          emptyMessage="No major information gaps were detected."
-          items={session.missingInformation.map((item) => ({
-            id: item.id,
-            title: item.topic,
-            detail: item.reason,
-            question: item.suggestedQuestion,
-          }))}
-        />
-      </section>
     </div>
   );
 }
@@ -445,50 +501,21 @@ function StatusPill({
   );
 }
 
-function AttentionPanel({
-  title,
-  emptyMessage,
-  items,
+function Stat({
+  label,
+  value,
 }: {
-  title: string;
-  emptyMessage: string;
-  items: Array<{
-    id: string;
-    title: string;
-    detail: string;
-    question: string;
-  }>;
+  label: string;
+  value: number;
 }) {
   return (
-    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
-      <h2 className="text-xl font-bold text-white">
-        {title}
-      </h2>
-
-      {items.length === 0 ? (
-        <p className="mt-4 text-sm text-neutral-400">
-          {emptyMessage}
-        </p>
-      ) : (
-        <div className="mt-4 space-y-3">
-          {items.map((item) => (
-            <article
-              key={item.id}
-              className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4"
-            >
-              <h3 className="font-semibold text-white">
-                {item.title}
-              </h3>
-              <p className="mt-2 text-sm text-neutral-300">
-                {item.detail}
-              </p>
-              <p className="mt-3 text-xs font-semibold text-amber-300">
-                {item.question}
-              </p>
-            </article>
-          ))}
-        </div>
-      )}
+    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+      <div className="text-2xl font-bold text-white">
+        {value}
+      </div>
+      <div className="mt-1 text-sm text-neutral-400">
+        {label}
+      </div>
     </div>
   );
 }

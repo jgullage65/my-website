@@ -128,6 +128,7 @@ export default function AiBuilderClient() {
         <AiBuilderReview
           builder={builder}
           session={session}
+          onSessionChange={setSession}
           onBack={() => setStep("results")}
         />
       ) : null}
