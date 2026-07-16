@@ -147,7 +147,7 @@ export default function HomePage() {
 
       <Section id="work" className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 text-center sm:px-8 lg:px-10 lg:py-20">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Selected Work</motion.p>
-        <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">Real products. Real results.</motion.h2>
+        <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">Real products. <span className="text-[var(--gold)]">Real results.</span></motion.h2>
         <div className="mt-10 grid gap-5 text-left md:grid-cols-2 xl:grid-cols-3">
           {workCards.map(([title, desc, cta, href, label]) => (
             <motion.article variants={fadeUp} whileHover={{ y: -8, rotateX: 2 }} key={title} className="rounded-[1.45rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,.36)]">
@@ -161,7 +161,7 @@ export default function HomePage() {
       <Section className="mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.88fr_1.12fr] lg:px-10 lg:py-20">
         <motion.div variants={fadeUp} className="self-center">
           <p className="text-center text-xs font-black uppercase tracking-[.32em] text-[var(--gold)] sm:text-left">AI Systems</p>
-          <h2 className="mt-4 text-center text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-left sm:text-6xl">Smarter systems.<br />Stronger businesses.</h2>
+          <h2 className="mt-4 text-center text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-left sm:text-6xl">Smarter systems.<br /><span className="text-[var(--gold)]">Stronger businesses.</span></h2>
           <div role="tablist" aria-label="AI system capabilities" onKeyDown={onTabKeyDown} className="mt-8 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {aiTabs.map((tab, i) => <button key={tab.id} id={`${tabRoot}-${tab.id}-tab`} role="tab" aria-selected={active === i} aria-controls={`${tabRoot}-${tab.id}-panel`} tabIndex={active === i ? 0 : -1} onClick={() => setActive(i)} className={`w-full rounded-lg border px-3 py-2 text-xs font-black transition sm:w-auto sm:px-4 ${active === i ? "border-[var(--gold)] bg-[var(--gold)] text-[#06101f]" : "border-[rgba(212,175,55,.13)] bg-white/[.03] text-white hover:border-[rgba(212,175,55,.42)]"}`}>{tab.label}</button>)}
           </div>
@@ -173,7 +173,7 @@ export default function HomePage() {
 
       <Section className="mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Our Process</motion.p>
-        <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">From idea to impact.</motion.h2>
+        <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">From idea to <span className="text-[var(--gold)]">impact.</span></motion.h2>
         <motion.div variants={fadeUp} className="relative mt-12 overflow-hidden rounded-[1.7rem] border border-[rgba(212,175,55,.13)] bg-[#030815] p-7 shadow-[0_34px_110px_rgba(0,0,0,.42)] md:p-10">
           <motion.div initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1.2, ease: "easeInOut" }} className="absolute left-14 right-14 top-[6.45rem] hidden h-px origin-left bg-[linear-gradient(90deg,transparent,#d4af37,transparent)] lg:block" />
           <div className="grid gap-7 text-left lg:grid-cols-5 lg:text-center">{processSteps.map(([step, copy], i) => <div key={step} className="relative flex gap-5 lg:block lg:text-center"><div className="z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[rgba(212,175,55,.58)] bg-[#08122a] font-black text-[var(--gold)] shadow-[0_0_34px_rgba(212,175,55,.25)] lg:mx-auto">0{i + 1}</div><div><h3 className="mt-0 font-black text-white lg:mt-5">{step}</h3><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{copy}</p></div></div>)}</div>
