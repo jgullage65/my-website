@@ -1,50 +1,125 @@
+:
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderWelcome from "./AiBuilderWelcome";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderProgress from "./AiBuilderProgress";
 
-export type BuilderState={
-  businessName:string;
-  assistantName:string;
-  tone:string;
-  description:string;
+export type BuilderState = {
+  businessName: string;
+  assistantName: string;
+  tone: string;
+  description: string;
 };
 
-const initial:BuilderState={
-  businessName:"",
-  assistantName:"",
-  tone:"Professional",
-  description:"",
+type BuilderStep =
+  | "welcome"
+  | "form"
+  | "building"
+  | "review_ready";
+
+const initial: BuilderState = {
+  businessName: "",
+  assistantName: "",
+  tone: "Professional",
+  description: "",
 };
 
-export default function AiBuilderClient(){
-  const [step,setStep]=useState<"welcome"|"form"|"building">("welcome");
-  const [builder,setBuilder]=useState(initial);
-  const [progress,setProgress]=useState(0);
+export default function AiBuilderClient() {
+  const [step, setStep] =
+    useState<BuilderStep>("welcome");
+  const [builder, setBuilder] = useState(initial);
+  const [session, setSession] =
+    useState<AiBuilderSession | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(()=>{
-    if(step!=="building") return;
-    setProgress(0);
-    const id=setInterval(()=>{
-      setProgress(p=>{
-        if(p>=5){
-          clearInterval(id);
-          return 5;
-        }
-        return p+1;
-      });
-    },700);
-    return ()=>clearInterval(id);
-  },[step]);
+  const buildAi = async () => {
+    setError(null);
+    setSession(null);
+    setStep("building");
+
+    try {
+      const response = await fetch(
+        "/api/ai-builder/intake",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(builder),
+        },
+      );
+
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        session?: AiBuilderSession;
+        error?: {
+          code?: string;
+          message?: string;
+        };
+      };
+
+      if (!response.ok || !payload.ok || !payload.session) {
+        throw new Error(
+          payload.error?.message ||
+            "The AI builder could not process this information.",
+        );
+      }
+
+      setSession(payload.session);
+      setStep("review_ready");
+    } catch (buildError) {
+      setError(
+        buildError instanceof Error
+          ? buildError.message
+          : "The AI builder could not process this information.",
+      );
+      setStep("form");
+    }
+  };
 
   return (
     <AiBuilderShell>
-      {step==="welcome" && <AiBuilderWelcome onContinue={()=>setStep("form")} />}
-      {step==="form" && <AiBuilderForm value={builder} onChange={setBuilder} onBuild={()=>setStep("building")} />}
-      {step==="building" && <AiBuilderProgress builder={builder} completedSteps={progress} />}
+      {step === "welcome" && (
+        <AiBuilderWelcome
+          onContinue={() => setStep("form")}
+        />
+      )}
+
+      {step === "form" && (
+        <>
+          {error ? (
+            <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {error}
+            </div>
+          ) : null}
+
+          <AiBuilderForm
+            value={builder}
+            onChange={setBuilder}
+            onBuild={buildAi}
+          />
+        </>
+      )}
+
+      {step === "building" && (
+        <AiBuilderProgress
+          builder={builder}
+          session={null}
+          complete={false}
+        />
+      )}
+
+      {step === "review_ready" && session ? (
+        <AiBuilderProgress
+          builder={builder}
+          session={session}
+          complete
+        />
+      ) : null}
     </AiBuilderShell>
   );
 }
