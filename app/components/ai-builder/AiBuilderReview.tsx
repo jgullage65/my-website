@@ -15,6 +15,7 @@ type Props = {
   session: AiBuilderSession;
   onSessionChange: (session: AiBuilderSession) => void;
   onBack: () => void;
+  onLaunchChat: () => void;
 };
 
 const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
@@ -62,6 +63,7 @@ export default function AiBuilderReview({
   session,
   onSessionChange,
   onBack,
+  onLaunchChat,
 }: Props) {
   const [editingEntry, setEditingEntry] =
     useState<string | null>(null);
@@ -105,6 +107,7 @@ export default function AiBuilderReview({
     );
 
     updateSession({
+      status: "review_required",
       contextEntries,
       contextCounts: calculateCounts(contextEntries),
     });
@@ -115,6 +118,7 @@ export default function AiBuilderReview({
     updates: Partial<GeneratedFaqEntry>,
   ) => {
     updateSession({
+      status: "review_required",
       faqEntries: session.faqEntries.map((faq) =>
         faq.id === id
           ? {
@@ -137,8 +141,8 @@ export default function AiBuilderReview({
             ...entry,
             status:
               entry.status === "corrected"
-                ? "corrected" as const
-                : "approved" as const,
+                ? ("corrected" as const)
+                : ("approved" as const),
             updatedAt: now,
           },
     );
@@ -150,8 +154,8 @@ export default function AiBuilderReview({
             ...faq,
             status:
               faq.status === "corrected"
-                ? "corrected" as const
-                : "approved" as const,
+                ? ("corrected" as const)
+                : ("approved" as const),
             updatedAt: now,
           },
     );
@@ -161,23 +165,12 @@ export default function AiBuilderReview({
       contextEntries,
       faqEntries,
       contextCounts: calculateCounts(contextEntries),
-      buildProgress: session.buildProgress.map((item) =>
-        item.stage === "preparing_demo"
-          ? {
-              ...item,
-              message: "Business knowledge approved",
-              completed: true,
-              count:
-                contextEntries.filter(
-                  (entry) =>
-                    entry.status === "approved" ||
-                    entry.status === "corrected",
-                ).length,
-            }
-          : item,
-      ),
     });
   };
+
+  const canLaunchChat =
+    session.status === "ready" &&
+    session.contextCounts.approved > 0;
 
   return (
     <div className="space-y-8">
@@ -211,26 +204,29 @@ export default function AiBuilderReview({
           >
             Approve all knowledge
           </button>
+
+          <button
+            type="button"
+            onClick={onLaunchChat}
+            disabled={!canLaunchChat}
+            className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-3 text-sm font-bold text-amber-300 disabled:cursor-not-allowed disabled:border-neutral-800 disabled:bg-neutral-950 disabled:text-neutral-600"
+          >
+            Test live assistant
+          </button>
         </div>
+
+        {!canLaunchChat ? (
+          <p className="mt-3 text-xs text-neutral-500">
+            Approve the business knowledge before opening the live assistant.
+          </p>
+        ) : null}
       </section>
 
       <section className="grid gap-3 sm:grid-cols-4">
-        <Stat
-          label="Total"
-          value={session.contextCounts.total}
-        />
-        <Stat
-          label="Approved"
-          value={session.contextCounts.approved}
-        />
-        <Stat
-          label="Proposed"
-          value={session.contextCounts.proposed}
-        />
-        <Stat
-          label="Removed"
-          value={session.contextCounts.archived}
-        />
+        <Stat label="Total" value={session.contextCounts.total} />
+        <Stat label="Approved" value={session.contextCounts.approved} />
+        <Stat label="Proposed" value={session.contextCounts.proposed} />
+        <Stat label="Removed" value={session.contextCounts.archived} />
       </section>
 
       <section className="space-y-5">
@@ -306,19 +302,9 @@ export default function AiBuilderReview({
                           </h4>
                           <StatusPill status={entry.status} />
                         </div>
-
                         <p className="mt-2 text-sm leading-6 text-neutral-300">
                           {entry.content}
                         </p>
-
-                        <details className="mt-3">
-                          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                            Source evidence
-                          </summary>
-                          <p className="mt-2 rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-xs text-neutral-400">
-                            {entry.source.excerpt}
-                          </p>
-                        </details>
                       </>
                     )}
 
@@ -343,9 +329,7 @@ export default function AiBuilderReview({
                       <button
                         type="button"
                         onClick={() =>
-                          setEditingEntry(
-                            editing ? null : entry.id,
-                          )
+                          setEditingEntry(editing ? null : entry.id)
                         }
                         className="rounded-lg border border-neutral-700 px-3 py-2 text-xs font-bold text-white"
                       >
@@ -373,14 +357,9 @@ export default function AiBuilderReview({
       </section>
 
       <section className="space-y-5">
-        <div>
-          <h2 className="text-2xl font-bold text-white">
-            Generated Q&A
-          </h2>
-          <p className="mt-1 text-sm text-neutral-400">
-            Customer questions created from the supplied knowledge.
-          </p>
-        </div>
+        <h2 className="text-2xl font-bold text-white">
+          Generated Q&A
+        </h2>
 
         <div className="space-y-3">
           {session.faqEntries.map((faq) => {
@@ -450,9 +429,7 @@ export default function AiBuilderReview({
                   <button
                     type="button"
                     onClick={() =>
-                      setEditingFaq(
-                        editing ? null : faq.id,
-                      )
+                      setEditingFaq(editing ? null : faq.id)
                     }
                     className="rounded-lg border border-neutral-700 px-3 py-2 text-xs font-bold text-white"
                   >
