@@ -55,7 +55,7 @@ export default function ContactPageClient() {
     <main className="min-h-screen bg-[#030713] text-white">
       <section className="mx-auto max-w-5xl space-y-10 px-6 py-16">
         <header className="space-y-3 text-center">
-          <h1 className="text-4xl font-black tracking-[-.045em] sm:text-5xl">Contact</h1>
+          <h1 className="text-4xl font-black tracking-[-.045em] text-[var(--gold)] sm:text-5xl">Contact</h1>
           <p className="mx-auto max-w-2xl text-lg leading-8 text-[var(--muted)]">
             Ready to get started? Send a message and I’ll respond as soon as possible.
           </p>
