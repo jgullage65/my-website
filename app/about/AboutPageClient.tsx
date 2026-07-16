@@ -105,14 +105,14 @@ export default function AboutPageClient() {
 
       <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 text-center sm:px-8 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">How the studio works</motion.p>
-        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">Clear thinking, polished design, and systems that support the real workflow.</motion.h2>
+        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">Clear thinking, <span className="text-[var(--gold)]">polished design</span>, and systems that support the real workflow.</motion.h2>
         <div className="mt-10 grid gap-5 md:grid-cols-3">{principles.map((item) => <motion.article variants={fadeUp} key={item.title} className="rounded-[1.35rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-6 text-center shadow-[0_28px_80px_rgba(0,0,0,.34)]"><h3 className="text-2xl font-black tracking-[-.04em]">{item.title}</h3><p className="mt-4 text-sm leading-7 text-[var(--muted)]">{item.body}</p></motion.article>)}</div>
       </Section>
 
       <Section className="mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-10">
         <motion.div variants={fadeUp} className="self-center text-center lg:text-left">
           <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Why it started</p>
-          <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl lg:mx-0">Better businesses deserve better digital systems.</h2>
+          <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl lg:mx-0"><span className="text-[var(--gold)]">Better businesses</span> deserve better digital systems.</h2>
           <p className="mx-auto mt-6 max-w-2xl leading-8 text-[var(--muted)] lg:mx-0">A lot of businesses do excellent work, but their website, marketing, software, or internal process does not reflect that quality. JG Creative Studio exists to close that gap with technology that feels premium on the outside and practical behind the scenes.</p>
         </motion.div>
         <motion.div variants={mediaIn} className="rounded-[1.55rem] border border-[rgba(212,175,55,.16)] bg-[#030711] p-5 shadow-[0_30px_90px_rgba(0,0,0,.42)]">
