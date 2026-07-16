@@ -158,7 +158,7 @@ export default function HomePage() {
                   {title === "Premium Websites" ? <><span className="text-[var(--gold)]">High-converting websites</span> built to perform.</> : title === "AI Systems" ? <>Intelligent systems that <span className="text-[var(--gold)]">automate and scale.</span></> : <>Powerful software built for <span className="text-[var(--gold)]">your workflow.</span></>}
                 </h3>
                 <p className="mt-3 min-h-14 text-sm leading-6 text-[var(--muted)]">{desc}</p>
-                <Link href={href} className="mt-6 inline-flex text-sm font-black text-[var(--gold)]">{cta} →</Link>
+                <Link href={href} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noopener noreferrer" : undefined} className="mt-6 inline-flex text-sm font-black text-[var(--gold)]">{cta} →</Link>
               </div>
             </motion.article>
           ))}
