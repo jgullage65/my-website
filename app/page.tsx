@@ -92,7 +92,7 @@ function OutlineButton({ href, children }: { href: string; children: ReactNode }
 }
 
 function ProductMedia({ src, alt, label, className = "", ratio = "aspect-[16/10]" }: { src?: string; alt: string; label: string; className?: string; ratio?: string }) {
-  const shouldContain = alt === "Integration architecture preview" || alt === "Custom business software" || alt === "LeadForge premium website" || alt === "AI Systems showcase";
+  const shouldContain = alt === "Integration architecture preview" || alt === "Custom business software" || alt === "LeadForge premium website" || alt === "AI Systems showcase" || alt === "Custom Software showcase";
   return (
     <div className={`group relative overflow-hidden rounded-[1.15rem] border border-[rgba(212,175,55,.18)] bg-[#030711] shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_0_1px_rgba(255,255,255,.035)_inset] ${ratio} ${className}`}>
       {src ? <img src={src} alt={alt} className={`h-full w-full ${shouldContain ? "object-contain" : "object-cover"}`} /> : null}
@@ -157,14 +157,18 @@ export default function HomePage() {
                     ? "/image/Screenshot 2026-07-16 10.59.47 AM.png"
                     : title === "AI Systems"
                       ? "/image/ChatGPT Image Jul 16, 2026, 05_54_52 PM.png"
-                      : undefined
+                      : title === "Custom Software"
+                        ? "/image/ChatGPT Image Jul 16, 2026, 06_05_36 PM.png"
+                        : undefined
                 }
                 alt={
                   title === "Premium Websites"
                     ? "LeadForge premium website"
                     : title === "AI Systems"
                       ? "AI Systems showcase"
-                      : `${title} placeholder`
+                      : title === "Custom Software"
+                        ? "Custom Software showcase"
+                        : `${title} placeholder`
                 }
                 label={label}
                 ratio="aspect-[16/11]"
