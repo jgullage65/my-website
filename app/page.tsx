@@ -92,7 +92,7 @@ function OutlineButton({ href, children }: { href: string; children: ReactNode }
 }
 
 function ProductMedia({ src, alt, label, className = "", ratio = "aspect-[16/10]" }: { src?: string; alt: string; label: string; className?: string; ratio?: string }) {
-  const shouldContain = alt === "Integration architecture preview" || alt === "Custom business software" || alt === "LeadForge premium website";
+  const shouldContain = alt === "Integration architecture preview" || alt === "Custom business software" || alt === "LeadForge premium website" || alt === "AI Systems showcase";
   return (
     <div className={`group relative overflow-hidden rounded-[1.15rem] border border-[rgba(212,175,55,.18)] bg-[#030711] shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_0_1px_rgba(255,255,255,.035)_inset] ${ratio} ${className}`}>
       {src ? <img src={src} alt={alt} className={`h-full w-full ${shouldContain ? "object-contain" : "object-cover"}`} /> : null}
@@ -151,7 +151,24 @@ export default function HomePage() {
         <div className="mt-10 grid gap-5 text-left md:grid-cols-2 xl:grid-cols-3">
           {workCards.map(([title, desc, cta, href, label]) => (
             <motion.article variants={fadeUp} whileHover={{ y: -8, rotateX: 2 }} key={title} className="rounded-[1.45rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,.36)]">
-              <ProductMedia src={title === "Premium Websites" ? "/image/Screenshot 2026-07-16 10.59.47 AM.png" : undefined} alt={title === "Premium Websites" ? "LeadForge premium website" : `${title} placeholder`} label={label} ratio="aspect-[16/11]" />
+              <ProductMedia
+                src={
+                  title === "Premium Websites"
+                    ? "/image/Screenshot 2026-07-16 10.59.47 AM.png"
+                    : title === "AI Systems"
+                      ? "/image/ChatGPT Image Jul 16, 2026, 05_54_52 PM.png"
+                      : undefined
+                }
+                alt={
+                  title === "Premium Websites"
+                    ? "LeadForge premium website"
+                    : title === "AI Systems"
+                      ? "AI Systems showcase"
+                      : `${title} placeholder`
+                }
+                label={label}
+                ratio="aspect-[16/11]"
+              />
               <div className="p-2 pt-5 text-center">
                 <p className="text-[.62rem] font-black uppercase tracking-[.22em] text-[var(--gold)]">{title}</p>
                 <h3 className="mt-3 text-2xl font-black tracking-[-.04em]">
