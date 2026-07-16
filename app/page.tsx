@@ -61,7 +61,7 @@ const aiTabs = [
 ] as const;
 
 const workCards = [
-  ["Premium Websites", "Premium websites built to convert visitors into customers.", "View Website Work", "https://leadforgeapp.net", "Premium website"],
+  ["Premium Websites", "Premium websites built to convert visitors into customers.", "View LeadForge", "https://leadforgeapp.net", "Premium website"],
   ["AI Systems", "AI assistants that answer, automate, and help your team move faster.", "View AI Systems", "/ai-tools", "AI system"],
   ["Custom Software", "Purpose-built tools that simplify operations and support growth.", "View Custom Software", "/contact", "Custom software"],
 ] as const;
@@ -92,7 +92,7 @@ function OutlineButton({ href, children }: { href: string; children: ReactNode }
 }
 
 function ProductMedia({ src, alt, label, className = "", ratio = "aspect-[16/10]" }: { src?: string; alt: string; label: string; className?: string; ratio?: string }) {
-  const shouldContain = alt === "Integration architecture preview" || alt === "Custom business software";
+  const shouldContain = alt === "Integration architecture preview" || alt === "Custom business software" || alt === "LeadForge premium website";
   return (
     <div className={`group relative overflow-hidden rounded-[1.15rem] border border-[rgba(212,175,55,.18)] bg-[#030711] shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_0_1px_rgba(255,255,255,.035)_inset] ${ratio} ${className}`}>
       {src ? <img src={src} alt={alt} className={`h-full w-full ${shouldContain ? "object-contain" : "object-cover"}`} /> : null}
