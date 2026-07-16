@@ -137,7 +137,7 @@ export default function FAQPage() {
         <div className="relative mx-auto max-w-[94rem] px-5 py-16 text-center sm:px-8 sm:py-20 lg:px-10">
           <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">FAQ</p>
           <h1 className="mx-auto mt-4 max-w-4xl text-4xl font-black leading-[1] tracking-[-.055em] sm:text-6xl">
-            Quick answers before you reach out.
+            <span className="text-[var(--gold)]">Quick answers</span> before you reach out.
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-[var(--muted)] sm:text-lg">
             Clear answers about websites, creative support, AI systems, pricing, and how projects work.
