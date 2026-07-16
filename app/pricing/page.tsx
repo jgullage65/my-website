@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 export const metadata = {
   title: "Pricing",
@@ -13,7 +14,7 @@ type PriceOption = {
 
 type PricingSection = {
   eyebrow: string;
-  title: string;
+  title: ReactNode;
   description: string;
   options: readonly PriceOption[];
   note?: string;
@@ -22,7 +23,7 @@ type PricingSection = {
 const pricingSections: readonly PricingSection[] = [
   {
     eyebrow: "Websites",
-    title: "A clear starting point for every stage of business.",
+    title: <>A clear <span className="text-[var(--gold)]">starting point</span> for every stage of business.</>,
     description:
       "From a focused landing page to a larger custom build, every website is designed to look credible, work smoothly on mobile, and guide visitors toward action.",
     options: [
@@ -71,7 +72,7 @@ const pricingSections: readonly PricingSection[] = [
   },
   {
     eyebrow: "AI Systems",
-    title: "Practical AI and automation built around real work.",
+    title: <>Practical <span className="text-[var(--gold)]">AI and automation</span> built around real work.</>,
     description:
       "AI projects are scoped around the business problem, the tools involved, and how much of the workflow should be automated.",
     options: [
@@ -119,7 +120,7 @@ const pricingSections: readonly PricingSection[] = [
   },
   {
     eyebrow: "Custom Software",
-    title: "Tools designed around the way your business actually operates.",
+    title: <>Tools <span className="text-[var(--gold)]">designed around</span> the way your business actually operates.</>,
     description:
       "Custom software is quoted after the workflow, users, required features, and launch goals are understood.",
     options: [
@@ -157,7 +158,7 @@ const pricingSections: readonly PricingSection[] = [
   },
   {
     eyebrow: "Creative Support",
-    title: "Professional promotional design without a heavy process.",
+    title: <>Professional <span className="text-[var(--gold)]">promotional design</span> without a heavy process.</>,
     description:
       "Creative support is available for businesses that need clear, polished assets for offers, events, and social content.",
     options: [
@@ -210,7 +211,7 @@ export default function PricingPage() {
         <div className="relative z-10 mx-auto max-w-5xl text-center">
           <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Pricing</p>
           <h1 className="mt-4 text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl lg:text-6xl">
-            Clear starting prices. Custom quotes when the work calls for it.
+            Clear starting prices. <span className="text-[var(--gold)]">Custom quotes</span> when the work calls for it.
           </h1>
           <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-[var(--muted)] sm:text-lg sm:leading-8">
             Every project is reviewed before work begins so the scope, timeline, and exact price are clear. No surprise charges and no paying for features you do not need.
