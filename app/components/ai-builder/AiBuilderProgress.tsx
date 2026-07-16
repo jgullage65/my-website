@@ -1,4 +1,3 @@
-
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { BuilderState } from "./AiBuilderClient";
 
@@ -6,6 +5,7 @@ type Props = {
   builder: BuilderState;
   session: AiBuilderSession | null;
   complete: boolean;
+  onReview: () => void;
 };
 
 const pendingSteps = [
@@ -20,6 +20,7 @@ export default function AiBuilderProgress({
   builder,
   session,
   complete,
+  onReview,
 }: Props) {
   const progress = session?.buildProgress ?? [];
 
@@ -93,34 +94,44 @@ export default function AiBuilderProgress({
       </div>
 
       {complete && session ? (
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-            <div className="text-2xl font-bold text-white">
-              {session.contextCounts.total}
+        <>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+              <div className="text-2xl font-bold text-white">
+                {session.contextCounts.total}
+              </div>
+              <div className="text-sm text-neutral-400">
+                Business facts
+              </div>
             </div>
-            <div className="text-sm text-neutral-400">
-              Business facts
+
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+              <div className="text-2xl font-bold text-white">
+                {session.faqEntries.length}
+              </div>
+              <div className="text-sm text-neutral-400">
+                Q&A entries
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
+              <div className="text-2xl font-bold text-white">
+                {session.conflicts.length}
+              </div>
+              <div className="text-sm text-neutral-400">
+                Conflicts found
+              </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-            <div className="text-2xl font-bold text-white">
-              {session.faqEntries.length}
-            </div>
-            <div className="text-sm text-neutral-400">
-              Q&A entries
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-neutral-800 bg-neutral-950 p-4">
-            <div className="text-2xl font-bold text-white">
-              {session.conflicts.length}
-            </div>
-            <div className="text-sm text-neutral-400">
-              Conflicts found
-            </div>
-          </div>
-        </div>
+          <button
+            type="button"
+            onClick={onReview}
+            className="w-full rounded-xl bg-amber-500 px-5 py-3 font-bold text-black transition hover:bg-amber-400"
+          >
+            Review business knowledge
+          </button>
+        </>
       ) : null}
     </div>
   );

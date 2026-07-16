@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -7,6 +6,7 @@ import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderWelcome from "./AiBuilderWelcome";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderProgress from "./AiBuilderProgress";
+import AiBuilderReview from "./AiBuilderReview";
 
 export type BuilderState = {
   businessName: string;
@@ -19,7 +19,8 @@ type BuilderStep =
   | "welcome"
   | "form"
   | "building"
-  | "review_ready";
+  | "results"
+  | "review";
 
 const initial: BuilderState = {
   businessName: "",
@@ -70,7 +71,7 @@ export default function AiBuilderClient() {
       }
 
       setSession(payload.session);
-      setStep("review_ready");
+      setStep("results");
     } catch (buildError) {
       setError(
         buildError instanceof Error
@@ -110,14 +111,24 @@ export default function AiBuilderClient() {
           builder={builder}
           session={null}
           complete={false}
+          onReview={() => undefined}
         />
       )}
 
-      {step === "review_ready" && session ? (
+      {step === "results" && session ? (
         <AiBuilderProgress
           builder={builder}
           session={session}
           complete
+          onReview={() => setStep("review")}
+        />
+      ) : null}
+
+      {step === "review" && session ? (
+        <AiBuilderReview
+          builder={builder}
+          session={session}
+          onBack={() => setStep("results")}
         />
       ) : null}
     </AiBuilderShell>

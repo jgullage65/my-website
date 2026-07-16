@@ -1,0 +1,494 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import type {
+  AiBuilderSession,
+  BusinessContextCategory,
+  BusinessContextEntry,
+  BusinessContextStatus,
+  GeneratedFaqEntry,
+} from "@/app/lib/ai-engine/contracts";
+import type { BuilderState } from "./AiBuilderClient";
+
+type Props = {
+  builder: BuilderState;
+  session: AiBuilderSession;
+  onBack: () => void;
+};
+
+const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
+  business_profile: "Business Profile",
+  audience: "Audience",
+  service: "Services",
+  pricing: "Pricing",
+  policy: "Policies",
+  process: "Processes",
+  differentiator: "Differentiators",
+  faq: "FAQ Knowledge",
+  behavior_rule: "Assistant Rules",
+  prohibited_claim: "Prohibited Claims",
+};
+
+export default function AiBuilderReview({
+  builder,
+  session,
+  onBack,
+}: Props) {
+  const [entries, setEntries] = useState(session.contextEntries);
+  const [faqs, setFaqs] = useState(session.faqEntries);
+  const [editingEntry, setEditingEntry] = useState<string | null>(null);
+  const [editingFaq, setEditingFaq] = useState<string | null>(null);
+
+  const grouped = useMemo(() => {
+    const map = new Map<BusinessContextCategory, BusinessContextEntry[]>();
+
+    entries.forEach((entry) => {
+      const current = map.get(entry.category) ?? [];
+      map.set(entry.category, current.concat(entry));
+    });
+
+    return Array.from(map.entries());
+  }, [entries]);
+
+  const updateEntry = (
+    id: string,
+    updates: Partial<BusinessContextEntry>,
+  ) => {
+    setEntries((current) =>
+      current.map((entry) =>
+        entry.id === id
+          ? {
+              ...entry,
+              ...updates,
+              updatedAt: new Date().toISOString(),
+            }
+          : entry,
+      ),
+    );
+  };
+
+  const updateFaq = (
+    id: string,
+    updates: Partial<GeneratedFaqEntry>,
+  ) => {
+    setFaqs((current) =>
+      current.map((faq) =>
+        faq.id === id
+          ? {
+              ...faq,
+              ...updates,
+              updatedAt: new Date().toISOString(),
+            }
+          : faq,
+      ),
+    );
+  };
+
+  const approveAll = () => {
+    const now = new Date().toISOString();
+
+    setEntries((current) =>
+      current.map((entry) =>
+        entry.status === "archived"
+          ? entry
+          : {
+              ...entry,
+              status:
+                entry.status === "corrected"
+                  ? "corrected"
+                  : "approved",
+              updatedAt: now,
+            },
+      ),
+    );
+
+    setFaqs((current) =>
+      current.map((faq) =>
+        faq.status === "archived"
+          ? faq
+          : {
+              ...faq,
+              status:
+                faq.status === "corrected"
+                  ? "corrected"
+                  : "approved",
+              updatedAt: now,
+            },
+      ),
+    );
+  };
+
+  return (
+    <div className="space-y-8">
+      <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
+        <p className="text-sm uppercase tracking-[0.24em] text-amber-400">
+          Business loaded
+        </p>
+
+        <h2 className="mt-2 text-3xl font-bold text-white">
+          Review what {builder.assistantName} learned.
+        </h2>
+
+        <p className="mt-2 text-neutral-400">
+          Approve, correct, or remove anything before it becomes
+          authoritative business knowledge.
+        </p>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="rounded-xl border border-neutral-700 px-4 py-3 text-sm font-semibold text-white"
+          >
+            Back to results
+          </button>
+
+          <button
+            type="button"
+            onClick={approveAll}
+            className="rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-black"
+          >
+            Approve all knowledge
+          </button>
+        </div>
+      </section>
+
+      <section className="space-y-5">
+        <div>
+          <h2 className="text-2xl font-bold text-white">
+            Business Knowledge
+          </h2>
+          <p className="mt-1 text-sm text-neutral-400">
+            Every fact remains tied to its source text.
+          </p>
+        </div>
+
+        {grouped.map(([category, categoryEntries]) => (
+          <div
+            key={category}
+            className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">
+                {CATEGORY_LABELS[category]}
+              </h3>
+              <span className="text-sm text-neutral-400">
+                {categoryEntries.length}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {categoryEntries.map((entry) => {
+                const editing = editingEntry === entry.id;
+
+                return (
+                  <article
+                    key={entry.id}
+                    className="rounded-xl border border-neutral-800 bg-neutral-950/70 p-4"
+                  >
+                    {editing ? (
+                      <div className="space-y-3">
+                        <input
+                          value={entry.title}
+                          onChange={(event) =>
+                            updateEntry(entry.id, {
+                              title: event.target.value,
+                              status: "corrected",
+                              metadata: {
+                                ...entry.metadata,
+                                userEdited: true,
+                              },
+                            })
+                          }
+                          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white"
+                        />
+                        <textarea
+                          rows={4}
+                          value={entry.content}
+                          onChange={(event) =>
+                            updateEntry(entry.id, {
+                              content: event.target.value,
+                              status: "corrected",
+                              metadata: {
+                                ...entry.metadata,
+                                userEdited: true,
+                              },
+                            })
+                          }
+                          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-white"
+                        />
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="font-semibold text-white">
+                            {entry.title}
+                          </h4>
+                          <StatusPill status={entry.status} />
+                        </div>
+
+                        <p className="mt-2 text-sm leading-6 text-neutral-300">
+                          {entry.content}
+                        </p>
+
+                        <details className="mt-3">
+                          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                            Source evidence
+                          </summary>
+                          <p className="mt-2 rounded-lg border border-neutral-800 bg-neutral-900 p-3 text-xs text-neutral-400">
+                            {entry.source.excerpt}
+                          </p>
+                        </details>
+                      </>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateEntry(entry.id, {
+                            status:
+                              entry.status === "approved"
+                                ? "proposed"
+                                : "approved",
+                          })
+                        }
+                        className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300"
+                      >
+                        {entry.status === "approved"
+                          ? "Unapprove"
+                          : "Approve"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditingEntry(
+                            editing ? null : entry.id,
+                          )
+                        }
+                        className="rounded-lg border border-neutral-700 px-3 py-2 text-xs font-bold text-white"
+                      >
+                        {editing ? "Done" : "Edit"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateEntry(entry.id, {
+                            status: "archived",
+                          })
+                        }
+                        className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <section className="space-y-5">
+        <div>
+          <h2 className="text-2xl font-bold text-white">
+            Generated Q&A
+          </h2>
+          <p className="mt-1 text-sm text-neutral-400">
+            Customer questions created from the supplied knowledge.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {faqs.map((faq) => {
+            const editing = editingFaq === faq.id;
+
+            return (
+              <article
+                key={faq.id}
+                className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5"
+              >
+                {editing ? (
+                  <div className="space-y-3">
+                    <input
+                      value={faq.question}
+                      onChange={(event) =>
+                        updateFaq(faq.id, {
+                          question: event.target.value,
+                          status: "corrected",
+                        })
+                      }
+                      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white"
+                    />
+                    <textarea
+                      rows={4}
+                      value={faq.answer}
+                      onChange={(event) =>
+                        updateFaq(faq.id, {
+                          answer: event.target.value,
+                          status: "corrected",
+                        })
+                      }
+                      className="w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-white"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-bold text-white">
+                        {faq.question}
+                      </h3>
+                      <StatusPill status={faq.status} />
+                    </div>
+                    <p className="mt-3 text-sm leading-6 text-neutral-300">
+                      {faq.answer}
+                    </p>
+                  </>
+                )}
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateFaq(faq.id, {
+                        status:
+                          faq.status === "approved"
+                            ? "proposed"
+                            : "approved",
+                      })
+                    }
+                    className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-300"
+                  >
+                    {faq.status === "approved"
+                      ? "Unapprove"
+                      : "Approve"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditingFaq(
+                        editing ? null : faq.id,
+                      )
+                    }
+                    className="rounded-lg border border-neutral-700 px-3 py-2 text-xs font-bold text-white"
+                  >
+                    {editing ? "Done" : "Edit"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateFaq(faq.id, {
+                        status: "archived",
+                      })
+                    }
+                    className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-2">
+        <AttentionPanel
+          title="Conflicts"
+          emptyMessage="No conflicts were detected."
+          items={session.conflicts.map((conflict) => ({
+            id: conflict.id,
+            title: conflict.topic,
+            detail: `${conflict.firstStatement} / ${conflict.secondStatement}`,
+            question: conflict.suggestedQuestion,
+          }))}
+        />
+
+        <AttentionPanel
+          title="Missing Information"
+          emptyMessage="No major information gaps were detected."
+          items={session.missingInformation.map((item) => ({
+            id: item.id,
+            title: item.topic,
+            detail: item.reason,
+            question: item.suggestedQuestion,
+          }))}
+        />
+      </section>
+    </div>
+  );
+}
+
+function StatusPill({
+  status,
+}: {
+  status: BusinessContextStatus;
+}) {
+  const label =
+    status === "corrected"
+      ? "Corrected"
+      : status === "approved"
+        ? "Approved"
+        : status === "archived"
+          ? "Removed"
+          : "Proposed";
+
+  return (
+    <span className="rounded-full border border-neutral-700 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-300">
+      {label}
+    </span>
+  );
+}
+
+function AttentionPanel({
+  title,
+  emptyMessage,
+  items,
+}: {
+  title: string;
+  emptyMessage: string;
+  items: Array<{
+    id: string;
+    title: string;
+    detail: string;
+    question: string;
+  }>;
+}) {
+  return (
+    <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-5">
+      <h2 className="text-xl font-bold text-white">
+        {title}
+      </h2>
+
+      {items.length === 0 ? (
+        <p className="mt-4 text-sm text-neutral-400">
+          {emptyMessage}
+        </p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {items.map((item) => (
+            <article
+              key={item.id}
+              className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4"
+            >
+              <h3 className="font-semibold text-white">
+                {item.title}
+              </h3>
+              <p className="mt-2 text-sm text-neutral-300">
+                {item.detail}
+              </p>
+              <p className="mt-3 text-xs font-semibold text-amber-300">
+                {item.question}
+              </p>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
