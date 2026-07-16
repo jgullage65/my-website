@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderWelcome from "./AiBuilderWelcome";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
+import AiBuilderDemoChat from "./AiBuilderDemoChat";
 
 export type BuilderState = {
   businessName: string;
@@ -20,7 +22,8 @@ type BuilderStep =
   | "form"
   | "building"
   | "results"
-  | "review";
+  | "review"
+  | "chat";
 
 const initial: BuilderState = {
   businessName: "",
@@ -36,6 +39,14 @@ export default function AiBuilderClient() {
   const [session, setSession] =
     useState<AiBuilderSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const knowledgePack = useMemo(
+    () =>
+      session?.status === "ready"
+        ? buildKnowledgePack(session)
+        : null,
+    [session],
+  );
 
   const buildAi = async () => {
     setError(null);
@@ -130,6 +141,14 @@ export default function AiBuilderClient() {
           session={session}
           onSessionChange={setSession}
           onBack={() => setStep("results")}
+          onLaunchChat={() => setStep("chat")}
+        />
+      ) : null}
+
+      {step === "chat" && knowledgePack ? (
+        <AiBuilderDemoChat
+          knowledge={knowledgePack}
+          onBack={() => setStep("review")}
         />
       ) : null}
     </AiBuilderShell>
