@@ -10,7 +10,7 @@ import type {
     BusinessContextCategory,
     ContextConfidence,
     IntakeBlock,
-  } from "@/lib/ai-engine/contracts";
+  } from "@/app/lib/ai-engine/contracts";
   
   export type IntakeSourceBlock = Pick<IntakeBlock, "id" | "label" | "content">;
   

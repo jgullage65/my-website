@@ -6,7 +6,7 @@
  * extraction. It does not decide which statement is correct.
  */
 
-import type { BusinessContextCategory } from "@/lib/ai-engine/contracts";
+import type { BusinessContextCategory } from "@/app/lib/ai-engine/contracts";
 import type {
   ConflictKind,
   DetectedIntakeConflict,

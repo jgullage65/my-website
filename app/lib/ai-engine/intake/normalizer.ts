@@ -10,7 +10,7 @@
  * - detects semantic conflicts
  */
 
-import type { ContextConfidence } from "@/lib/ai-engine/contracts";
+import type { ContextConfidence } from "@/app/lib/ai-engine/contracts";
 
 export function normalizeIntakeText(value: unknown): string {
   return String(value ?? "")

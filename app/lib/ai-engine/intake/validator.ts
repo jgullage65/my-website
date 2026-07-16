@@ -15,7 +15,7 @@
 import {
     BUSINESS_CONTEXT_CATEGORIES,
     type BusinessContextCategory,
-  } from "@/lib/ai-engine/contracts";
+  } from "@/app/lib/ai-engine/contracts";
   import type {
     ExtractedBusinessFact,
     ExtractedConflictCandidate,
