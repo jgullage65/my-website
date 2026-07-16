@@ -1,0 +1,1 @@
+export function buildSessionId(){return crypto.randomUUID?.()??`session_${Date.now()}`;}
