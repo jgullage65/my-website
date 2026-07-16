@@ -67,9 +67,9 @@ function tokenSimilarity(a: string, b: string): number {
   if (left.size === 0 || right.size === 0) return 0;
 
   let intersection = 0;
-  for (const token of left) {
+  left.forEach((token) => {
     if (right.has(token)) intersection += 1;
-  }
+  });
 
   return intersection / Math.min(left.size, right.size);
 }
