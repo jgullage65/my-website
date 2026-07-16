@@ -16,6 +16,8 @@ import {
   type JGAssistantSession,
 } from "@/app/lib/jgAssistantFlow";
 
+const JG_ASSISTANT_VISIBILITY_KEY = "jg-assistant-visibility-v1";
+
 export default function JGChatWidget() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -28,7 +30,20 @@ export default function JGChatWidget() {
 
   useEffect(() => {
     setSession(parseStoredJGAssistantSession(window.sessionStorage.getItem(JG_ASSISTANT_STORAGE_KEY), pathname));
-    setOpen(window.matchMedia("(min-width: 1200px)").matches);
+
+    const isDesktop = window.matchMedia("(min-width: 1200px)").matches;
+    const storedVisibility = window.localStorage.getItem(JG_ASSISTANT_VISIBILITY_KEY);
+
+    if (!isDesktop) {
+      setOpen(false);
+    } else if (storedVisibility === "closed") {
+      setOpen(false);
+    } else if (storedVisibility === "open") {
+      setOpen(true);
+    } else {
+      setOpen(true);
+    }
+
     setHydrated(true);
   }, []);
 
@@ -53,6 +68,17 @@ export default function JGChatWidget() {
     }, 30);
     return () => window.clearTimeout(timeoutId);
   }, [open, session.messages.length, view.options.length]);
+
+  function openAssistant() {
+    setOpen(true);
+    window.localStorage.setItem(JG_ASSISTANT_VISIBILITY_KEY, "open");
+  }
+
+  function closeAssistant() {
+    setMenuOpen(false);
+    setOpen(false);
+    window.localStorage.setItem(JG_ASSISTANT_VISIBILITY_KEY, "closed");
+  }
 
   function restartAssistant() {
     const fresh = createInitialJGAssistantSession(pathname);
@@ -86,7 +112,7 @@ export default function JGChatWidget() {
       {!open ? (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={openAssistant}
           className="fixed bottom-5 right-5 z-[80] flex h-14 w-14 items-center justify-center rounded-2xl border border-[rgba(212,175,55,0.42)] bg-[linear-gradient(145deg,#111c48,#050b1d)] text-[var(--gold)] shadow-[0_18px_45px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition duration-200 hover:-translate-y-0.5"
           aria-label="Open JG Assistant"
           aria-expanded={false}
@@ -122,7 +148,7 @@ export default function JGChatWidget() {
               {menuOpen ? (
                 <div role="menu" className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl border border-[rgba(212,175,55,0.2)] bg-[#070d21] p-1.5 shadow-2xl">
                   <button type="button" role="menuitem" onClick={restartAssistant} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]">Restart conversation</button>
-                  <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setOpen(false); }} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]">Close assistant</button>
+                  <button type="button" role="menuitem" onClick={closeAssistant} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]">Close assistant</button>
                 </div>
               ) : null}
             </div>
