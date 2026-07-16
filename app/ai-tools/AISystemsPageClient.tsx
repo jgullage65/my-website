@@ -113,7 +113,7 @@ export default function AISystemsPageClient() {
 
       <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-16 text-center sm:px-8 sm:py-20 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">What we build</motion.p>
-        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-[2.35rem] font-black leading-[.98] tracking-[-.055em] sm:text-5xl lg:text-6xl">A full AI systems partner, not a chatbot shop.</motion.h2>
+        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-[2.35rem] font-black leading-[.98] tracking-[-.055em] sm:text-5xl lg:text-6xl">A full <span className="text-[var(--gold)]">AI systems partner</span>, not a chatbot shop.</motion.h2>
         <motion.p variants={fadeUp} className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base sm:leading-7">Strategy, software, and automation designed as one connected operating system for the business.</motion.p>
 
         <motion.div variants={fadeUp} className="mt-10 border-y border-[rgba(212,175,55,.28)] text-left lg:grid lg:grid-cols-3 lg:divide-x lg:divide-white/[.08]">
@@ -141,7 +141,7 @@ export default function AISystemsPageClient() {
 
       <Section className="mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Delivery process</motion.p>
-        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">Built cleanly enough to run inside the business.</motion.h2>
+        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">Built cleanly enough to run <span className="text-[var(--gold)]">inside the business.</span></motion.h2>
         <div className="mt-10 grid gap-5 lg:grid-cols-4">{buildPhases.map(([phase, copy], index) => <motion.article variants={fadeUp} key={phase} className="rounded-[1.35rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-6 shadow-[0_28px_80px_rgba(0,0,0,.34)]"><p className="text-sm font-black text-[var(--gold)]">0{index + 1}</p><h3 className="mt-5 text-2xl font-black tracking-[-.04em]">{phase}</h3><p className="mt-4 text-sm leading-7 text-[var(--muted)]">{copy}</p></motion.article>)}</div>
       </Section>
 
