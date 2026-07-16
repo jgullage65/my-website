@@ -1,4 +1,4 @@
-import AiBuilderClient from "@/components/ai-builder/AiBuilderClient";
+import AiBuilderClient from "@/app/components/ai-builder/AiBuilderClient";
 
 export default function AiBuilderPage() {
   return <AiBuilderClient />;
