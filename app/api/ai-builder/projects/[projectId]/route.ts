@@ -17,8 +17,28 @@ type UpdateProjectBody = {
   session?: AiBuilderSession;
 };
 
+type StoredChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations?: string[];
+  diagnostics?: {
+    retrievedFacts: number;
+    retrievedFaq: number;
+    retrievalMs: number;
+  };
+  createdAt: string;
+};
+
+type DatabaseRow = Record<string, unknown>;
+
 function normalizeProjectId(value: unknown): string {
   return String(value ?? "").trim();
+}
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  return new Date(String(value)).toISOString();
 }
 
 function errorResponse(status: number, code: string, message: string) {
@@ -50,6 +70,72 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
+    let chatThread: {
+      id: string;
+      messages: StoredChatMessage[];
+    } | null = null;
+
+    if (project.initialThread) {
+      const sql = getSql();
+
+      const messageRows = (await sql`
+        SELECT
+          id,
+          role,
+          content,
+          metadata,
+          created_at
+        FROM ai_builder_chat_messages
+        WHERE thread_id = ${project.initialThread.id}
+        ORDER BY created_at, id
+      `) as DatabaseRow[];
+
+      chatThread = {
+        id: project.initialThread.id,
+        messages: messageRows.map((row) => {
+          const metadata =
+            row.metadata && typeof row.metadata === "object"
+              ? (row.metadata as Record<string, unknown>)
+              : {};
+
+          const citations = Array.isArray(metadata.citations)
+            ? metadata.citations.filter(
+                (citation): citation is string =>
+                  typeof citation === "string",
+              )
+            : undefined;
+
+          const rawDiagnostics =
+            metadata.diagnostics &&
+            typeof metadata.diagnostics === "object"
+              ? (metadata.diagnostics as Record<string, unknown>)
+              : null;
+
+          const diagnostics = rawDiagnostics
+            ? {
+                retrievedFacts: Number(
+                  rawDiagnostics.retrievedFacts ?? 0,
+                ),
+                retrievedFaq: Number(rawDiagnostics.retrievedFaq ?? 0),
+                retrievalMs: Number(rawDiagnostics.retrievalMs ?? 0),
+              }
+            : undefined;
+
+          return {
+            id: String(row.id),
+            role:
+              row.role === "user"
+                ? ("user" as const)
+                : ("assistant" as const),
+            content: String(row.content),
+            citations,
+            diagnostics,
+            createdAt: toIsoString(row.created_at),
+          };
+        }),
+      };
+    }
+
     return NextResponse.json({
       ok: true,
       projectId: project.session.id,
@@ -60,6 +146,7 @@ export async function GET(_request: Request, context: RouteContext) {
         website: project.website ?? "",
         tone: project.session.assistantConfiguration.tone,
       },
+      chatThread,
     });
   } catch (error) {
     console.error("AI_BUILDER_PROJECT_LOAD_FAILED", {
@@ -88,7 +175,11 @@ export async function PUT(request: Request, context: RouteContext) {
   try {
     body = (await request.json()) as UpdateProjectBody;
   } catch {
-    return errorResponse(400, "invalid_json", "The request body must be valid JSON.");
+    return errorResponse(
+      400,
+      "invalid_json",
+      "The request body must be valid JSON.",
+    );
   }
 
   const session = body.session;
@@ -101,7 +192,10 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   }
 
-  if (!Array.isArray(session.contextEntries) || !Array.isArray(session.faqEntries)) {
+  if (
+    !Array.isArray(session.contextEntries) ||
+    !Array.isArray(session.faqEntries)
+  ) {
     return errorResponse(
       400,
       "invalid_session",
