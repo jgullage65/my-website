@@ -157,7 +157,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           description="Connect public business knowledge now. More private sources can plug into this same foundation later."
         />
 
-        <div className="mt-10 grid gap-5 lg:grid-cols-2">
+        <div className="mt-10">
           <article className="relative overflow-hidden rounded-[28px] border border-amber-300/25 bg-[linear-gradient(145deg,rgba(18,34,51,0.96),rgba(7,19,33,0.98))] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.35),0_0_45px_rgba(245,158,11,0.06)] sm:p-8">
             <div className="absolute right-[-5rem] top-[-5rem] h-44 w-44 rounded-full bg-amber-400/10 blur-3xl" />
             <div className="relative">
@@ -232,32 +232,6 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 </button>
               ) : null}
             </div>
-          </article>
-
-          <article className="rounded-[28px] border border-white/10 bg-white/[0.035] p-6 sm:p-8">
-            <div className="flex items-center gap-4">
-              <div className="grid h-14 w-14 place-items-center rounded-2xl border border-white/10 bg-white/[0.05] text-2xl">
-                ✦
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Coming next
-                </p>
-                <h3 className="mt-1 text-2xl font-semibold text-white">
-                  One AI. Every source.
-                </h3>
-              </div>
-            </div>
-            <div className="mt-7 grid grid-cols-2 gap-3">
-              <SourcePreview icon="📄" label="PDF Documents" />
-              <SourcePreview icon="📚" label="Knowledge Base" />
-              <SourcePreview icon="◆" label="Notion" />
-              <SourcePreview icon="△" label="Google Drive" />
-            </div>
-            <p className="mt-6 text-sm leading-6 text-slate-500">
-              These sources will feed the same AI without changing how your
-              private expertise or website knowledge is stored.
-            </p>
           </article>
         </div>
       </section>
@@ -418,16 +392,6 @@ function Metric({ label, value, className = "" }: { label: string; value: string
   );
 }
 
-function SourcePreview({ icon, label }: { icon: string; label: string }) {
-  return (
-    <div className="rounded-2xl border border-white/[0.07] bg-black/10 p-4 opacity-75">
-      <span className="text-lg">{icon}</span>
-      <p className="mt-3 text-sm font-medium text-slate-300">{label}</p>
-      <p className="mt-1 text-xs text-slate-600">Coming soon</p>
-    </div>
-  );
-}
-
 function KnowledgeCard({ icon, title, description, children }: { icon: string; title: string; description: string; children: ReactNode }) {
   return (
     <article className="rounded-[28px] border border-white/10 bg-[linear-gradient(145deg,rgba(16,31,47,0.85),rgba(7,19,33,0.92))] p-6 shadow-[0_20px_70px_rgba(0,0,0,0.22)] sm:p-8">
@@ -478,9 +442,6 @@ function WebsiteKnowledgeModal({ knowledge, onClose }: { knowledge: WebsiteKnowl
           <ReadOnlyBlock title="Products & Services" content={knowledge.productsServices} />
           <ReadOnlyBlock title="Ideal Customers" content={knowledge.idealCustomers} />
           <ReadOnlyBlock title="Additional Business Knowledge" content={knowledge.additionalKnowledge} />
-          <ReadOnlyBlock title="Pages Crawled" content={knowledge.pages.length ? knowledge.pages.map((page) => `${page.title || page.pageType}: ${page.url}`).join("\n") : "No page details returned."} />
-          <ReadOnlyBlock title="Warnings" content={knowledge.warnings.length ? knowledge.warnings.join("\n") : "No crawl warnings."} />
-          <ReadOnlyBlock title="Crawl Date" content={new Date(knowledge.importedAt).toLocaleString()} />
           <p className="text-center text-xs leading-5 text-slate-500">Website knowledge is read-only. Re-import the website to refresh it. Your manual expertise is never overwritten.</p>
         </div>
       </div>
