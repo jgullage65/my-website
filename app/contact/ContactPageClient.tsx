@@ -47,8 +47,8 @@ export default function ContactPageClient() {
   const preBusinessType = params.get("business_type") || params.get("business") || "";
   const preEmail = params.get("email") || "";
 
-  const field = "mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
-  const label = "text-sm font-semibold text-slate-200";
+  const field = "mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-center text-white placeholder:text-center placeholder:text-white outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
+  const label = "block text-center text-sm font-semibold text-[var(--gold)]";
   const card = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
 
   return (
