@@ -23,4 +23,4 @@ type WebsiteImportPayload = {
     idealCustomers?: string;
     additionalKnowledge?: string;
   };
-  pages?: Array<{ url: string; title: string; pageType: string }>;
+  pages?: Array<{ url: string; title:
