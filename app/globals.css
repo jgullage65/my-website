@@ -319,8 +319,24 @@ a {
 }
 
 :where(button, a[href]):focus {
-  outline: 1px solid rgba(252, 211, 77, 0.3);
+  outline: 1px solid rgba(212, 175, 55, 0.3);
   outline-offset: 2px;
+}
+
+:where(button, a[href])[class*="border-amber-300/15"] {
+  border-color: rgba(212, 175, 55, 0.15);
+  box-shadow: none;
+}
+
+:where(button, a[href])[class*="border-amber-300/15"]:hover,
+:where(button, a[href])[class*="border-amber-300/15"]:focus,
+:where(button, a[href])[class*="border-amber-300/15"]:active {
+  border-color: rgba(212, 175, 55, 0.3);
+}
+
+button[role="tab"][aria-selected="true"] {
+  border-color: rgba(212, 175, 55, 0.3);
+  box-shadow: none;
 }
 
 button,
