@@ -62,14 +62,7 @@ export default function ContactPageClient() {
         </header>
 
         <section className={card}>
-          <div className="text-center">
-            <h2 className="text-3xl font-black tracking-[-.04em]">Project Request</h2>
-            <p className="mx-auto mt-2 max-w-2xl text-[var(--muted)]">
-              Want the fastest quote? Fill this out and I’ll reply with a clear price range and timeline.
-            </p>
-          </div>
-
-          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="mt-8 grid gap-5">
+          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="grid gap-5">
             <input type="hidden" name="form_type" value="Project Request" />
 
             <div className="grid gap-5 md:grid-cols-2">
@@ -129,15 +122,6 @@ export default function ContactPageClient() {
             <div>
               <label className={label}>Goal / What should this help you do?</label>
               <textarea name="goal" required rows={4} placeholder="Example: I want more customers calling or booking online." className={field} />
-            </div>
-
-            <div className="mx-auto max-w-md rounded-2xl border border-[rgba(212,175,55,.12)] bg-white/[.035] p-4 text-center text-sm text-slate-300">
-              <p className="font-semibold text-white">What happens next?</p>
-              <ul className="mt-2 space-y-1">
-                <li>I’ll reply with a clear quote and timeline.</li>
-                <li>If you’re ready, we’ll confirm details and start.</li>
-                <li>You’ll get updates as your project is built.</li>
-              </ul>
             </div>
 
             <div className="flex justify-center">
