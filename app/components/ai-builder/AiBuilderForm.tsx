@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { BuilderState } from "./AiBuilderClient";
+import type {
+  BuilderState,
+  UserKnowledge,
+  WebsiteKnowledge,
+} from "./AiBuilderClient";
 
 type Props = {
   value: BuilderState;
@@ -11,7 +15,14 @@ type Props = {
 
 type WebsiteImportPayload = {
   ok?: boolean;
-  import?: Partial<BuilderState>;
+  import?: {
+    businessName?: string;
+    industry?: string;
+    website?: string;
+    productsServices?: string;
+    idealCustomers?: string;
+    additionalKnowledge?: string;
+  };
   pages?: Array<{ url: string; title: string; pageType: string }>;
   warnings?: string[];
   error?: { message?: string };
@@ -25,8 +36,24 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
 
-  const update = (key: keyof BuilderState, nextValue: string) => {
+  const updateProfile = (
+    key: "businessName" | "industry" | "website" | "tone",
+    nextValue: string,
+  ) => {
     onChange({ ...value, [key]: nextValue });
+  };
+
+  const updateUserKnowledge = (
+    key: keyof UserKnowledge,
+    nextValue: string,
+  ) => {
+    onChange({
+      ...value,
+      userKnowledge: {
+        ...value.userKnowledge,
+        [key]: nextValue,
+      },
+    });
   };
 
   const importWebsite = async () => {
@@ -46,47 +73,64 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
       const payload = (await response.json()) as WebsiteImportPayload;
       if (!response.ok || !payload.ok || !payload.import) {
-        throw new Error(payload.error?.message || "The website could not be imported.");
+        throw new Error(
+          payload.error?.message || "The website could not be imported.",
+        );
       }
 
       const imported = payload.import;
-      const nextValue: BuilderState = {
-        businessName: value.businessName.trim()
-          ? value.businessName
-          : imported.businessName || "",
-        industry: value.industry.trim() ? value.industry : imported.industry || "",
-        website: imported.website || value.website,
-        productsServices: value.productsServices.trim()
-          ? value.productsServices
-          : imported.productsServices || "",
-        idealCustomers: value.idealCustomers.trim()
-          ? value.idealCustomers
-          : imported.idealCustomers || "",
-        tone: value.tone,
-        additionalKnowledge: value.additionalKnowledge.trim()
-          ? value.additionalKnowledge
-          : imported.additionalKnowledge || "",
+      const websiteKnowledge: WebsiteKnowledge = {
+        businessName: imported.businessName?.trim() || "",
+        industry: imported.industry?.trim() || "",
+        website: imported.website?.trim() || website,
+        productsServices: imported.productsServices?.trim() || "",
+        idealCustomers: imported.idealCustomers?.trim() || "",
+        additionalKnowledge: imported.additionalKnowledge?.trim() || "",
+        pages: payload.pages ?? [],
+        warnings: payload.warnings ?? [],
+        importedAt: new Date().toISOString(),
       };
 
-      onChange(nextValue);
-      const pageCount = payload.pages?.length ?? 0;
+      onChange({
+        ...value,
+        businessName: value.businessName.trim()
+          ? value.businessName
+          : websiteKnowledge.businessName,
+        industry: value.industry.trim()
+          ? value.industry
+          : websiteKnowledge.industry,
+        website: websiteKnowledge.website,
+        websiteKnowledge,
+      });
+
+      const pageCount = websiteKnowledge.pages.length;
       setImportMessage(
-        `Imported business information from ${pageCount} website page${pageCount === 1 ? "" : "s"}. Existing answers were kept.`,
+        `Imported website knowledge from ${pageCount} page${pageCount === 1 ? "" : "s"}. Your manual answers remain separate and take priority.`,
       );
     } catch (error) {
       setImportError(
-        error instanceof Error ? error.message : "The website could not be imported.",
+        error instanceof Error
+          ? error.message
+          : "The website could not be imported.",
       );
     } finally {
       setImporting(false);
     }
   };
 
+  const hasProductsServices = Boolean(
+    value.userKnowledge.productsServices.trim() ||
+      value.websiteKnowledge?.productsServices.trim(),
+  );
+  const hasIdealCustomers = Boolean(
+    value.userKnowledge.idealCustomers.trim() ||
+      value.websiteKnowledge?.idealCustomers.trim(),
+  );
   const valid = Boolean(
     value.businessName.trim() &&
       value.industry.trim() &&
-      value.productsServices.trim() &&
-      value.idealCustomers.trim(),
+      hasProductsServices &&
+      hasIdealCustomers,
   );
 
   return (
@@ -99,8 +143,8 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           Teach your AI how your business works.
         </h2>
         <p className="mt-2 text-sm leading-6 text-neutral-400">
-          Import your public website or add the business information manually.
-          Your assistant will automatically be named after your business.
+          Import public website knowledge, then add or correct information manually.
+          Manual answers always take priority.
         </p>
       </div>
 
@@ -111,7 +155,9 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               className={inputClassName}
               placeholder="JG Creative Studio"
               value={value.businessName}
-              onChange={(event) => update("businessName", event.target.value)}
+              onChange={(event) =>
+                updateProfile("businessName", event.target.value)
+              }
             />
           </Field>
 
@@ -120,14 +166,14 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               className={inputClassName}
               placeholder="Web design and AI automation agency"
               value={value.industry}
-              onChange={(event) => update("industry", event.target.value)}
+              onChange={(event) => updateProfile("industry", event.target.value)}
             />
           </Field>
         </div>
 
         <Field
           label="Website"
-          helper="Optional. Paste the public website and import the business information automatically."
+          helper="Optional. Import public business information without overwriting your manual knowledge."
         >
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
             <input
@@ -135,7 +181,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               className={inputClassName}
               placeholder="https://example.com"
               value={value.website}
-              onChange={(event) => update("website", event.target.value)}
+              onChange={(event) => updateProfile("website", event.target.value)}
             />
             <button
               type="button"
@@ -143,7 +189,11 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               onClick={importWebsite}
               className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-5 py-3 font-semibold text-amber-300 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {importing ? "Importing..." : "Import Website"}
+              {importing
+                ? "Importing..."
+                : value.websiteKnowledge
+                  ? "Re-import Website"
+                  : "Import Website"}
             </button>
           </div>
           {importError ? (
@@ -156,33 +206,52 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               {importMessage}
             </span>
           ) : null}
+          {value.websiteKnowledge ? (
+            <span className="text-xs leading-5 text-neutral-500">
+              Website knowledge loaded from {value.websiteKnowledge.pages.length} page
+              {value.websiteKnowledge.pages.length === 1 ? "" : "s"}. Re-importing
+              replaces only the website knowledge.
+            </span>
+          ) : null}
         </Field>
 
         <Field
           label="Products / services"
-          helper="Explain what you sell, the main options, and the outcomes customers receive."
+          helper="Add corrections, private details, or anything the website does not explain."
           required
         >
           <textarea
             rows={6}
             className={`${inputClassName} resize-y`}
-            placeholder="Describe your services, packages, deliverables, pricing structure, and what each option is for."
-            value={value.productsServices}
-            onChange={(event) => update("productsServices", event.target.value)}
+            placeholder={
+              value.websiteKnowledge?.productsServices
+                ? "Website knowledge is already loaded. Add corrections or private details here."
+                : "Describe your services, packages, deliverables, pricing structure, and what each option is for."
+            }
+            value={value.userKnowledge.productsServices}
+            onChange={(event) =>
+              updateUserKnowledge("productsServices", event.target.value)
+            }
           />
         </Field>
 
         <Field
           label="Ideal customers"
-          helper="Describe who you serve, their common problems, and who is not a good fit."
+          helper="Add corrections or customer details that should override the public website."
           required
         >
           <textarea
             rows={5}
             className={`${inputClassName} resize-y`}
-            placeholder="Describe your best-fit customers, industries, company sizes, locations, needs, and common goals."
-            value={value.idealCustomers}
-            onChange={(event) => update("idealCustomers", event.target.value)}
+            placeholder={
+              value.websiteKnowledge?.idealCustomers
+                ? "Website knowledge is already loaded. Add corrections or more specific customer details here."
+                : "Describe your best-fit customers, industries, company sizes, locations, needs, and common goals."
+            }
+            value={value.userKnowledge.idealCustomers}
+            onChange={(event) =>
+              updateUserKnowledge("idealCustomers", event.target.value)
+            }
           />
         </Field>
 
@@ -190,7 +259,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           <select
             className={inputClassName}
             value={value.tone}
-            onChange={(event) => update("tone", event.target.value)}
+            onChange={(event) => updateProfile("tone", event.target.value)}
           >
             <option>Professional</option>
             <option>Friendly</option>
@@ -202,14 +271,16 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
         <Field
           label="Additional business knowledge"
-          helper="Add anything not covered above, including policies, FAQs, processes, guarantees, differentiators, common objections, or important rules."
+          helper="Add private policies, SOPs, objections, sales processes, guarantees, or corrections."
         >
           <textarea
             rows={10}
             className={`${inputClassName} resize-y`}
-            placeholder="Share pricing details, policies, FAQs, guarantees, processes, differentiators, common objections, and anything else your AI should know."
-            value={value.additionalKnowledge}
-            onChange={(event) => update("additionalKnowledge", event.target.value)}
+            placeholder="Share private pricing, policies, FAQs, guarantees, processes, differentiators, common objections, and anything else your AI should know."
+            value={value.userKnowledge.additionalKnowledge}
+            onChange={(event) =>
+              updateUserKnowledge("additionalKnowledge", event.target.value)
+            }
           />
         </Field>
 

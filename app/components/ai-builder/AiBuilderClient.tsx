@@ -10,14 +10,35 @@ import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
 
-export type BuilderState = {
+export type UserKnowledge = {
+  productsServices: string;
+  idealCustomers: string;
+  additionalKnowledge: string;
+};
+
+export type WebsiteKnowledge = {
   businessName: string;
   industry: string;
   website: string;
   productsServices: string;
   idealCustomers: string;
-  tone: string;
   additionalKnowledge: string;
+  pages: Array<{
+    url: string;
+    title: string;
+    pageType: string;
+  }>;
+  warnings: string[];
+  importedAt: string;
+};
+
+export type BuilderState = {
+  businessName: string;
+  industry: string;
+  website: string;
+  tone: string;
+  userKnowledge: UserKnowledge;
+  websiteKnowledge: WebsiteKnowledge | null;
 };
 
 type BuilderStep =
@@ -32,10 +53,13 @@ const initial: BuilderState = {
   businessName: "",
   industry: "",
   website: "",
-  productsServices: "",
-  idealCustomers: "",
   tone: "Professional",
-  additionalKnowledge: "",
+  userKnowledge: {
+    productsServices: "",
+    idealCustomers: "",
+    additionalKnowledge: "",
+  },
+  websiteKnowledge: null,
 };
 
 export default function AiBuilderClient() {

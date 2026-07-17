@@ -6,14 +6,31 @@ import { runEngine } from "@/app/lib/ai-engine/runtime";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type IntakeRequestBody = {
+type UserKnowledgeRequest = {
+  productsServices?: unknown;
+  idealCustomers?: unknown;
+  additionalKnowledge?: unknown;
+};
+
+type WebsiteKnowledgeRequest = {
   businessName?: unknown;
   industry?: unknown;
   website?: unknown;
   productsServices?: unknown;
   idealCustomers?: unknown;
-  tone?: unknown;
   additionalKnowledge?: unknown;
+  pages?: unknown;
+  warnings?: unknown;
+  importedAt?: unknown;
+};
+
+type IntakeRequestBody = {
+  businessName?: unknown;
+  industry?: unknown;
+  website?: unknown;
+  tone?: unknown;
+  userKnowledge?: UserKnowledgeRequest;
+  websiteKnowledge?: WebsiteKnowledgeRequest | null;
 };
 
 function normalizeText(value: unknown): string {
@@ -33,9 +50,7 @@ function createId(prefix: string): string {
     return `${prefix}_${globalThis.crypto.randomUUID()}`;
   }
 
-  return `${prefix}_${Date.now()}_${Math.random()
-    .toString(16)
-    .slice(2)}`;
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
 function buildEmptyConversationMemory(
@@ -71,6 +86,25 @@ function errorResponse(
   );
 }
 
+function addKnowledgeBlock(
+  blocks: Array<{
+    id: string;
+    label: string;
+    content: string;
+  }>,
+  prefix: string,
+  label: string,
+  content: string,
+) {
+  if (!content) return;
+
+  blocks.push({
+    id: createId(prefix),
+    label,
+    content,
+  });
+}
+
 export async function POST(request: Request) {
   let body: IntakeRequestBody;
 
@@ -87,22 +121,49 @@ export async function POST(request: Request) {
   const businessName = normalizeText(body.businessName);
   const industry = normalizeText(body.industry);
   const website = normalizeText(body.website);
-  const productsServices = normalizeText(body.productsServices);
-  const idealCustomers = normalizeText(body.idealCustomers);
   const tone = normalizeText(body.tone) || "Professional";
-  const additionalKnowledge = normalizeText(body.additionalKnowledge);
+
+  const userProductsServices = normalizeText(
+    body.userKnowledge?.productsServices,
+  );
+  const userIdealCustomers = normalizeText(
+    body.userKnowledge?.idealCustomers,
+  );
+  const userAdditionalKnowledge = normalizeText(
+    body.userKnowledge?.additionalKnowledge,
+  );
+
+  const websiteKnowledge = body.websiteKnowledge ?? null;
+  const websiteBusinessName = normalizeText(websiteKnowledge?.businessName);
+  const websiteIndustry = normalizeText(websiteKnowledge?.industry);
+  const websiteSourceUrl = normalizeText(websiteKnowledge?.website);
+  const websiteProductsServices = normalizeText(
+    websiteKnowledge?.productsServices,
+  );
+  const websiteIdealCustomers = normalizeText(
+    websiteKnowledge?.idealCustomers,
+  );
+  const websiteAdditionalKnowledge = normalizeText(
+    websiteKnowledge?.additionalKnowledge,
+  );
+  const importedAt = normalizeText(websiteKnowledge?.importedAt);
+
+  const effectiveProductsServices =
+    userProductsServices || websiteProductsServices;
+  const effectiveIdealCustomers =
+    userIdealCustomers || websiteIdealCustomers;
   const assistantName = `${businessName} AI`;
 
   if (
     !businessName ||
     !industry ||
-    !productsServices ||
-    !idealCustomers
+    !effectiveProductsServices ||
+    !effectiveIdealCustomers
   ) {
     return errorResponse(
       400,
       "missing_required_fields",
-      "Business name, industry, products or services, and ideal customers are required.",
+      "Business name, industry, products or services, and ideal customers are required from either the website import or manual knowledge.",
     );
   }
 
@@ -110,11 +171,20 @@ export async function POST(request: Request) {
     businessName.length +
     industry.length +
     website.length +
-    productsServices.length +
-    idealCustomers.length +
-    additionalKnowledge.length;
+    userProductsServices.length +
+    userIdealCustomers.length +
+    userAdditionalKnowledge.length +
+    websiteBusinessName.length +
+    websiteIndustry.length +
+    websiteSourceUrl.length +
+    websiteProductsServices.length +
+    websiteIdealCustomers.length +
+    websiteAdditionalKnowledge.length;
 
-  if (productsServices.length < 40 || idealCustomers.length < 30) {
+  if (
+    effectiveProductsServices.length < 40 ||
+    effectiveIdealCustomers.length < 30
+  ) {
     return errorResponse(
       400,
       "business_information_too_short",
@@ -122,46 +192,85 @@ export async function POST(request: Request) {
     );
   }
 
-  if (totalKnowledgeLength > 30000) {
+  if (totalKnowledgeLength > 60000) {
     return errorResponse(
       400,
       "business_information_too_long",
-      "The combined business information must be 30,000 characters or fewer.",
+      "The combined website and manual business information must be 60,000 characters or fewer.",
     );
   }
 
   const sessionId = createId("ai_builder_session");
   const threadId = createId("ai_builder_thread");
+  const blocks: Array<{
+    id: string;
+    label: string;
+    content: string;
+  }> = [];
 
-  const blocks = [
-    {
-      id: createId("business_profile_block"),
-      label: "Business profile",
-      content: [
-        `Business name: ${businessName}`,
-        `Industry or business type: ${industry}`,
-        website ? `Website: ${website}` : "Website: Not provided",
-      ].join("\n"),
-    },
-    {
-      id: createId("products_services_block"),
-      label: "Products and services",
-      content: productsServices,
-    },
-    {
-      id: createId("ideal_customers_block"),
-      label: "Ideal customers",
-      content: idealCustomers,
-    },
-  ];
+  addKnowledgeBlock(
+    blocks,
+    "business_profile_block",
+    "Business profile",
+    [
+      `Business name: ${businessName}`,
+      `Industry or business type: ${industry}`,
+      website ? `Website: ${website}` : "Website: Not provided",
+    ].join("\n"),
+  );
 
-  if (additionalKnowledge) {
-    blocks.push({
-      id: createId("additional_knowledge_block"),
-      label: "Additional business knowledge",
-      content: additionalKnowledge,
-    });
-  }
+  addKnowledgeBlock(
+    blocks,
+    "user_products_services_block",
+    "USER-PROVIDED KNOWLEDGE: Products and services",
+    userProductsServices,
+  );
+  addKnowledgeBlock(
+    blocks,
+    "user_ideal_customers_block",
+    "USER-PROVIDED KNOWLEDGE: Ideal customers",
+    userIdealCustomers,
+  );
+  addKnowledgeBlock(
+    blocks,
+    "user_additional_knowledge_block",
+    "USER-PROVIDED KNOWLEDGE: Additional business knowledge",
+    userAdditionalKnowledge,
+  );
+
+  addKnowledgeBlock(
+    blocks,
+    "website_profile_block",
+    "WEBSITE KNOWLEDGE: Public business profile",
+    [
+      websiteBusinessName
+        ? `Website business name: ${websiteBusinessName}`
+        : "",
+      websiteIndustry ? `Website industry: ${websiteIndustry}` : "",
+      websiteSourceUrl ? `Website source: ${websiteSourceUrl}` : "",
+      importedAt ? `Imported at: ${importedAt}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+  addKnowledgeBlock(
+    blocks,
+    "website_products_services_block",
+    "WEBSITE KNOWLEDGE: Products and services",
+    websiteProductsServices,
+  );
+  addKnowledgeBlock(
+    blocks,
+    "website_ideal_customers_block",
+    "WEBSITE KNOWLEDGE: Ideal customers",
+    websiteIdealCustomers,
+  );
+  addKnowledgeBlock(
+    blocks,
+    "website_additional_knowledge_block",
+    "WEBSITE KNOWLEDGE: Additional business knowledge",
+    websiteAdditionalKnowledge,
+  );
 
   try {
     const session = await runEngine({
@@ -172,6 +281,9 @@ export async function POST(request: Request) {
           `Act as ${assistantName}, the business AI for ${businessName}.`,
           `The business operates in this industry: ${industry}.`,
           "Answer using approved business knowledge only.",
+          "USER-PROVIDED KNOWLEDGE has higher authority than WEBSITE KNOWLEDGE.",
+          "When the two sources conflict, follow the user-provided knowledge and do not repeat the conflicting website claim as current fact.",
+          "Website knowledge may supplement topics the user did not address.",
           "Be accurate, useful, and transparent when information is missing.",
         ].join(" "),
         assistantTone: tone,
