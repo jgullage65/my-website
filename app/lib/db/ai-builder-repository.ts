@@ -7,6 +7,8 @@ import type {
 import { ensureAiBuilderSchema } from "./ai-builder-schema";
 import { getSql } from "./client";
 
+type DatabaseRow = Record<string, unknown>;
+
 type PersistAiBuilderProjectInput = {
   session: AiBuilderSession;
   businessName: string;
@@ -295,26 +297,41 @@ export async function getAiBuilderProject(
   await ensureAiBuilderSchema();
 
   const sql = getSql();
-  const projects = await sql`
+  const projects = (await sql`
     SELECT *
     FROM ai_builder_projects
     WHERE id = ${projectId}
     LIMIT 1
-  `;
+  `) as DatabaseRow[];
 
   const project = projects[0];
   if (!project) return null;
 
-  const [intakeBlocks, contextEntries, faqEntries, conflicts, missingInformation, buildProgress, threads] =
-    await Promise.all([
-      sql`SELECT * FROM ai_builder_intake_blocks WHERE project_id = ${projectId} ORDER BY created_at, id`,
-      sql`SELECT * FROM ai_builder_context_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
-      sql`SELECT * FROM ai_builder_faq_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
-      sql`SELECT * FROM ai_builder_conflicts WHERE project_id = ${projectId} ORDER BY id`,
-      sql`SELECT * FROM ai_builder_missing_information WHERE project_id = ${projectId} ORDER BY id`,
-      sql`SELECT * FROM ai_builder_progress WHERE project_id = ${projectId} ORDER BY id`,
-      sql`SELECT * FROM ai_builder_chat_threads WHERE project_id = ${projectId} ORDER BY created_at LIMIT 1`,
-    ]);
+  const [
+    intakeBlocks,
+    contextEntries,
+    faqEntries,
+    conflicts,
+    missingInformation,
+    buildProgress,
+    threads,
+  ] = (await Promise.all([
+    sql`SELECT * FROM ai_builder_intake_blocks WHERE project_id = ${projectId} ORDER BY created_at, id`,
+    sql`SELECT * FROM ai_builder_context_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
+    sql`SELECT * FROM ai_builder_faq_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
+    sql`SELECT * FROM ai_builder_conflicts WHERE project_id = ${projectId} ORDER BY id`,
+    sql`SELECT * FROM ai_builder_missing_information WHERE project_id = ${projectId} ORDER BY id`,
+    sql`SELECT * FROM ai_builder_progress WHERE project_id = ${projectId} ORDER BY id`,
+    sql`SELECT * FROM ai_builder_chat_threads WHERE project_id = ${projectId} ORDER BY created_at LIMIT 1`,
+  ])) as [
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+  ];
 
   const session: AiBuilderSession = {
     id: String(project.id),
