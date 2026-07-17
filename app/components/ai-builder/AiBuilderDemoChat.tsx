@@ -2,10 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import type { KnowledgePack } from "@/app/lib/ai-engine/knowledge";
-import type {
-  ChatDiagnostics,
-  ChatResponse,
-} from "@/app/lib/ai-engine/chat";
+import type { ChatDiagnostics, ChatResponse } from "@/app/lib/ai-engine/chat";
 
 type Props = {
   knowledge: KnowledgePack;
@@ -21,15 +18,10 @@ type ChatMessage = {
 };
 
 function createMessageId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export default function AiBuilderDemoChat({
-  knowledge,
-  onBack,
-}: Props) {
+export default function AiBuilderDemoChat({ knowledge, onBack }: Props) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "assistant_welcome",
@@ -43,9 +35,7 @@ export default function AiBuilderDemoChat({
 
   const sendMessage = async (event: FormEvent) => {
     event.preventDefault();
-
     const normalizedMessage = message.trim();
-
     if (!normalizedMessage || sending) return;
 
     const userMessage: ChatMessage = {
@@ -62,32 +52,23 @@ export default function AiBuilderDemoChat({
     try {
       const result = await fetch("/api/ai-builder/chat", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          knowledge,
-          message: normalizedMessage,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ knowledge, message: normalizedMessage }),
       });
 
       const payload = (await result.json()) as {
         ok?: boolean;
         response?: ChatResponse;
-        error?: {
-          message?: string;
-        };
+        error?: { message?: string };
       };
 
       if (!result.ok || !payload.ok || !payload.response) {
         throw new Error(
-          payload.error?.message ||
-            "The assistant could not answer that question.",
+          payload.error?.message || "The assistant could not answer that question.",
         );
       }
 
       const chatResponse = payload.response;
-
       setMessages((current) =>
         current.concat({
           id: createMessageId("assistant"),
@@ -109,62 +90,56 @@ export default function AiBuilderDemoChat({
   };
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-neutral-800 bg-neutral-900 p-6">
-        <p className="text-sm uppercase tracking-[0.24em] text-amber-400">
-          Live assistant preview
-        </p>
-
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-3xl font-bold text-white">
-              Test {knowledge.assistantName}
-            </h2>
-            <p className="mt-2 text-neutral-400">
-              Answers are grounded only in approved business knowledge.
-            </p>
-          </div>
-
+    <div className="mx-auto max-w-5xl space-y-6">
+      <section className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] px-5 py-7 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
+        <div className="relative">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300 sm:text-sm">
+            Live assistant preview
+          </p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
+            Test {knowledge.assistantName}
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
+            Ask real questions and see how your AI responds using only approved business knowledge.
+          </p>
           <button
             type="button"
             onClick={onBack}
-            className="rounded-xl border border-neutral-700 px-4 py-3 text-sm font-semibold text-white"
+            className="mt-6 rounded-2xl border border-white/15 bg-white/[0.035] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.07]"
           >
             Back to knowledge
           </button>
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900">
-        <div className="max-h-[560px] min-h-[420px] space-y-4 overflow-y-auto p-5">
+      <section className="overflow-hidden rounded-[30px] border border-white/10 bg-[#030713] shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
+        <div className="max-h-[620px] min-h-[500px] space-y-4 overflow-y-auto p-4 sm:p-6">
           {messages.map((item) => (
             <div
               key={item.id}
               className={
                 item.role === "user"
-                  ? "ml-auto max-w-[85%] rounded-2xl bg-amber-500 px-4 py-3 text-sm font-medium text-black"
-                  : "max-w-[90%] rounded-2xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm leading-6 text-neutral-200"
+                  ? "ml-auto max-w-[88%] rounded-[22px] rounded-br-md border border-amber-200/40 bg-amber-300 px-4 py-3 text-sm font-medium leading-6 text-[#101827] shadow-[0_12px_28px_rgba(245,158,11,0.15)]"
+                  : "max-w-[92%] rounded-[22px] rounded-bl-md border border-white/[0.08] bg-black/25 px-4 py-3 text-sm leading-6 text-slate-200"
               }
             >
               <p className="whitespace-pre-wrap">{item.content}</p>
 
               {item.role === "assistant" && item.diagnostics ? (
-                <details className="mt-3 border-t border-neutral-800 pt-3">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
+                <details className="mt-3 border-t border-white/[0.08] pt-3">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.14em] text-amber-300/70">
                     Grounding details
                   </summary>
-
-                  <div className="mt-2 space-y-2 text-xs text-neutral-400">
+                  <div className="mt-2 space-y-2 text-xs text-slate-400">
                     <p>
                       {item.diagnostics.retrievedFacts} facts and{" "}
-                      {item.diagnostics.retrievedFaq} FAQ entries
-                      retrieved.
+                      {item.diagnostics.retrievedFaq} FAQ entries retrieved.
                     </p>
-
                     {item.citations?.map((citation, index) => (
                       <p
                         key={`${item.id}-citation-${index}`}
-                        className="rounded-lg border border-neutral-800 bg-neutral-900 p-2"
+                        className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3"
                       >
                         {citation}
                       </p>
@@ -176,35 +151,31 @@ export default function AiBuilderDemoChat({
           ))}
 
           {sending ? (
-            <div className="max-w-[90%] animate-pulse rounded-2xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm text-neutral-400">
+            <div className="max-w-[92%] animate-pulse rounded-[22px] rounded-bl-md border border-white/[0.08] bg-black/25 px-4 py-3 text-sm text-slate-400">
               {knowledge.assistantName} is thinking...
             </div>
           ) : null}
         </div>
 
-        <form
-          onSubmit={sendMessage}
-          className="border-t border-neutral-800 p-4"
-        >
+        <form onSubmit={sendMessage} className="border-t border-white/[0.08] p-4 sm:p-5">
           {error ? (
-            <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            <div className="mb-3 rounded-xl border border-red-400/20 bg-red-400/[0.07] px-4 py-3 text-sm text-red-200">
               {error}
             </div>
           ) : null}
 
-          <div className="flex gap-3">
+          <div className="flex items-end gap-3">
             <textarea
               rows={2}
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               placeholder="Ask about services, pricing, policies, or the business..."
-              className="min-h-[52px] flex-1 resize-none rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600 focus:border-amber-500"
+              className="min-h-[58px] flex-1 resize-none rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-sm text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-slate-600 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/5"
             />
-
             <button
               type="submit"
               disabled={sending || !message.trim()}
-              className="rounded-xl bg-amber-500 px-5 py-3 font-bold text-black transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[58px] rounded-2xl border border-amber-200/50 bg-amber-300 px-5 py-3 font-bold text-[#101827] shadow-[0_12px_30px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
             >
               Send
             </button>
