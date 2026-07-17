@@ -207,14 +207,14 @@ export default function AiBuilderReview({
               Approve the business knowledge before opening the live assistant.
             </p>
           ) : null}
-        </div>
-      </section>
 
-      <section className="mx-auto grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Total" value={session.contextCounts.total} />
-        <Stat label="Approved" value={session.contextCounts.approved} />
-        <Stat label="Pending" value={session.contextCounts.proposed} />
-        <Stat label="Removed" value={session.contextCounts.archived} />
+          <div className="mx-auto mt-7 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label="Total" value={session.contextCounts.total} />
+            <Stat label="Approved" value={session.contextCounts.approved} />
+            <Stat label="Pending" value={session.contextCounts.proposed} />
+            <Stat label="Removed" value={session.contextCounts.archived} />
+          </div>
+        </div>
       </section>
 
       <section className="space-y-7">
@@ -339,7 +339,7 @@ export default function AiBuilderReview({
         ))}
       </section>
 
-      <section className="space-y-7">
+      <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <SectionHeading
           eyebrow="Generated Q&A"
           title="Questions your AI is ready to answer."
@@ -357,7 +357,7 @@ export default function AiBuilderReview({
             return (
               <article
                 key={faq.id}
-                className={`flex min-h-[210px] flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[#030713] px-5 py-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.18)] ${
+                className={`flex min-h-[210px] flex-col items-center justify-center rounded-[22px] border border-amber-300/25 bg-[#030713] px-5 py-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.18)] ${
                   shouldSpanFull ? "md:col-span-2" : ""
                 }`}
               >
@@ -473,7 +473,7 @@ function SectionHeading({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-[#030713] px-3 py-4 text-center shadow-[0_14px_44px_rgba(0,0,0,0.18)] sm:px-5">
+    <div className="rounded-2xl border border-amber-300/25 bg-[#030713] px-3 py-4 text-center shadow-[0_14px_44px_rgba(0,0,0,0.18)] sm:px-5">
       <div className="text-2xl font-semibold text-amber-300 sm:text-3xl">
         {value}
       </div>

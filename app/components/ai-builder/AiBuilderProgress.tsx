@@ -62,11 +62,11 @@ export default function AiBuilderProgress({
             return (
               <article
                 key={`${message}-${index}`}
-                className="rounded-[22px] border border-white/[0.08] bg-black/20 p-5 shadow-inner shadow-black/20"
+                className="rounded-[22px] border border-amber-300/25 bg-black/20 p-5 shadow-inner shadow-black/20"
               >
                 <div className="flex flex-col items-center justify-center gap-2 text-center">
-                  <span className={`text-sm font-semibold sm:text-base ${complete ? "text-amber-300" : "text-white"}`}>
-                    {completed ? <span className="text-white">✓ </span> : null}
+                  <span className="text-sm font-semibold text-white sm:text-base">
+                    {completed ? <span className="text-amber-300">✓ </span> : null}
                     {message}
                   </span>
 
@@ -111,7 +111,7 @@ export default function AiBuilderProgress({
 
 function Stat({ value, label }: { value: number; label: string }) {
   return (
-    <div className="rounded-2xl border border-white/[0.08] bg-black/20 px-3 py-4 text-center sm:px-5">
+    <div className="rounded-2xl border border-amber-300/25 bg-black/20 px-3 py-4 text-center sm:px-5">
       <div className="text-2xl font-semibold text-amber-300 sm:text-3xl">
         {value}
       </div>
