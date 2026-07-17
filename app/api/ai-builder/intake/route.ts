@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import type { ConversationMemory } from "@/app/lib/ai-engine/contracts";
 import { runOpenAiIntakeModel } from "@/app/lib/ai-engine/providers";
@@ -9,15 +8,20 @@ export const dynamic = "force-dynamic";
 
 type IntakeRequestBody = {
   businessName?: unknown;
-  assistantName?: unknown;
+  industry?: unknown;
+  website?: unknown;
+  productsServices?: unknown;
+  idealCustomers?: unknown;
   tone?: unknown;
-  description?: unknown;
+  additionalKnowledge?: unknown;
 };
 
 function normalizeText(value: unknown): string {
   return String(value ?? "")
     .replace(/\u0000/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -81,54 +85,99 @@ export async function POST(request: Request) {
   }
 
   const businessName = normalizeText(body.businessName);
-  const assistantName = normalizeText(body.assistantName);
+  const industry = normalizeText(body.industry);
+  const website = normalizeText(body.website);
+  const productsServices = normalizeText(body.productsServices);
+  const idealCustomers = normalizeText(body.idealCustomers);
   const tone = normalizeText(body.tone) || "Professional";
-  const description = normalizeText(body.description);
+  const additionalKnowledge = normalizeText(body.additionalKnowledge);
+  const assistantName = `${businessName} AI`;
 
-  if (!businessName || !assistantName || !description) {
+  if (
+    !businessName ||
+    !industry ||
+    !productsServices ||
+    !idealCustomers
+  ) {
     return errorResponse(
       400,
       "missing_required_fields",
-      "Business name, assistant name, and business description are required.",
+      "Business name, industry, products or services, and ideal customers are required.",
     );
   }
 
-  if (description.length < 80) {
+  const totalKnowledgeLength =
+    businessName.length +
+    industry.length +
+    website.length +
+    productsServices.length +
+    idealCustomers.length +
+    additionalKnowledge.length;
+
+  if (productsServices.length < 40 || idealCustomers.length < 30) {
     return errorResponse(
       400,
-      "description_too_short",
-      "Add more business information so the system has enough context to build a useful assistant.",
+      "business_information_too_short",
+      "Add more detail about what the business sells and who it serves so the system can build a useful assistant.",
     );
   }
 
-  if (description.length > 30000) {
+  if (totalKnowledgeLength > 30000) {
     return errorResponse(
       400,
-      "description_too_long",
-      "The business description must be 30,000 characters or fewer.",
+      "business_information_too_long",
+      "The combined business information must be 30,000 characters or fewer.",
     );
   }
 
   const sessionId = createId("ai_builder_session");
   const threadId = createId("ai_builder_thread");
 
+  const blocks = [
+    {
+      id: createId("business_profile_block"),
+      label: "Business profile",
+      content: [
+        `Business name: ${businessName}`,
+        `Industry or business type: ${industry}`,
+        website ? `Website: ${website}` : "Website: Not provided",
+      ].join("\n"),
+    },
+    {
+      id: createId("products_services_block"),
+      label: "Products and services",
+      content: productsServices,
+    },
+    {
+      id: createId("ideal_customers_block"),
+      label: "Ideal customers",
+      content: idealCustomers,
+    },
+  ];
+
+  if (additionalKnowledge) {
+    blocks.push({
+      id: createId("additional_knowledge_block"),
+      label: "Additional business knowledge",
+      content: additionalKnowledge,
+    });
+  }
+
   try {
     const session = await runEngine({
       request: {
         sessionId,
-        blocks: [
-          {
-            id: createId("intake_block"),
-            label: `${businessName} business information`,
-            content: description,
-          },
-        ],
-        assistantPurpose: `Act as ${assistantName}, a business assistant for ${businessName}.`,
+        blocks,
+        assistantPurpose: [
+          `Act as ${assistantName}, the business AI for ${businessName}.`,
+          `The business operates in this industry: ${industry}.`,
+          "Answer using approved business knowledge only.",
+          "Be accurate, useful, and transparent when information is missing.",
+        ].join(" "),
         assistantTone: tone,
       },
       state: {
-        conversationMemory:
-          buildEmptyConversationMemory(threadId),
+        conversationMemory: buildEmptyConversationMemory(threadId),
       },
       dependencies: {
         runIntakeModel: runOpenAiIntakeModel,

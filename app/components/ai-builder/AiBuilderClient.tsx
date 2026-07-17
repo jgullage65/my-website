@@ -12,9 +12,12 @@ import AiBuilderDemoChat from "./AiBuilderDemoChat";
 
 export type BuilderState = {
   businessName: string;
-  assistantName: string;
+  industry: string;
+  website: string;
+  productsServices: string;
+  idealCustomers: string;
   tone: string;
-  description: string;
+  additionalKnowledge: string;
 };
 
 type BuilderStep =
@@ -27,17 +30,18 @@ type BuilderStep =
 
 const initial: BuilderState = {
   businessName: "",
-  assistantName: "",
+  industry: "",
+  website: "",
+  productsServices: "",
+  idealCustomers: "",
   tone: "Professional",
-  description: "",
+  additionalKnowledge: "",
 };
 
 export default function AiBuilderClient() {
-  const [step, setStep] =
-    useState<BuilderStep>("welcome");
+  const [step, setStep] = useState<BuilderStep>("welcome");
   const [builder, setBuilder] = useState(initial);
-  const [session, setSession] =
-    useState<AiBuilderSession | null>(null);
+  const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const knowledgePack = useMemo(
@@ -54,16 +58,13 @@ export default function AiBuilderClient() {
     setStep("building");
 
     try {
-      const response = await fetch(
-        "/api/ai-builder/intake",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(builder),
+      const response = await fetch("/api/ai-builder/intake", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify(builder),
+      });
 
       const payload = (await response.json()) as {
         ok?: boolean;
@@ -96,9 +97,7 @@ export default function AiBuilderClient() {
   return (
     <AiBuilderShell>
       {step === "welcome" && (
-        <AiBuilderWelcome
-          onContinue={() => setStep("form")}
-        />
+        <AiBuilderWelcome onContinue={() => setStep("form")} />
       )}
 
       {step === "form" && (
@@ -137,7 +136,6 @@ export default function AiBuilderClient() {
 
       {step === "review" && session ? (
         <AiBuilderReview
-          builder={builder}
           session={session}
           onSessionChange={setSession}
           onBack={() => setStep("results")}

@@ -8,10 +8,8 @@ import type {
   BusinessContextStatus,
   GeneratedFaqEntry,
 } from "@/app/lib/ai-engine/contracts";
-import type { BuilderState } from "./AiBuilderClient";
 
 type Props = {
-  builder: BuilderState;
   session: AiBuilderSession;
   onSessionChange: (session: AiBuilderSession) => void;
   onBack: () => void;
@@ -59,7 +57,6 @@ function calculateCounts(
 }
 
 export default function AiBuilderReview({
-  builder,
   session,
   onSessionChange,
   onBack,
@@ -180,7 +177,7 @@ export default function AiBuilderReview({
         </p>
 
         <h2 className="mt-2 text-3xl font-bold text-white">
-          Review what {builder.assistantName} learned.
+          Review what your AI learned.
         </h2>
 
         <p className="mt-2 text-neutral-400">
