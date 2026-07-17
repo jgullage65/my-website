@@ -86,13 +86,15 @@ export default function AiBuilderDemoChat({
         );
       }
 
+      const chatResponse = payload.response;
+
       setMessages((current) =>
         current.concat({
           id: createMessageId("assistant"),
           role: "assistant",
-          content: payload.response.answer,
-          citations: payload.response.citations,
-          diagnostics: payload.response.diagnostics,
+          content: chatResponse.answer,
+          citations: chatResponse.citations,
+          diagnostics: chatResponse.diagnostics,
         }),
       );
     } catch (sendError) {
@@ -144,12 +146,9 @@ export default function AiBuilderDemoChat({
                   : "max-w-[90%] rounded-2xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm leading-6 text-neutral-200"
               }
             >
-              <p className="whitespace-pre-wrap">
-                {item.content}
-              </p>
+              <p className="whitespace-pre-wrap">{item.content}</p>
 
-              {item.role === "assistant" &&
-              item.diagnostics ? (
+              {item.role === "assistant" && item.diagnostics ? (
                 <details className="mt-3 border-t border-neutral-800 pt-3">
                   <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
                     Grounding details
@@ -197,9 +196,7 @@ export default function AiBuilderDemoChat({
             <textarea
               rows={2}
               value={message}
-              onChange={(event) =>
-                setMessage(event.target.value)
-              }
+              onChange={(event) => setMessage(event.target.value)}
               placeholder="Ask about services, pricing, policies, or the business..."
               className="min-h-[52px] flex-1 resize-none rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-white outline-none placeholder:text-neutral-600 focus:border-amber-500"
             />
