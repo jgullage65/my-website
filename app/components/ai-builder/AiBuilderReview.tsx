@@ -217,7 +217,7 @@ export default function AiBuilderReview({
         </div>
       </section>
 
-      <section className="space-y-7">
+      <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <SectionHeading
           eyebrow="Business knowledge"
           title="Review every important business fact."
@@ -227,13 +227,9 @@ export default function AiBuilderReview({
         {grouped.map(([category, categoryEntries]) => (
           <section
             key={category}
-            className="mx-auto max-w-4xl rounded-[26px] border border-amber-300/25 bg-[#030713] px-4 py-5 text-center shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-6"
+            className="mx-auto max-w-4xl"
           >
-            <h2 className="text-2xl font-semibold text-amber-300 sm:text-3xl">
-              {CATEGORY_LABELS[category]}
-            </h2>
-
-            <div className="mx-auto mt-4 grid max-w-3xl gap-3 md:grid-cols-2">
+            <div className="mx-auto grid max-w-3xl gap-3 md:grid-cols-2">
               {categoryEntries.map((entry, index) => {
                 const editing = editingEntry === entry.id;
                 const shouldSpanFull =
@@ -248,6 +244,10 @@ export default function AiBuilderReview({
                       shouldSpanFull ? "md:col-span-2" : ""
                     }`}
                   >
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                      {CATEGORY_LABELS[category]}
+                    </p>
+
                     {editing ? (
                       <div className="w-full max-w-2xl space-y-3">
                         <input
@@ -283,7 +283,7 @@ export default function AiBuilderReview({
                       </div>
                     ) : (
                       <>
-                        <h3 className="text-lg font-semibold text-amber-300">
+                        <h3 className="text-lg font-semibold text-white">
                           {entry.title}
                         </h3>
 
