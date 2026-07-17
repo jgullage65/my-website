@@ -128,13 +128,13 @@ export default function JGChatWidget() {
           aria-label="JG Assistant"
           className="fixed inset-0 z-[81] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none border-0 bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] shadow-[0_30px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.05)] sm:inset-auto sm:bottom-20 sm:right-5 sm:h-[min(680px,calc(100vh-7rem))] sm:w-[calc(100vw-2rem)] sm:max-w-[430px] sm:rounded-[24px] sm:border sm:border-[rgba(212,175,55,0.24)] xl:bottom-0 xl:right-0 xl:h-[min(760px,100vh)] xl:max-w-[430px] xl:rounded-none xl:rounded-tl-[24px] xl:border-b-0 xl:border-r-0"
         >
-          <header className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3.5">
+          <header className="relative flex items-center gap-3 border-b border-white/[0.07] px-4 py-3.5">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[rgba(212,175,55,0.38)] bg-[linear-gradient(145deg,#101a43,#050b1d)] text-xs font-black tracking-[0.08em] text-[var(--gold)]">JG</div>
-            <div className="min-w-0 flex-1">
+            <div className="pointer-events-none absolute left-1/2 top-1/2 min-w-0 max-w-[calc(100%-7rem)] -translate-x-1/2 -translate-y-1/2 text-center">
               <p className="truncate text-sm font-black text-white">JG Assistant</p>
               <p className="truncate text-[11px] font-medium text-slate-400">Project guidance and quick answers</p>
             </div>
-            <div className="relative">
+            <div className="relative ml-auto">
               <button
                 type="button"
                 onClick={() => setMenuOpen((current) => !current)}
