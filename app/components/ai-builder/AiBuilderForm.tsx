@@ -536,15 +536,15 @@ function WebsiteKnowledgeModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-transparent p-0 sm:items-center sm:p-6"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-transparent p-0 sm:items-center sm:p-6"
       onMouseDown={onClose}
     >
       <div
-        className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-t-[30px] border border-white/10 bg-[#030713] shadow-2xl sm:rounded-[30px]"
+        className="h-[100dvh] w-full overflow-y-auto border-0 bg-[#030713] shadow-2xl sm:h-auto sm:max-h-[92vh] sm:max-w-4xl sm:rounded-[30px] sm:border sm:border-white/10"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/[0.07] bg-[#030713]/95 px-5 py-5 backdrop-blur sm:px-8">
-          <div>
+        <div className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#030713]/95 px-16 py-5 text-center backdrop-blur sm:px-20">
+          <div className="mx-auto">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
               Website knowledge
             </p>
@@ -555,7 +555,8 @@ function WebsiteKnowledgeModal({
           <button
             type="button"
             onClick={onClose}
-            className="grid h-10 w-10 place-items-center rounded-full border border-amber-300/15 bg-[#081226] text-xl text-slate-300 hover:border-amber-300/30 hover:bg-[#0b1830]"
+            aria-label="Close website knowledge"
+            className="absolute right-4 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-amber-300/15 bg-[#081226] text-xl text-slate-300 hover:border-amber-300/30 hover:bg-[#0b1830] sm:right-6"
           >
             ×
           </button>
@@ -602,7 +603,7 @@ function ReadOnlyBlock({
 }) {
   return (
     <section className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5">
-      <h3 className="text-sm font-semibold text-amber-300">{title}</h3>
+      <h3 className="text-center text-sm font-semibold text-amber-300">{title}</h3>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-300">
         {content || "No information found."}
       </p>
