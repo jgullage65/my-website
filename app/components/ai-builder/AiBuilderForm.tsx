@@ -249,7 +249,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 type="button"
                 disabled={!value.website.trim() || importing}
                 onClick={importWebsite}
-                className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:border-amber-300/15 disabled:hover:bg-[#081226]"
+                className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-amber-300/15 disabled:bg-[#081226] disabled:text-white disabled:hover:translate-y-0 disabled:hover:border-amber-300/15 disabled:hover:bg-[#081226]"
               >
                 {importing
                   ? `Importing… ${importProgress}%`
@@ -375,7 +375,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         </div>
 
         <div className="mx-auto mt-5 grid max-w-4xl gap-5 lg:grid-cols-2">
-          <section className={`${bottomCardClassName} border-white/10`}>
+          <section className={`${bottomCardClassName} border-amber-300/25`}>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
               Communication style
             </p>
@@ -383,7 +383,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               How should your AI sound?
             </h3>
             <select
-              className={`${inputClassName} mt-5 max-w-sm`}
+              className={`${inputClassName} mx-auto mt-5 block max-w-sm`}
               value={value.tone}
               onChange={(event) => updateProfile("tone", event.target.value)}
             >
@@ -495,7 +495,7 @@ function KnowledgeCard({
   children: ReactNode;
 }) {
   return (
-    <article className="rounded-[28px] border border-white/10 bg-[#030713] p-6 text-center shadow-[0_20px_70px_rgba(0,0,0,0.22)] sm:p-8">
+    <article className="rounded-[28px] border border-amber-300/25 bg-[#030713] p-6 text-center shadow-[0_20px_70px_rgba(0,0,0,0.22)] sm:p-8">
       <div className="flex flex-col items-center">
         <div className="flex items-center justify-center gap-3">
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-amber-300/15 bg-amber-300/[0.07] font-semibold text-amber-300">
