@@ -281,7 +281,7 @@ export default function JGChatWidget() {
                     <button
                       key={b.value}
                       onClick={() => handleServicePick(b.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-left text-sm font-semibold hover:bg-slate-50"
+                      className="w-full rounded-xl border border-amber-300/15 bg-amber-300/[0.03] px-4 py-2 text-left text-sm font-semibold hover:border-amber-300/30 hover:bg-amber-300/[0.06]"
                     >
                       {b.label} →
                     </button>
@@ -292,7 +292,7 @@ export default function JGChatWidget() {
                     <button
                       key={b.value}
                       onClick={() => handleContactMethodPick(b.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-left text-sm font-semibold hover:bg-slate-50"
+                      className="w-full rounded-xl border border-amber-300/15 bg-amber-300/[0.03] px-4 py-2 text-left text-sm font-semibold hover:border-amber-300/30 hover:bg-amber-300/[0.06]"
                     >
                       {b.label} →
                     </button>

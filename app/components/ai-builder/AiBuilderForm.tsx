@@ -555,7 +555,7 @@ function WebsiteKnowledgeModal({
           <button
             type="button"
             onClick={onClose}
-            className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-xl text-slate-300 hover:bg-white/[0.08]"
+            className="grid h-10 w-10 place-items-center rounded-full border border-amber-300/15 bg-amber-300/[0.03] text-xl text-slate-300 hover:border-amber-300/30 hover:bg-amber-300/[0.08]"
           >
             ×
           </button>

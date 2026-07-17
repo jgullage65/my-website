@@ -32,13 +32,13 @@ const primaryButtonClassName =
   "rounded-2xl border border-amber-200/50 bg-amber-300 px-5 py-3 text-sm font-bold text-[#101827] shadow-[0_14px_34px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
 
 const secondaryButtonClassName =
-  "rounded-2xl border border-white/15 bg-white/[0.035] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.07]";
+  "rounded-2xl border border-amber-300/15 bg-amber-300/[0.03] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.07]";
 
 const itemActionClassName =
-  "rounded-xl border border-white/15 bg-white/[0.025] px-4 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.06]";
+  "rounded-xl border border-amber-300/15 bg-amber-300/[0.03] px-4 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.06]";
 
 const approveActionClassName =
-  "rounded-xl border border-amber-300/40 bg-amber-300/[0.08] px-4 py-2.5 text-xs font-bold text-amber-300 transition hover:bg-amber-300/[0.14]";
+  "rounded-xl border border-amber-300/15 bg-amber-300/[0.08] px-4 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-amber-300/[0.14]";
 
 function calculateCounts(
   entries: BusinessContextEntry[],

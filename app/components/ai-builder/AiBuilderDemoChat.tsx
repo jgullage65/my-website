@@ -106,7 +106,7 @@ export default function AiBuilderDemoChat({ knowledge, onBack }: Props) {
           <button
             type="button"
             onClick={onBack}
-            className="mt-6 rounded-2xl border border-white/15 bg-white/[0.035] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.07]"
+            className="mt-6 rounded-2xl border border-amber-300/15 bg-amber-300/[0.03] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.07]"
           >
             Back to knowledge
           </button>

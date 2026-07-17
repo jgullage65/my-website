@@ -140,7 +140,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <div className="flex shrink-0 items-center gap-3">
                 <Link
                   href="/contact"
-                  className="hidden rounded-lg border border-[rgba(212,175,55,0.42)] bg-[rgba(14,22,62,0.72)] px-4 py-2 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-[rgba(245,158,11,0.55)] sm:inline-flex"
+                  className="hidden rounded-lg border border-amber-300/15 bg-amber-300/[0.03] px-4 py-2 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 sm:inline-flex"
                 >
                   Start a Project
                 </Link>

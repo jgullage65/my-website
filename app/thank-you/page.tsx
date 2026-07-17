@@ -35,7 +35,7 @@ export default function ThankYouPage() {
             </Link>
             <Link
               href="/services"
-              className="inline-flex items-center justify-center rounded-lg border border-[rgba(212,175,55,.42)] bg-[#081226]/80 px-5 py-3 text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition hover:-translate-y-0.5 hover:bg-white/[.06]"
+              className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-amber-300/[.03] px-5 py-3 text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-amber-300/[.06]"
             >
               View Services
             </Link>
