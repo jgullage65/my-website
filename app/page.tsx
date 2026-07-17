@@ -138,14 +138,14 @@ export default function HomePage() {
         <div className="absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_10%_20%,rgba(212,175,55,.14),transparent_28rem),radial-gradient(circle_at_82%_18%,rgba(9,20,38,.34),transparent_36rem)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
 
-        <motion.div variants={fadeUp} className="relative z-10 order-2 self-center text-center lg:order-1">
+        <motion.div variants={fadeUp} className="relative z-10 self-center text-center">
           <p className="text-xs font-black uppercase tracking-[.34em] text-[var(--gold)]">JG Creative Studio</p>
           <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl lg:text-6xl xl:text-[4.75rem]">Premium websites. AI systems built for <span className="text-[var(--gold)]">real business.</span></h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-[var(--muted)] sm:text-lg sm:leading-8">JG Creative Studio builds high-performance websites, custom AI systems, automation, and business software that help companies attract customers, operate smarter, and grow.</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"><GoldButton href="/contact">Start a Project →</GoldButton><OutlineButton href="/#work">Explore Our Work ↗</OutlineButton></div>
         </motion.div>
 
-        <motion.div variants={mediaIn} className="relative z-10 order-1 self-center lg:order-2">
+        <motion.div variants={mediaIn} className="relative z-10 order-1 -mt-6 self-center sm:-mt-4 lg:mt-0 lg:order-2">
           <div className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(circle_at_50%_80%,rgba(212,175,55,.18),transparent_55%)] blur-2xl" />
           <ProductMedia
             src="/image/ChatGPT Image Jul 17, 2026, 01_50_33 AM.png"
