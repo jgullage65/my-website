@@ -63,6 +63,17 @@ export default function ContactPageClient() {
           box-shadow: 0 0 0 1000px #050b18 inset;
           transition: background-color 9999s ease-out 0s;
         }
+
+        @media (max-width: 767px) {
+          .contact-mobile-select {
+            text-align: center;
+            text-align-last: center;
+          }
+
+          .contact-mobile-select option {
+            text-align: center;
+          }
+        }
       `}</style>
 
       <section className="mx-auto max-w-5xl space-y-10 px-6 py-16">
@@ -97,7 +108,7 @@ export default function ContactPageClient() {
 
               <div>
                 <label className={label}>Best way to follow up?</label>
-                <select name="preferred_contact" className={field} defaultValue={prePreferred}>
+                <select name="preferred_contact" className={`${field} contact-mobile-select`} defaultValue={prePreferred}>
                   <option value="Email">Email</option>
                   <option value="Text">Text</option>
                   <option value="Call">Call</option>
@@ -120,7 +131,7 @@ export default function ContactPageClient() {
             <div className="grid gap-5 md:grid-cols-2">
               <div>
                 <label className={label}>What do you need?</label>
-                <select name="service" required className={field} defaultValue={preService}>
+                <select name="service" required className={`${field} contact-mobile-select`} defaultValue={preService}>
                   <ServiceOptions />
                 </select>
               </div>
