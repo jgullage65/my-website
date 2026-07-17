@@ -218,7 +218,7 @@ export default function AiBuilderDemoChat({
       </section>
 
       <section className="overflow-hidden rounded-[30px] border border-white/10 bg-[#030713] shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
-        <div className="max-h-[620px] min-h-[500px] space-y-5 overflow-y-auto p-4 sm:p-6">
+        <div className="ai-builder-chat-scrollbar max-h-[620px] min-h-[500px] space-y-5 overflow-y-auto p-4 sm:p-6">
           {messages.map((item) => (
             <div
               key={item.id}

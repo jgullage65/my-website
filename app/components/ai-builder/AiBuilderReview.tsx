@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import type {
   AiBuilderSession,
   BusinessContextCategory,
@@ -168,7 +169,7 @@ export default function AiBuilderReview({
             Your AI is ready
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
-            Review what your AI learned.
+            Review what your <span className="text-amber-300">AI learned.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
             Approve, correct, or remove anything before it becomes trusted
@@ -220,7 +221,7 @@ export default function AiBuilderReview({
       <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <SectionHeading
           eyebrow="Business knowledge"
-          title="Review every important business fact."
+          title={<>Review every <span className="text-amber-300">important business fact.</span></>}
           description="Each item can be approved, corrected, or removed before your assistant uses it."
         />
 
@@ -244,7 +245,7 @@ export default function AiBuilderReview({
                       shouldSpanFull ? "md:col-span-2" : ""
                     }`}
                   >
-                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                    <p className="mb-3 text-xl font-bold text-amber-300 sm:text-2xl">
                       {CATEGORY_LABELS[category]}
                     </p>
 
@@ -283,7 +284,7 @@ export default function AiBuilderReview({
                       </div>
                     ) : (
                       <>
-                        <h3 className="text-lg font-semibold text-white">
+                        <h3 className="text-sm font-semibold text-white">
                           {entry.title}
                         </h3>
 
@@ -342,7 +343,7 @@ export default function AiBuilderReview({
       <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <SectionHeading
           eyebrow="Generated Q&A"
-          title="Questions your AI is ready to answer."
+          title={<>Questions your <span className="text-amber-300">AI is ready</span> to answer.</>}
           description="Review the generated answers before they become part of the live assistant."
         />
 
@@ -451,7 +452,7 @@ function SectionHeading({
   description,
 }: {
   eyebrow: string;
-  title: string;
+  title: ReactNode;
   description: string;
 }) {
   return (
