@@ -184,13 +184,13 @@ const pricingSections: readonly PricingSection[] = [
   },
 ];
 
-function PriceCard({ option }: { option: PriceOption }) {
+function PriceCard({ option, centered = false }: { option: PriceOption; centered?: boolean }) {
   return (
     <article className="relative flex h-full flex-col rounded-[1.35rem] border border-[rgba(212,175,55,.14)] bg-[linear-gradient(145deg,rgba(9,16,32,.96),rgba(2,5,14,.99))] p-6 shadow-[0_28px_80px_rgba(0,0,0,.34)]">
       <h3 className="text-center text-2xl font-black tracking-[-.04em] text-white">{option.title}</h3>
       <p className="mt-3 text-center text-3xl font-black text-[var(--gold)]">{option.price}</p>
-      <p className="mt-3 text-sm leading-6 text-[var(--muted)]">{option.description}</p>
-      <ul className="mt-5 grid gap-3 text-sm text-slate-200">
+      <p className={`mt-3 text-sm leading-6 text-[var(--muted)] ${centered ? "text-center" : ""}`}>{option.description}</p>
+      <ul className={`mt-5 grid gap-3 text-sm text-slate-200 ${centered ? "mx-auto w-fit text-left" : ""}`}>
         {option.details.map((detail) => (
           <li key={detail} className="grid grid-cols-[.5rem_minmax(0,1fr)] gap-3">
             <span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--gold)] shadow-[0_0_18px_rgba(212,175,55,.55)]" />
@@ -206,25 +206,35 @@ export default function PricingPage() {
   return (
     <main className="overflow-hidden bg-[#030713] text-white">
       <div className="border-t border-[rgba(212,175,55,.10)]">
-        {pricingSections.map((section) => (
-          <section key={section.eyebrow} className="mx-auto max-w-[94rem] border-b border-[rgba(212,175,55,.10)] px-5 py-14 sm:px-8 lg:px-10 lg:py-16">
-            <div className="mx-auto max-w-5xl text-center">
-              <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">{section.eyebrow}</p>
-              <h2 className="mt-4 text-3xl font-black tracking-[-.05em] sm:text-5xl">{section.title}</h2>
-              <p className="mx-auto mt-4 max-w-3xl leading-7 text-[var(--muted)]">{section.description}</p>
-            </div>
+        {pricingSections.map((section) => {
+          const centerCardContent =
+            section.eyebrow === "Custom Software" ||
+            section.eyebrow === "Creative Support";
 
-            <div className={`mx-auto mt-10 grid max-w-7xl gap-5 ${section.options.length === 4 ? "lg:grid-cols-4" : "md:grid-cols-3"}`}>
-              {section.options.map((option) => (
-                <PriceCard key={option.title} option={option} />
-              ))}
-            </div>
+          return (
+            <section key={section.eyebrow} className="mx-auto max-w-[94rem] border-b border-[rgba(212,175,55,.10)] px-5 py-14 sm:px-8 lg:px-10 lg:py-16">
+              <div className="mx-auto max-w-5xl text-center">
+                <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">{section.eyebrow}</p>
+                <h2 className="mt-4 text-3xl font-black tracking-[-.05em] sm:text-5xl">{section.title}</h2>
+                <p className="mx-auto mt-4 max-w-3xl leading-7 text-[var(--muted)]">{section.description}</p>
+              </div>
 
-            {section.note ? (
-              <p className="mx-auto mt-6 max-w-4xl text-center text-sm font-bold text-slate-300">{section.note}</p>
-            ) : null}
-          </section>
-        ))}
+              <div className={`mx-auto mt-10 grid max-w-7xl gap-5 ${section.options.length === 4 ? "lg:grid-cols-4" : "md:grid-cols-3"}`}>
+                {section.options.map((option) => (
+                  <PriceCard
+                    key={option.title}
+                    option={option}
+                    centered={centerCardContent}
+                  />
+                ))}
+              </div>
+
+              {section.note ? (
+                <p className="mx-auto mt-6 max-w-4xl text-center text-sm font-bold text-slate-300">{section.note}</p>
+              ) : null}
+            </section>
+          );
+        })}
       </div>
 
       <section className="mx-auto max-w-[94rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-20">

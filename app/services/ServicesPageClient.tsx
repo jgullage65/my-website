@@ -109,17 +109,7 @@ function ServiceCard({ service }: { service: (typeof serviceGroups)[number] }) {
 export default function ServicesPageClient() {
   return (
     <div className="overflow-hidden bg-[#030713] text-white">
-      <Section className="relative mx-auto max-w-[94rem] px-5 py-10 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
-        <div className="absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_12%_18%,rgba(212,175,55,.16),transparent_28rem),radial-gradient(circle_at_82%_12%,rgba(14,22,62,.72),transparent_38rem)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
-        <motion.div variants={fadeUp} className="relative z-10 mx-auto max-w-7xl text-center">
-          <h1 className="text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl lg:text-6xl xl:text-[4.75rem]">Premium websites, AI systems, and business technology <span className="text-[var(--gold)]">built around your goals.</span></h1>
-          <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-[var(--muted)] sm:text-lg sm:leading-8">Choose a focused service or combine strategy, design, automation, and custom development into one clear build plan. Every recommendation is scoped for practical business results.</p>
-          <div className="mt-7 flex justify-center"><GoldButton href="/contact">Get a Recommendation</GoldButton></div>
-        </motion.div>
-      </Section>
-
-      <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 pb-10 pt-16 text-center sm:px-8 lg:px-10 lg:pb-12">
+      <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 pb-10 pt-10 text-center sm:px-8 lg:px-10 lg:pb-12">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Service menu</motion.p>
         <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">Clear offers. Flexible combinations. <span className="text-[var(--gold)]">No tech overwhelm.</span></motion.h2>
         <div className="mt-10 grid gap-5 lg:grid-cols-2">{serviceGroups.map((service) => <ServiceCard key={service.title} service={service} />)}</div>
