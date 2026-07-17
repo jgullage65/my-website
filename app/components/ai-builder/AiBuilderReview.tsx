@@ -141,7 +141,7 @@ export default function AiBuilderReview({
   const canLaunchChat = session.status === "ready" && session.contextCounts.approved > 0;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-10">
+    <div className="mx-auto max-w-5xl space-y-10">
       <section className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] px-5 py-8 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8 sm:py-10">
         <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
         <div className="relative">
@@ -180,49 +180,46 @@ export default function AiBuilderReview({
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <section className="mx-auto grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Total" value={session.contextCounts.total} />
         <Stat label="Approved" value={session.contextCounts.approved} />
         <Stat label="Proposed" value={session.contextCounts.proposed} />
         <Stat label="Removed" value={session.contextCounts.archived} />
       </section>
 
-      <section className="space-y-6">
+      <section className="space-y-7">
         <SectionHeading
           eyebrow="Business knowledge"
           title="Review every important business fact."
-          description="Each item stays tied to its source and can be approved, corrected, or removed."
+          description="Each item can be approved, corrected, or removed before your assistant uses it."
         />
 
         {grouped.map(([category, categoryEntries]) => (
           <section
             key={category}
-            className="rounded-[28px] border border-white/10 bg-[#030713] p-5 shadow-[0_20px_70px_rgba(0,0,0,0.22)] sm:p-7"
+            className="mx-auto max-w-4xl rounded-[28px] border border-white/10 bg-[#030713] p-5 text-center shadow-[0_20px_70px_rgba(0,0,0,0.22)] sm:p-7"
           >
-            <div className="mb-5 flex items-center justify-between gap-4 border-b border-white/[0.07] pb-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
-                  Knowledge group
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold text-white">
+            <div className="mx-auto mb-5 max-w-2xl border-b border-white/[0.07] pb-4">
+              <div className="flex items-center justify-center gap-3">
+                <h2 className="text-2xl font-semibold text-amber-300 sm:text-3xl">
                   {CATEGORY_LABELS[category]}
                 </h2>
+                <span className="rounded-full border border-amber-300/25 bg-amber-300/[0.08] px-3 py-1 text-sm font-bold text-amber-300">
+                  {categoryEntries.length}
+                </span>
               </div>
-              <span className="rounded-full border border-amber-300/25 bg-amber-300/[0.08] px-3 py-1 text-sm font-bold text-amber-300">
-                {categoryEntries.length}
-              </span>
             </div>
 
-            <div className="space-y-4">
+            <div className="mx-auto grid max-w-3xl gap-4 md:grid-cols-2">
               {categoryEntries.map((entry) => {
                 const editing = editingEntry === entry.id;
                 return (
                   <article
                     key={entry.id}
-                    className="rounded-[22px] border border-white/[0.08] bg-black/20 p-4 sm:p-5"
+                    className="flex h-full flex-col items-center rounded-[22px] border border-white/[0.08] bg-black/20 p-4 text-center sm:p-5"
                   >
                     {editing ? (
-                      <div className="space-y-3">
+                      <div className="w-full space-y-3">
                         <input
                           value={entry.title}
                           onChange={(event) =>
@@ -232,7 +229,7 @@ export default function AiBuilderReview({
                               metadata: { ...entry.metadata, userEdited: true },
                             })
                           }
-                          className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-white outline-none focus:border-amber-300/50"
+                          className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                         />
                         <textarea
                           rows={4}
@@ -244,20 +241,22 @@ export default function AiBuilderReview({
                               metadata: { ...entry.metadata, userEdited: true },
                             })
                           }
-                          className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-white outline-none focus:border-amber-300/50"
+                          className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                         />
                       </div>
                     ) : (
                       <>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-semibold text-white">{entry.title}</h3>
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <h3 className="text-lg font-semibold text-amber-300">{entry.title}</h3>
                           <StatusPill status={entry.status} />
                         </div>
-                        <p className="mt-3 text-sm leading-7 text-slate-300">{entry.content}</p>
+                        <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
+                          {entry.content}
+                        </p>
                       </>
                     )}
 
-                    <div className="mt-5 flex flex-wrap gap-2">
+                    <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
                       <button
                         type="button"
                         onClick={() =>
@@ -292,23 +291,23 @@ export default function AiBuilderReview({
         ))}
       </section>
 
-      <section className="space-y-6">
+      <section className="space-y-7">
         <SectionHeading
           eyebrow="Generated Q&A"
           title="Questions your AI is ready to answer."
           description="Review the generated answers before they become part of the live assistant."
         />
 
-        <div className="space-y-4">
+        <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
           {session.faqEntries.map((faq) => {
             const editing = editingFaq === faq.id;
             return (
               <article
                 key={faq.id}
-                className="rounded-[24px] border border-white/10 bg-[#030713] p-5 shadow-[0_20px_70px_rgba(0,0,0,0.18)] sm:p-6"
+                className="flex h-full flex-col items-center rounded-[24px] border border-white/10 bg-[#030713] p-5 text-center shadow-[0_20px_70px_rgba(0,0,0,0.18)] sm:p-6"
               >
                 {editing ? (
-                  <div className="space-y-3">
+                  <div className="w-full space-y-3">
                     <input
                       value={faq.question}
                       onChange={(event) =>
@@ -317,7 +316,7 @@ export default function AiBuilderReview({
                           status: "corrected",
                         })
                       }
-                      className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-white outline-none focus:border-amber-300/50"
+                      className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                     />
                     <textarea
                       rows={4}
@@ -328,20 +327,20 @@ export default function AiBuilderReview({
                           status: "corrected",
                         })
                       }
-                      className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-white outline-none focus:border-amber-300/50"
+                      className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                     />
                   </div>
                 ) : (
                   <>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-semibold text-white">{faq.question}</h3>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <h3 className="text-lg font-semibold text-amber-300">{faq.question}</h3>
                       <StatusPill status={faq.status} />
                     </div>
-                    <p className="mt-3 text-sm leading-7 text-slate-300">{faq.answer}</p>
+                    <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">{faq.answer}</p>
                   </>
                 )}
 
-                <div className="mt-5 flex flex-wrap gap-2">
+                <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
                   <button
                     type="button"
                     onClick={() =>
