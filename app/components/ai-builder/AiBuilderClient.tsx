@@ -41,7 +41,15 @@ export type BuilderState = {
   websiteKnowledge: WebsiteKnowledge | null;
 };
 
-type BuilderStep = "form" | "loading" | "building" | "results" | "review" | "chat";
+type BuilderStep =
+  | "form"
+  | "loading"
+  | "building"
+  | "results"
+  | "review"
+  | "chat";
+
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 type Props = {
   initialProjectId?: string | null;
@@ -60,13 +68,18 @@ const initial: BuilderState = {
   websiteKnowledge: null,
 };
 
-export default function AiBuilderClient({ initialProjectId = null }: Props) {
+export default function AiBuilderClient({
+  initialProjectId = null,
+}: Props) {
   const [step, setStep] = useState<BuilderStep>(
     initialProjectId ? "loading" : "form",
   );
   const [builder, setBuilder] = useState(initial);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reviewChangesPending, setReviewChangesPending] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const knowledgePack = useMemo(
     () =>
@@ -84,6 +97,9 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
 
     async function loadProject() {
       setError(null);
+      setSaveError(null);
+      setSaveStatus("idle");
+      setReviewChangesPending(false);
       setStep("loading");
 
       try {
@@ -91,6 +107,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           `/api/ai-builder/projects/${encodeURIComponent(projectId)}`,
           { cache: "no-store" },
         );
+
         const payload = (await response.json()) as {
           ok?: boolean;
           session?: AiBuilderSession;
@@ -142,8 +159,81 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     };
   }, [initialProjectId]);
 
+  useEffect(() => {
+    if (!session || !reviewChangesPending) return;
+
+    const controller = new AbortController();
+
+    const saveTimer = window.setTimeout(async () => {
+      setSaveStatus("saving");
+      setSaveError(null);
+
+      try {
+        const response = await fetch(
+          `/api/ai-builder/projects/${encodeURIComponent(session.id)}`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              session,
+            }),
+            signal: controller.signal,
+          },
+        );
+
+        const payload = (await response.json()) as {
+          ok?: boolean;
+          error?: {
+            message?: string;
+          };
+        };
+
+        if (!response.ok || !payload.ok) {
+          throw new Error(
+            payload.error?.message ||
+              "The AI Builder project changes could not be saved.",
+          );
+        }
+
+        setReviewChangesPending(false);
+        setSaveStatus("saved");
+      } catch (saveRequestError) {
+        if (
+          saveRequestError instanceof DOMException &&
+          saveRequestError.name === "AbortError"
+        ) {
+          return;
+        }
+
+        setSaveStatus("error");
+        setSaveError(
+          saveRequestError instanceof Error
+            ? saveRequestError.message
+            : "The AI Builder project changes could not be saved.",
+        );
+      }
+    }, 800);
+
+    return () => {
+      window.clearTimeout(saveTimer);
+      controller.abort();
+    };
+  }, [session, reviewChangesPending]);
+
+  const handleSessionChange = (nextSession: AiBuilderSession) => {
+    setSession(nextSession);
+    setReviewChangesPending(true);
+    setSaveStatus("idle");
+    setSaveError(null);
+  };
+
   const buildAi = async () => {
     setError(null);
+    setSaveError(null);
+    setSaveStatus("idle");
+    setReviewChangesPending(false);
     setSession(null);
     setStep("building");
 
@@ -197,6 +287,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-300">
             Loading AI project
           </p>
+
           <p className="mt-4 text-base text-slate-400">
             Restoring your saved business knowledge.
           </p>
@@ -238,12 +329,32 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       ) : null}
 
       {step === "review" && session ? (
-        <AiBuilderReview
-          session={session}
-          onSessionChange={setSession}
-          onBack={() => setStep("results")}
-          onLaunchChat={() => setStep("chat")}
-        />
+        <>
+          {saveStatus !== "idle" || saveError ? (
+            <div
+              className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${
+                saveStatus === "error"
+                  ? "border-red-500/30 bg-red-500/10 text-red-200"
+                  : "border-amber-300/20 bg-[#030713] text-slate-400"
+              }`}
+              role={saveStatus === "error" ? "alert" : "status"}
+              aria-live="polite"
+            >
+              {saveStatus === "saving"
+                ? "Saving changes..."
+                : saveStatus === "saved"
+                  ? "Changes saved."
+                  : saveError}
+            </div>
+          ) : null}
+
+          <AiBuilderReview
+            session={session}
+            onSessionChange={handleSessionChange}
+            onBack={() => setStep("results")}
+            onLaunchChat={() => setStep("chat")}
+          />
+        </>
       ) : null}
 
       {step === "chat" && knowledgePack ? (
