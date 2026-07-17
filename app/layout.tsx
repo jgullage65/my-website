@@ -197,7 +197,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-[rgba(212,175,55,0.24)] bg-[#030713] p-7 text-center shadow-[0_24px_60px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.05)] md:text-left">
+              <div className="rounded-3xl border border-[rgba(212,175,55,0.24)] bg-[#030713] p-7 text-center shadow-[0_24px_60px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.05)]">
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--gold)]">
                   Build something useful
                 </p>
