@@ -334,6 +334,11 @@ a {
   border-color: rgba(212, 175, 55, 0.3);
 }
 
+a[href][class*="border-amber-300/15"]:hover,
+button[class*="border-amber-300/15"]:not(:disabled):hover {
+  color: var(--gold);
+}
+
 button[role="tab"][aria-selected="true"] {
   border-color: rgba(212, 175, 55, 0.3);
   box-shadow: none;

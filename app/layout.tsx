@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import JGChatWidget from "./components/JGChatWidget";
+import SiteNavLinks from "./components/SiteNavLinks";
 
 const siteName = "JG Creative Studio";
 const siteDescription =
@@ -45,15 +46,6 @@ export const metadata: Metadata = {
     apple: "/favicon.png",
   },
 };
-
-const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/ai-tools", label: "AI Systems" },
-  { href: "/services", label: "Services" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
-];
 
 const footerNavItems = [
   { href: "/services", label: "Websites" },
@@ -126,15 +118,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </Link>
 
               <nav className="hidden -translate-x-10 items-center gap-7 text-xs font-bold text-slate-300 lg:flex xl:-translate-x-14">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="transition-colors hover:text-[var(--gold)]"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+                <SiteNavLinks />
               </nav>
 
               <div className="flex shrink-0 items-center gap-3">
@@ -156,15 +140,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
             <nav className="border-t border-white/[0.05] px-3 py-2 lg:hidden">
               <div className="mx-auto flex w-full items-center justify-between overflow-hidden text-[0.6rem] font-semibold text-slate-300 min-[390px]:text-[0.66rem]">
-                {navItems.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="whitespace-nowrap transition-colors hover:text-[var(--gold)]"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
+                <SiteNavLinks mobile />
               </div>
             </nav>
           </header>
