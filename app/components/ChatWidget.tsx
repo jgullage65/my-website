@@ -238,7 +238,7 @@ export default function JGChatWidget() {
       {!open ? (
         <button
           onClick={() => setOpen(true)}
-          className="rounded-full bg-[var(--navy)] px-5 py-3 text-sm font-semibold text-white shadow-lg hover:opacity-90"
+          className="rounded-full border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white shadow-lg hover:border-amber-300/30 hover:bg-[#0b1830]"
         >
           Chat with JG →
         </button>
@@ -281,7 +281,7 @@ export default function JGChatWidget() {
                     <button
                       key={b.value}
                       onClick={() => handleServicePick(b.value)}
-                      className="w-full rounded-xl border border-amber-300/15 bg-amber-300/[0.03] px-4 py-2 text-left text-sm font-semibold hover:border-amber-300/30 hover:bg-amber-300/[0.06]"
+                      className="w-full rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2 text-left text-sm font-semibold text-white hover:border-amber-300/30 hover:bg-[#0b1830]"
                     >
                       {b.label} →
                     </button>
@@ -292,7 +292,7 @@ export default function JGChatWidget() {
                     <button
                       key={b.value}
                       onClick={() => handleContactMethodPick(b.value)}
-                      className="w-full rounded-xl border border-amber-300/15 bg-amber-300/[0.03] px-4 py-2 text-left text-sm font-semibold hover:border-amber-300/30 hover:bg-amber-300/[0.06]"
+                      className="w-full rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2 text-left text-sm font-semibold text-white hover:border-amber-300/30 hover:bg-[#0b1830]"
                     >
                       {b.label} →
                     </button>
@@ -318,7 +318,7 @@ export default function JGChatWidget() {
               />
               <button
                 type="submit"
-                className="rounded-xl bg-[var(--navy)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+                className="rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2 text-sm font-semibold text-white hover:border-amber-300/30 hover:bg-[#0b1830]"
               >
                 Send
               </button>

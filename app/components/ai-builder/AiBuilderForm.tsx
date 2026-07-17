@@ -217,7 +217,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 type="button"
                 disabled={!value.website.trim() || importing}
                 onClick={importWebsite}
-                className="mx-auto w-full max-w-xs rounded-2xl border border-amber-300/35 bg-amber-300 px-5 py-3.5 font-semibold text-[#101827] shadow-[0_12px_30px_rgba(245,158,11,0.18)] transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-45"
+                className="mx-auto w-full max-w-xs rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-3.5 font-semibold text-white shadow-[0_12px_30px_rgba(245,158,11,0.18)] transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {importing
                   ? "Importing..."
@@ -381,7 +381,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 type="button"
                 disabled={!valid || importing}
                 onClick={onBuild}
-                className="mt-5 min-w-52 rounded-2xl border border-amber-200/50 bg-amber-300 px-6 py-3.5 font-bold text-[#101827] shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                className="mt-5 min-w-52 rounded-2xl border border-amber-300/15 bg-[#081226] px-6 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
               >
                 Build My AI
               </button>
@@ -555,7 +555,7 @@ function WebsiteKnowledgeModal({
           <button
             type="button"
             onClick={onClose}
-            className="grid h-10 w-10 place-items-center rounded-full border border-amber-300/15 bg-amber-300/[0.03] text-xl text-slate-300 hover:border-amber-300/30 hover:bg-amber-300/[0.08]"
+            className="grid h-10 w-10 place-items-center rounded-full border border-amber-300/15 bg-[#081226] text-xl text-slate-300 hover:border-amber-300/30 hover:bg-[#0b1830]"
           >
             ×
           </button>

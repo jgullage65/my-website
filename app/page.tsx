@@ -84,11 +84,11 @@ function Section({ children, className = "", id }: { children: ReactNode; classN
 }
 
 function GoldButton({ href, children }: { href: string; children: ReactNode }) {
-  return <Link href={href} className="inline-flex items-center justify-center rounded-lg bg-[linear-gradient(180deg,#ffd56a,#c89426)] px-5 py-3 text-sm font-black text-[#06101f] shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5">{children}</Link>;
+  return <Link href={href} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">{children}</Link>;
 }
 
 function OutlineButton({ href, children }: { href: string; children: ReactNode }) {
-  return <Link href={href} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-amber-300/[.03] px-5 py-3 text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-amber-300/[.06]">{children}</Link>;
+  return <Link href={href} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">{children}</Link>;
 }
 
 function ProductMedia({ src, alt, label, className = "", ratio = "aspect-[16/10]" }: { src?: string; alt: string; label: string; className?: string; ratio?: string }) {
@@ -204,7 +204,7 @@ export default function HomePage() {
           <p className="text-center text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">AI Systems</p>
           <h2 className="mt-4 text-center text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl">Smarter systems.<br /><span className="text-[var(--gold)]">Stronger businesses.</span></h2>
           <div role="tablist" aria-label="AI system capabilities" onKeyDown={onTabKeyDown} className="mt-8 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-center">
-            {aiTabs.map((tab, i) => <button key={tab.id} id={`${tabRoot}-${tab.id}-tab`} role="tab" aria-selected={active === i} aria-controls={`${tabRoot}-${tab.id}-panel`} tabIndex={active === i ? 0 : -1} onClick={() => setActive(i)} className={`w-full rounded-lg border px-3 py-2 text-xs font-black transition sm:w-auto sm:px-4 ${active === i ? "border-[var(--gold)] bg-[var(--gold)] text-[#06101f]" : "border-amber-300/15 bg-amber-300/[.03] text-white hover:border-amber-300/30"}`}>{tab.label}</button>)}
+            {aiTabs.map((tab, i) => <button key={tab.id} id={`${tabRoot}-${tab.id}-tab`} role="tab" aria-selected={active === i} aria-controls={`${tabRoot}-${tab.id}-panel`} tabIndex={active === i ? 0 : -1} onClick={() => setActive(i)} className={`w-full rounded-lg border bg-[#081226] px-3 py-2 text-xs font-black text-white transition sm:w-auto sm:px-4 ${active === i ? "border-amber-300/30" : "border-amber-300/15 hover:border-amber-300/30 hover:bg-[#0b1830]"}`}>{tab.label}</button>)}
           </div>
           <AnimatePresence mode="wait"><motion.div key={current.id} id={`${tabRoot}-${current.id}-panel`} role="tabpanel" aria-labelledby={`${tabRoot}-${current.id}-tab`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: .3 }} className="mt-8"><h3 className="text-2xl font-black tracking-[-.035em]">{current.heading}</h3><p className="mx-auto mt-4 max-w-xl leading-7 text-[var(--muted)]">{current.description}</p><ul className="mx-auto mt-6 grid w-fit gap-3 text-left">{current.lines.map(line => <li key={line} className="flex gap-3 text-sm font-bold text-slate-200"><span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--gold)] shadow-[0_0_18px_rgba(212,175,55,.6)]" />{line}</li>)}</ul></motion.div></AnimatePresence>
           <div className="mt-8 flex justify-center"><GoldButton href="/ai-tools">Explore AI Systems →</GoldButton></div>

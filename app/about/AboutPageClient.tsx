@@ -55,11 +55,11 @@ function Section({ children, className = "" }: { children: ReactNode; className?
 }
 
 function GoldButton({ href, children }: { href: string; children: ReactNode }) {
-  return <Link href={href} className="inline-flex items-center justify-center rounded-lg bg-[linear-gradient(180deg,#ffd56a,#c89426)] px-5 py-3 text-sm font-black text-[#06101f] shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5">{children}</Link>;
+  return <Link href={href} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">{children}</Link>;
 }
 
 function OutlineButton({ href, children }: { href: string; children: ReactNode }) {
-  return <Link href={href} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-amber-300/[.03] px-5 py-3 text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-amber-300/[.06]">{children}</Link>;
+  return <Link href={href} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[inset_0_1px_0_rgba(255,255,255,.05)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">{children}</Link>;
 }
 
 function Tag({ children }: { children: ReactNode }) {

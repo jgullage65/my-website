@@ -109,7 +109,7 @@ export const metadata = {
                   href={p.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-block w-full rounded-xl bg-[var(--navy)] py-3 text-center font-semibold text-white hover:opacity-90"
+                  className="inline-block w-full rounded-xl border border-amber-300/15 bg-[#081226] py-3 text-center font-semibold text-white hover:border-amber-300/30 hover:bg-[#0b1830]"
                 >
                   Pay {p.note === "Paid in full" ? "Now" : "Deposit"} & Start Project →
                 </a>

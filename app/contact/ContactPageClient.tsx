@@ -137,7 +137,7 @@ export default function ContactPageClient() {
             </div>
 
             <div className="flex justify-center">
-              <button type="submit" className="rounded-xl bg-[var(--gold)] px-8 py-2.5 text-sm font-black text-[#06101f] transition hover:-translate-y-0.5">
+              <button type="submit" className="rounded-xl border border-amber-300/15 bg-[#081226] px-8 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">
                 Submit Project Request
               </button>
             </div>

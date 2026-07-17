@@ -113,7 +113,7 @@ export default function JGChatWidget() {
         <button
           type="button"
           onClick={openAssistant}
-          className="fixed bottom-5 right-5 z-[80] flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/15 bg-[linear-gradient(145deg,#111c48,#050b1d)] text-[var(--gold)] shadow-[0_18px_45px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-amber-300/30"
+          className="fixed bottom-5 right-5 z-[80] flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-300/15 bg-[#081226] text-[var(--gold)] shadow-[0_18px_45px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.08)] transition duration-200 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
           aria-label="Open JG Assistant"
           aria-expanded={false}
           aria-controls="jg-assistant-panel"
@@ -138,7 +138,7 @@ export default function JGChatWidget() {
               <button
                 type="button"
                 onClick={() => setMenuOpen((current) => !current)}
-                className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-300/15 bg-amber-300/[0.03] text-lg text-slate-200 transition hover:border-amber-300/30 hover:text-[var(--gold)]"
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-300/15 bg-[#081226] text-lg text-slate-200 transition hover:border-amber-300/30 hover:bg-[#0b1830] hover:text-[var(--gold)]"
                 aria-label="Open assistant menu"
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
@@ -147,8 +147,8 @@ export default function JGChatWidget() {
               </button>
               {menuOpen ? (
                 <div role="menu" className="absolute right-0 top-11 z-20 min-w-[180px] rounded-xl border border-[rgba(212,175,55,0.2)] bg-[#070d21] p-1.5 shadow-2xl">
-                  <button type="button" role="menuitem" onClick={restartAssistant} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]">Restart conversation</button>
-                  <button type="button" role="menuitem" onClick={closeAssistant} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:bg-white/[0.06] hover:text-[var(--gold)]">Close assistant</button>
+                  <button type="button" role="menuitem" onClick={restartAssistant} className="block w-full rounded-lg border border-amber-300/15 bg-[#081226] px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:border-amber-300/30 hover:bg-[#0b1830] hover:text-[var(--gold)]">Restart conversation</button>
+                  <button type="button" role="menuitem" onClick={closeAssistant} className="block w-full rounded-lg border border-amber-300/15 bg-[#081226] px-3 py-2 text-left text-xs font-semibold text-slate-200 transition hover:border-amber-300/30 hover:bg-[#0b1830] hover:text-[var(--gold)]">Close assistant</button>
                 </div>
               ) : null}
             </div>
@@ -178,7 +178,7 @@ export default function JGChatWidget() {
                               key={option.id}
                               type="button"
                               onClick={() => chooseOption(option.id, option.label)}
-                              className="w-full rounded-xl border border-amber-300/15 bg-amber-300/[0.03] px-3.5 py-3 text-left text-xs font-bold leading-4 text-slate-100 transition hover:-translate-y-px hover:border-amber-300/30 hover:text-[var(--gold)]"
+                              className="w-full rounded-xl border border-amber-300/15 bg-[#081226] px-3.5 py-3 text-left text-xs font-bold leading-4 text-slate-100 transition hover:-translate-y-px hover:border-amber-300/30 hover:bg-[#0b1830] hover:text-[var(--gold)]"
                             >
                               {option.label}
                             </button>
@@ -195,8 +195,8 @@ export default function JGChatWidget() {
               <div className="rounded-2xl border border-[rgba(212,175,55,0.22)] bg-[rgba(5,11,28,0.82)] p-3.5">
                 <p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--gold)]">Ready when you are</p>
                 <div className="mt-3 grid gap-2">
-                  <Link href={buildJGContactUrl(session.answers)} className="rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-4 py-3 text-center text-sm font-black text-[#07101f] transition hover:-translate-y-0.5">Open project request</Link>
-                  <a href={buildJGDirectEmailUrl(session.answers)} className="rounded-xl border border-amber-300/15 bg-amber-300/[0.03] px-4 py-3 text-center text-sm font-bold text-slate-100 transition hover:border-amber-300/30 hover:text-[var(--gold)]">Email James directly</a>
+                  <Link href={buildJGContactUrl(session.answers)} className="rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-3 text-center text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">Open project request</Link>
+                  <a href={buildJGDirectEmailUrl(session.answers)} className="rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-3 text-center text-sm font-bold text-slate-100 transition hover:border-amber-300/30 hover:bg-[#0b1830] hover:text-[var(--gold)]">Email James directly</a>
                 </div>
               </div>
             ) : null}
@@ -213,7 +213,7 @@ export default function JGChatWidget() {
                   autoComplete={session.expectedInput === "email" ? "email" : session.expectedInput === "phone" ? "tel" : "off"}
                   inputMode={session.expectedInput === "email" ? "email" : session.expectedInput === "phone" ? "tel" : "text"}
                 />
-                <button type="submit" disabled={!inputValue.trim()} className="rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-4 py-2.5 text-xs font-black text-[#07101f] transition hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-45">Send</button>
+                <button type="submit" disabled={!inputValue.trim()} className="rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-black text-white transition hover:-translate-y-px hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-45">Send</button>
               </div>
             </form>
           ) : (

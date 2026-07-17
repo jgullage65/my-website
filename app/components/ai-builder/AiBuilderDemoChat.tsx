@@ -106,7 +106,7 @@ export default function AiBuilderDemoChat({ knowledge, onBack }: Props) {
           <button
             type="button"
             onClick={onBack}
-            className="mt-6 rounded-2xl border border-amber-300/15 bg-amber-300/[0.03] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.07]"
+            className="mt-6 rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830]"
           >
             Back to knowledge
           </button>
@@ -175,7 +175,7 @@ export default function AiBuilderDemoChat({ knowledge, onBack }: Props) {
             <button
               type="submit"
               disabled={sending || !message.trim()}
-              className="min-h-[58px] rounded-2xl border border-amber-200/50 bg-amber-300 px-5 py-3 font-bold text-[#101827] shadow-[0_12px_30px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+              className="min-h-[58px] rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-3 font-bold text-white shadow-[0_12px_30px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
             >
               Send
             </button>

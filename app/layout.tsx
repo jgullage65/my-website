@@ -140,14 +140,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <div className="flex shrink-0 items-center gap-3">
                 <Link
                   href="/contact"
-                  className="hidden rounded-lg border border-amber-300/15 bg-amber-300/[0.03] px-4 py-2 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 sm:inline-flex"
+                  className="hidden rounded-lg border border-amber-300/15 bg-[#081226] px-4 py-2 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:inline-flex"
                 >
                   Start a Project
                 </Link>
                 <Link
                   href="/contact"
                   aria-label="Contact JG Creative Studio"
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] text-lg font-black text-[#07101f] shadow-[0_12px_26px_rgba(212,175,55,0.2),inset_0_1px_0_rgba(255,255,255,0.38)] transition hover:-translate-y-0.5 sm:hidden"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-amber-300/15 bg-[#081226] text-lg font-black text-white shadow-[0_12px_26px_rgba(212,175,55,0.2),inset_0_1px_0_rgba(255,255,255,0.38)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:hidden"
                 >
                   ↗
                 </Link>
@@ -206,7 +206,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 </p>
                 <Link
                   href="/contact"
-                  className="mt-6 inline-flex rounded-xl bg-[linear-gradient(180deg,#e1bd45,#b88c1f)] px-5 py-3 text-sm font-black text-[#07101f] shadow-[0_12px_26px_rgba(212,175,55,0.18),inset_0_1px_0_rgba(255,255,255,0.36)] transition hover:-translate-y-0.5"
+                  className="mt-6 inline-flex rounded-xl border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_12px_26px_rgba(212,175,55,0.18),inset_0_1px_0_rgba(255,255,255,0.36)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
                 >
                   Start your project →
                 </Link>

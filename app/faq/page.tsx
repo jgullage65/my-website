@@ -145,13 +145,13 @@ export default function FAQPage() {
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link
               href="/contact"
-              className="inline-flex items-center justify-center rounded-lg bg-[linear-gradient(180deg,#ffd56a,#c89426)] px-5 py-3 text-sm font-black text-[#06101f] shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
             >
               Contact JG Creative Studio
             </Link>
             <Link
               href="/services"
-              className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-amber-300/[.03] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-amber-300/[.06]"
+              className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
             >
               View Services
             </Link>

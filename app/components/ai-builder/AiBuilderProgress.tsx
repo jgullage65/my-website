@@ -98,7 +98,7 @@ export default function AiBuilderProgress({
             <button
               type="button"
               onClick={onReview}
-              className="mt-6 w-full rounded-2xl border border-amber-200/50 bg-amber-300 px-5 py-4 font-bold text-[#101827] shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:bg-amber-200"
+              className="mt-6 w-full rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-4 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
             >
               Review business knowledge
             </button>
