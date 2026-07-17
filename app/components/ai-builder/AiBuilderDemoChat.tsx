@@ -218,14 +218,14 @@ export default function AiBuilderDemoChat({
       </section>
 
       <section className="overflow-hidden rounded-[30px] border border-white/10 bg-[#030713] shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
-        <div className="max-h-[620px] min-h-[500px] space-y-4 overflow-y-auto p-4 sm:p-6">
+        <div className="max-h-[620px] min-h-[500px] space-y-5 overflow-y-auto p-4 sm:p-6">
           {messages.map((item) => (
             <div
               key={item.id}
               className={
                 item.role === "user"
-                  ? "ml-auto max-w-[88%] rounded-[22px] rounded-br-md border border-amber-200/40 bg-amber-300 px-4 py-3 text-sm font-medium leading-6 text-[#101827] shadow-[0_12px_28px_rgba(245,158,11,0.15)]"
-                  : "max-w-[92%] rounded-[22px] rounded-bl-md border border-white/[0.08] bg-black/25 px-4 py-3 text-sm leading-6 text-slate-200"
+                  ? "ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md border border-amber-300/20 bg-[#17223a] px-4 py-3 text-sm font-medium leading-6 text-slate-100 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
+                  : "w-fit max-w-[85%] rounded-2xl rounded-bl-md border border-white/[0.08] bg-[#081226] px-4 py-3 text-sm leading-6 text-slate-200 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
               }
             >
               <p className="whitespace-pre-wrap">
@@ -264,8 +264,9 @@ export default function AiBuilderDemoChat({
           ))}
 
           {sending ? (
-            <div className="max-w-[92%] animate-pulse rounded-[22px] rounded-bl-md border border-white/[0.08] bg-black/25 px-4 py-3 text-sm text-slate-400">
-              {knowledge.assistantName} is thinking...
+            <div className="flex min-h-[48px] w-fit max-w-[85%] items-center gap-3 rounded-2xl rounded-bl-md border border-white/[0.08] bg-[#081226] px-4 py-3 text-sm text-slate-400 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]">
+              <span>{knowledge.assistantName} is thinking</span>
+              <span className="flex gap-1" aria-hidden="true"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70" /><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70 [animation-delay:150ms]" /><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70 [animation-delay:300ms]" /></span>
             </div>
           ) : null}
         </div>
@@ -287,7 +288,7 @@ export default function AiBuilderDemoChat({
             </div>
           ) : null}
 
-          <div className="flex items-end gap-3">
+          <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-white/[0.08] bg-[#07101f] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">
             <textarea
               rows={2}
               value={message}
@@ -296,7 +297,7 @@ export default function AiBuilderDemoChat({
               }
               disabled={chatUnavailable || sending}
               placeholder="Ask about services, pricing, policies, or the business..."
-              className="min-h-[58px] flex-1 resize-none rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-sm text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-slate-600 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/5 disabled:cursor-not-allowed disabled:opacity-50"
+              className="min-h-[52px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
 
             <button
@@ -306,7 +307,7 @@ export default function AiBuilderDemoChat({
                 sending ||
                 !message.trim()
               }
-              className="min-h-[58px] rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-3 font-bold text-white shadow-[0_12px_30px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+              className="min-h-[52px] rounded-xl border border-amber-300/15 bg-[#081226] px-5 py-3 font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,.24)] transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Send
             </button>
