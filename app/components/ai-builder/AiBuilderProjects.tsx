@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import AiBuilderShell from "./AiBuilderShell";
+import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 
 type Project = {
   id: string;
@@ -25,6 +26,7 @@ export default function AiBuilderProjects() {
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   useEffect(() => {
     let cancelled = false;
@@ -63,7 +65,14 @@ export default function AiBuilderProjects() {
   }
 
   async function remove(project: Project) {
-    if (!window.confirm(`Delete “${project.businessName}”? This cannot be undone.`)) return;
+    const confirmed = await showConfirm({
+      title: `Delete ${project.businessName}?`,
+      message: "This permanently deletes this AI Builder project and its saved chat history. This cannot be undone.",
+      confirmLabel: "Delete",
+      cancelLabel: "Cancel",
+    });
+    if (!confirmed) return;
+
     setBusy(project.id);
     try {
       const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, { method: "DELETE" });
@@ -76,6 +85,7 @@ export default function AiBuilderProjects() {
 
   return (
     <AiBuilderShell>
+      {confirmDialogNode}
       <div className="mx-auto max-w-6xl rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <div className="text-center">
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
