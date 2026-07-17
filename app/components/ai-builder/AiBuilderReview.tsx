@@ -73,13 +73,20 @@ export default function AiBuilderReview({
   const grouped = useMemo(() => {
     const map = new Map<BusinessContextCategory, BusinessContextEntry[]>();
 
-    session.contextEntries.forEach((entry) => {
-      const current = map.get(entry.category) ?? [];
-      map.set(entry.category, current.concat(entry));
-    });
+    session.contextEntries
+      .filter((entry) => entry.status !== "archived")
+      .forEach((entry) => {
+        const current = map.get(entry.category) ?? [];
+        map.set(entry.category, current.concat(entry));
+      });
 
     return Array.from(map.entries());
   }, [session.contextEntries]);
+
+  const visibleFaqEntries = useMemo(
+    () => session.faqEntries.filter((faq) => faq.status !== "archived"),
+    [session.faqEntries],
+  );
 
   const updateSession = (updates: Partial<AiBuilderSession>) => {
     onSessionChange({
@@ -177,19 +184,11 @@ export default function AiBuilderReview({
           </p>
 
           <div className="mx-auto mt-7 flex max-w-3xl flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
-            <button
-              type="button"
-              onClick={onBack}
-              className={secondaryButtonClassName}
-            >
+            <button type="button" onClick={onBack} className={secondaryButtonClassName}>
               Back to results
             </button>
 
-            <button
-              type="button"
-              onClick={approveAll}
-              className={primaryButtonClassName}
-            >
+            <button type="button" onClick={approveAll} className={primaryButtonClassName}>
               Approve all knowledge
             </button>
 
@@ -226,10 +225,7 @@ export default function AiBuilderReview({
         />
 
         {grouped.map(([category, categoryEntries]) => (
-          <section
-            key={category}
-            className="mx-auto max-w-4xl"
-          >
+          <section key={category} className="mx-auto max-w-4xl">
             <div className="mx-auto grid max-w-3xl gap-3 md:grid-cols-2">
               {categoryEntries.map((entry, index) => {
                 const editing = editingEntry === entry.id;
@@ -284,10 +280,7 @@ export default function AiBuilderReview({
                       </div>
                     ) : (
                       <>
-                        <h3 className="text-sm font-semibold text-white">
-                          {entry.title}
-                        </h3>
-
+                        <h3 className="text-sm font-semibold text-white">{entry.title}</h3>
                         <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
                           {entry.content}
                         </p>
@@ -307,16 +300,12 @@ export default function AiBuilderReview({
                         }
                         className={approveActionClassName}
                       >
-                        {entry.status === "approved"
-                          ? "Unapprove"
-                          : "Approve"}
+                        {entry.status === "approved" ? "Unapprove" : "Approve"}
                       </button>
 
                       <button
                         type="button"
-                        onClick={() =>
-                          setEditingEntry(editing ? null : entry.id)
-                        }
+                        onClick={() => setEditingEntry(editing ? null : entry.id)}
                         className={itemActionClassName}
                       >
                         {editing ? "Done" : "Edit"}
@@ -348,12 +337,12 @@ export default function AiBuilderReview({
         />
 
         <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-2">
-          {session.faqEntries.map((faq, index) => {
+          {visibleFaqEntries.map((faq, index) => {
             const editing = editingFaq === faq.id;
             const shouldSpanFull =
-              session.faqEntries.length === 1 ||
-              (session.faqEntries.length % 2 === 1 &&
-                index === session.faqEntries.length - 1);
+              visibleFaqEntries.length === 1 ||
+              (visibleFaqEntries.length % 2 === 1 &&
+                index === visibleFaqEntries.length - 1);
 
             return (
               <article
@@ -392,7 +381,6 @@ export default function AiBuilderReview({
                     <h3 className="text-lg font-semibold text-amber-300">
                       {faq.question}
                     </h3>
-
                     <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
                       {faq.answer}
                     </p>
@@ -405,23 +393,17 @@ export default function AiBuilderReview({
                     onClick={() =>
                       updateFaq(faq.id, {
                         status:
-                          faq.status === "approved"
-                            ? "proposed"
-                            : "approved",
+                          faq.status === "approved" ? "proposed" : "approved",
                       })
                     }
                     className={approveActionClassName}
                   >
-                    {faq.status === "approved"
-                      ? "Unapprove"
-                      : "Approve"}
+                    {faq.status === "approved" ? "Unapprove" : "Approve"}
                   </button>
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setEditingFaq(editing ? null : faq.id)
-                    }
+                    onClick={() => setEditingFaq(editing ? null : faq.id)}
                     className={itemActionClassName}
                   >
                     {editing ? "Done" : "Edit"}
@@ -429,9 +411,7 @@ export default function AiBuilderReview({
 
                   <button
                     type="button"
-                    onClick={() =>
-                      updateFaq(faq.id, { status: "archived" })
-                    }
+                    onClick={() => updateFaq(faq.id, { status: "archived" })}
                     className={itemActionClassName}
                   >
                     Remove
