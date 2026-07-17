@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderForm from "./AiBuilderForm";
@@ -51,6 +52,37 @@ type BuilderStep =
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+type StoredChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations?: string[];
+  diagnostics?: ChatDiagnostics;
+  createdAt: string;
+};
+
+type ChatThread = {
+  id: string;
+  messages: StoredChatMessage[];
+};
+
+type ProjectResponse = {
+  ok?: boolean;
+  projectId?: string;
+  session?: AiBuilderSession;
+  builder?: {
+    businessName?: string;
+    industry?: string;
+    website?: string;
+    tone?: string;
+  };
+  chatThread?: ChatThread | null;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
+
 type Props = {
   initialProjectId?: string | null;
 };
@@ -68,6 +100,28 @@ const initial: BuilderState = {
   websiteKnowledge: null,
 };
 
+async function fetchProject(
+  projectId: string,
+): Promise<ProjectResponse> {
+  const response = await fetch(
+    `/api/ai-builder/projects/${encodeURIComponent(projectId)}`,
+    {
+      cache: "no-store",
+    },
+  );
+
+  const payload = (await response.json()) as ProjectResponse;
+
+  if (!response.ok || !payload.ok || !payload.session) {
+    throw new Error(
+      payload.error?.message ||
+        "The AI Builder project could not be loaded.",
+    );
+  }
+
+  return payload;
+}
+
 export default function AiBuilderClient({
   initialProjectId = null,
 }: Props) {
@@ -75,11 +129,19 @@ export default function AiBuilderClient({
     initialProjectId ? "loading" : "form",
   );
   const [builder, setBuilder] = useState(initial);
-  const [session, setSession] = useState<AiBuilderSession | null>(null);
+  const [session, setSession] = useState<AiBuilderSession | null>(
+    null,
+  );
+  const [chatThread, setChatThread] =
+    useState<ChatThread | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [reviewChangesPending, setReviewChangesPending] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [reviewChangesPending, setReviewChangesPending] =
+    useState(false);
+  const [saveStatus, setSaveStatus] =
+    useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(
+    null,
+  );
 
   const knowledgePack = useMemo(
     () =>
@@ -103,33 +165,9 @@ export default function AiBuilderClient({
       setStep("loading");
 
       try {
-        const response = await fetch(
-          `/api/ai-builder/projects/${encodeURIComponent(projectId)}`,
-          { cache: "no-store" },
-        );
+        const payload = await fetchProject(projectId);
 
-        const payload = (await response.json()) as {
-          ok?: boolean;
-          session?: AiBuilderSession;
-          builder?: {
-            businessName?: string;
-            industry?: string;
-            website?: string;
-            tone?: string;
-          };
-          error?: {
-            message?: string;
-          };
-        };
-
-        if (!response.ok || !payload.ok || !payload.session) {
-          throw new Error(
-            payload.error?.message ||
-              "The AI Builder project could not be loaded.",
-          );
-        }
-
-        if (cancelled) return;
+        if (cancelled || !payload.session) return;
 
         setBuilder((current) => ({
           ...current,
@@ -139,10 +177,13 @@ export default function AiBuilderClient({
           tone: payload.builder?.tone ?? "Professional",
         }));
         setSession(payload.session);
+        setChatThread(payload.chatThread ?? null);
         setStep("results");
       } catch (loadError) {
         if (cancelled) return;
 
+        setSession(null);
+        setChatThread(null);
         setError(
           loadError instanceof Error
             ? loadError.message
@@ -170,7 +211,9 @@ export default function AiBuilderClient({
 
       try {
         const response = await fetch(
-          `/api/ai-builder/projects/${encodeURIComponent(session.id)}`,
+          `/api/ai-builder/projects/${encodeURIComponent(
+            session.id,
+          )}`,
           {
             method: "PUT",
             headers: {
@@ -222,7 +265,9 @@ export default function AiBuilderClient({
     };
   }, [session, reviewChangesPending]);
 
-  const handleSessionChange = (nextSession: AiBuilderSession) => {
+  const handleSessionChange = (
+    nextSession: AiBuilderSession,
+  ) => {
     setSession(nextSession);
     setReviewChangesPending(true);
     setSaveStatus("idle");
@@ -235,6 +280,7 @@ export default function AiBuilderClient({
     setSaveStatus("idle");
     setReviewChangesPending(false);
     setSession(null);
+    setChatThread(null);
     setStep("building");
 
     try {
@@ -263,14 +309,40 @@ export default function AiBuilderClient({
         );
       }
 
+      const projectId =
+        payload.projectId ?? payload.session.id;
+
       setSession(payload.session);
       setStep("results");
 
-      const projectId = payload.projectId ?? payload.session.id;
       const url = new URL(window.location.href);
       url.searchParams.set("projectId", projectId);
       window.history.replaceState(null, "", url.toString());
+
+      try {
+        const savedProject = await fetchProject(projectId);
+
+        setSession(
+          savedProject.session ?? payload.session,
+        );
+        setChatThread(savedProject.chatThread ?? null);
+      } catch (projectLoadError) {
+        console.error(
+          "AI_BUILDER_NEW_PROJECT_RELOAD_FAILED",
+          {
+            projectId,
+            message:
+              projectLoadError instanceof Error
+                ? projectLoadError.message
+                : "unknown_error",
+          },
+        );
+
+        setChatThread(null);
+      }
     } catch (buildError) {
+      setSession(null);
+      setChatThread(null);
       setError(
         buildError instanceof Error
           ? buildError.message
@@ -337,7 +409,9 @@ export default function AiBuilderClient({
                   ? "border-red-500/30 bg-red-500/10 text-red-200"
                   : "border-amber-300/20 bg-[#030713] text-slate-400"
               }`}
-              role={saveStatus === "error" ? "alert" : "status"}
+              role={
+                saveStatus === "error" ? "alert" : "status"
+              }
               aria-live="polite"
             >
               {saveStatus === "saving"
@@ -357,9 +431,11 @@ export default function AiBuilderClient({
         </>
       ) : null}
 
-      {step === "chat" && knowledgePack ? (
+      {step === "chat" && knowledgePack && session ? (
         <AiBuilderDemoChat
           knowledge={knowledgePack}
+          projectId={session.id}
+          chatThread={chatThread}
           onBack={() => setStep("review")}
         />
       ) : null}
