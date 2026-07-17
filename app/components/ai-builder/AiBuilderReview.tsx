@@ -227,7 +227,7 @@ export default function AiBuilderReview({
         {grouped.map(([category, categoryEntries]) => (
           <section
             key={category}
-            className="mx-auto max-w-4xl rounded-[26px] border border-white/[0.09] bg-[#030713] px-4 py-5 text-center shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-6"
+            className="mx-auto max-w-4xl rounded-[26px] border border-amber-300/25 bg-[#030713] px-4 py-5 text-center shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-6"
           >
             <h2 className="text-2xl font-semibold text-amber-300 sm:text-3xl">
               {CATEGORY_LABELS[category]}
@@ -244,7 +244,7 @@ export default function AiBuilderReview({
                 return (
                   <article
                     key={entry.id}
-                    className={`flex min-h-[190px] flex-col items-center justify-center rounded-[20px] border border-white/[0.075] bg-black/15 px-4 py-5 text-center ${
+                    className={`flex min-h-[190px] flex-col items-center justify-center rounded-[20px] border border-amber-300/25 bg-black/15 px-4 py-5 text-center ${
                       shouldSpanFull ? "md:col-span-2" : ""
                     }`}
                   >

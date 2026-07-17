@@ -66,7 +66,7 @@ export default function AiBuilderProgress({
               >
                 <div className="flex flex-col items-center justify-center gap-2 text-center">
                   <span className={`text-sm font-semibold sm:text-base ${complete ? "text-amber-300" : "text-white"}`}>
-                    {completed ? "✓ " : ""}
+                    {completed ? <span className="text-white">✓ </span> : null}
                     {message}
                   </span>
 
