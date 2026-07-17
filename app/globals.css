@@ -325,7 +325,7 @@ a {
 
 a[href][class*="border-amber-300/15"],
 button[class*="border-amber-300/15"]:not(:disabled) {
-  border-width: 1px;
+  border-width: 0.2px;
   border-color: #d4af37;
   background-color: #030713;
   box-shadow: none;
@@ -347,7 +347,7 @@ button[class*="border-amber-300/15"]:not(:disabled):hover {
 }
 
 button[role="tab"][aria-selected="true"] {
-  border-width: 1px;
+  border-width: 0.2px;
   border-color: #d4af37;
   background-color: #030713;
   box-shadow: none;
