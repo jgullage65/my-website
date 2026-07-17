@@ -248,7 +248,12 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
       <section>
         <SectionHeading
           eyebrow="Your expertise"
-          title="Tell your AI what only you know."
+          title={
+            <>
+              Tell your AI{" "}
+              <span className="text-amber-300">what only you know.</span>
+            </>
+          }
           description="Add private context, corrections, and the details that make your business different. Your answers always win when sources conflict."
         />
 
@@ -418,7 +423,7 @@ function SectionHeading({
   description,
 }: {
   eyebrow: string;
-  title: string;
+  title: ReactNode;
   description: string;
 }) {
   return (
@@ -469,11 +474,13 @@ function KnowledgeCard({
   return (
     <article className="rounded-[28px] border border-white/10 bg-[#030713] p-6 text-center shadow-[0_20px_70px_rgba(0,0,0,0.22)] sm:p-8">
       <div className="flex flex-col items-center">
-        <div className="grid h-11 w-11 place-items-center rounded-2xl border border-amber-300/15 bg-amber-300/[0.07] font-semibold text-amber-300">
-          {icon}
+        <div className="flex items-center justify-center gap-3">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-amber-300/15 bg-amber-300/[0.07] font-semibold text-amber-300">
+            {icon}
+          </div>
+          <h3 className="text-xl font-semibold text-white">{title}</h3>
         </div>
-        <h3 className="mt-3 text-xl font-semibold text-white">{title}</h3>
-        <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+        <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
       </div>
       <div className="mt-6 grid gap-5">{children}</div>
     </article>
