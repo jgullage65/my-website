@@ -31,6 +31,17 @@ export type LoadedAiBuilderProject = {
   } | null;
 };
 
+export type AiBuilderProjectSummary = {
+  id: string;
+  businessName: string;
+  industry: string;
+  website: string | null;
+  status: AiBuilderSession["status"];
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 function toIsoString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
   return new Date(String(value)).toISOString();
@@ -415,4 +426,60 @@ export async function getAiBuilderProject(
     website: project.website == null ? null : String(project.website),
     initialThread,
   };
+}
+
+export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]> {
+  await ensureAiBuilderSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT
+      projects.id,
+      projects.business_name,
+      projects.industry,
+      projects.website,
+      projects.status,
+      projects.created_at,
+      projects.updated_at,
+      COUNT(messages.id)::integer AS message_count
+    FROM ai_builder_projects projects
+    LEFT JOIN ai_builder_chat_threads threads ON threads.project_id = projects.id
+    LEFT JOIN ai_builder_chat_messages messages ON messages.thread_id = threads.id
+    GROUP BY projects.id
+    ORDER BY projects.updated_at DESC
+  `) as DatabaseRow[];
+
+  return rows.map((row) => ({
+    id: String(row.id),
+    businessName: String(row.business_name),
+    industry: String(row.industry),
+    website: row.website == null ? null : String(row.website),
+    status: row.status as AiBuilderSession["status"],
+    messageCount: Number(row.message_count ?? 0),
+    createdAt: toIsoString(row.created_at),
+    updatedAt: toIsoString(row.updated_at),
+  }));
+}
+
+export async function renameAiBuilderProject(
+  projectId: string,
+  businessName: string,
+): Promise<boolean> {
+  await ensureAiBuilderSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    UPDATE ai_builder_projects
+    SET business_name = ${businessName}, updated_at = NOW()
+    WHERE id = ${projectId}
+    RETURNING id
+  `) as DatabaseRow[];
+  return Boolean(rows[0]);
+}
+
+export async function deleteAiBuilderProject(projectId: string): Promise<boolean> {
+  await ensureAiBuilderSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    DELETE FROM ai_builder_projects WHERE id = ${projectId} RETURNING id
+  `) as DatabaseRow[];
+  return Boolean(rows[0]);
 }

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
-import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
+import {
+  deleteAiBuilderProject,
+  getAiBuilderProject,
+  renameAiBuilderProject,
+} from "@/app/lib/db/ai-builder-repository";
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
 
@@ -15,6 +19,7 @@ type RouteContext = {
 
 type UpdateProjectBody = {
   session?: AiBuilderSession;
+  businessName?: string;
 };
 
 type StoredChatMessage = {
@@ -283,5 +288,46 @@ export async function PUT(request: Request, context: RouteContext) {
       "project_save_failed",
       "The AI Builder project changes could not be saved.",
     );
+  }
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  const { projectId } = await context.params;
+  const normalizedProjectId = normalizeProjectId(projectId);
+  let body: UpdateProjectBody;
+
+  try {
+    body = (await request.json()) as UpdateProjectBody;
+  } catch {
+    return errorResponse(400, "invalid_json", "The request body must be valid JSON.");
+  }
+
+  const businessName = String(body.businessName ?? "").trim().slice(0, 160);
+  if (!normalizedProjectId || !businessName) {
+    return errorResponse(400, "invalid_project_name", "A project name is required.");
+  }
+
+  try {
+    const renamed = await renameAiBuilderProject(normalizedProjectId, businessName);
+    if (!renamed) return errorResponse(404, "project_not_found", "This AI Builder project could not be found.");
+    return NextResponse.json({ ok: true, projectId: normalizedProjectId, businessName });
+  } catch (error) {
+    console.error("AI_BUILDER_PROJECT_RENAME_FAILED", { projectId: normalizedProjectId, message: error instanceof Error ? error.message : "unknown_error" });
+    return errorResponse(500, "project_rename_failed", "The project could not be renamed.");
+  }
+}
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  const { projectId } = await context.params;
+  const normalizedProjectId = normalizeProjectId(projectId);
+  if (!normalizedProjectId) return errorResponse(400, "missing_project_id", "A project ID is required.");
+
+  try {
+    const deleted = await deleteAiBuilderProject(normalizedProjectId);
+    if (!deleted) return errorResponse(404, "project_not_found", "This AI Builder project could not be found.");
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("AI_BUILDER_PROJECT_DELETE_FAILED", { projectId: normalizedProjectId, message: error instanceof Error ? error.message : "unknown_error" });
+    return errorResponse(500, "project_delete_failed", "The project could not be deleted.");
   }
 }

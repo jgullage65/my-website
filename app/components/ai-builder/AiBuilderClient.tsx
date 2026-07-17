@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
@@ -354,6 +355,14 @@ export default function AiBuilderClient({
 
   return (
     <AiBuilderShell>
+      <div className="mx-auto mb-5 flex max-w-5xl justify-end">
+        <Link
+          href="/ai-builder"
+          className="rounded-lg border border-amber-300/20 bg-[#081226] px-4 py-2 text-xs font-black text-slate-300 transition hover:border-amber-300/40 hover:text-amber-200"
+        >
+          ← All Projects
+        </Link>
+      </div>
       {step === "loading" ? (
         <div className="mx-auto max-w-3xl rounded-[30px] border border-amber-300/20 bg-[#030713] px-6 py-12 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-300">
