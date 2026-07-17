@@ -110,7 +110,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
       if (!payload?.ok || !payload.import) {
         throw new Error(
-          payload.error?.message || "The website could not be imported.",
+          payload?.error?.message || "The website could not be imported.",
         );
       }
 

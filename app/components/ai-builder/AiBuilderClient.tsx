@@ -336,7 +336,7 @@ export default function AiBuilderClient({
 
       if (!payload?.ok || !payload.session) {
         throw new Error(
-          payload.error?.message ||
+          payload?.error?.message ||
             "The AI builder could not process this information.",
         );
       }
