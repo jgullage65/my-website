@@ -18,6 +18,26 @@ type PersistAiBuilderProjectInput = {
   };
 };
 
+export type LoadedAiBuilderProject = {
+  session: AiBuilderSession;
+  businessName: string;
+  industry: string;
+  website: string | null;
+  initialThread: {
+    id: string;
+    memory: ConversationMemory;
+  } | null;
+};
+
+function toIsoString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  return new Date(String(value)).toISOString();
+}
+
+function toNullableIsoString(value: unknown): string | null {
+  return value == null ? null : toIsoString(value);
+}
+
 export async function persistAiBuilderProject({
   session,
   businessName,
@@ -267,4 +287,115 @@ export async function persistAiBuilderProject({
       memory = EXCLUDED.memory,
       updated_at = EXCLUDED.updated_at
   `;
+}
+
+export async function getAiBuilderProject(
+  projectId: string,
+): Promise<LoadedAiBuilderProject | null> {
+  await ensureAiBuilderSchema();
+
+  const sql = getSql();
+  const projects = await sql`
+    SELECT *
+    FROM ai_builder_projects
+    WHERE id = ${projectId}
+    LIMIT 1
+  `;
+
+  const project = projects[0];
+  if (!project) return null;
+
+  const [intakeBlocks, contextEntries, faqEntries, conflicts, missingInformation, buildProgress, threads] =
+    await Promise.all([
+      sql`SELECT * FROM ai_builder_intake_blocks WHERE project_id = ${projectId} ORDER BY created_at, id`,
+      sql`SELECT * FROM ai_builder_context_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
+      sql`SELECT * FROM ai_builder_faq_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
+      sql`SELECT * FROM ai_builder_conflicts WHERE project_id = ${projectId} ORDER BY id`,
+      sql`SELECT * FROM ai_builder_missing_information WHERE project_id = ${projectId} ORDER BY id`,
+      sql`SELECT * FROM ai_builder_progress WHERE project_id = ${projectId} ORDER BY id`,
+      sql`SELECT * FROM ai_builder_chat_threads WHERE project_id = ${projectId} ORDER BY created_at LIMIT 1`,
+    ]);
+
+  const session: AiBuilderSession = {
+    id: String(project.id),
+    status: project.status as AiBuilderSession["status"],
+    intakeBlocks: intakeBlocks.map((row) => ({
+      id: String(row.id),
+      label: String(row.label),
+      content: String(row.content),
+      createdAt: toIsoString(row.created_at),
+      updatedAt: toIsoString(row.updated_at),
+    })),
+    assistantConfiguration:
+      project.assistant_configuration as AiBuilderSession["assistantConfiguration"],
+    contextEntries: contextEntries.map((row) => ({
+      id: String(row.id),
+      sessionId: projectId,
+      category: row.category as AiBuilderSession["contextEntries"][number]["category"],
+      title: String(row.title),
+      content: String(row.content),
+      confidence: row.confidence as AiBuilderSession["contextEntries"][number]["confidence"],
+      confidenceScore: Number(row.confidence_score),
+      status: row.status as AiBuilderSession["contextEntries"][number]["status"],
+      source: row.source as AiBuilderSession["contextEntries"][number]["source"],
+      metadata: row.metadata as AiBuilderSession["contextEntries"][number]["metadata"],
+      createdAt: toIsoString(row.created_at),
+      updatedAt: toIsoString(row.updated_at),
+    })),
+    faqEntries: faqEntries.map((row) => ({
+      id: String(row.id),
+      sessionId: projectId,
+      question: String(row.question),
+      answer: String(row.answer),
+      confidence: row.confidence as AiBuilderSession["faqEntries"][number]["confidence"],
+      confidenceScore: Number(row.confidence_score),
+      sourceEntryIds: row.source_entry_ids as string[],
+      status: row.status as AiBuilderSession["faqEntries"][number]["status"],
+      createdAt: toIsoString(row.created_at),
+      updatedAt: toIsoString(row.updated_at),
+    })),
+    conflicts: conflicts.map((row) => ({
+      id: String(row.id),
+      topic: String(row.topic),
+      firstStatement: String(row.first_statement),
+      secondStatement: String(row.second_statement),
+      sourceExcerpts: row.source_excerpts as string[],
+      suggestedQuestion: String(row.suggested_question),
+      resolved: Boolean(row.resolved),
+      resolution: row.resolution == null ? null : String(row.resolution),
+    })),
+    missingInformation: missingInformation.map((row) => ({
+      id: String(row.id),
+      topic: String(row.topic),
+      reason: String(row.reason),
+      suggestedQuestion: String(row.suggested_question),
+      resolved: Boolean(row.resolved),
+    })),
+    contextCounts: project.context_counts as AiBuilderSession["contextCounts"],
+    buildProgress: buildProgress.map((row) => ({
+      stage: row.stage as AiBuilderSession["buildProgress"][number]["stage"],
+      message: String(row.message),
+      completed: Boolean(row.completed),
+      count: row.count == null ? null : Number(row.count),
+      createdAt: toIsoString(row.created_at),
+    })),
+    createdAt: toIsoString(project.created_at),
+    updatedAt: toIsoString(project.updated_at),
+    expiresAt: toNullableIsoString(project.expires_at),
+  };
+
+  const initialThread = threads[0]
+    ? {
+        id: String(threads[0].id),
+        memory: threads[0].memory as ConversationMemory,
+      }
+    : null;
+
+  return {
+    session,
+    businessName: String(project.business_name),
+    industry: String(project.industry),
+    website: project.website == null ? null : String(project.website),
+    initialThread,
+  };
 }
