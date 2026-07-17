@@ -277,7 +277,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         </article>
       </section>
 
-      <section>
+      <section className="mx-auto max-w-5xl rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <SectionHeading
           eyebrow="Your expertise"
           title={
