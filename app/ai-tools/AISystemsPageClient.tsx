@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import type { Variants } from "framer-motion";
@@ -107,7 +108,16 @@ export default function AISystemsPageClient() {
         </motion.div>
         <motion.div variants={mediaIn} className="relative z-10">
           <div className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(circle_at_50%_80%,rgba(212,175,55,.18),transparent_55%)] blur-2xl" />
-          <MediaPlaceholder label="AI operating system interface" ratio="aspect-[16/12]" />
+
+          <div className="relative aspect-[16/12] overflow-hidden rounded-[1.45rem] border border-[rgba(212,175,55,.16)] shadow-[0_30px_90px_rgba(0,0,0,.42),0_0_0_1px_rgba(255,255,255,.035)_inset]">
+            <Image
+              src="/image/ChatGPT Image Jul 17, 2026, 01_42_28 AM.png"
+              alt="AI operating system interface"
+              fill
+              priority
+              className="object-cover object-center"
+            />
+          </div>
         </motion.div>
       </Section>
 
