@@ -249,7 +249,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 type="button"
                 disabled={!value.website.trim() || importing}
                 onClick={importWebsite}
-                className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border-0 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24)] outline-none transition duration-300 hover:-translate-y-0.5 hover:bg-[#0b1830] focus-visible:ring-2 focus-visible:ring-amber-300/40 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0 disabled:hover:bg-[#081226]"
               >
                 {importing
                   ? `Importing… ${importProgress}%`

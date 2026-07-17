@@ -99,14 +99,13 @@ export default function AiBuilderProjects() {
       <div className="mx-auto max-w-6xl">
         <div className="text-center">
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
-          <h1 className="mt-3 text-3xl font-black tracking-[-.045em] sm:text-5xl">Your Projects</h1>
+          <h1 className="mt-3 text-3xl font-black tracking-[-.045em] text-white sm:text-5xl">Your <span className="text-[var(--gold)]">Projects</span></h1>
           <p className="mx-auto mt-3 max-w-2xl text-slate-400">Continue building and refining your business AI systems.</p>
           {!loading && projects.length ? (
             <Link href="/ai-builder?new=1" className="mt-6 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">New AI Builder Project</Link>
           ) : null}
         </div>
 
-        {error ? <p role="status" className="mt-7 text-center text-sm text-slate-400">We couldn’t load saved projects right now. You can still create a new one.</p> : null}
         {!loading && projects.length ? <div className="mt-9 flex flex-col gap-3 rounded-2xl border border-amber-300/15 bg-[#030713]/80 p-3 sm:flex-row">
           <input aria-label="Search projects" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search business, website, or industry" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-[#081226] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-amber-300/40" />
           <select aria-label="Sort projects" value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="rounded-xl border border-white/10 bg-[#081226] px-4 py-3 text-sm text-slate-200 outline-none focus:border-amber-300/40"><option value="updated">Last Updated</option><option value="created">Created Date</option><option value="name">Business Name</option></select>
