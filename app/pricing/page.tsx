@@ -205,27 +205,6 @@ function PriceCard({ option }: { option: PriceOption }) {
 export default function PricingPage() {
   return (
     <main className="overflow-hidden bg-[#030713] text-white">
-      <section className="relative mx-auto max-w-[94rem] px-5 py-14 sm:px-8 sm:py-16 lg:px-10 lg:py-20">
-        <div className="absolute inset-x-0 top-0 h-[38rem] bg-[radial-gradient(circle_at_15%_18%,rgba(212,175,55,.16),transparent_28rem),radial-gradient(circle_at_82%_10%,rgba(14,22,62,.72),transparent_38rem)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
-        <div className="relative z-10 mx-auto max-w-5xl text-center">
-          <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Pricing</p>
-          <h1 className="mt-4 text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl lg:text-6xl">
-            Clear starting prices. <span className="text-[var(--gold)]">Custom quotes</span> when the work calls for it.
-          </h1>
-          <p className="mx-auto mt-5 max-w-3xl text-base leading-7 text-[var(--muted)] sm:text-lg sm:leading-8">
-            Every project is reviewed before work begins so the scope, timeline, and exact price are clear. No surprise charges and no paying for features you do not need.
-          </p>
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            {["Starting prices", "No hidden fees", "Clear project scope"].map((label) => (
-              <span key={label} className="rounded-full border border-[rgba(212,175,55,.22)] bg-white/[.035] px-4 py-2 text-sm font-bold text-slate-200">
-                {label}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <div className="border-t border-[rgba(212,175,55,.10)]">
         {pricingSections.map((section) => (
           <section key={section.eyebrow} className="mx-auto max-w-[94rem] border-b border-[rgba(212,175,55,.10)] px-5 py-14 sm:px-8 lg:px-10 lg:py-16">
