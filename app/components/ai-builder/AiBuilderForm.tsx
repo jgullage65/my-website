@@ -29,7 +29,10 @@ type WebsiteImportPayload = {
 };
 
 const inputClassName =
-  "w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3.5 text-[15px] text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
+  "w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3.5 text-center text-[15px] text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
+
+const bottomCardClassName =
+  "relative flex min-h-[238px] flex-col items-center justify-center overflow-hidden rounded-[28px] border bg-[#030713] px-6 py-7 text-center sm:px-8";
 
 export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [importing, setImporting] = useState(false);
@@ -203,7 +206,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
             <div className="mx-auto mt-6 grid max-w-xl gap-3">
               <input
                 type="url"
-                className={`${inputClassName} text-center`}
+                className={inputClassName}
                 placeholder="https://yourbusiness.com"
                 value={value.website}
                 onChange={(event) =>
@@ -334,16 +337,16 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           </KnowledgeCard>
         </div>
 
-        <div className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="rounded-[28px] border border-white/10 bg-[#030713] px-6 py-7 text-center sm:px-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+        <div className="mx-auto mt-5 grid max-w-4xl gap-5 lg:grid-cols-2">
+          <section className={`${bottomCardClassName} border-white/10`}>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
               Communication style
             </p>
-            <h3 className="mt-2 text-2xl font-semibold text-white">
+            <h3 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-white">
               How should your AI sound?
             </h3>
             <select
-              className={`${inputClassName} mx-auto mt-5 max-w-xl text-center`}
+              className={`${inputClassName} mt-5 max-w-sm`}
               value={value.tone}
               onChange={(event) => updateProfile("tone", event.target.value)}
             >
@@ -353,11 +356,13 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <option>Direct</option>
               <option>Warm</option>
             </select>
-          </div>
+          </section>
 
-          <section className="relative overflow-hidden rounded-[28px] border border-amber-300/25 bg-[#030713] px-6 py-7 text-center shadow-[0_24px_80px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8">
+          <section
+            className={`${bottomCardClassName} border-amber-300/25 shadow-[0_24px_80px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]`}
+          >
             <div className="absolute inset-x-0 bottom-[-7rem] mx-auto h-40 max-w-xl rounded-full bg-amber-400/12 blur-[80px]" />
-            <div className="relative flex h-full flex-col items-center justify-center">
+            <div className="relative flex flex-col items-center justify-center">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
                 Final step
               </p>
@@ -462,17 +467,13 @@ function KnowledgeCard({
   children: ReactNode;
 }) {
   return (
-    <article className="rounded-[28px] border border-white/10 bg-[#030713] p-6 shadow-[0_20px_70px_rgba(0,0,0,0.22)] sm:p-8">
-      <div className="flex items-start gap-4">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-amber-300/15 bg-amber-300/[0.07] font-semibold text-amber-300">
+    <article className="rounded-[28px] border border-white/10 bg-[#030713] p-6 text-center shadow-[0_20px_70px_rgba(0,0,0,0.22)] sm:p-8">
+      <div className="flex flex-col items-center">
+        <div className="grid h-11 w-11 place-items-center rounded-2xl border border-amber-300/15 bg-amber-300/[0.07] font-semibold text-amber-300">
           {icon}
         </div>
-        <div>
-          <h3 className="text-xl font-semibold text-white">{title}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-500">
-            {description}
-          </p>
-        </div>
+        <h3 className="mt-3 text-xl font-semibold text-white">{title}</h3>
+        <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
       </div>
       <div className="mt-6 grid gap-5">{children}</div>
     </article>
@@ -489,7 +490,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="grid gap-2">
+    <label className="grid gap-2 text-center">
       <span className="text-sm font-semibold text-slate-200">
         {label}
         {required ? <span className="text-amber-300"> *</span> : null}
