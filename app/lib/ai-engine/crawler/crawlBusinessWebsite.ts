@@ -79,7 +79,9 @@ function normalizeInputUrl(value: string): URL {
   const trimmed = value.trim();
   if (!trimmed) throw new Error("Website URL is required.");
 
-  const parsed = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+  const parsed = new URL(
+    /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`,
+  );
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("Website URL must use http or https.");
   }
@@ -96,7 +98,9 @@ function isUnsafeIpv4(ip: string): boolean {
   const parts = ip.split(".").map((part) => Number.parseInt(part, 10));
   if (
     parts.length !== 4 ||
-    parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+    parts.some(
+      (part) => !Number.isInteger(part) || part < 0 || part > 255,
+    )
   ) {
     return true;
   }
@@ -120,7 +124,9 @@ function isUnsafeIpv6(ip: string): boolean {
   if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true;
   if (/^fe[89ab]/i.test(normalized)) return true;
 
-  const mapped = normalized.match(/^(?:::ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/);
+  const mapped = normalized.match(
+    /^(?:::ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/,
+  );
   return mapped?.[1] ? isUnsafeIpv4(mapped[1]) : false;
 }
 
@@ -138,16 +144,27 @@ async function assertSafeDestination(url: URL): Promise<void> {
   }
 
   if (net.isIP(hostname)) {
-    if (isUnsafeIp(hostname)) throw new Error("Unsafe crawler destination.");
+    if (isUnsafeIp(hostname)) {
+      throw new Error("Unsafe crawler destination.");
+    }
     return;
   }
 
-  if (!hostname.split(".").every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label))) {
+  if (
+    !hostname
+      .split(".")
+      .every((label) =>
+        /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label),
+      )
+  ) {
     throw new Error("Unsafe crawler destination.");
   }
 
   const addresses = await dnsLookup(hostname, { all: true });
-  if (!addresses.length || addresses.some((entry) => isUnsafeIp(entry.address))) {
+  if (
+    !addresses.length ||
+    addresses.some((entry) => isUnsafeIp(entry.address))
+  ) {
     throw new Error("Unsafe crawler destination.");
   }
 }
@@ -156,7 +173,9 @@ function dedupeUrl(value: string): string {
   const parsed = new URL(value);
   parsed.hash = "";
   parsed.search = "";
-  if (parsed.pathname !== "/") parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+  if (parsed.pathname !== "/") {
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+  }
   return parsed.toString();
 }
 
@@ -165,14 +184,20 @@ function isDocumentOrAsset(url: URL): boolean {
   return Boolean(extension && IGNORED_EXTENSIONS.has(extension));
 }
 
-async function fetchHtml(url: URL): Promise<{ html: string; resolvedUrl: URL } | null> {
+async function fetchHtml(
+  url: URL,
+): Promise<{ html: string; resolvedUrl: URL } | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
     let current = url;
 
-    for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    for (
+      let redirectCount = 0;
+      redirectCount <= MAX_REDIRECTS;
+      redirectCount += 1
+    ) {
       await assertSafeDestination(current);
 
       const response = await fetch(current.toString(), {
@@ -193,7 +218,12 @@ async function fetchHtml(url: URL): Promise<{ html: string; resolvedUrl: URL } |
 
       if (!response.ok) return null;
       const contentType = response.headers.get("content-type") ?? "";
-      if (contentType && !contentType.toLowerCase().includes("text/html")) return null;
+      if (
+        contentType &&
+        !contentType.toLowerCase().includes("text/html")
+      ) {
+        return null;
+      }
 
       const html = (await response.text()).slice(0, MAX_HTML_BYTES);
       return { html, resolvedUrl: current };
@@ -213,8 +243,12 @@ function decodeHtml(value: string): string {
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
+    .replace(/&#(\d+);/g, (_, code) =>
+      String.fromCodePoint(Number(code)),
+    )
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) =>
+      String.fromCodePoint(Number.parseInt(code, 16)),
+    );
 }
 
 function stripHtmlToText(html: string): string {
@@ -229,7 +263,10 @@ function stripHtmlToText(html: string): string {
       .replace(/<footer\b[\s\S]*?<\/footer>/gi, " ")
       .replace(/<header\b[\s\S]*?<\/header>/gi, " ")
       .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/(p|div|section|article|li|h1|h2|h3|h4|h5|h6)>/gi, "\n")
+      .replace(
+        /<\/(p|div|section|article|li|h1|h2|h3|h4|h5|h6)>/gi,
+        "\n",
+      )
       .replace(/<[^>]+>/g, " "),
   )
     .replace(/[ \t]+/g, " ")
@@ -240,8 +277,11 @@ function stripHtmlToText(html: string): string {
 }
 
 function extractTitle(html: string): string {
-  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "";
-  return decodeHtml(title.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+  const title =
+    html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "";
+  return decodeHtml(title.replace(/<[^>]+>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function inferPageType(url: URL, title: string): string {
@@ -257,19 +297,34 @@ function inferPageType(url: URL, title: string): string {
   return "other";
 }
 
-function discoverInternalLinks(html: string, pageUrl: URL, baseHost: string): string[] {
+function discoverInternalLinks(
+  html: string,
+  pageUrl: URL,
+  baseHost: string,
+): string[] {
   const links: string[] = [];
   const seen = new Set<string>();
-  const anchorPattern = /<a\b[^>]*href\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
+  const anchorPattern =
+    /<a\b[^>]*href\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
 
-  for (const match of html.matchAll(anchorPattern)) {
+  let match: RegExpExecArray | null;
+
+  while ((match = anchorPattern.exec(html)) !== null) {
     const rawHref = decodeHtml(match[2] ?? "").trim();
-    const anchorText = decodeHtml((match[3] ?? "").replace(/<[^>]+>/g, " "))
+    const anchorText = decodeHtml(
+      (match[3] ?? "").replace(/<[^>]+>/g, " "),
+    )
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase();
 
-    if (!rawHref || rawHref.startsWith("#") || /^(mailto|tel|javascript):/i.test(rawHref)) continue;
+    if (
+      !rawHref ||
+      rawHref.startsWith("#") ||
+      /^(mailto|tel|javascript):/i.test(rawHref)
+    ) {
+      continue;
+    }
 
     let parsed: URL;
     try {
@@ -278,11 +333,23 @@ function discoverInternalLinks(html: string, pageUrl: URL, baseHost: string): st
       continue;
     }
 
-    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || normalizeHost(parsed.hostname) !== baseHost) continue;
+    if (
+      (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+      normalizeHost(parsed.hostname) !== baseHost
+    ) {
+      continue;
+    }
+
     if (isDocumentOrAsset(parsed)) continue;
 
     const pathAndText = `${parsed.pathname.toLowerCase()} ${anchorText}`;
-    if (!DISCOVERY_KEYWORDS.some((keyword) => pathAndText.includes(keyword))) continue;
+    if (
+      !DISCOVERY_KEYWORDS.some((keyword) =>
+        pathAndText.includes(keyword),
+      )
+    ) {
+      continue;
+    }
 
     const normalized = dedupeUrl(parsed.toString());
     if (!seen.has(normalized)) {
@@ -294,13 +361,17 @@ function discoverInternalLinks(html: string, pageUrl: URL, baseHost: string): st
   return links;
 }
 
-export async function crawlBusinessWebsite(websiteUrl: string): Promise<BusinessWebsiteCrawlResult> {
+export async function crawlBusinessWebsite(
+  websiteUrl: string,
+): Promise<BusinessWebsiteCrawlResult> {
   const requested = normalizeInputUrl(websiteUrl);
   await assertSafeDestination(requested);
 
   const baseHost = normalizeHost(requested.hostname);
   const warnings: string[] = [];
-  const queue = PRIORITY_PATHS.map((path) => dedupeUrl(new URL(path, requested.origin).toString()));
+  const queue = PRIORITY_PATHS.map((path) =>
+    dedupeUrl(new URL(path, requested.origin).toString()),
+  );
   const queued = new Set(queue);
   const visited = new Set<string>();
   const pages: CrawledBusinessPage[] = [];
@@ -318,7 +389,12 @@ export async function crawlBusinessWebsite(websiteUrl: string): Promise<Business
       continue;
     }
 
-    if (normalizeHost(parsed.hostname) !== baseHost || isDocumentOrAsset(parsed)) continue;
+    if (
+      normalizeHost(parsed.hostname) !== baseHost ||
+      isDocumentOrAsset(parsed)
+    ) {
+      continue;
+    }
 
     try {
       const fetched = await fetchHtml(parsed);
@@ -336,20 +412,29 @@ export async function crawlBusinessWebsite(websiteUrl: string): Promise<Business
         text,
       });
 
-      for (const discovered of discoverInternalLinks(fetched.html, fetched.resolvedUrl, baseHost)) {
+      const discoveredLinks = discoverInternalLinks(
+        fetched.html,
+        fetched.resolvedUrl,
+        baseHost,
+      );
+
+      for (const discovered of discoveredLinks) {
         if (!visited.has(discovered) && !queued.has(discovered)) {
           queued.add(discovered);
           queue.unshift(discovered);
         }
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown crawl error";
+      const message =
+        error instanceof Error ? error.message : "Unknown crawl error";
       if (!warnings.includes(message)) warnings.push(message);
     }
   }
 
   if (pages.length === 0) {
-    throw new Error("The website could not be read. Confirm the URL is public and try again.");
+    throw new Error(
+      "The website could not be read. Confirm the URL is public and try again.",
+    );
   }
 
   return {
