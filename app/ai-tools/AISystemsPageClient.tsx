@@ -99,11 +99,11 @@ export default function AISystemsPageClient() {
       <Section className="relative mx-auto grid max-w-[94rem] gap-10 px-5 pb-16 pt-16 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-10 lg:pb-24 lg:pt-24">
         <div className="absolute inset-x-0 top-0 h-[52rem] bg-[radial-gradient(circle_at_12%_18%,rgba(212,175,55,.16),transparent_28rem),radial-gradient(circle_at_82%_12%,rgba(14,22,62,.72),transparent_38rem)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
-        <motion.div variants={fadeUp} className="relative z-10 self-center text-center lg:text-left">
+        <motion.div variants={fadeUp} className="relative z-10 self-center text-center">
           <p className="text-xs font-black uppercase tracking-[.34em] text-[var(--gold)]">AI Systems by JG Creative Studio</p>
-          <h1 className="mx-auto mt-5 max-w-3xl text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-6xl lg:mx-0 xl:text-[5.35rem]">AI systems built for <span className="text-[var(--gold)]">real operations.</span></h1>
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-[var(--muted)] sm:text-lg lg:mx-0">JG Creative Studio designs and builds AI copilots, business automation, portals, dashboards, integrations, and custom software that help teams sell, support, operate, and scale with confidence.</p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row"><GoldButton href="/contact?service=AI%20Setup&preferred=email">Start an AI Systems Project</GoldButton><OutlineButton href="/services">View All Services</OutlineButton></div>
+          <h1 className="mx-auto mt-5 max-w-3xl text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-6xl xl:text-[5.35rem]">AI systems built for <span className="text-[var(--gold)]">real operations.</span></h1>
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-[var(--muted)] sm:text-lg">JG Creative Studio designs and builds AI copilots, business automation, portals, dashboards, integrations, and custom software that help teams sell, support, operate, and scale with confidence.</p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"><GoldButton href="/contact?service=AI%20Setup&preferred=email">Start an AI Systems Project</GoldButton><OutlineButton href="/services">View All Services</OutlineButton></div>
         </motion.div>
         <motion.div variants={mediaIn} className="relative z-10">
           <div className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(circle_at_50%_80%,rgba(212,175,55,.18),transparent_55%)] blur-2xl" />
