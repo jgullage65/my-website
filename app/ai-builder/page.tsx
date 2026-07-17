@@ -1,13 +1,13 @@
 import AiBuilderClient from "@/app/components/ai-builder/AiBuilderClient";
 
 type PageProps = {
-  searchParams: Promise<{
+  searchParams: {
     projectId?: string | string[];
-  }>;
+  };
 };
 
-export default async function Page({ searchParams }: PageProps) {
-  const { projectId } = await searchParams;
+export default function Page({ searchParams }: PageProps) {
+  const { projectId } = searchParams;
 
   return (
     <AiBuilderClient

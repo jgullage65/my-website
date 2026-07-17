@@ -79,6 +79,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   useEffect(() => {
     if (!initialProjectId) return;
 
+    const projectId = initialProjectId;
     let cancelled = false;
 
     async function loadProject() {
@@ -87,7 +88,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
 
       try {
         const response = await fetch(
-          `/api/ai-builder/projects/${encodeURIComponent(initialProjectId)}`,
+          `/api/ai-builder/projects/${encodeURIComponent(projectId)}`,
           { cache: "no-store" },
         );
         const payload = (await response.json()) as {
