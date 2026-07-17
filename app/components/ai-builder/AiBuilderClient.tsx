@@ -8,6 +8,7 @@ import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
+import "./AiBuilderFormOverrides.css";
 
 export type UserKnowledge = {
   productsServices: string;
@@ -114,7 +115,7 @@ export default function AiBuilderClient() {
   return (
     <AiBuilderShell>
       {step === "form" && (
-        <>
+        <div className="ai-builder-form">
           {error ? (
             <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
               {error}
@@ -126,7 +127,7 @@ export default function AiBuilderClient() {
             onChange={setBuilder}
             onBuild={buildAi}
           />
-        </>
+        </div>
       )}
 
       {step === "building" && (
