@@ -5,7 +5,6 @@ import type {
   AiBuilderSession,
   BusinessContextCategory,
   BusinessContextEntry,
-  BusinessContextStatus,
   GeneratedFaqEntry,
 } from "@/app/lib/ai-engine/contracts";
 
@@ -35,8 +34,17 @@ const primaryButtonClassName =
 const secondaryButtonClassName =
   "rounded-2xl border border-white/15 bg-white/[0.035] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.07]";
 
-function calculateCounts(entries: BusinessContextEntry[]): AiBuilderSession["contextCounts"] {
+const itemActionClassName =
+  "rounded-xl border border-white/15 bg-white/[0.025] px-4 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-amber-300/[0.06]";
+
+const approveActionClassName =
+  "rounded-xl border border-amber-300/40 bg-amber-300/[0.08] px-4 py-2.5 text-xs font-bold text-amber-300 transition hover:bg-amber-300/[0.14]";
+
+function calculateCounts(
+  entries: BusinessContextEntry[],
+): AiBuilderSession["contextCounts"] {
   const byCategory: AiBuilderSession["contextCounts"]["byCategory"] = {};
+
   entries.forEach((entry) => {
     byCategory[entry.category] = (byCategory[entry.category] ?? 0) + 1;
   });
@@ -63,10 +71,12 @@ export default function AiBuilderReview({
 
   const grouped = useMemo(() => {
     const map = new Map<BusinessContextCategory, BusinessContextEntry[]>();
+
     session.contextEntries.forEach((entry) => {
       const current = map.get(entry.category) ?? [];
       map.set(entry.category, current.concat(entry));
     });
+
     return Array.from(map.entries());
   }, [session.contextEntries]);
 
@@ -78,7 +88,10 @@ export default function AiBuilderReview({
     });
   };
 
-  const updateEntry = (id: string, updates: Partial<BusinessContextEntry>) => {
+  const updateEntry = (
+    id: string,
+    updates: Partial<BusinessContextEntry>,
+  ) => {
     const contextEntries = session.contextEntries.map((entry) =>
       entry.id === id
         ? { ...entry, ...updates, updatedAt: new Date().toISOString() }
@@ -92,7 +105,10 @@ export default function AiBuilderReview({
     });
   };
 
-  const updateFaq = (id: string, updates: Partial<GeneratedFaqEntry>) => {
+  const updateFaq = (
+    id: string,
+    updates: Partial<GeneratedFaqEntry>,
+  ) => {
     updateSession({
       status: "review_required",
       faqEntries: session.faqEntries.map((faq) =>
@@ -105,6 +121,7 @@ export default function AiBuilderReview({
 
   const approveAll = () => {
     const now = new Date().toISOString();
+
     const contextEntries = session.contextEntries.map((entry) =>
       entry.status === "archived"
         ? entry
@@ -117,6 +134,7 @@ export default function AiBuilderReview({
             updatedAt: now,
           },
     );
+
     const faqEntries = session.faqEntries.map((faq) =>
       faq.status === "archived"
         ? faq
@@ -138,7 +156,8 @@ export default function AiBuilderReview({
     });
   };
 
-  const canLaunchChat = session.status === "ready" && session.contextCounts.approved > 0;
+  const canLaunchChat =
+    session.status === "ready" && session.contextCounts.approved > 0;
 
   return (
     <div className="mx-auto max-w-5xl space-y-10">
@@ -152,16 +171,27 @@ export default function AiBuilderReview({
             Review what your AI learned.
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
-            Approve, correct, or remove anything before it becomes trusted business knowledge.
+            Approve, correct, or remove anything before it becomes trusted
+            business knowledge.
           </p>
 
           <div className="mx-auto mt-7 flex max-w-3xl flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
-            <button type="button" onClick={onBack} className={secondaryButtonClassName}>
+            <button
+              type="button"
+              onClick={onBack}
+              className={secondaryButtonClassName}
+            >
               Back to results
             </button>
-            <button type="button" onClick={approveAll} className={primaryButtonClassName}>
+
+            <button
+              type="button"
+              onClick={approveAll}
+              className={primaryButtonClassName}
+            >
               Approve all knowledge
             </button>
+
             <button
               type="button"
               onClick={onLaunchChat}
@@ -183,7 +213,7 @@ export default function AiBuilderReview({
       <section className="mx-auto grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Total" value={session.contextCounts.total} />
         <Stat label="Approved" value={session.contextCounts.approved} />
-        <Stat label="Proposed" value={session.contextCounts.proposed} />
+        <Stat label="Pending" value={session.contextCounts.proposed} />
         <Stat label="Removed" value={session.contextCounts.archived} />
       </section>
 
@@ -197,40 +227,44 @@ export default function AiBuilderReview({
         {grouped.map(([category, categoryEntries]) => (
           <section
             key={category}
-            className="mx-auto max-w-4xl rounded-[28px] border border-white/10 bg-[#030713] p-5 text-center shadow-[0_20px_70px_rgba(0,0,0,0.22)] sm:p-7"
+            className="mx-auto max-w-4xl rounded-[26px] border border-white/[0.09] bg-[#030713] px-4 py-5 text-center shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-6"
           >
-            <div className="mx-auto mb-5 max-w-2xl border-b border-white/[0.07] pb-4">
-              <div className="flex items-center justify-center gap-3">
-                <h2 className="text-2xl font-semibold text-amber-300 sm:text-3xl">
-                  {CATEGORY_LABELS[category]}
-                </h2>
-                <span className="rounded-full border border-amber-300/25 bg-amber-300/[0.08] px-3 py-1 text-sm font-bold text-amber-300">
-                  {categoryEntries.length}
-                </span>
-              </div>
-            </div>
+            <h2 className="text-2xl font-semibold text-amber-300 sm:text-3xl">
+              {CATEGORY_LABELS[category]}
+            </h2>
 
-            <div className="mx-auto grid max-w-3xl gap-4 md:grid-cols-2">
-              {categoryEntries.map((entry) => {
+            <div className="mx-auto mt-4 grid max-w-3xl gap-3 md:grid-cols-2">
+              {categoryEntries.map((entry, index) => {
                 const editing = editingEntry === entry.id;
+                const shouldSpanFull =
+                  categoryEntries.length === 1 ||
+                  (categoryEntries.length % 2 === 1 &&
+                    index === categoryEntries.length - 1);
+
                 return (
                   <article
                     key={entry.id}
-                    className="flex h-full flex-col items-center rounded-[22px] border border-white/[0.08] bg-black/20 p-4 text-center sm:p-5"
+                    className={`flex min-h-[190px] flex-col items-center justify-center rounded-[20px] border border-white/[0.075] bg-black/15 px-4 py-5 text-center ${
+                      shouldSpanFull ? "md:col-span-2" : ""
+                    }`}
                   >
                     {editing ? (
-                      <div className="w-full space-y-3">
+                      <div className="w-full max-w-2xl space-y-3">
                         <input
                           value={entry.title}
                           onChange={(event) =>
                             updateEntry(entry.id, {
                               title: event.target.value,
                               status: "corrected",
-                              metadata: { ...entry.metadata, userEdited: true },
+                              metadata: {
+                                ...entry.metadata,
+                                userEdited: true,
+                              },
                             })
                           }
                           className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                         />
+
                         <textarea
                           rows={4}
                           value={entry.content}
@@ -238,7 +272,10 @@ export default function AiBuilderReview({
                             updateEntry(entry.id, {
                               content: event.target.value,
                               status: "corrected",
-                              metadata: { ...entry.metadata, userEdited: true },
+                              metadata: {
+                                ...entry.metadata,
+                                userEdited: true,
+                              },
                             })
                           }
                           className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
@@ -246,11 +283,11 @@ export default function AiBuilderReview({
                       </div>
                     ) : (
                       <>
-                        <div className="flex flex-wrap items-center justify-center gap-2">
-                          <h3 className="text-lg font-semibold text-amber-300">{entry.title}</h3>
-                          <StatusPill status={entry.status} />
-                        </div>
-                        <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">
+                        <h3 className="text-lg font-semibold text-amber-300">
+                          {entry.title}
+                        </h3>
+
+                        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
                           {entry.content}
                         </p>
                       </>
@@ -261,24 +298,35 @@ export default function AiBuilderReview({
                         type="button"
                         onClick={() =>
                           updateEntry(entry.id, {
-                            status: entry.status === "approved" ? "proposed" : "approved",
+                            status:
+                              entry.status === "approved"
+                                ? "proposed"
+                                : "approved",
                           })
                         }
-                        className="rounded-xl border border-amber-300/35 bg-amber-300/[0.09] px-4 py-2.5 text-xs font-bold text-amber-300 transition hover:bg-amber-300/[0.14]"
+                        className={approveActionClassName}
                       >
-                        {entry.status === "approved" ? "Unapprove" : "Approve"}
+                        {entry.status === "approved"
+                          ? "Unapprove"
+                          : "Approve"}
                       </button>
+
                       <button
                         type="button"
-                        onClick={() => setEditingEntry(editing ? null : entry.id)}
-                        className="rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-white/[0.06]"
+                        onClick={() =>
+                          setEditingEntry(editing ? null : entry.id)
+                        }
+                        className={itemActionClassName}
                       >
                         {editing ? "Done" : "Edit"}
                       </button>
+
                       <button
                         type="button"
-                        onClick={() => updateEntry(entry.id, { status: "archived" })}
-                        className="rounded-xl border border-red-400/25 bg-red-400/[0.07] px-4 py-2.5 text-xs font-bold text-red-300 transition hover:bg-red-400/[0.11]"
+                        onClick={() =>
+                          updateEntry(entry.id, { status: "archived" })
+                        }
+                        className={itemActionClassName}
                       >
                         Remove
                       </button>
@@ -298,16 +346,23 @@ export default function AiBuilderReview({
           description="Review the generated answers before they become part of the live assistant."
         />
 
-        <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
-          {session.faqEntries.map((faq) => {
+        <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-2">
+          {session.faqEntries.map((faq, index) => {
             const editing = editingFaq === faq.id;
+            const shouldSpanFull =
+              session.faqEntries.length === 1 ||
+              (session.faqEntries.length % 2 === 1 &&
+                index === session.faqEntries.length - 1);
+
             return (
               <article
                 key={faq.id}
-                className="flex h-full flex-col items-center rounded-[24px] border border-white/10 bg-[#030713] p-5 text-center shadow-[0_20px_70px_rgba(0,0,0,0.18)] sm:p-6"
+                className={`flex min-h-[210px] flex-col items-center justify-center rounded-[22px] border border-white/[0.09] bg-[#030713] px-5 py-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.18)] ${
+                  shouldSpanFull ? "md:col-span-2" : ""
+                }`}
               >
                 {editing ? (
-                  <div className="w-full space-y-3">
+                  <div className="w-full max-w-2xl space-y-3">
                     <input
                       value={faq.question}
                       onChange={(event) =>
@@ -318,6 +373,7 @@ export default function AiBuilderReview({
                       }
                       className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                     />
+
                     <textarea
                       rows={4}
                       value={faq.answer}
@@ -332,11 +388,13 @@ export default function AiBuilderReview({
                   </div>
                 ) : (
                   <>
-                    <div className="flex flex-wrap items-center justify-center gap-2">
-                      <h3 className="text-lg font-semibold text-amber-300">{faq.question}</h3>
-                      <StatusPill status={faq.status} />
-                    </div>
-                    <p className="mt-3 max-w-xl text-sm leading-7 text-slate-300">{faq.answer}</p>
+                    <h3 className="text-lg font-semibold text-amber-300">
+                      {faq.question}
+                    </h3>
+
+                    <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
+                      {faq.answer}
+                    </p>
                   </>
                 )}
 
@@ -345,24 +403,35 @@ export default function AiBuilderReview({
                     type="button"
                     onClick={() =>
                       updateFaq(faq.id, {
-                        status: faq.status === "approved" ? "proposed" : "approved",
+                        status:
+                          faq.status === "approved"
+                            ? "proposed"
+                            : "approved",
                       })
                     }
-                    className="rounded-xl border border-amber-300/35 bg-amber-300/[0.09] px-4 py-2.5 text-xs font-bold text-amber-300"
+                    className={approveActionClassName}
                   >
-                    {faq.status === "approved" ? "Unapprove" : "Approve"}
+                    {faq.status === "approved"
+                      ? "Unapprove"
+                      : "Approve"}
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => setEditingFaq(editing ? null : faq.id)}
-                    className="rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2.5 text-xs font-bold text-white"
+                    onClick={() =>
+                      setEditingFaq(editing ? null : faq.id)
+                    }
+                    className={itemActionClassName}
                   >
                     {editing ? "Done" : "Edit"}
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => updateFaq(faq.id, { status: "archived" })}
-                    className="rounded-xl border border-red-400/25 bg-red-400/[0.07] px-4 py-2.5 text-xs font-bold text-red-300"
+                    onClick={() =>
+                      updateFaq(faq.id, { status: "archived" })
+                    }
+                    className={itemActionClassName}
                   >
                     Remove
                   </button>
@@ -390,9 +459,11 @@ function SectionHeading({
       <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-300">
         {eyebrow}
       </p>
+
       <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl">
         {title}
       </h2>
+
       <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400">
         {description}
       </p>
@@ -400,28 +471,16 @@ function SectionHeading({
   );
 }
 
-function StatusPill({ status }: { status: BusinessContextStatus }) {
-  const label =
-    status === "corrected"
-      ? "Corrected"
-      : status === "approved"
-        ? "Approved"
-        : status === "archived"
-          ? "Removed"
-          : "Proposed";
-
-  return (
-    <span className="rounded-full border border-amber-300/20 bg-amber-300/[0.06] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200">
-      {label}
-    </span>
-  );
-}
-
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-2xl border border-white/[0.08] bg-[#030713] px-3 py-4 text-center shadow-[0_14px_44px_rgba(0,0,0,0.18)] sm:px-5">
-      <div className="text-2xl font-semibold text-amber-300 sm:text-3xl">{value}</div>
-      <div className="mt-1 text-xs font-medium text-slate-400 sm:text-sm">{label}</div>
+      <div className="text-2xl font-semibold text-amber-300 sm:text-3xl">
+        {value}
+      </div>
+
+      <div className="mt-1 text-xs font-medium text-slate-400 sm:text-sm">
+        {label}
+      </div>
     </div>
   );
 }
