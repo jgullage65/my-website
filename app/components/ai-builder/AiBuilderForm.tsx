@@ -29,7 +29,7 @@ type WebsiteImportPayload = {
 };
 
 const inputClassName =
-  "w-full rounded-2xl border border-white/10 bg-[#071321]/80 px-4 py-3.5 text-[15px] text-white shadow-inner shadow-black/20 outline-none transition placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
+  "w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3.5 text-[15px] text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
 
 export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [importing, setImporting] = useState(false);
@@ -151,36 +151,33 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
       </section>
 
       <section>
-        <article className="relative overflow-hidden rounded-[28px] border border-amber-300/25 bg-[#030713] p-6 shadow-[0_24px_90px_rgba(0,0,0,0.35),0_0_45px_rgba(245,158,11,0.06)] sm:p-8">
+        <article className="relative overflow-hidden rounded-[28px] border border-amber-300/25 bg-[#030713] px-5 py-6 text-center shadow-[0_24px_90px_rgba(0,0,0,0.35),0_0_45px_rgba(245,158,11,0.06)] sm:px-7 sm:py-7">
           <div className="absolute right-[-5rem] top-[-5rem] h-44 w-44 rounded-full bg-amber-400/10 blur-3xl" />
-          <div className="relative">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="grid h-14 w-14 place-items-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-2xl shadow-[0_0_24px_rgba(245,158,11,0.1)]">
-                  🌐
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-                    Website
-                  </p>
-                  <h3 className="mt-1 text-2xl font-semibold text-white">
-                    {value.websiteKnowledge ? "Connected" : "Connect your website"}
-                  </h3>
-                </div>
+          <div className="relative mx-auto max-w-5xl">
+            <span
+              className={`absolute right-0 top-0 rounded-full border px-3 py-1 text-xs font-semibold ${
+                value.websiteKnowledge
+                  ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
+                  : "border-white/10 bg-white/[0.04] text-slate-400"
+              }`}
+            >
+              {value.websiteKnowledge ? "Active" : "Optional"}
+            </span>
+
+            <div className="mx-auto flex w-fit flex-col items-center">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-xl shadow-[0_0_24px_rgba(245,158,11,0.1)]">
+                🌐
               </div>
-              <span
-                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-                  value.websiteKnowledge
-                    ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300"
-                    : "border-white/10 bg-white/[0.04] text-slate-400"
-                }`}
-              >
-                {value.websiteKnowledge ? "Active" : "Optional"}
-              </span>
+              <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                Website
+              </p>
+              <h3 className="mt-1 text-2xl font-semibold text-white">
+                {value.websiteKnowledge ? "Connected" : "Connect your website"}
+              </h3>
             </div>
 
             {value.websiteKnowledge ? (
-              <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="mx-auto mt-5 grid max-w-2xl grid-cols-2 gap-3 sm:grid-cols-3">
                 <Metric
                   label="Pages imported"
                   value={String(value.websiteKnowledge.pages.length)}
@@ -198,16 +195,16 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 />
               </div>
             ) : (
-              <p className="mt-6 max-w-xl text-sm leading-6 text-slate-400">
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">
                 We will safely crawl your public pages and organize the useful
                 business information into a read-only knowledge source.
               </p>
             )}
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="mx-auto mt-5 grid max-w-4xl gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <input
                 type="url"
-                className={inputClassName}
+                className={`${inputClassName} text-center`}
                 placeholder="https://yourbusiness.com"
                 value={value.website}
                 onChange={(event) =>
@@ -237,7 +234,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <button
                 type="button"
                 onClick={() => setShowWebsiteKnowledge(true)}
-                className="mt-5 text-sm font-semibold text-amber-300 transition hover:text-amber-200"
+                className="mt-4 text-sm font-semibold text-amber-300 transition hover:text-amber-200"
               >
                 View imported knowledge →
               </button>
@@ -338,56 +335,57 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           </KnowledgeCard>
         </div>
 
-        <div className="mx-auto mt-5 max-w-2xl rounded-[28px] border border-white/10 bg-[#030713] px-6 py-7 text-center sm:px-8 sm:py-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-            Communication style
-          </p>
-          <h3 className="mt-2 text-2xl font-semibold text-white">
-            How should your AI sound?
-          </h3>
-          <select
-            className={`${inputClassName} mx-auto mt-5 max-w-xl`}
-            value={value.tone}
-            onChange={(event) => updateProfile("tone", event.target.value)}
-          >
-            <option>Professional</option>
-            <option>Friendly</option>
-            <option>Consultative</option>
-            <option>Direct</option>
-            <option>Warm</option>
-          </select>
-        </div>
-      </section>
-
-      <section className="relative overflow-hidden rounded-[34px] border border-amber-300/25 bg-[#030713] px-6 py-14 text-center shadow-[0_30px_100px_rgba(0,0,0,0.42),0_0_70px_rgba(245,158,11,0.07)] sm:px-10 sm:py-20">
-        <div className="absolute inset-x-0 bottom-[-8rem] mx-auto h-52 max-w-3xl rounded-full bg-amber-400/15 blur-[90px]" />
-        <div className="relative mx-auto max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-300">
-            Final step
-          </p>
-          <h2 className="mt-4 text-4xl font-semibold tracking-[-0.035em] text-white sm:text-5xl">
-            Everything looks good?
-          </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-            We will combine your expertise with your imported website knowledge,
-            organize it into a reviewable knowledge pack, and prepare your AI.
-          </p>
-          <button
-            type="button"
-            disabled={!valid || importing}
-            onClick={onBuild}
-            className="mt-9 min-w-64 rounded-2xl border border-amber-200/50 bg-amber-300 px-8 py-4 text-lg font-bold text-[#101827] shadow-[0_18px_50px_rgba(245,158,11,0.22)] transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-          >
-            Build My AI
-          </button>
-          {!valid ? (
-            <p className="mt-4 text-sm text-slate-500">
-              Add your business name, industry, products or services, and ideal
-              customers to continue.
+        <div className="mt-5 grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="rounded-[28px] border border-white/10 bg-[#030713] px-6 py-7 text-center sm:px-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+              Communication style
             </p>
-          ) : (
-            <p className="mt-4 text-sm text-emerald-300/80">Ready to build.</p>
-          )}
+            <h3 className="mt-2 text-2xl font-semibold text-white">
+              How should your AI sound?
+            </h3>
+            <select
+              className={`${inputClassName} mx-auto mt-5 max-w-xl text-center`}
+              value={value.tone}
+              onChange={(event) => updateProfile("tone", event.target.value)}
+            >
+              <option>Professional</option>
+              <option>Friendly</option>
+              <option>Consultative</option>
+              <option>Direct</option>
+              <option>Warm</option>
+            </select>
+          </div>
+
+          <section className="relative overflow-hidden rounded-[28px] border border-amber-300/25 bg-[#030713] px-6 py-7 text-center shadow-[0_24px_80px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8">
+            <div className="absolute inset-x-0 bottom-[-7rem] mx-auto h-40 max-w-xl rounded-full bg-amber-400/12 blur-[80px]" />
+            <div className="relative flex h-full flex-col items-center justify-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
+                Final step
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.03em] text-white">
+                Everything look good?
+              </h2>
+              <p className="mt-3 text-sm text-slate-400">
+                Review your setup, then build your AI.
+              </p>
+              <button
+                type="button"
+                disabled={!valid || importing}
+                onClick={onBuild}
+                className="mt-5 min-w-52 rounded-2xl border border-amber-200/50 bg-amber-300 px-6 py-3.5 font-bold text-[#101827] shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+              >
+                Build My AI
+              </button>
+              {!valid ? (
+                <p className="mt-3 max-w-sm text-xs leading-5 text-slate-500">
+                  Add your business name, industry, products or services, and ideal
+                  customers to continue.
+                </p>
+              ) : (
+                <p className="mt-3 text-xs text-emerald-300/80">Ready to build.</p>
+              )}
+            </div>
+          </section>
         </div>
       </section>
 
@@ -445,9 +443,9 @@ function Metric({
 }) {
   return (
     <div
-      className={`rounded-2xl border border-white/[0.07] bg-black/10 p-4 ${className}`}
+      className={`rounded-2xl border border-white/[0.07] bg-black/10 p-3 ${className}`}
     >
-      <p className="text-xl font-semibold text-white">{value}</p>
+      <p className="text-lg font-semibold text-white">{value}</p>
       <p className="mt-1 text-xs text-slate-500">{label}</p>
     </div>
   );
@@ -511,7 +509,7 @@ function Status({
 }) {
   return (
     <div
-      className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+      className={`mx-auto mt-4 max-w-3xl rounded-xl border px-4 py-3 text-sm ${
         tone === "success"
           ? "border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-200"
           : "border-red-400/20 bg-red-400/[0.07] text-red-200"
