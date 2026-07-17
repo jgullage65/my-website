@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import AiBuilderShell from "./AiBuilderShell";
-import AiBuilderWelcome from "./AiBuilderWelcome";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
@@ -41,13 +40,7 @@ export type BuilderState = {
   websiteKnowledge: WebsiteKnowledge | null;
 };
 
-type BuilderStep =
-  | "welcome"
-  | "form"
-  | "building"
-  | "results"
-  | "review"
-  | "chat";
+type BuilderStep = "form" | "building" | "results" | "review" | "chat";
 
 const initial: BuilderState = {
   businessName: "",
@@ -63,7 +56,7 @@ const initial: BuilderState = {
 };
 
 export default function AiBuilderClient() {
-  const [step, setStep] = useState<BuilderStep>("welcome");
+  const [step, setStep] = useState<BuilderStep>("form");
   const [builder, setBuilder] = useState(initial);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -120,10 +113,6 @@ export default function AiBuilderClient() {
 
   return (
     <AiBuilderShell>
-      {step === "welcome" && (
-        <AiBuilderWelcome onContinue={() => setStep("form")} />
-      )}
-
       {step === "form" && (
         <>
           {error ? (
