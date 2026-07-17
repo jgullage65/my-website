@@ -44,7 +44,7 @@ const pricingSections: readonly PricingSection[] = [
         details: [
           "Up to 3 pages",
           "Mobile-first layout",
-          "Contact form and core business details",
+          "Core business details",
         ],
       },
       {
