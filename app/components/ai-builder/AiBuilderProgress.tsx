@@ -64,16 +64,16 @@ export default function AiBuilderProgress({
                 key={`${message}-${index}`}
                 className="rounded-[22px] border border-white/[0.08] bg-black/20 p-5 shadow-inner shadow-black/20"
               >
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-left text-sm font-semibold text-white sm:text-base">
+                <div className="flex flex-col items-center justify-center gap-2 text-center">
+                  <span className={`text-sm font-semibold sm:text-base ${complete ? "text-amber-300" : "text-white"}`}>
                     {completed ? "✓ " : ""}
                     {message}
                   </span>
 
                   {!complete ? (
-                    <span className="shrink-0 text-xs font-bold text-amber-300">{Math.round(stepPercent)}%</span>
+                    <span className="text-xs font-bold text-amber-300">{Math.round(stepPercent)}%</span>
                   ) : typeof count === "number" ? (
-                    <span className="shrink-0 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-bold text-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.08)]">
+                    <span className="text-sm font-bold text-amber-300">
                       {count}
                     </span>
                   ) : null}

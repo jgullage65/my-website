@@ -224,47 +224,19 @@ export default function AiBuilderDemoChat({
               key={item.id}
               className={
                 item.role === "user"
-                  ? "ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md border border-amber-300/20 bg-[#17223a] px-4 py-3 text-sm font-medium leading-6 text-slate-100 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
-                  : "w-fit max-w-[85%] rounded-2xl rounded-bl-md border border-white/[0.08] bg-[#081226] px-4 py-3 text-sm leading-6 text-slate-200 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
+                  ? "ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md border border-amber-300/25 bg-[#07101f] px-4 py-3 text-sm font-medium leading-6 text-slate-100 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
+                  : "w-fit max-w-[85%] rounded-2xl rounded-bl-md border border-amber-300/25 bg-[#050b18] px-4 py-3 text-sm leading-6 text-slate-200 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
               }
             >
               <p className="whitespace-pre-wrap">
                 {item.content}
               </p>
 
-              {item.role === "assistant" &&
-              item.diagnostics ? (
-                <details className="mt-3 border-t border-white/[0.08] pt-3">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.14em] text-amber-300/70">
-                    Grounding details
-                  </summary>
-
-                  <div className="mt-2 space-y-2 text-xs text-slate-400">
-                    <p>
-                      {item.diagnostics.retrievedFacts} facts
-                      and{" "}
-                      {item.diagnostics.retrievedFaq} FAQ
-                      entries retrieved.
-                    </p>
-
-                    {item.citations?.map(
-                      (citation, index) => (
-                        <p
-                          key={`${item.id}-citation-${index}`}
-                          className="rounded-xl border border-white/[0.07] bg-white/[0.025] p-3"
-                        >
-                          {citation}
-                        </p>
-                      ),
-                    )}
-                  </div>
-                </details>
-              ) : null}
             </div>
           ))}
 
           {sending ? (
-            <div className="flex min-h-[48px] w-fit max-w-[85%] items-center gap-3 rounded-2xl rounded-bl-md border border-white/[0.08] bg-[#081226] px-4 py-3 text-sm text-slate-400 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]">
+            <div className="flex min-h-[48px] w-fit max-w-[85%] items-center gap-3 rounded-2xl rounded-bl-md border border-amber-300/25 bg-[#050b18] px-4 py-3 text-sm text-slate-400 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]">
               <span>{knowledge.assistantName} is thinking</span>
               <span className="flex gap-1" aria-hidden="true"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70" /><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70 [animation-delay:150ms]" /><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70 [animation-delay:300ms]" /></span>
             </div>
@@ -288,7 +260,7 @@ export default function AiBuilderDemoChat({
             </div>
           ) : null}
 
-          <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-white/[0.08] bg-[#07101f] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">
+          <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-amber-300/25 bg-[#050b18] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">
             <textarea
               rows={2}
               value={message}

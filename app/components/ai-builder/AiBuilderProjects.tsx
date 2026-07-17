@@ -76,7 +76,7 @@ export default function AiBuilderProjects() {
 
   return (
     <AiBuilderShell>
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-6xl rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <div className="text-center">
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
           <h1 className="mt-3 text-3xl font-black tracking-[-.045em] text-white sm:text-5xl">Your <span className="text-[var(--gold)]">Projects</span></h1>
