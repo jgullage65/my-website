@@ -273,8 +273,16 @@ export async function POST(request: Request) {
     websiteAdditionalKnowledge,
   );
 
-  try {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: Record<string, unknown>) =>
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+
+      try {
+    send({ type: "progress", percent: 0 });
     const initialMemory = buildEmptyConversationMemory(threadId);
+    send({ type: "progress", percent: 20 });
     const session = await runEngine({
       request: {
         sessionId,
@@ -297,12 +305,14 @@ export async function POST(request: Request) {
         runIntakeModel: runOpenAiIntakeModel,
       },
     });
+    send({ type: "progress", percent: 80 });
 
     session.assistantConfiguration = {
       ...session.assistantConfiguration,
       name: assistantName,
       tone,
     };
+    send({ type: "progress", percent: 90 });
 
     await persistAiBuilderProject({
       session,
@@ -314,32 +324,39 @@ export async function POST(request: Request) {
         memory: initialMemory,
       },
     });
+    send({ type: "progress", percent: 100 });
 
-    return NextResponse.json({
+    send({
+      type: "result",
       ok: true,
       projectId: session.id,
       session,
     });
-  } catch (error) {
+      } catch (error) {
     const message =
       error instanceof Error ? error.message : "unknown_error";
 
     if (message === "openai_api_key_missing") {
-      return errorResponse(
-        503,
-        "openai_not_configured",
-        "The AI builder is not configured yet.",
-      );
+      send({ type: "error", error: { code: "openai_not_configured", message: "The AI builder is not configured yet." } });
+      controller.close();
+      return;
     }
 
     console.error("AI_BUILDER_INTAKE_FAILED", {
       message,
     });
 
-    return errorResponse(
-      500,
-      "intake_failed",
-      "The AI builder could not process this business information.",
-    );
-  }
+    send({ type: "error", error: { code: "intake_failed", message: "The AI builder could not process this business information." } });
+      } finally {
+        try { controller.close(); } catch {}
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+    },
+  });
 }

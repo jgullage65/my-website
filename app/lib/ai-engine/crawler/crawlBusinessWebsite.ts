@@ -363,6 +363,7 @@ function discoverInternalLinks(
 
 export async function crawlBusinessWebsite(
   websiteUrl: string,
+  onPage?: (completedPages: number, maximumPages: number) => void,
 ): Promise<BusinessWebsiteCrawlResult> {
   const requested = normalizeInputUrl(websiteUrl);
   await assertSafeDestination(requested);
@@ -411,6 +412,7 @@ export async function crawlBusinessWebsite(
         pageType: inferPageType(fetched.resolvedUrl, title),
         text,
       });
+      onPage?.(pages.length, MAX_PAGES);
 
       const discoveredLinks = discoverInternalLinks(
         fetched.html,

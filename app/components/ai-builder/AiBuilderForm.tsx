@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import type {
   BuilderState,
@@ -28,6 +29,11 @@ type WebsiteImportPayload = {
   error?: { message?: string };
 };
 
+type WebsiteImportEvent =
+  | { type: "progress"; percent: number }
+  | ({ type: "result" } & WebsiteImportPayload)
+  | { type: "error"; error?: { message?: string } };
+
 const inputClassName =
   "w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3.5 text-center text-[15px] text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
 
@@ -36,6 +42,7 @@ const bottomCardClassName =
 
 export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [showWebsiteKnowledge, setShowWebsiteKnowledge] = useState(false);
@@ -60,6 +67,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
     if (!website || importing) return;
 
     setImporting(true);
+    setImportProgress(0);
     setImportError(null);
     setImportMessage(null);
 
@@ -69,9 +77,38 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ website }),
       });
-      const payload = (await response.json()) as WebsiteImportPayload;
+      if (!response.ok || !response.body) {
+        const payload = (await response.json()) as WebsiteImportPayload;
+        throw new Error(payload.error?.message || "The website could not be imported.");
+      }
 
-      if (!response.ok || !payload.ok || !payload.import) {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let payload: WebsiteImportPayload | null = null;
+
+      while (true) {
+        const { done, value: chunk } = await reader.read();
+        buffer += decoder.decode(chunk, { stream: !done });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as WebsiteImportEvent;
+          if (event.type === "progress") {
+            setImportProgress(event.percent);
+          } else if (event.type === "error") {
+            throw new Error(event.error?.message || "The website could not be imported.");
+          } else if (event.type === "result") {
+            payload = event;
+          }
+        }
+
+        if (done) break;
+      }
+
+      if (!payload?.ok || !payload.import) {
         throw new Error(
           payload.error?.message || "The website could not be imported.",
         );
@@ -135,10 +172,9 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   return (
     <div className="space-y-20 pb-8 sm:space-y-24">
       <section className="mx-auto max-w-4xl pt-8 text-center sm:pt-12">
-        <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/[0.07] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_14px_rgba(252,211,77,0.9)]" />
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
           AI Builder
-        </div>
+        </p>
         <h1 className="text-balance text-4xl font-semibold tracking-[-0.04em] text-white sm:text-6xl lg:text-7xl">
           Build Your <span className="text-amber-300">Business AI</span>
         </h1>
@@ -146,11 +182,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           Train an AI assistant that truly understands your business. Import your
           website, teach it what only you know, and launch in minutes.
         </p>
-        <div className="mx-auto mt-10 grid max-w-2xl gap-3 text-sm text-slate-400 sm:grid-cols-3">
-          <HeroPoint number="01" label="Connect knowledge" />
-          <HeroPoint number="02" label="Add your expertise" />
-          <HeroPoint number="03" label="Build your AI" />
-        </div>
+        <Link href="/ai-builder" className="mt-8 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">← All Projects</Link>
       </section>
 
       <section>
@@ -217,10 +249,10 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 type="button"
                 disabled={!value.website.trim() || importing}
                 onClick={importWebsite}
-                className="mx-auto w-full max-w-xs rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-3.5 font-semibold text-white shadow-[0_12px_30px_rgba(245,158,11,0.18)] transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-45"
+                className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
               >
                 {importing
-                  ? "Importing..."
+                  ? `Importing… ${importProgress}%`
                   : value.websiteKnowledge
                     ? "Re-import Website"
                     : "Import Website"}
@@ -404,15 +436,6 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           onClose={() => setShowWebsiteKnowledge(false)}
         />
       ) : null}
-    </div>
-  );
-}
-
-function HeroPoint({ number, label }: { number: string; label: string }) {
-  return (
-    <div className="flex items-center justify-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.025] px-4 py-2.5">
-      <span className="text-xs font-bold text-amber-300">{number}</span>
-      <span>{label}</span>
     </div>
   );
 }

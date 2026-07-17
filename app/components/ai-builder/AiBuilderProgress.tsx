@@ -5,6 +5,7 @@ type Props = {
   builder: BuilderState;
   session: AiBuilderSession | null;
   complete: boolean;
+  percent: number;
   onReview: () => void;
 };
 
@@ -23,6 +24,7 @@ export default function AiBuilderProgress({
   builder,
   session,
   complete,
+  percent,
   onReview,
 }: Props) {
   const progress = session?.buildProgress ?? [];
@@ -52,8 +54,10 @@ export default function AiBuilderProgress({
           {(complete ? progress : pendingSteps).map((item, index) => {
             const message = typeof item === "string" ? item : item.message;
             const count = typeof item === "string" ? null : item.count;
-            const completed =
-              complete || (typeof item !== "string" && item.completed);
+            const stepPercent = complete
+              ? 100
+              : Math.max(0, Math.min(100, (percent - index * 20) * 5));
+            const completed = stepPercent === 100 || (typeof item !== "string" && item.completed);
 
             return (
               <article
@@ -66,7 +70,9 @@ export default function AiBuilderProgress({
                     {message}
                   </span>
 
-                  {typeof count === "number" ? (
+                  {!complete ? (
+                    <span className="shrink-0 text-xs font-bold text-amber-300">{Math.round(stepPercent)}%</span>
+                  ) : typeof count === "number" ? (
                     <span className="shrink-0 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-bold text-amber-300 shadow-[0_0_18px_rgba(245,158,11,0.08)]">
                       {count}
                     </span>
@@ -74,13 +80,7 @@ export default function AiBuilderProgress({
                 </div>
 
                 <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/[0.08]">
-                  <div
-                    className={
-                      completed
-                        ? "h-full w-full rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.35)]"
-                        : "h-full w-1/3 animate-pulse rounded-full bg-gradient-to-r from-amber-700 via-amber-500 to-amber-400"
-                    }
-                  />
+                  <div className="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.35)] transition-[width] duration-300" style={{ width: `${stepPercent}%` }} />
                 </div>
               </article>
             );

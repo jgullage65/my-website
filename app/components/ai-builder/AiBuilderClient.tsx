@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
@@ -143,6 +142,7 @@ export default function AiBuilderClient({
   const [saveError, setSaveError] = useState<string | null>(
     null,
   );
+  const [buildPercent, setBuildPercent] = useState(0);
 
   const knowledgePack = useMemo(
     () =>
@@ -282,6 +282,7 @@ export default function AiBuilderClient({
     setReviewChangesPending(false);
     setSession(null);
     setChatThread(null);
+    setBuildPercent(0);
     setStep("building");
 
     try {
@@ -293,7 +294,15 @@ export default function AiBuilderClient({
         body: JSON.stringify(builder),
       });
 
-      const payload = (await response.json()) as {
+      if (!response.ok || !response.body) {
+        const payload = (await response.json()) as { error?: { message?: string } };
+        throw new Error(payload.error?.message || "The AI builder could not process this information.");
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let payload: {
         ok?: boolean;
         projectId?: string;
         session?: AiBuilderSession;
@@ -301,9 +310,31 @@ export default function AiBuilderClient({
           code?: string;
           message?: string;
         };
-      };
+      } | null = null;
 
-      if (!response.ok || !payload.ok || !payload.session) {
+      while (true) {
+        const { done, value: chunk } = await reader.read();
+        buffer += decoder.decode(chunk, { stream: !done });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as {
+            type: "progress" | "result" | "error";
+            percent?: number;
+            ok?: boolean;
+            projectId?: string;
+            session?: AiBuilderSession;
+            error?: { message?: string };
+          };
+          if (event.type === "progress") setBuildPercent(event.percent ?? 0);
+          if (event.type === "error") throw new Error(event.error?.message || "The AI builder could not process this information.");
+          if (event.type === "result") payload = event;
+        }
+        if (done) break;
+      }
+
+      if (!payload?.ok || !payload.session) {
         throw new Error(
           payload.error?.message ||
             "The AI builder could not process this information.",
@@ -355,14 +386,6 @@ export default function AiBuilderClient({
 
   return (
     <AiBuilderShell>
-      <div className="mx-auto mb-5 flex max-w-5xl justify-end">
-        <Link
-          href="/ai-builder"
-          className="rounded-lg border border-amber-300/20 bg-[#081226] px-4 py-2 text-xs font-black text-slate-300 transition hover:border-amber-300/40 hover:text-amber-200"
-        >
-          ← All Projects
-        </Link>
-      </div>
       {step === "loading" ? (
         <div className="mx-auto max-w-3xl rounded-[30px] border border-amber-300/20 bg-[#030713] px-6 py-12 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]">
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-300">
@@ -396,6 +419,7 @@ export default function AiBuilderClient({
           builder={builder}
           session={null}
           complete={false}
+          percent={buildPercent}
           onReview={() => undefined}
         />
       )}
@@ -405,6 +429,7 @@ export default function AiBuilderClient({
           builder={builder}
           session={session}
           complete
+          percent={100}
           onReview={() => setStep("review")}
         />
       ) : null}

@@ -56,8 +56,21 @@ export async function POST(request: Request) {
     return errorResponse(503, "openai_not_configured", "The AI builder is not configured yet.");
   }
 
-  try {
-    const crawl = await crawlBusinessWebsite(website);
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: Record<string, unknown>) =>
+        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+
+      try {
+    send({ type: "progress", percent: 5 });
+    const crawl = await crawlBusinessWebsite(website, (completed, maximum) => {
+      send({
+        type: "progress",
+        percent: Math.min(65, 10 + Math.round((completed / maximum) * 55)),
+      });
+    });
+    send({ type: "progress", percent: 70 });
     const client = new OpenAI({ apiKey });
     const model = process.env.AI_BUILDER_CRAWLER_MODEL?.trim() || "gpt-5-mini";
 
@@ -78,6 +91,7 @@ export async function POST(request: Request) {
       .join("\n\n---\n\n")
       .slice(0, 60_000);
 
+    send({ type: "progress", percent: 75 });
     const response = await client.responses.create({
       model,
       instructions: [
@@ -109,7 +123,9 @@ export async function POST(request: Request) {
       additionalKnowledge: string;
     };
 
-    return NextResponse.json({
+    send({ type: "progress", percent: 100 });
+    send({
+      type: "result",
       ok: true,
       import: {
         businessName: normalizeText(extracted.businessName),
@@ -126,14 +142,26 @@ export async function POST(request: Request) {
       })),
       warnings: crawl.warnings,
     });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "The website could not be imported.";
-    console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website, message });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "The website could not be imported.";
+        console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website, message });
+        send({
+          type: "error",
+          error: {
+            code: "website_import_failed",
+            message: message || "The website could not be imported.",
+          },
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
 
-    return errorResponse(
-      422,
-      "website_import_failed",
-      message || "The website could not be imported.",
-    );
-  }
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+    },
+  });
 }
