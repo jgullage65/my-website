@@ -323,15 +323,22 @@ a {
   outline-offset: 2px;
 }
 
-:where(button, a[href])[class*="border-amber-300/15"] {
-  border-color: rgba(212, 175, 55, 0.15);
+a[href][class*="border-amber-300/15"],
+button[class*="border-amber-300/15"]:not(:disabled) {
+  border-width: 2px;
+  border-color: #d4af37;
+  background-color: #030713;
   box-shadow: none;
 }
 
-:where(button, a[href])[class*="border-amber-300/15"]:hover,
-:where(button, a[href])[class*="border-amber-300/15"]:focus,
-:where(button, a[href])[class*="border-amber-300/15"]:active {
-  border-color: rgba(212, 175, 55, 0.3);
+a[href][class*="border-amber-300/15"]:hover,
+a[href][class*="border-amber-300/15"]:focus,
+a[href][class*="border-amber-300/15"]:active,
+button[class*="border-amber-300/15"]:not(:disabled):hover,
+button[class*="border-amber-300/15"]:not(:disabled):focus,
+button[class*="border-amber-300/15"]:not(:disabled):active {
+  border-color: #e1bd45;
+  background-color: #050b18;
 }
 
 a[href][class*="border-amber-300/15"]:hover,
@@ -340,7 +347,9 @@ button[class*="border-amber-300/15"]:not(:disabled):hover {
 }
 
 button[role="tab"][aria-selected="true"] {
-  border-color: rgba(212, 175, 55, 0.3);
+  border-width: 2px;
+  border-color: #d4af37;
+  background-color: #030713;
   box-shadow: none;
 }
 
