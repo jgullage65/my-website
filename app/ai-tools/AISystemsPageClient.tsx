@@ -45,7 +45,7 @@ const capabilityGroups = [
   },
   {
     number: "03",
-    title: "Custom systems built around the business",
+    title: "Custom business systems",
     items: [
       "Client Portals",
       "Executive Dashboards",
@@ -122,7 +122,7 @@ export default function AISystemsPageClient() {
               <div className="grid grid-cols-[2.35rem_minmax(0,1fr)] items-start gap-4 lg:block">
                 <span className="pt-1 text-xs font-black tracking-[.18em] text-[var(--gold)] lg:block lg:pt-0">{group.number}</span>
                 <div className="lg:mt-5">
-                  <h3 className="text-xl font-black leading-tight tracking-[-.035em] text-white sm:text-2xl">{group.title}</h3>
+                  <h3 className="text-xl font-black leading-tight tracking-[-.035em] text-[var(--gold)] sm:text-2xl">{group.title}</h3>
                   <ul className="mt-5 grid grid-cols-1 gap-x-5 gap-y-3 md:grid-cols-2 lg:grid-cols-1 lg:gap-y-4">
                     {group.items.map((item) => (
                       <li key={item} className="grid grid-cols-[.45rem_max-content] items-start gap-2.5 whitespace-nowrap text-[.82rem] leading-5 text-slate-200 min-[390px]:text-sm sm:text-[.95rem] sm:leading-6">
