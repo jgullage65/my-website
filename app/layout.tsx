@@ -110,12 +110,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
         <div className="relative z-10 min-h-screen overflow-x-hidden">
           <header className="sticky top-0 z-50 border-b border-[rgba(212,175,55,0.16)] bg-[rgba(3,7,19,0.78)] backdrop-blur-xl">
-            <div className="mx-auto my-2 flex min-h-14 w-[calc(100%-1.5rem)] max-w-[90rem] items-center justify-between gap-5 rounded-2xl border border-[rgba(212,175,55,0.22)] bg-[rgba(5,12,27,0.88)] px-4 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.05)] sm:w-[calc(100%-3rem)] sm:px-5 lg:px-6">
+            <div className="relative mx-auto my-2 flex min-h-14 w-[calc(100%-1.5rem)] max-w-[90rem] items-center justify-between gap-5 rounded-2xl border border-[rgba(212,175,55,0.22)] bg-[rgba(5,12,27,0.88)] px-4 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.05)] sm:w-[calc(100%-3rem)] sm:px-5 lg:px-6">
               <Link href="/" className="group flex min-w-0 items-center gap-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[rgba(212,175,55,0.42)] bg-[linear-gradient(145deg,#101a43,#050b1d)] text-sm font-black tracking-[0.08em] text-[var(--gold)] shadow-[0_10px_26px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.06)] transition-transform duration-200 group-hover:-translate-y-0.5">
                   JG
                 </span>
-                <span className="min-w-0">
+                <span className="absolute left-1/2 top-1/2 min-w-0 -translate-x-1/2 -translate-y-1/2 text-center sm:static sm:translate-x-0 sm:translate-y-0 sm:text-left">
                   <span className="block truncate text-xs font-black uppercase tracking-[0.16em] text-white sm:text-sm">
                     JG Creative Studio
                   </span>
