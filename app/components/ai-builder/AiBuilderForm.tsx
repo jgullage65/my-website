@@ -17,12 +17,3 @@ type WebsiteImportPayload = {
   ok?: boolean;
   import?: {
     businessName?: string;
-    industry?: string;
-    website?: string;
-    productsServices?: string;
-    idealCustomers?: string;
-    additionalKnowledge?: string;
-  };
-  pages?: Array<{ url: string; title: string; pageType: string }>;
-  warnings?: string[];
-  error?: { message?: string
