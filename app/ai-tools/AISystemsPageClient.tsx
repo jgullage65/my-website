@@ -104,7 +104,7 @@ export default function AISystemsPageClient() {
           <p className="text-xs font-black uppercase tracking-[.34em] text-[var(--gold)]">AI Systems by JG Creative Studio</p>
           <h1 className="mx-auto mt-5 max-w-3xl text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-6xl xl:text-[5.35rem]">AI systems built for <span className="text-[var(--gold)]">real operations.</span></h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-[var(--muted)] sm:text-lg">JG Creative Studio designs and builds AI copilots, business automation, portals, dashboards, integrations, and custom software that help teams sell, support, operate, and scale with confidence.</p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"><GoldButton href="/ai-builder">Start an AI Systems Project</GoldButton><OutlineButton href="/services">View All Services</OutlineButton></div>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"><GoldButton href="/ai-builder">Launch AI Builder</GoldButton><OutlineButton href="/services">View All Services</OutlineButton></div>
         </motion.div>
         <motion.div variants={mediaIn} className="relative z-10">
           <div className="absolute -inset-6 rounded-[2.5rem] bg-[radial-gradient(circle_at_50%_80%,rgba(212,175,55,.18),transparent_55%)] blur-2xl" />

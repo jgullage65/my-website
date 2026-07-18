@@ -586,7 +586,7 @@ export default function AiBuilderDemoChat({
                 purchaseInterestSubmitted ||
                 purchaseInterestSubmitting
               }
-              className="cta-raised rounded-xl border border-amber-300/25 bg-amber-300/[0.08] px-4 py-2 text-xs font-bold text-amber-200 transition hover:border-amber-300/45 hover:bg-amber-300/[0.12] disabled:cursor-not-allowed disabled:border-emerald-300/20 disabled:bg-emerald-300/[0.07] disabled:text-emerald-200 disabled:opacity-80"
+              className="cta-raised rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-emerald-300/20 disabled:bg-emerald-300/[0.07] disabled:text-emerald-200 disabled:opacity-80 disabled:hover:translate-y-0"
             >
               {purchaseInterestSubmitted
                 ? "Purchase Request Sent ✓"
