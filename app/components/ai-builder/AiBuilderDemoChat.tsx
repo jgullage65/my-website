@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import {
+  FormEvent,
+  PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { KnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import type {
@@ -43,6 +50,11 @@ type ChatUsage = {
   userMessageCount: number;
   limit: number;
   remaining: number;
+};
+
+type ScrollbarMetrics = {
+  height: number;
+  top: number;
 };
 
 
@@ -126,6 +138,15 @@ export default function AiBuilderDemoChat({
     useState(false);
   const [purchaseInterestSubmitting, setPurchaseInterestSubmitting] =
     useState(false);
+  const [scrollbarMetrics, setScrollbarMetrics] =
+    useState<ScrollbarMetrics>({ height: 40, top: 0 });
+  const [scrollbarDragging, setScrollbarDragging] =
+    useState(false);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const scrollbarDragRef = useRef<{
+    pointerY: number;
+    scrollTop: number;
+  } | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   const chatUnavailable = !chatThread?.id;
@@ -135,6 +156,93 @@ export default function AiBuilderDemoChat({
     PROJECT_USER_MESSAGE_LIMIT - userMessageCount,
     0,
   );
+
+  const updateScrollbar = useCallback(() => {
+    const element = chatScrollRef.current;
+    if (!element) return;
+
+    const { clientHeight, scrollHeight, scrollTop } = element;
+    const height = Math.max(
+      40,
+      Math.min(clientHeight, (clientHeight / scrollHeight) * clientHeight),
+    );
+    const scrollRange = Math.max(scrollHeight - clientHeight, 0);
+    const thumbRange = Math.max(clientHeight - height, 0);
+    const top = scrollRange
+      ? (scrollTop / scrollRange) * thumbRange
+      : 0;
+
+    setScrollbarMetrics({ height, top });
+  }, []);
+
+  useEffect(() => {
+    const element = chatScrollRef.current;
+    if (!element) return;
+
+    updateScrollbar();
+    element.addEventListener("scroll", updateScrollbar, {
+      passive: true,
+    });
+
+    const resizeObserver = new ResizeObserver(updateScrollbar);
+    resizeObserver.observe(element);
+
+    return () => {
+      element.removeEventListener("scroll", updateScrollbar);
+      resizeObserver.disconnect();
+    };
+  }, [updateScrollbar]);
+
+  useEffect(() => {
+    window.requestAnimationFrame(updateScrollbar);
+  }, [messages, sending, updateScrollbar]);
+
+  const startScrollbarDrag = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    const element = chatScrollRef.current;
+    if (!element) return;
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    scrollbarDragRef.current = {
+      pointerY: event.clientY,
+      scrollTop: element.scrollTop,
+    };
+    setScrollbarDragging(true);
+  };
+
+  const dragScrollbar = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    const element = chatScrollRef.current;
+    const drag = scrollbarDragRef.current;
+    if (!element || !drag) return;
+
+    const scrollRange = Math.max(
+      element.scrollHeight - element.clientHeight,
+      0,
+    );
+    const thumbRange = Math.max(
+      element.clientHeight - scrollbarMetrics.height,
+      1,
+    );
+
+    element.scrollTop =
+      drag.scrollTop +
+      (event.clientY - drag.pointerY) *
+        (scrollRange / thumbRange);
+  };
+
+  const stopScrollbarDrag = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    scrollbarDragRef.current = null;
+    setScrollbarDragging(false);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -178,19 +286,28 @@ export default function AiBuilderDemoChat({
     });
   };
 
-  const showPurchaseInterestModal = async () => {
+  const showPurchaseInterestModal = async (
+    source: "limit" | "cta" = "limit",
+  ) => {
     if (purchaseInterestSubmitted) {
       await showAlreadySubmittedModal();
       return;
     }
 
     const confirmed = await showConfirm({
-      title: "Demo Complete",
+      title:
+        source === "cta"
+          ? "Purchase This AI Assistant"
+          : "Demo Complete",
       message:
-        "You have reached the 20-message demo limit for this AI assistant. If you would like to purchase it, send a request and we will contact you to discuss the next steps.",
+        source === "cta"
+          ? "You've seen how this AI assistant works and can request a custom version for your business.\n\nIf you submit a purchase request, we'll review your business, discuss your goals, and walk you through the next steps. There's no obligation, and we'll contact you to answer any questions before moving forward."
+          : "You have reached the 20-message demo limit for this AI assistant. If you would like to purchase it, send a request and we will contact you to discuss the next steps.",
       confirmLabel: purchaseInterestSubmitting
         ? "Sending..."
-        : "Discuss Purchasing",
+        : source === "cta"
+          ? "Send Purchase Request"
+          : "Discuss Purchasing",
       cancelLabel: "Cancel",
     });
 
@@ -384,7 +501,11 @@ export default function AiBuilderDemoChat({
       </section>
 
       <section className="overflow-hidden rounded-[30px] border border-white/10 bg-[#030713] shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
-        <div className="ai-builder-chat-scrollbar max-h-[620px] min-h-[500px] space-y-5 overflow-y-scroll p-4 sm:p-6">
+        <div className="relative">
+          <div
+            ref={chatScrollRef}
+            className="ai-builder-chat-scrollbar max-h-[620px] min-h-[500px] space-y-5 overflow-y-scroll p-4 pr-7 sm:p-6 sm:pr-9"
+          >
           {messages.map((item) => (
             <div
               key={item.id}
@@ -406,6 +527,28 @@ export default function AiBuilderDemoChat({
               <span className="flex gap-1" aria-hidden="true"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70" /><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70 [animation-delay:150ms]" /><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70 [animation-delay:300ms]" /></span>
             </div>
           ) : null}
+          </div>
+
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-3 border-l border-amber-300/15 bg-[#050b18]"
+            aria-hidden="true"
+          >
+            <div
+              onPointerDown={startScrollbarDrag}
+              onPointerMove={dragScrollbar}
+              onPointerUp={stopScrollbarDrag}
+              onPointerCancel={stopScrollbarDrag}
+              className={`pointer-events-auto absolute left-[2px] right-[2px] touch-none rounded-full bg-[#d4af37] hover:bg-amber-300 ${
+                scrollbarDragging
+                  ? "cursor-grabbing"
+                  : "cursor-grab"
+              }`}
+              style={{
+                height: `${scrollbarMetrics.height}px`,
+                transform: `translateY(${scrollbarMetrics.top}px)`,
+              }}
+            />
+          </div>
         </div>
 
         <form
@@ -428,7 +571,9 @@ export default function AiBuilderDemoChat({
           <div className="mx-auto mb-3 flex max-w-3xl flex-wrap items-center justify-between gap-3">
             <button
               type="button"
-              onClick={() => void showPurchaseInterestModal()}
+              onClick={() =>
+                void showPurchaseInterestModal("cta")
+              }
               disabled={
                 purchaseInterestSubmitted ||
                 purchaseInterestSubmitting
