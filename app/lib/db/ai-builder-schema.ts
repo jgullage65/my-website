@@ -18,8 +18,14 @@ async function createAiBuilderSchema() {
       context_counts JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL,
-      expires_at TIMESTAMPTZ
+      expires_at TIMESTAMPTZ,
+      archived_at TIMESTAMPTZ
     )
+  `;
+
+  await sql`
+    ALTER TABLE ai_builder_projects
+    ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ
   `;
 
   await sql`
@@ -125,6 +131,7 @@ async function createAiBuilderSchema() {
   `;
 
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_updated_at_idx ON ai_builder_projects(updated_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_archived_at_idx ON ai_builder_projects(archived_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_intake_blocks_project_idx ON ai_builder_intake_blocks(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_faq_entries_project_idx ON ai_builder_faq_entries(project_id)`;
