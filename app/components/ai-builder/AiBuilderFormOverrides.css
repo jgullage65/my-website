@@ -30,3 +30,10 @@
 .ai-builder-form > div > section > div:nth-of-type(3) > section:nth-child(2) > div.relative > p:not(:first-child) {
   display: none;
 }
+
+@media (max-width: 639px) {
+  .ai-builder-form select {
+    text-align: center;
+    text-align-last: center;
+  }
+}
