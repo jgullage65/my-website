@@ -339,6 +339,8 @@ a[href][class*="border-amber-300/15"]:not([role]):not([aria-label]),
 button[class*="border-amber-300/15"]:not(:disabled):not([role]):not([aria-label]),
 a[href].cta-raised,
 button.cta-raised:not(:disabled) {
+  border-width: 1px;
+  border-color: rgba(212, 175, 55, 0.38);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(212, 175, 55, 0.72);
 }
 
@@ -370,6 +372,17 @@ button[role="tab"][aria-selected="true"] {
   border-color: rgba(212, 175, 55, 0.28);
   background-color: #030713;
   box-shadow: none;
+}
+
+button[role="tab"].cta-raised:not(:disabled) {
+  border-width: 1px;
+  border-color: rgba(212, 175, 55, 0.38);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(212, 175, 55, 0.72);
+}
+
+button[role="tab"].cta-raised:not(:disabled):hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--gold);
 }
 
 button,

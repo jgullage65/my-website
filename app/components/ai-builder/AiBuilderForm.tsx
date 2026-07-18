@@ -269,7 +269,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <button
                 type="button"
                 onClick={() => setShowWebsiteKnowledge(true)}
-                className="mt-4 text-sm font-semibold text-amber-300 transition hover:text-amber-200"
+                className="cta-raised mt-4 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#0b1830]"
               >
                 View imported knowledge →
               </button>
@@ -634,4 +634,4 @@ function ReadOnlyBlock({
       </p>
     </section>
   );
-}            
+}
