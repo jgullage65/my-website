@@ -357,6 +357,14 @@ button[class*="border-amber-300/15"]:not(:disabled):hover {
   color: var(--gold);
 }
 
+a[href][class*="border-amber-300/15"]:not([role]):not([aria-label]):hover,
+button[class*="border-amber-300/15"]:not(:disabled):not([role]):not([aria-label]):hover,
+a[href].cta-raised:hover,
+button.cta-raised:not(:disabled):hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--gold);
+}
+
 button[role="tab"][aria-selected="true"] {
   border-width: 0.5px;
   border-color: rgba(212, 175, 55, 0.28);
