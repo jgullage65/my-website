@@ -28,6 +28,11 @@ async function createAiBuilderSchema() {
     ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ
   `;
 
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS owner_name TEXT`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS owner_email TEXT`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_status TEXT`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_fields JSONB NOT NULL DEFAULT '{}'::jsonb`;
+
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_intake_blocks (
       id TEXT PRIMARY KEY,
@@ -134,11 +139,57 @@ async function createAiBuilderSchema() {
     CREATE TABLE IF NOT EXISTS ai_builder_purchase_interest (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL UNIQUE REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      status TEXT NOT NULL DEFAULT 'new',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
 
+  await sql`ALTER TABLE ai_builder_purchase_interest ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'new'`;
+  await sql`ALTER TABLE ai_builder_purchase_interest ADD COLUMN IF NOT EXISTS follow_up_stage TEXT NOT NULL DEFAULT 'new'`;
+  await sql`ALTER TABLE ai_builder_purchase_interest ADD COLUMN IF NOT EXISTS internal_comments TEXT`;
+  await sql`ALTER TABLE ai_builder_purchase_interest ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_admin_notes (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      content TEXT NOT NULL,
+      author_id TEXT NOT NULL,
+      author_email TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_communications (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      email_type TEXT NOT NULL,
+      recipient_email TEXT,
+      delivery_status TEXT NOT NULL,
+      provider_message_id TEXT,
+      sent_at TIMESTAMPTZ NOT NULL,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_impersonation_events (
+      id TEXT PRIMARY KEY,
+      admin_id TEXT NOT NULL,
+      admin_email TEXT NOT NULL,
+      customer_id TEXT NOT NULL,
+      customer_email TEXT,
+      project_id TEXT,
+      event_type TEXT NOT NULL,
+      occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+    )
+  `;
+
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_updated_at_idx ON ai_builder_projects(updated_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_owner_email_idx ON ai_builder_projects(owner_email)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_archived_at_idx ON ai_builder_projects(archived_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_intake_blocks_project_idx ON ai_builder_intake_blocks(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;
@@ -149,6 +200,9 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_chat_threads_project_idx ON ai_builder_chat_threads(project_id, updated_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_chat_messages_thread_idx ON ai_builder_chat_messages(thread_id, created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_purchase_interest_created_at_idx ON ai_builder_purchase_interest(created_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_admin_notes_project_idx ON ai_builder_admin_notes(project_id, created_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_communications_project_idx ON ai_builder_communications(project_id, sent_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_impersonation_events_admin_idx ON ai_builder_impersonation_events(admin_id, occurred_at DESC)`;
 }
 
 export function ensureAiBuilderSchema(): Promise<void> {
