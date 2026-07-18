@@ -312,6 +312,7 @@ export async function getAiBuilderProject(
     SELECT *
     FROM ai_builder_projects
     WHERE id = ${projectId}
+      AND archived_at IS NULL
     LIMIT 1
   `) as DatabaseRow[];
 
@@ -444,6 +445,7 @@ export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]
     FROM ai_builder_projects projects
     LEFT JOIN ai_builder_chat_threads threads ON threads.project_id = projects.id
     LEFT JOIN ai_builder_chat_messages messages ON messages.thread_id = threads.id
+    WHERE projects.archived_at IS NULL
     GROUP BY projects.id
     ORDER BY projects.updated_at DESC
   `) as DatabaseRow[];
@@ -470,16 +472,21 @@ export async function renameAiBuilderProject(
     UPDATE ai_builder_projects
     SET business_name = ${businessName}, updated_at = NOW()
     WHERE id = ${projectId}
+      AND archived_at IS NULL
     RETURNING id
   `) as DatabaseRow[];
   return Boolean(rows[0]);
 }
 
-export async function deleteAiBuilderProject(projectId: string): Promise<boolean> {
+export async function archiveAiBuilderProject(projectId: string): Promise<boolean> {
   await ensureAiBuilderSchema();
   const sql = getSql();
   const rows = (await sql`
-    DELETE FROM ai_builder_projects WHERE id = ${projectId} RETURNING id
+    UPDATE ai_builder_projects
+    SET archived_at = NOW(), updated_at = NOW()
+    WHERE id = ${projectId}
+      AND archived_at IS NULL
+    RETURNING id
   `) as DatabaseRow[];
   return Boolean(rows[0]);
 }

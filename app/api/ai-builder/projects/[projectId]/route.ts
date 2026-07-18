@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import {
-  deleteAiBuilderProject,
+  archiveAiBuilderProject,
   getAiBuilderProject,
   renameAiBuilderProject,
 } from "@/app/lib/db/ai-builder-repository";
@@ -105,22 +105,18 @@ export async function GET(_request: Request, context: RouteContext) {
 
           const citations = Array.isArray(metadata.citations)
             ? metadata.citations.filter(
-                (citation): citation is string =>
-                  typeof citation === "string",
+                (citation): citation is string => typeof citation === "string",
               )
             : undefined;
 
           const rawDiagnostics =
-            metadata.diagnostics &&
-            typeof metadata.diagnostics === "object"
+            metadata.diagnostics && typeof metadata.diagnostics === "object"
               ? (metadata.diagnostics as Record<string, unknown>)
               : null;
 
           const diagnostics = rawDiagnostics
             ? {
-                retrievedFacts: Number(
-                  rawDiagnostics.retrievedFacts ?? 0,
-                ),
+                retrievedFacts: Number(rawDiagnostics.retrievedFacts ?? 0),
                 retrievedFaq: Number(rawDiagnostics.retrievedFaq ?? 0),
                 retrievalMs: Number(rawDiagnostics.retrievalMs ?? 0),
               }
@@ -129,9 +125,7 @@ export async function GET(_request: Request, context: RouteContext) {
           return {
             id: String(row.id),
             role:
-              row.role === "user"
-                ? ("user" as const)
-                : ("assistant" as const),
+              row.role === "user" ? ("user" as const) : ("assistant" as const),
             content: String(row.content),
             citations,
             diagnostics,
@@ -197,10 +191,7 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   }
 
-  if (
-    !Array.isArray(session.contextEntries) ||
-    !Array.isArray(session.faqEntries)
-  ) {
+  if (!Array.isArray(session.contextEntries) || !Array.isArray(session.faqEntries)) {
     return errorResponse(
       400,
       "invalid_session",
@@ -216,6 +207,7 @@ export async function PUT(request: Request, context: RouteContext) {
       SELECT id
       FROM ai_builder_projects
       WHERE id = ${normalizedProjectId}
+        AND archived_at IS NULL
       LIMIT 1
     `) as Array<Record<string, unknown>>;
 
@@ -236,6 +228,7 @@ export async function PUT(request: Request, context: RouteContext) {
         updated_at = ${session.updatedAt}::timestamptz,
         expires_at = ${session.expiresAt}::timestamptz
       WHERE id = ${normalizedProjectId}
+        AND archived_at IS NULL
     `;
 
     await Promise.all(
@@ -309,25 +302,58 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   try {
     const renamed = await renameAiBuilderProject(normalizedProjectId, businessName);
-    if (!renamed) return errorResponse(404, "project_not_found", "This AI Builder project could not be found.");
-    return NextResponse.json({ ok: true, projectId: normalizedProjectId, businessName });
+    if (!renamed) {
+      return errorResponse(
+        404,
+        "project_not_found",
+        "This AI Builder project could not be found.",
+      );
+    }
+    return NextResponse.json({
+      ok: true,
+      projectId: normalizedProjectId,
+      businessName,
+    });
   } catch (error) {
-    console.error("AI_BUILDER_PROJECT_RENAME_FAILED", { projectId: normalizedProjectId, message: error instanceof Error ? error.message : "unknown_error" });
-    return errorResponse(500, "project_rename_failed", "The project could not be renamed.");
+    console.error("AI_BUILDER_PROJECT_RENAME_FAILED", {
+      projectId: normalizedProjectId,
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
+    return errorResponse(
+      500,
+      "project_rename_failed",
+      "The project could not be renamed.",
+    );
   }
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
   const { projectId } = await context.params;
   const normalizedProjectId = normalizeProjectId(projectId);
-  if (!normalizedProjectId) return errorResponse(400, "missing_project_id", "A project ID is required.");
+
+  if (!normalizedProjectId) {
+    return errorResponse(400, "missing_project_id", "A project ID is required.");
+  }
 
   try {
-    const deleted = await deleteAiBuilderProject(normalizedProjectId);
-    if (!deleted) return errorResponse(404, "project_not_found", "This AI Builder project could not be found.");
-    return NextResponse.json({ ok: true });
+    const archived = await archiveAiBuilderProject(normalizedProjectId);
+    if (!archived) {
+      return errorResponse(
+        404,
+        "project_not_found",
+        "This AI Builder project could not be found.",
+      );
+    }
+    return NextResponse.json({ ok: true, archived: true });
   } catch (error) {
-    console.error("AI_BUILDER_PROJECT_DELETE_FAILED", { projectId: normalizedProjectId, message: error instanceof Error ? error.message : "unknown_error" });
-    return errorResponse(500, "project_delete_failed", "The project could not be deleted.");
+    console.error("AI_BUILDER_PROJECT_ARCHIVE_FAILED", {
+      projectId: normalizedProjectId,
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
+    return errorResponse(
+      500,
+      "project_archive_failed",
+      "The project could not be archived.",
+    );
   }
 }
