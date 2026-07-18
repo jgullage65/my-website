@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { BuilderState } from "./AiBuilderClient";
 
@@ -95,13 +96,22 @@ export default function AiBuilderProgress({
               <Stat value={session.conflicts.length} label="Conflicts" />
             </div>
 
-            <button
-              type="button"
-              onClick={onReview}
-              className="mt-6 w-full rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-4 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
-            >
-              Review business knowledge
-            </button>
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
+              <Link
+                href="/ai-builder"
+                className="flex min-h-[56px] items-center justify-center rounded-2xl border border-amber-300/15 bg-[#081226] px-3 py-4 text-center text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.14)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:px-5 sm:text-base"
+              >
+                Return to Projects
+              </Link>
+
+              <button
+                type="button"
+                onClick={onReview}
+                className="min-h-[56px] rounded-2xl border border-amber-300/15 bg-[#081226] px-3 py-4 text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:px-5 sm:text-base"
+              >
+                Review business knowledge
+              </button>
+            </div>
           </div>
         ) : null}
       </section>
