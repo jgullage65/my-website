@@ -146,6 +146,17 @@ export default function AiBuilderClient({
 
   const navigateToStep = useCallback((nextStep: BuilderStep) => {
     setStep(nextStep);
+
+    if (
+      nextStep === "results" ||
+      nextStep === "review" ||
+      nextStep === "chat"
+    ) {
+      const url = new URL(window.location.href);
+      url.searchParams.set("step", nextStep);
+      window.history.replaceState(null, "", url.toString());
+    }
+
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     });
@@ -201,7 +212,15 @@ export default function AiBuilderClient({
         }));
         setSession(payload.session);
         setChatThread(payload.chatThread ?? null);
-        setStep("results");
+
+        const requestedStep = new URL(
+          window.location.href,
+        ).searchParams.get("step");
+        setStep(
+          requestedStep === "review" || requestedStep === "chat"
+            ? requestedStep
+            : "results",
+        );
       } catch (loadError) {
         if (cancelled) return;
 
@@ -375,6 +394,7 @@ export default function AiBuilderClient({
 
       const url = new URL(window.location.href);
       url.searchParams.set("projectId", projectId);
+      url.searchParams.set("step", "results");
       window.history.replaceState(null, "", url.toString());
 
       try {

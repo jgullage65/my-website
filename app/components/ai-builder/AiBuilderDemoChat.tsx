@@ -143,6 +143,7 @@ export default function AiBuilderDemoChat({
   const [scrollbarDragging, setScrollbarDragging] =
     useState(false);
   const chatScrollRef = useRef<HTMLDivElement>(null);
+  const scrollbarTrackRef = useRef<HTMLDivElement>(null);
   const scrollbarDragRef = useRef<{
     pointerY: number;
     scrollTop: number;
@@ -159,15 +160,20 @@ export default function AiBuilderDemoChat({
 
   const updateScrollbar = useCallback(() => {
     const element = chatScrollRef.current;
-    if (!element) return;
+    const track = scrollbarTrackRef.current;
+    if (!element || !track) return;
 
     const { clientHeight, scrollHeight, scrollTop } = element;
+    const trackHeight = track.clientHeight;
     const height = Math.max(
       40,
-      Math.min(clientHeight, (clientHeight / scrollHeight) * clientHeight),
+      Math.min(
+        trackHeight,
+        (clientHeight / scrollHeight) * trackHeight,
+      ),
     );
     const scrollRange = Math.max(scrollHeight - clientHeight, 0);
-    const thumbRange = Math.max(clientHeight - height, 0);
+    const thumbRange = Math.max(trackHeight - height, 0);
     const top = scrollRange
       ? (scrollTop / scrollRange) * thumbRange
       : 0;
@@ -216,15 +222,16 @@ export default function AiBuilderDemoChat({
     event: ReactPointerEvent<HTMLDivElement>,
   ) => {
     const element = chatScrollRef.current;
+    const track = scrollbarTrackRef.current;
     const drag = scrollbarDragRef.current;
-    if (!element || !drag) return;
+    if (!element || !track || !drag) return;
 
     const scrollRange = Math.max(
       element.scrollHeight - element.clientHeight,
       0,
     );
     const thumbRange = Math.max(
-      element.clientHeight - scrollbarMetrics.height,
+      track.clientHeight - scrollbarMetrics.height,
       1,
     );
 
@@ -530,7 +537,8 @@ export default function AiBuilderDemoChat({
           </div>
 
           <div
-            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-3 border-l border-amber-300/15 bg-[#050b18]"
+            ref={scrollbarTrackRef}
+            className="pointer-events-none absolute inset-y-3 right-2 z-10 w-3 rounded-full bg-[#050b18]"
             aria-hidden="true"
           >
             <div
