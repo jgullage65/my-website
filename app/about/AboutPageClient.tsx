@@ -116,7 +116,7 @@ export default function AboutPageClient() {
           <p className="mx-auto mt-6 max-w-2xl leading-8 text-[var(--muted)] lg:mx-0">A lot of businesses do excellent work, but their website, marketing, software, or internal process does not reflect that quality. JG Creative Studio exists to close that gap with technology that feels premium on the outside and practical behind the scenes.</p>
         </motion.div>
         <motion.div variants={mediaIn} className="rounded-[1.55rem] border border-[rgba(212,175,55,.16)] bg-[#030711] p-5 shadow-[0_30px_90px_rgba(0,0,0,.42)]">
-          <div className="grid gap-4">{storyPoints.map(([title, desc]) => <div key={title} className="rounded-[1.1rem] border border-[rgba(212,175,55,.12)] bg-white/[.035] p-5"><p className="text-xs font-black uppercase tracking-[.24em] text-[var(--gold)]">{title}</p><p className="mt-3 leading-7 text-slate-300">{desc}</p></div>)}</div>
+          <div className="grid gap-4">{storyPoints.map(([title, desc]) => <div key={title} className="rounded-[1.1rem] border border-[rgba(212,175,55,.12)] bg-white/[.035] p-5"><p className="text-center text-xs font-black uppercase tracking-[.24em] text-[var(--gold)] lg:text-left">{title}</p><p className="mt-3 leading-7 text-slate-300">{desc}</p></div>)}</div>
         </motion.div>
       </Section>
 
