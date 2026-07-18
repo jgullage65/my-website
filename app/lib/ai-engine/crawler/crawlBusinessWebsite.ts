@@ -13,7 +13,23 @@ export type BusinessWebsiteCrawlResult = {
   resolvedUrl: string;
   pages: CrawledBusinessPage[];
   warnings: string[];
+  diagnostics: BusinessWebsiteCrawlDiagnostics;
 };
+
+export type BusinessWebsiteCrawlDiagnostics = {
+  pagesDiscovered: number;
+  pagesProcessed: number;
+  pagesSkipped: number;
+  pagesFailed: number;
+  finalUrls: string[];
+  restrictions: CrawlRestriction[];
+};
+
+export type CrawlRestriction = { type: "access_denied" | "rate_limited" | "redirect_blocked" | "unsupported_protocol" | "unsupported_content_type" | "unsafe_destination"; url: string; status?: number };
+
+export class BusinessWebsiteCrawlError extends Error {
+  constructor(message: string, public readonly diagnostics: BusinessWebsiteCrawlDiagnostics) { super(message); this.name = "BusinessWebsiteCrawlError"; }
+}
 
 const MAX_PAGES = 8;
 const MAX_HTML_BYTES = 750_000;
@@ -186,6 +202,7 @@ function isDocumentOrAsset(url: URL): boolean {
 
 async function fetchHtml(
   url: URL,
+  restrictions: CrawlRestriction[],
 ): Promise<{ html: string; resolvedUrl: URL } | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -198,6 +215,10 @@ async function fetchHtml(
       redirectCount <= MAX_REDIRECTS;
       redirectCount += 1
     ) {
+      if (current.protocol !== "http:" && current.protocol !== "https:") {
+        restrictions.push({type:"unsupported_protocol",url:current.toString()});
+        return null;
+      }
       await assertSafeDestination(current);
 
       const response = await fetch(current.toString(), {
@@ -211,17 +232,22 @@ async function fetchHtml(
 
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
-        if (!location || redirectCount === MAX_REDIRECTS) return null;
+        if (!location || redirectCount === MAX_REDIRECTS) { restrictions.push({type:"redirect_blocked",url:current.toString(),status:response.status}); return null; }
         current = new URL(location, current);
         continue;
       }
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) restrictions.push({type:"access_denied",url:current.toString(),status:response.status});
+        if (response.status === 429) restrictions.push({type:"rate_limited",url:current.toString(),status:response.status});
+        return null;
+      }
       const contentType = response.headers.get("content-type") ?? "";
       if (
         contentType &&
         !contentType.toLowerCase().includes("text/html")
       ) {
+        restrictions.push({type:"unsupported_content_type",url:current.toString(),status:response.status});
         return null;
       }
 
@@ -365,8 +391,18 @@ export async function crawlBusinessWebsite(
   websiteUrl: string,
   onPage?: (completedPages: number, maximumPages: number) => void,
 ): Promise<BusinessWebsiteCrawlResult> {
-  const requested = normalizeInputUrl(websiteUrl);
-  await assertSafeDestination(requested);
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,finalUrls:[],restrictions});
+  let requested: URL;
+  try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
+    const message=error instanceof Error?error.message:"Invalid website URL.";
+    const restrictions:CrawlRestriction[]=message.includes("http or https")?[{type:"unsupported_protocol",url:websiteUrl.slice(0,500)}]:[];
+    throw new BusinessWebsiteCrawlError(message,emptyDiagnostics(restrictions));
+  }
+  const restrictions: CrawlRestriction[] = [];
+  try { await assertSafeDestination(requested); } catch (error) {
+    restrictions.push({type:"unsafe_destination",url:requested.toString()});
+    throw new BusinessWebsiteCrawlError(error instanceof Error?error.message:"Unsafe crawler destination.",emptyDiagnostics(restrictions));
+  }
 
   const baseHost = normalizeHost(requested.hostname);
   const warnings: string[] = [];
@@ -376,6 +412,8 @@ export async function crawlBusinessWebsite(
   const queued = new Set(queue);
   const visited = new Set<string>();
   const pages: CrawledBusinessPage[] = [];
+  let pagesSkipped = 0;
+  let pagesFailed = 0;
   let resolvedUrl = requested.toString();
 
   while (queue.length > 0 && pages.length < MAX_PAGES) {
@@ -387,6 +425,7 @@ export async function crawlBusinessWebsite(
     try {
       parsed = new URL(nextUrl);
     } catch {
+      pagesSkipped += 1;
       continue;
     }
 
@@ -394,16 +433,17 @@ export async function crawlBusinessWebsite(
       normalizeHost(parsed.hostname) !== baseHost ||
       isDocumentOrAsset(parsed)
     ) {
+      pagesSkipped += 1;
       continue;
     }
 
     try {
-      const fetched = await fetchHtml(parsed);
-      if (!fetched) continue;
+      const fetched = await fetchHtml(parsed, restrictions);
+      if (!fetched) { pagesFailed += 1; continue; }
 
       resolvedUrl = fetched.resolvedUrl.toString();
       const text = stripHtmlToText(fetched.html);
-      if (text.length < 80) continue;
+      if (text.length < 80) { pagesSkipped += 1; continue; }
 
       const title = extractTitle(fetched.html);
       pages.push({
@@ -427,16 +467,18 @@ export async function crawlBusinessWebsite(
         }
       }
     } catch (error) {
+      pagesFailed += 1;
       const message =
         error instanceof Error ? error.message : "Unknown crawl error";
+      if (message === "Unsafe crawler destination.") restrictions.push({type:"unsafe_destination",url:parsed.toString()});
       if (!warnings.includes(message)) warnings.push(message);
     }
   }
 
   if (pages.length === 0) {
-    throw new Error(
-      "The website could not be read. Confirm the URL is public and try again.",
-    );
+    throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
+      pagesDiscovered: queued.size, pagesProcessed: 0, pagesSkipped, pagesFailed, finalUrls: [], restrictions,
+    });
   }
 
   return {
@@ -444,5 +486,13 @@ export async function crawlBusinessWebsite(
     resolvedUrl,
     pages,
     warnings,
+    diagnostics: {
+      pagesDiscovered: queued.size,
+      pagesProcessed: pages.length,
+      pagesSkipped,
+      pagesFailed,
+      finalUrls: pages.map((page) => page.url),
+      restrictions,
+    },
   };
 }

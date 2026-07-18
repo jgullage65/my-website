@@ -188,6 +188,55 @@ async function createAiBuilderSchema() {
     )
   `;
 
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_crawl_telemetry (
+      id TEXT PRIMARY KEY,
+      project_id TEXT REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      requested_url TEXT NOT NULL,
+      resolved_url TEXT,
+      status TEXT NOT NULL,
+      attempt_number INTEGER NOT NULL,
+      started_at TIMESTAMPTZ NOT NULL,
+      completed_at TIMESTAMPTZ,
+      duration_ms INTEGER,
+      pages_discovered INTEGER,
+      pages_processed INTEGER,
+      pages_skipped INTEGER,
+      pages_failed INTEGER,
+      final_urls JSONB NOT NULL DEFAULT '[]'::jsonb,
+      warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
+      errors JSONB NOT NULL DEFAULT '[]'::jsonb,
+      restrictions JSONB,
+      failure_stage TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_generation_telemetry (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      status TEXT NOT NULL,
+      attempt_number INTEGER NOT NULL,
+      started_at TIMESTAMPTZ NOT NULL,
+      completed_at TIMESTAMPTZ,
+      duration_ms INTEGER,
+      model TEXT,
+      knowledge_count INTEGER,
+      faq_count INTEGER,
+      retry_count INTEGER,
+      input_tokens INTEGER,
+      output_tokens INTEGER,
+      total_tokens INTEGER,
+      cost_micros BIGINT,
+      warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
+      errors JSONB NOT NULL DEFAULT '[]'::jsonb,
+      failure_stage TEXT,
+      provider_metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_updated_at_idx ON ai_builder_projects(updated_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_owner_email_idx ON ai_builder_projects(owner_email)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_archived_at_idx ON ai_builder_projects(archived_at)`;
@@ -203,6 +252,9 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_admin_notes_project_idx ON ai_builder_admin_notes(project_id, created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_communications_project_idx ON ai_builder_communications(project_id, sent_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_impersonation_events_admin_idx ON ai_builder_impersonation_events(admin_id, occurred_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_telemetry_project_idx ON ai_builder_crawl_telemetry(project_id, started_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_telemetry_url_idx ON ai_builder_crawl_telemetry(requested_url, started_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_generation_telemetry_project_idx ON ai_builder_generation_telemetry(project_id, started_at DESC)`;
 }
 
 export function ensureAiBuilderSchema(): Promise<void> {

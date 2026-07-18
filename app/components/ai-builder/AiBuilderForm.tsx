@@ -16,6 +16,7 @@ type Props = {
 
 type WebsiteImportPayload = {
   ok?: boolean;
+  crawlAttemptId?: string;
   import?: {
     businessName?: string;
     industry?: string;
@@ -32,7 +33,7 @@ type WebsiteImportPayload = {
 type WebsiteImportEvent =
   | { type: "progress"; percent: number }
   | ({ type: "result" } & WebsiteImportPayload)
-  | { type: "error"; error?: { message?: string } };
+  | { type: "error"; error?: { message?: string }; crawlAttemptId?: string };
 
 const inputClassName =
   "w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3.5 text-center text-[15px] text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
@@ -99,6 +100,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           if (event.type === "progress") {
             setImportProgress(event.percent);
           } else if (event.type === "error") {
+            if (event.crawlAttemptId && !value.crawlAttemptIds.includes(event.crawlAttemptId)) onChange({ ...value, crawlAttemptIds: [...value.crawlAttemptIds, event.crawlAttemptId] });
             throw new Error(event.error?.message || "The website could not be imported.");
           } else if (event.type === "result") {
             payload = event;
@@ -125,10 +127,12 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         pages: payload.pages ?? [],
         warnings: payload.warnings ?? [],
         importedAt: new Date().toISOString(),
+        crawlAttemptId: payload.crawlAttemptId,
       };
 
       onChange({
         ...value,
+        crawlAttemptIds: payload.crawlAttemptId && !value.crawlAttemptIds.includes(payload.crawlAttemptId) ? [...value.crawlAttemptIds, payload.crawlAttemptId] : value.crawlAttemptIds,
         businessName: value.businessName.trim()
           ? value.businessName
           : websiteKnowledge.businessName,

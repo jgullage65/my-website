@@ -2,7 +2,6 @@
 import OpenAI from "openai";
 import type {
   IntakeModelInput,
-  IntakeModelRunner,
 } from "@/app/lib/ai-engine/intake";
 
 const BUSINESS_CONTEXT_CATEGORIES = [
@@ -213,8 +212,11 @@ function parseStructuredOutput(outputText: string): unknown {
   }
 }
 
-export const runOpenAiIntakeModel: IntakeModelRunner = async (
+export type OpenAiIntakeCallMetadata = { model?: string; responseId?: string; requestId?: string; providerStatus?: string; usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number } };
+
+export const runOpenAiIntakeModel = async (
   input: IntakeModelInput,
+  onComplete?: (metadata: OpenAiIntakeCallMetadata) => void,
 ): Promise<unknown> => {
   const client = getOpenAiClient();
   const model =
@@ -233,6 +235,9 @@ export const runOpenAiIntakeModel: IntakeModelRunner = async (
       },
     },
   });
+
+  const providerResponse=response as unknown as {id?:string;_request_id?:string;model?:string;status?:string;usage?:{input_tokens?:number;output_tokens?:number;total_tokens?:number}};
+  onComplete?.({model:providerResponse.model,responseId:providerResponse.id,requestId:providerResponse._request_id,providerStatus:providerResponse.status,usage:providerResponse.usage?{inputTokens:providerResponse.usage.input_tokens,outputTokens:providerResponse.usage.output_tokens,totalTokens:providerResponse.usage.total_tokens}:undefined});
 
   return parseStructuredOutput(response.output_text);
 };

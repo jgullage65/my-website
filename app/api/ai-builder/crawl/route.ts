@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { crawlBusinessWebsite } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
+import { BusinessWebsiteCrawlError, crawlBusinessWebsite } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
+import { finishCrawlTelemetry, startCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,19 +58,27 @@ export async function POST(request: Request) {
   }
 
   const encoder = new TextEncoder();
+  const attemptId = crypto.randomUUID();
+  let crawlStartedAt = new Date().toISOString();
+  await startCrawlTelemetry(attemptId, website, crawlStartedAt);
   const stream = new ReadableStream({
     async start(controller) {
       const send = (event: Record<string, unknown>) =>
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 
+      let crawlRecorded = false;
       try {
     send({ type: "progress", percent: 5 });
+    crawlStartedAt = new Date().toISOString();
     const crawl = await crawlBusinessWebsite(website, (completed, maximum) => {
       send({
         type: "progress",
         percent: Math.min(65, 10 + Math.round((completed / maximum) * 55)),
       });
     });
+    const crawlCompletedAt = new Date().toISOString();
+    await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
+    crawlRecorded = true;
     send({ type: "progress", percent: 70 });
     const client = new OpenAI({ apiKey });
     const model = process.env.AI_BUILDER_CRAWLER_MODEL?.trim() || "gpt-5-mini";
@@ -141,9 +150,14 @@ export async function POST(request: Request) {
         pageType: page.pageType,
       })),
       warnings: crawl.warnings,
+      crawlAttemptId: attemptId,
     });
       } catch (error) {
         const message = error instanceof Error ? error.message : "The website could not be imported.";
+        if (!crawlRecorded) {
+          const diagnostics=error instanceof BusinessWebsiteCrawlError?error.diagnostics:undefined;
+          await finishCrawlTelemetry(attemptId,{status:"failed",startedAt:crawlStartedAt,completedAt:new Date().toISOString(),...diagnostics,errors:[{stage:"crawl",message:message.slice(0,500)}],failureStage:"crawl"});
+        }
         console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website, message });
         send({
           type: "error",
@@ -151,6 +165,7 @@ export async function POST(request: Request) {
             code: "website_import_failed",
             message: message || "The website could not be imported.",
           },
+          crawlAttemptId: attemptId,
         });
       } finally {
         controller.close();

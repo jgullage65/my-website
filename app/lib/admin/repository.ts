@@ -144,7 +144,7 @@ export async function getAdminProjectDetail(projectId: string) {
   const sql = getSql();
   const projects = await sql`SELECT * FROM ai_builder_projects WHERE id = ${projectId} AND archived_at IS NULL LIMIT 1` as Row[];
   if (!projects[0]) return null;
-  const [knowledge, faqs, progress, threads, purchases, intake, notes, communications] = await Promise.all([
+  const [knowledge, faqs, progress, threads, purchases, intake, notes, communications, crawlTelemetry, generationTelemetry] = await Promise.all([
     sql`SELECT * FROM ai_builder_context_entries WHERE project_id = ${projectId} ORDER BY created_at`,
     sql`SELECT * FROM ai_builder_faq_entries WHERE project_id = ${projectId} ORDER BY created_at`,
     sql`SELECT * FROM ai_builder_progress WHERE project_id = ${projectId} ORDER BY id`,
@@ -153,6 +153,8 @@ export async function getAdminProjectDetail(projectId: string) {
     sql`SELECT * FROM ai_builder_intake_blocks WHERE project_id = ${projectId} ORDER BY created_at`,
     sql`SELECT * FROM ai_builder_admin_notes WHERE project_id = ${projectId} ORDER BY created_at DESC`,
     sql`SELECT * FROM ai_builder_communications WHERE project_id = ${projectId} ORDER BY sent_at DESC`,
+    sql`SELECT * FROM ai_builder_crawl_telemetry WHERE project_id = ${projectId} ORDER BY started_at DESC`,
+    sql`SELECT * FROM ai_builder_generation_telemetry WHERE project_id = ${projectId} ORDER BY started_at DESC`,
   ]) as Row[][];
   const p = projects[0];
   return { project: { id: String(p.id), businessName: String(p.business_name), industry: String(p.industry),
@@ -160,7 +162,7 @@ export async function getAdminProjectDetail(projectId: string) {
       configuration: p.assistant_configuration, counts: p.context_counts,
       internalStatus: text(p.internal_status), internalFields: p.internal_fields,
       createdAt: iso(p.created_at), updatedAt: iso(p.updated_at), expiresAt: p.expires_at ? iso(p.expires_at) : null },
-    knowledge, faqs, progress, threads, purchases, intake, notes, communications };
+    knowledge, faqs, progress, threads, purchases, intake, notes, communications, crawlTelemetry, generationTelemetry };
 }
 
 export async function updateAdminProject(projectId: string, input: {

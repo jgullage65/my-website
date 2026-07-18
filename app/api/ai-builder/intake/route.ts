@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import type { ConversationMemory } from "@/app/lib/ai-engine/contracts";
 import { runOpenAiIntakeModel } from "@/app/lib/ai-engine/providers";
+import type { OpenAiIntakeCallMetadata } from "@/app/lib/ai-engine/providers/openaiIntakeRunner";
 import { runEngine } from "@/app/lib/ai-engine/runtime";
 import { persistAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
+import { finishGenerationTelemetry, linkCrawlTelemetry, startGenerationTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +25,7 @@ type WebsiteKnowledgeRequest = {
   pages?: unknown;
   warnings?: unknown;
   importedAt?: unknown;
+  crawlAttemptId?: unknown;
 };
 
 type IntakeRequestBody = {
@@ -32,6 +35,7 @@ type IntakeRequestBody = {
   tone?: unknown;
   userKnowledge?: UserKnowledgeRequest;
   websiteKnowledge?: WebsiteKnowledgeRequest | null;
+  crawlAttemptIds?: unknown;
 };
 
 function normalizeText(value: unknown): string {
@@ -148,6 +152,13 @@ export async function POST(request: Request) {
     websiteKnowledge?.additionalKnowledge,
   );
   const importedAt = normalizeText(websiteKnowledge?.importedAt);
+  const crawlAttemptId = normalizeText(websiteKnowledge?.crawlAttemptId);
+  const crawlAttemptIds = Array.isArray(body.crawlAttemptIds)
+    ? body.crawlAttemptIds.map(normalizeText).filter(Boolean).slice(0, 20)
+    : [];
+  if (crawlAttemptId && !crawlAttemptIds.includes(crawlAttemptId)) {
+    crawlAttemptIds.push(crawlAttemptId);
+  }
 
   const effectiveProductsServices =
     userProductsServices || websiteProductsServices;
@@ -202,6 +213,7 @@ export async function POST(request: Request) {
   }
 
   const sessionId = createId("ai_builder_session");
+  const generationAttemptId = crypto.randomUUID();
   const threadId = createId("ai_builder_thread");
   const blocks: Array<{
     id: string;
@@ -276,6 +288,10 @@ export async function POST(request: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      let generationStartedAt = new Date().toISOString();
+      let generationFinished = false;
+      let generationStage = "initialization";
+      let providerMetadata: OpenAiIntakeCallMetadata | undefined;
       const send = (event: Record<string, unknown>) => {
         const line = `${JSON.stringify(event)}\n`;
         const padding = " ".repeat(Math.max(0, 2048 - line.length));
@@ -283,10 +299,12 @@ export async function POST(request: Request) {
       };
 
       try {
+        await startGenerationTelemetry(generationAttemptId,sessionId,generationStartedAt);
         send({ type: "progress", percent: 0 });
         const initialMemory = buildEmptyConversationMemory(threadId);
         send({ type: "progress", percent: 20 });
 
+        generationStartedAt = new Date().toISOString();
         const session = await runEngine({
           request: {
             sessionId,
@@ -306,9 +324,11 @@ export async function POST(request: Request) {
             conversationMemory: initialMemory,
           },
           dependencies: {
-            runIntakeModel: runOpenAiIntakeModel,
+            runIntakeModel: (input) => { generationStage="provider_request"; return runOpenAiIntakeModel(input,(metadata)=>{providerMetadata=metadata;generationStage="output_validation";}); },
           },
         });
+        await finishGenerationTelemetry(generationAttemptId,{status:"completed",startedAt:generationStartedAt,completedAt:new Date().toISOString(),model:providerMetadata?.model||process.env.AI_BUILDER_INTAKE_MODEL?.trim()||"gpt-5-mini",usage:providerMetadata?.usage,providerMetadata,knowledgeCount:session.contextEntries.length,faqCount:session.faqEntries.length});
+        generationFinished = true;
 
         send({ type: "progress", percent: 80 });
 
@@ -330,6 +350,11 @@ export async function POST(request: Request) {
             memory: initialMemory,
           },
         });
+        await Promise.all(
+          crawlAttemptIds.map((attemptId) =>
+            linkCrawlTelemetry(attemptId, session.id),
+          ),
+        );
 
         send({ type: "progress", percent: 100 });
         send({
@@ -341,6 +366,7 @@ export async function POST(request: Request) {
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "unknown_error";
+        if (!generationFinished) await finishGenerationTelemetry(generationAttemptId,{status:"failed",startedAt:generationStartedAt,completedAt:new Date().toISOString(),model:providerMetadata?.model||process.env.AI_BUILDER_INTAKE_MODEL?.trim()||"gpt-5-mini",usage:providerMetadata?.usage,providerMetadata,errors:[{stage:generationStage,message:message.slice(0,500)}],failureStage:generationStage});
 
         if (message === "openai_api_key_missing") {
           send({

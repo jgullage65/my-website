@@ -31,6 +31,7 @@ export type WebsiteKnowledge = {
   }>;
   warnings: string[];
   importedAt: string;
+  crawlAttemptId?: string;
 };
 
 export type BuilderState = {
@@ -40,6 +41,7 @@ export type BuilderState = {
   tone: string;
   userKnowledge: UserKnowledge;
   websiteKnowledge: WebsiteKnowledge | null;
+  crawlAttemptIds: string[];
 };
 
 type BuilderStep =
@@ -98,6 +100,7 @@ const initial: BuilderState = {
     additionalKnowledge: "",
   },
   websiteKnowledge: null,
+  crawlAttemptIds: [],
 };
 
 async function fetchProject(
