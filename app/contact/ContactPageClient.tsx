@@ -76,15 +76,15 @@ export default function ContactPageClient() {
         }
       `}</style>
 
-      <section className="mx-auto max-w-5xl space-y-10 px-6 py-16">
-        <header className={`${card} space-y-3 text-center`}>
-          <h1 className="text-4xl font-black tracking-[-.045em] text-[var(--gold)] sm:text-5xl">Contact</h1>
-          <p className="mx-auto max-w-2xl text-lg leading-8 text-[var(--muted)]">
-            Ready to get started? Send a message and I’ll respond as soon as possible.
-          </p>
-        </header>
-
+      <section className="mx-auto max-w-5xl px-6 py-16">
         <section className={card}>
+          <header className="mb-10 space-y-3 text-center">
+            <h1 className="text-4xl font-black tracking-[-.045em] text-[var(--gold)] sm:text-5xl">Contact</h1>
+            <p className="mx-auto max-w-2xl text-lg leading-8 text-[var(--muted)]">
+              Ready to get started? Send a message and I’ll respond as soon as possible.
+            </p>
+          </header>
+
           <form action="https://formspree.io/f/mlgldrnk" method="POST" className="grid gap-5">
             <input type="hidden" name="form_type" value="Project Request" />
 
