@@ -4,29 +4,29 @@
   opacity: 1;
 }
 
-.ai-builder-form > div > section:nth-of-type(3) > div:nth-of-type(2) > article > div:first-child {
+.ai-builder-form > div > section > div:nth-of-type(2) > article > div:first-child {
   position: relative;
   width: 100%;
 }
 
-.ai-builder-form > div > section:nth-of-type(3) > div:nth-of-type(2) > article > div:first-child > div:first-child {
+.ai-builder-form > div > section > div:nth-of-type(2) > article > div:first-child > div:first-child {
   position: relative;
   width: 100%;
   justify-content: center;
 }
 
-.ai-builder-form > div > section:nth-of-type(3) > div:nth-of-type(2) > article > div:first-child > div:first-child > div:first-child {
+.ai-builder-form > div > section > div:nth-of-type(2) > article > div:first-child > div:first-child > div:first-child {
   display: none;
 }
 
-.ai-builder-form > div > section:nth-of-type(3) > div:nth-of-type(2) > article > div:first-child h3 {
+.ai-builder-form > div > section > div:nth-of-type(2) > article > div:first-child h3 {
   color: #fcd34d;
 }
 
-.ai-builder-form > div > section:nth-of-type(3) > div:nth-of-type(2) > article > div:first-child > p {
+.ai-builder-form > div > section > div:nth-of-type(2) > article > div:first-child > p {
   color: #ffffff;
 }
 
-.ai-builder-form > div > section:nth-of-type(3) > div:nth-of-type(3) > section:nth-child(2) > div.relative > p:not(:first-child) {
+.ai-builder-form > div > section > div:nth-of-type(3) > section:nth-child(2) > div.relative > p:not(:first-child) {
   display: none;
 }
