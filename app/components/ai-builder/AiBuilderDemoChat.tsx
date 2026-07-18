@@ -173,6 +173,7 @@ export default function AiBuilderDemoChat({
       message:
         "We already received your request to discuss purchasing this AI assistant. We will contact you soon.",
       confirmLabel: "Request Sent",
+      confirmDisabled: true,
       cancelLabel: "Cancel",
     });
   };
@@ -461,4 +462,3 @@ export default function AiBuilderDemoChat({
     </div>
   );
 }
-    
