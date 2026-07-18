@@ -156,8 +156,11 @@ function lastMatchingIndex(message: string, patterns: RegExp[]): number {
       pattern.flags.includes("i") ? "gi" : "g",
     );
 
-    for (const match of message.matchAll(globalPattern)) {
+    let match = globalPattern.exec(message);
+
+    while (match) {
       lastIndex = Math.max(lastIndex, match.index ?? -1);
+      match = globalPattern.exec(message);
     }
 
     return lastIndex;
@@ -172,10 +175,16 @@ function countDistinctMatches(message: string, pattern: RegExp): number {
 
 function scoreIntents(message: string): IntentScore[] {
   const scores = new Map<ResponseIntent, IntentScore>(
-    INTENT_TIE_ORDER.map((intent) => [
-      intent,
-      { intent, score: intent === "focused_fact" ? 1 : 0, matchedSignals: [] },
-    ]),
+    INTENT_TIE_ORDER.map(
+      (intent): [ResponseIntent, IntentScore] => [
+        intent,
+        {
+          intent,
+          score: intent === "focused_fact" ? 1 : 0,
+          matchedSignals: [],
+        },
+      ],
+    ),
   );
 
   for (const rule of SCORING_RULES) {
