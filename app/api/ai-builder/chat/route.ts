@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import {
   buildSystemPrompt,
+  classifyResponseDepth,
   retrieveKnowledge,
 } from "@/app/lib/ai-engine/chat";
 import type {
@@ -127,7 +128,8 @@ async function persistChatExchange(input: {
   await ensureAiBuilderSchema();
 
   const sql = getSql();
-  const now = new Date().toISOString();
+  const userCreatedAt = new Date();
+  const assistantCreatedAt = new Date(userCreatedAt.getTime() + 1);
   const userMessageId = `user_${randomUUID()}`;
   const assistantMessageId = `assistant_${randomUUID()}`;
 
@@ -147,7 +149,7 @@ async function persistChatExchange(input: {
       ${JSON.stringify({
         projectId: input.projectId,
       })}::jsonb,
-      ${now}::timestamptz
+      ${userCreatedAt.toISOString()}::timestamptz
     )
   `;
 
@@ -169,13 +171,13 @@ async function persistChatExchange(input: {
         citations: input.response.citations,
         diagnostics: input.response.diagnostics,
       })}::jsonb,
-      ${now}::timestamptz
+      ${assistantCreatedAt.toISOString()}::timestamptz
     )
   `;
 
   await sql`
     UPDATE ai_builder_chat_threads
-    SET updated_at = ${now}::timestamptz
+    SET updated_at = ${assistantCreatedAt.toISOString()}::timestamptz
     WHERE id = ${input.threadId}
       AND project_id = ${input.projectId}
   `;
@@ -290,10 +292,12 @@ export async function POST(request: Request) {
       knowledge: body.knowledge,
       message,
     });
+    const responseDepthDecision = classifyResponseDepth(message);
 
     const systemPrompt = buildSystemPrompt(
       body.knowledge,
       retrieved,
+      responseDepthDecision,
     );
 
     const answer = await runOpenAiChat({

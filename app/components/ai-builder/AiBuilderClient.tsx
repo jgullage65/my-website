@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
@@ -143,6 +143,13 @@ export default function AiBuilderClient({
     null,
   );
   const [buildPercent, setBuildPercent] = useState(0);
+
+  const navigateToStep = useCallback((nextStep: BuilderStep) => {
+    setStep(nextStep);
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+  }, []);
 
   useEffect(() => {
     if (step !== "building") return;
@@ -449,7 +456,7 @@ export default function AiBuilderClient({
           session={session}
           complete
           percent={100}
-          onReview={() => setStep("review")}
+          onReview={() => navigateToStep("review")}
         />
       ) : null}
 
@@ -478,8 +485,8 @@ export default function AiBuilderClient({
           <AiBuilderReview
             session={session}
             onSessionChange={handleSessionChange}
-            onBack={() => setStep("results")}
-            onLaunchChat={() => setStep("chat")}
+            onBack={() => navigateToStep("results")}
+            onLaunchChat={() => navigateToStep("chat")}
           />
         </>
       ) : null}
@@ -489,7 +496,7 @@ export default function AiBuilderClient({
           knowledge={knowledgePack}
           projectId={session.id}
           chatThread={chatThread}
-          onBack={() => setStep("review")}
+          onBack={() => navigateToStep("review")}
         />
       ) : null}
     </AiBuilderShell>

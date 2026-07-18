@@ -384,7 +384,7 @@ export default function AiBuilderDemoChat({
       </section>
 
       <section className="overflow-hidden rounded-[30px] border border-white/10 bg-[#030713] shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
-        <div className="ai-builder-chat-scrollbar max-h-[620px] min-h-[500px] space-y-5 overflow-y-auto p-4 sm:p-6">
+        <div className="ai-builder-chat-scrollbar max-h-[620px] min-h-[500px] space-y-5 overflow-y-scroll p-4 sm:p-6">
           {messages.map((item) => (
             <div
               key={item.id}
@@ -425,10 +425,28 @@ export default function AiBuilderDemoChat({
             </div>
           ) : null}
 
-          <div className="mx-auto mb-2 flex max-w-3xl justify-end text-xs font-semibold text-slate-500">
-            {messageLimitReached
-              ? "20 of 20 messages used"
-              : `${remainingMessages} of 20 messages remaining`}
+          <div className="mx-auto mb-3 flex max-w-3xl flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => void showPurchaseInterestModal()}
+              disabled={
+                purchaseInterestSubmitted ||
+                purchaseInterestSubmitting
+              }
+              className="rounded-xl border border-amber-300/25 bg-amber-300/[0.08] px-4 py-2 text-xs font-bold text-amber-200 transition hover:border-amber-300/45 hover:bg-amber-300/[0.12] disabled:cursor-not-allowed disabled:border-emerald-300/20 disabled:bg-emerald-300/[0.07] disabled:text-emerald-200 disabled:opacity-80"
+            >
+              {purchaseInterestSubmitted
+                ? "Purchase Request Sent ✓"
+                : purchaseInterestSubmitting
+                  ? "Sending Purchase Request..."
+                  : "Buy This AI Assistant"}
+            </button>
+
+            <span className="text-xs font-semibold text-slate-500">
+              {messageLimitReached
+                ? "20 of 20 messages used"
+                : `${remainingMessages} of 20 messages remaining`}
+            </span>
           </div>
 
           <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-amber-300/25 bg-[#050b18] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">

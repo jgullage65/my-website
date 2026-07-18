@@ -1,5 +1,6 @@
 export * from "./contracts";
 export * from "./retrieveKnowledge";
 export * from "./buildSystemPrompt";
+export * from "./classifyResponseDepth";
 export * from "./answerQuestion";
 export * from "./chatDiagnostics";

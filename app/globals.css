@@ -367,6 +367,7 @@ select {
 .ai-builder-chat-scrollbar {
   scrollbar-color: rgba(212, 175, 55, 0.78) #050b18;
   scrollbar-width: auto;
+  scrollbar-gutter: stable;
 }
 
 .ai-builder-chat-scrollbar::-webkit-scrollbar {
@@ -379,10 +380,13 @@ select {
 }
 
 .ai-builder-chat-scrollbar::-webkit-scrollbar-thumb {
-  cursor: grab;
   border: 3px solid #050b18;
   border-radius: 999px;
   background: rgba(212, 175, 55, 0.78);
+}
+
+.ai-builder-chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  cursor: grab;
 }
 
 .ai-builder-chat-scrollbar::-webkit-scrollbar-thumb:active {
