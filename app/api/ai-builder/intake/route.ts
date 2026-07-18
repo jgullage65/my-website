@@ -276,79 +276,98 @@ export async function POST(request: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: Record<string, unknown>) =>
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+      const send = (event: Record<string, unknown>) => {
+        const line = `${JSON.stringify(event)}\n`;
+        const padding = " ".repeat(Math.max(0, 2048 - line.length));
+        controller.enqueue(encoder.encode(`${line}${padding}\n`));
+      };
 
       try {
-    send({ type: "progress", percent: 0 });
-    const initialMemory = buildEmptyConversationMemory(threadId);
-    send({ type: "progress", percent: 20 });
-    const session = await runEngine({
-      request: {
-        sessionId,
-        blocks,
-        assistantPurpose: [
-          `Act as ${assistantName}, the business AI for ${businessName}.`,
-          `The business operates in this industry: ${industry}.`,
-          "Answer using approved business knowledge only.",
-          "USER-PROVIDED KNOWLEDGE has higher authority than WEBSITE KNOWLEDGE.",
-          "When the two sources conflict, follow the user-provided knowledge and do not repeat the conflicting website claim as current fact.",
-          "Website knowledge may supplement topics the user did not address.",
-          "Be accurate, useful, and transparent when information is missing.",
-        ].join(" "),
-        assistantTone: tone,
-      },
-      state: {
-        conversationMemory: initialMemory,
-      },
-      dependencies: {
-        runIntakeModel: runOpenAiIntakeModel,
-      },
-    });
-    send({ type: "progress", percent: 80 });
+        send({ type: "progress", percent: 0 });
+        const initialMemory = buildEmptyConversationMemory(threadId);
+        send({ type: "progress", percent: 20 });
 
-    session.assistantConfiguration = {
-      ...session.assistantConfiguration,
-      name: assistantName,
-      tone,
-    };
-    send({ type: "progress", percent: 90 });
+        const session = await runEngine({
+          request: {
+            sessionId,
+            blocks,
+            assistantPurpose: [
+              `Act as ${assistantName}, the business AI for ${businessName}.`,
+              `The business operates in this industry: ${industry}.`,
+              "Answer using approved business knowledge only.",
+              "USER-PROVIDED KNOWLEDGE has higher authority than WEBSITE KNOWLEDGE.",
+              "When the two sources conflict, follow the user-provided knowledge and do not repeat the conflicting website claim as current fact.",
+              "Website knowledge may supplement topics the user did not address.",
+              "Be accurate, useful, and transparent when information is missing.",
+            ].join(" "),
+            assistantTone: tone,
+          },
+          state: {
+            conversationMemory: initialMemory,
+          },
+          dependencies: {
+            runIntakeModel: runOpenAiIntakeModel,
+          },
+        });
 
-    await persistAiBuilderProject({
-      session,
-      businessName,
-      industry,
-      website: website || null,
-      initialThread: {
-        id: threadId,
-        memory: initialMemory,
-      },
-    });
-    send({ type: "progress", percent: 100 });
+        send({ type: "progress", percent: 80 });
 
-    send({
-      type: "result",
-      ok: true,
-      projectId: session.id,
-      session,
-    });
+        session.assistantConfiguration = {
+          ...session.assistantConfiguration,
+          name: assistantName,
+          tone,
+        };
+
+        send({ type: "progress", percent: 90 });
+
+        await persistAiBuilderProject({
+          session,
+          businessName,
+          industry,
+          website: website || null,
+          initialThread: {
+            id: threadId,
+            memory: initialMemory,
+          },
+        });
+
+        send({ type: "progress", percent: 100 });
+        send({
+          type: "result",
+          ok: true,
+          projectId: session.id,
+          session,
+        });
       } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "unknown_error";
+        const message =
+          error instanceof Error ? error.message : "unknown_error";
 
-    if (message === "openai_api_key_missing") {
-      send({ type: "error", error: { code: "openai_not_configured", message: "The AI builder is not configured yet." } });
-      controller.close();
-      return;
-    }
+        if (message === "openai_api_key_missing") {
+          send({
+            type: "error",
+            error: {
+              code: "openai_not_configured",
+              message: "The AI builder is not configured yet.",
+            },
+          });
+          return;
+        }
 
-    console.error("AI_BUILDER_INTAKE_FAILED", {
-      message,
-    });
+        console.error("AI_BUILDER_INTAKE_FAILED", {
+          message,
+        });
 
-    send({ type: "error", error: { code: "intake_failed", message: "The AI builder could not process this business information." } });
+        send({
+          type: "error",
+          error: {
+            code: "intake_failed",
+            message: "The AI builder could not process this business information.",
+          },
+        });
       } finally {
-        try { controller.close(); } catch {}
+        try {
+          controller.close();
+        } catch {}
       }
     },
   });
@@ -357,6 +376,8 @@ export async function POST(request: Request) {
     headers: {
       "Content-Type": "application/x-ndjson; charset=utf-8",
       "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+      "Content-Encoding": "none",
     },
   });
 }

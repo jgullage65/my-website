@@ -144,6 +144,21 @@ export default function AiBuilderClient({
   );
   const [buildPercent, setBuildPercent] = useState(0);
 
+  useEffect(() => {
+    if (step !== "building") return;
+
+    const timer = window.setInterval(() => {
+      setBuildPercent((current) => {
+        if (current >= 75) return current;
+        if (current < 20) return current + 2;
+        if (current < 50) return current + 1;
+        return current + 0.5;
+      });
+    }, 700);
+
+    return () => window.clearInterval(timer);
+  }, [step]);
+
   const knowledgePack = useMemo(
     () =>
       session?.status === "ready"
@@ -327,7 +342,11 @@ export default function AiBuilderClient({
             session?: AiBuilderSession;
             error?: { message?: string };
           };
-          if (event.type === "progress") setBuildPercent(event.percent ?? 0);
+          if (event.type === "progress") {
+            setBuildPercent((current) =>
+              Math.max(current, event.percent ?? 0),
+            );
+          }
           if (event.type === "error") throw new Error(event.error?.message || "The AI builder could not process this information.");
           if (event.type === "result") payload = event;
         }
