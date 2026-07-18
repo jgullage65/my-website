@@ -171,7 +171,8 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
   return (
     <div className="space-y-20 pb-8 sm:space-y-24">
-      <section className="mx-auto max-w-4xl pt-8 text-center sm:pt-12">
+      <div className="mx-auto max-w-5xl rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
+        <section className="mx-auto max-w-4xl text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
           AI Builder
         </p>
@@ -183,10 +184,10 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           website, teach it what only you know, and launch in minutes.
         </p>
         <Link href="/ai-builder" className="mt-8 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">← All Projects</Link>
-      </section>
+        </section>
 
-      <section>
-        <article className="relative mx-auto max-w-3xl overflow-hidden rounded-[28px] border border-amber-300/25 bg-[#030713] px-5 py-7 text-center shadow-[0_24px_90px_rgba(0,0,0,0.35),0_0_45px_rgba(245,158,11,0.06)] sm:px-8 sm:py-9">
+        <section className="mt-10">
+          <article className="relative mx-auto max-w-3xl overflow-hidden rounded-[28px] border border-amber-300/25 bg-[#030713] px-5 py-7 text-center shadow-[0_24px_90px_rgba(0,0,0,0.35),0_0_45px_rgba(245,158,11,0.06)] sm:px-8 sm:py-9">
           <div className="absolute right-[-5rem] top-[-5rem] h-44 w-44 rounded-full bg-amber-400/10 blur-3xl" />
           <div className="relative mx-auto max-w-2xl">
             <span
@@ -274,8 +275,9 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               </button>
             ) : null}
           </div>
-        </article>
-      </section>
+          </article>
+        </section>
+      </div>
 
       <section className="mx-auto max-w-5xl rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <SectionHeading
