@@ -36,15 +36,23 @@ function escapeHtml(value: unknown): string {
     .replaceAll("'", "&#039;");
 }
 
-async function sendPurchaseInterestEmail(project: DatabaseRow) {
+async function sendPurchaseInterestEmail(
+  project: DatabaseRow,
+): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
+
+  if (!apiKey) {
+    console.info("AI_BUILDER_PURCHASE_INTEREST_EMAIL_SKIPPED", {
+      projectId: String(project.id),
+      reason: "RESEND_API_KEY is not configured.",
+    });
+
+    return false;
+  }
+
   const fromEmail =
     process.env.AI_BUILDER_PURCHASE_FROM_EMAIL?.trim() ||
     "JG Creative Studios <hello@jgcreativestudios.com>";
-
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY is not configured.");
-  }
 
   const projectId = String(project.id);
   const businessName = String(project.business_name || "Unnamed business");
@@ -91,11 +99,15 @@ async function sendPurchaseInterestEmail(project: DatabaseRow) {
       `Resend rejected the purchase-interest email (${response.status}): ${responseText}`,
     );
   }
+
+  return true;
 }
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
-  const projectId = normalizeProjectId(requestUrl.searchParams.get("projectId"));
+  const projectId = normalizeProjectId(
+    requestUrl.searchParams.get("projectId"),
+  );
 
   if (!projectId) {
     return errorResponse(400, "missing_project_id", "A project ID is required.");
@@ -199,34 +211,26 @@ export async function POST(request: Request) {
       return NextResponse.json({
         ok: true,
         alreadySubmitted: true,
+        emailSent: false,
       });
     }
 
-    try {
-      await sendPurchaseInterestEmail(project);
-    } catch (emailError) {
-      await sql`
-        DELETE FROM ai_builder_purchase_interest
-        WHERE id = ${requestId}
-          AND project_id = ${projectId}
-      `;
+    let emailSent = false;
 
+    try {
+      emailSent = await sendPurchaseInterestEmail(project);
+    } catch (emailError) {
       console.error("AI_BUILDER_PURCHASE_INTEREST_EMAIL_FAILED", {
         projectId,
         message:
           emailError instanceof Error ? emailError.message : "unknown_error",
       });
-
-      return errorResponse(
-        502,
-        "purchase_interest_email_failed",
-        "Your purchase request could not be sent. Please try again.",
-      );
     }
 
     return NextResponse.json({
       ok: true,
       alreadySubmitted: false,
+      emailSent,
     });
   } catch (error) {
     console.error("AI_BUILDER_PURCHASE_INTEREST_CREATE_FAILED", {
