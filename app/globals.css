@@ -335,6 +335,13 @@ button[class*="border-amber-300/15"]:not(:disabled) {
   box-shadow: none;
 }
 
+a[href][class*="border-amber-300/15"]:not([role]):not([aria-label]),
+button[class*="border-amber-300/15"]:not(:disabled):not([role]):not([aria-label]),
+a[href].cta-raised,
+button.cta-raised:not(:disabled) {
+  box-shadow: 0 18px 48px rgba(212, 175, 55, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
 a[href][class*="border-amber-300/15"]:hover,
 a[href][class*="border-amber-300/15"]:focus,
 a[href][class*="border-amber-300/15"]:active,

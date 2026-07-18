@@ -64,7 +64,7 @@ function CanonicalConfirmDialog({
           <button
             type="button"
             onClick={() => onClose(false)}
-            className="rounded-lg border border-[rgba(245,158,11,0.22)] bg-[#030713] px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40"
+            className="cta-raised rounded-lg border border-[rgba(245,158,11,0.22)] bg-[#030713] px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40"
           >
             {dialog.cancelLabel}
           </button>
@@ -72,7 +72,7 @@ function CanonicalConfirmDialog({
             type="button"
             onClick={() => onClose(true)}
             disabled={dialog.confirmDisabled}
-            className="rounded-lg border border-[rgba(245,158,11,0.22)] bg-[#030713] px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40 hover:text-[var(--gold)] disabled:cursor-not-allowed disabled:border-white/10 disabled:text-slate-500 disabled:hover:border-white/10 disabled:hover:text-slate-500"
+            className="cta-raised rounded-lg border border-[rgba(245,158,11,0.22)] bg-[#030713] px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40 hover:text-[var(--gold)] disabled:cursor-not-allowed disabled:border-white/10 disabled:text-slate-500 disabled:hover:border-white/10 disabled:hover:text-slate-500"
           >
             {dialog.confirmLabel}
           </button>
