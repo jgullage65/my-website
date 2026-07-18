@@ -8,6 +8,7 @@ type ConfirmDialogState = {
   message: string;
   confirmLabel: string;
   cancelLabel: string;
+  confirmDisabled: boolean;
   resolve: (confirmed: boolean) => void;
 } | null;
 
@@ -16,6 +17,7 @@ type ConfirmOptions = {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  confirmDisabled?: boolean;
 };
 
 function CanonicalConfirmDialog({
@@ -69,7 +71,8 @@ function CanonicalConfirmDialog({
           <button
             type="button"
             onClick={() => onClose(true)}
-            className="rounded-lg border border-[rgba(245,158,11,0.22)] bg-[#030713] px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40 hover:text-[var(--gold)]"
+            disabled={dialog.confirmDisabled}
+            className="rounded-lg border border-[rgba(245,158,11,0.22)] bg-[#030713] px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40 hover:text-[var(--gold)] disabled:cursor-not-allowed disabled:border-white/10 disabled:text-slate-500 disabled:hover:border-white/10 disabled:hover:text-slate-500"
           >
             {dialog.confirmLabel}
           </button>
@@ -92,6 +95,7 @@ export function useCanonicalConfirm() {
         message: options.message,
         confirmLabel: options.confirmLabel ?? "Delete",
         cancelLabel: options.cancelLabel ?? "Cancel",
+        confirmDisabled: options.confirmDisabled ?? false,
         resolve,
       });
     });
@@ -99,6 +103,11 @@ export function useCanonicalConfirm() {
 
   function closeConfirm(confirmed: boolean) {
     if (!dialog) return;
+
+    if (confirmed && dialog.confirmDisabled) {
+      return;
+    }
+
     setDialog(null);
     dialog.resolve(confirmed);
   }

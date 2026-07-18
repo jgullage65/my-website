@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import type { KnowledgePack } from "@/app/lib/ai-engine/knowledge";
+import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import type {
   ChatDiagnostics,
   ChatResponse,
@@ -42,6 +43,16 @@ type ChatUsage = {
   userMessageCount: number;
   limit: number;
   remaining: number;
+};
+
+
+type PurchaseInterestPayload = {
+  ok?: boolean;
+  alreadySubmitted?: boolean;
+  error?: {
+    code?: string;
+    message?: string;
+  };
 };
 
 type ChatApiPayload = {
@@ -111,6 +122,11 @@ export default function AiBuilderDemoChat({
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [purchaseInterestSubmitted, setPurchaseInterestSubmitted] =
+    useState(false);
+  const [purchaseInterestSubmitting, setPurchaseInterestSubmitting] =
+    useState(false);
+  const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   const chatUnavailable = !chatThread?.id;
   const messageLimitReached =
@@ -120,17 +136,110 @@ export default function AiBuilderDemoChat({
     0,
   );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPurchaseInterestStatus = async () => {
+      try {
+        const result = await fetch(
+          `/api/ai-builder/purchase-interest?projectId=${encodeURIComponent(projectId)}`,
+          { method: "GET" },
+        );
+
+        if (!result.ok) return;
+
+        const payload = (await result.json()) as PurchaseInterestPayload;
+
+        if (!cancelled) {
+          setPurchaseInterestSubmitted(
+            Boolean(payload.ok && payload.alreadySubmitted),
+          );
+        }
+      } catch {
+        // The purchase-interest route is optional until it is wired.
+      }
+    };
+
+    void loadPurchaseInterestStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
+
+  const showAlreadySubmittedModal = async () => {
+    await showConfirm({
+      title: "Request Already Sent",
+      message:
+        "We already received your request to discuss purchasing this AI assistant. We will contact you soon.",
+      confirmLabel: "Request Sent",
+      cancelLabel: "Cancel",
+    });
+  };
+
+  const showPurchaseInterestModal = async () => {
+    if (purchaseInterestSubmitted) {
+      await showAlreadySubmittedModal();
+      return;
+    }
+
+    const confirmed = await showConfirm({
+      title: "Demo Complete",
+      message:
+        "You have reached the 20-message demo limit for this AI assistant. If you would like to purchase it, send a request and we will contact you to discuss the next steps.",
+      confirmLabel: purchaseInterestSubmitting
+        ? "Sending..."
+        : "Discuss Purchasing",
+      cancelLabel: "Cancel",
+    });
+
+    if (!confirmed || purchaseInterestSubmitting) return;
+
+    setPurchaseInterestSubmitting(true);
+    setError(null);
+
+    try {
+      const result = await fetch("/api/ai-builder/purchase-interest", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ projectId }),
+      });
+
+      const payload = (await result.json()) as PurchaseInterestPayload;
+
+      if (!result.ok || !payload.ok) {
+        throw new Error(
+          payload.error?.message ||
+            "Your purchase request could not be sent.",
+        );
+      }
+
+      setPurchaseInterestSubmitted(true);
+      await showAlreadySubmittedModal();
+    } catch (purchaseError) {
+      setError(
+        purchaseError instanceof Error
+          ? purchaseError.message
+          : "Your purchase request could not be sent.",
+      );
+    } finally {
+      setPurchaseInterestSubmitting(false);
+    }
+  };
+
   const sendMessage = async (event: FormEvent) => {
     event.preventDefault();
 
     const normalizedMessage = message.trim();
 
-    if (
-      !normalizedMessage ||
-      sending ||
-      !chatThread?.id ||
-      messageLimitReached
-    ) {
+    if (!normalizedMessage || sending || !chatThread?.id) {
+      return;
+    }
+
+    if (messageLimitReached) {
+      await showPurchaseInterestModal();
       return;
     }
 
@@ -176,6 +285,14 @@ export default function AiBuilderDemoChat({
             payload.usage?.userMessageCount ??
               PROJECT_USER_MESSAGE_LIMIT,
           );
+          setMessages((current) =>
+            current.filter(
+              (item) => item.id !== temporaryUserMessageId,
+            ),
+          );
+          setMessage(normalizedMessage);
+          await showPurchaseInterestModal();
+          return;
         }
 
         throw new Error(
@@ -209,9 +326,14 @@ export default function AiBuilderDemoChat({
         });
       });
 
-      setUserMessageCount((current) =>
-        payload.usage?.userMessageCount ?? current + 1,
-      );
+      const nextUserMessageCount =
+        payload.usage?.userMessageCount ?? userMessageCount + 1;
+
+      setUserMessageCount(nextUserMessageCount);
+
+      if (nextUserMessageCount >= PROJECT_USER_MESSAGE_LIMIT) {
+        await showPurchaseInterestModal();
+      }
     } catch (sendError) {
       setMessages((current) =>
         current.filter(
@@ -296,12 +418,6 @@ export default function AiBuilderDemoChat({
             </div>
           ) : null}
 
-          {messageLimitReached ? (
-            <div className="mb-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-4 py-3 text-sm text-amber-100">
-              This project has reached its 20-message demo limit.
-            </div>
-          ) : null}
-
           {error ? (
             <div className="mb-3 rounded-xl border border-red-400/20 bg-red-400/[0.07] px-4 py-3 text-sm text-red-200">
               {error}
@@ -321,16 +437,8 @@ export default function AiBuilderDemoChat({
               onChange={(event) =>
                 setMessage(event.target.value)
               }
-              disabled={
-                chatUnavailable ||
-                sending ||
-                messageLimitReached
-              }
-              placeholder={
-                messageLimitReached
-                  ? "This project has reached its demo message limit."
-                  : "Ask about services, pricing, policies, or the business..."
-              }
+              disabled={chatUnavailable || sending}
+              placeholder="Ask about services, pricing, policies, or the business..."
               className="min-h-[52px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
 
@@ -339,7 +447,6 @@ export default function AiBuilderDemoChat({
               disabled={
                 chatUnavailable ||
                 sending ||
-                messageLimitReached ||
                 !message.trim()
               }
               className="min-h-[52px] rounded-xl border border-amber-300/15 bg-[#081226] px-5 py-3 font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,.24)] transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40"
@@ -349,6 +456,8 @@ export default function AiBuilderDemoChat({
           </div>
         </form>
       </section>
+
+      {confirmDialogNode}
     </div>
   );
 }
