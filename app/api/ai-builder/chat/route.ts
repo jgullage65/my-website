@@ -16,12 +16,20 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const PROJECT_USER_MESSAGE_LIMIT = 20;
+
 type PersistentChatRequest = ChatRequest & {
   projectId?: string;
   threadId?: string;
 };
 
 type DatabaseRow = Record<string, unknown>;
+
+type PersistentThread = {
+  projectId: string;
+  threadId: string;
+  userMessageCount: number;
+};
 
 function isValidRequest(value: unknown): value is PersistentChatRequest {
   if (!value || typeof value !== "object") return false;
@@ -59,10 +67,7 @@ function isValidRequest(value: unknown): value is PersistentChatRequest {
 async function resolvePersistentThread(input: {
   projectId?: string;
   threadId?: string;
-}): Promise<{
-  projectId: string;
-  threadId: string;
-} | null> {
+}): Promise<PersistentThread | null> {
   const projectId = input.projectId?.trim();
   const threadId = input.threadId?.trim();
 
@@ -81,12 +86,21 @@ async function resolvePersistentThread(input: {
   const rows = (await sql`
     SELECT
       threads.id,
-      threads.project_id
+      threads.project_id,
+      COUNT(messages.id) FILTER (
+        WHERE messages.role = 'user'
+      )::integer AS user_message_count
     FROM ai_builder_chat_threads AS threads
     INNER JOIN ai_builder_projects AS projects
       ON projects.id = threads.project_id
+    LEFT JOIN ai_builder_chat_threads AS project_threads
+      ON project_threads.project_id = projects.id
+    LEFT JOIN ai_builder_chat_messages AS messages
+      ON messages.thread_id = project_threads.id
     WHERE threads.id = ${threadId}
       AND threads.project_id = ${projectId}
+      AND projects.archived_at IS NULL
+    GROUP BY threads.id, threads.project_id
     LIMIT 1
   `) as DatabaseRow[];
 
@@ -97,6 +111,7 @@ async function resolvePersistentThread(input: {
   return {
     projectId,
     threadId,
+    userMessageCount: Number(rows[0].user_message_count ?? 0),
   };
 }
 
@@ -199,6 +214,15 @@ function getErrorDetails(error: unknown): {
     };
   }
 
+  if (code === "project_message_limit_reached") {
+    return {
+      status: 429,
+      code,
+      message:
+        "This project has reached its 20-message demo limit.",
+    };
+  }
+
   if (code === "openai_api_key_missing") {
     return {
       status: 500,
@@ -237,6 +261,28 @@ export async function POST(request: Request) {
       threadId: body.threadId,
     });
 
+    if (
+      persistenceContext &&
+      persistenceContext.userMessageCount >= PROJECT_USER_MESSAGE_LIMIT
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "project_message_limit_reached",
+            message:
+              "This project has reached its 20-message demo limit.",
+          },
+          usage: {
+            userMessageCount: persistenceContext.userMessageCount,
+            limit: PROJECT_USER_MESSAGE_LIMIT,
+            remaining: 0,
+          },
+        },
+        { status: 429 },
+      );
+    }
+
     const message = body.message.trim().slice(0, 4000);
     const startedAt = Date.now();
 
@@ -274,10 +320,25 @@ export async function POST(request: Request) {
         })
       : null;
 
+    const userMessageCount = persistenceContext
+      ? persistenceContext.userMessageCount + 1
+      : null;
+
     return NextResponse.json({
       ok: true,
       response,
       persistedMessages,
+      usage:
+        userMessageCount === null
+          ? null
+          : {
+              userMessageCount,
+              limit: PROJECT_USER_MESSAGE_LIMIT,
+              remaining: Math.max(
+                PROJECT_USER_MESSAGE_LIMIT - userMessageCount,
+                0,
+              ),
+            },
     });
   } catch (error) {
     const details = getErrorDetails(error);

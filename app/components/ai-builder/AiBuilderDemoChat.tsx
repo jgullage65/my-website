@@ -7,6 +7,8 @@ import type {
   ChatResponse,
 } from "@/app/lib/ai-engine/chat";
 
+const PROJECT_USER_MESSAGE_LIMIT = 20;
+
 type StoredChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -36,6 +38,12 @@ type ChatMessage = {
   diagnostics?: ChatDiagnostics;
 };
 
+type ChatUsage = {
+  userMessageCount: number;
+  limit: number;
+  remaining: number;
+};
+
 type ChatApiPayload = {
   ok?: boolean;
   response?: ChatResponse;
@@ -43,7 +51,9 @@ type ChatApiPayload = {
     userMessageId: string;
     assistantMessageId: string;
   } | null;
+  usage?: ChatUsage | null;
   error?: {
+    code?: string;
     message?: string;
   };
 };
@@ -77,6 +87,15 @@ function createInitialMessages(
   ];
 }
 
+function getInitialUserMessageCount(
+  chatThread: ChatThread | null,
+): number {
+  return (
+    chatThread?.messages.filter((item) => item.role === "user")
+      .length ?? 0
+  );
+}
+
 export default function AiBuilderDemoChat({
   knowledge,
   projectId,
@@ -86,9 +105,20 @@ export default function AiBuilderDemoChat({
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     createInitialMessages(knowledge, chatThread),
   );
+  const [userMessageCount, setUserMessageCount] = useState(() =>
+    getInitialUserMessageCount(chatThread),
+  );
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const chatUnavailable = !chatThread?.id;
+  const messageLimitReached =
+    userMessageCount >= PROJECT_USER_MESSAGE_LIMIT;
+  const remainingMessages = Math.max(
+    PROJECT_USER_MESSAGE_LIMIT - userMessageCount,
+    0,
+  );
 
   const sendMessage = async (event: FormEvent) => {
     event.preventDefault();
@@ -98,7 +128,8 @@ export default function AiBuilderDemoChat({
     if (
       !normalizedMessage ||
       sending ||
-      !chatThread?.id
+      !chatThread?.id ||
+      messageLimitReached
     ) {
       return;
     }
@@ -137,6 +168,16 @@ export default function AiBuilderDemoChat({
         !payload.ok ||
         !payload.response
       ) {
+        if (
+          payload.error?.code ===
+          "project_message_limit_reached"
+        ) {
+          setUserMessageCount(
+            payload.usage?.userMessageCount ??
+              PROJECT_USER_MESSAGE_LIMIT,
+          );
+        }
+
         throw new Error(
           payload.error?.message ||
             "The assistant could not answer that question.",
@@ -167,6 +208,10 @@ export default function AiBuilderDemoChat({
           diagnostics: chatResponse.diagnostics,
         });
       });
+
+      setUserMessageCount((current) =>
+        payload.usage?.userMessageCount ?? current + 1,
+      );
     } catch (sendError) {
       setMessages((current) =>
         current.filter(
@@ -185,8 +230,6 @@ export default function AiBuilderDemoChat({
       setSending(false);
     }
   };
-
-  const chatUnavailable = !chatThread?.id;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
@@ -231,7 +274,6 @@ export default function AiBuilderDemoChat({
               <p className="whitespace-pre-wrap">
                 {item.content}
               </p>
-
             </div>
           ))}
 
@@ -254,11 +296,23 @@ export default function AiBuilderDemoChat({
             </div>
           ) : null}
 
+          {messageLimitReached ? (
+            <div className="mb-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-4 py-3 text-sm text-amber-100">
+              This project has reached its 20-message demo limit.
+            </div>
+          ) : null}
+
           {error ? (
             <div className="mb-3 rounded-xl border border-red-400/20 bg-red-400/[0.07] px-4 py-3 text-sm text-red-200">
               {error}
             </div>
           ) : null}
+
+          <div className="mx-auto mb-2 flex max-w-3xl justify-end text-xs font-semibold text-slate-500">
+            {messageLimitReached
+              ? "20 of 20 messages used"
+              : `${remainingMessages} of 20 messages remaining`}
+          </div>
 
           <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-amber-300/25 bg-[#050b18] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">
             <textarea
@@ -267,8 +321,16 @@ export default function AiBuilderDemoChat({
               onChange={(event) =>
                 setMessage(event.target.value)
               }
-              disabled={chatUnavailable || sending}
-              placeholder="Ask about services, pricing, policies, or the business..."
+              disabled={
+                chatUnavailable ||
+                sending ||
+                messageLimitReached
+              }
+              placeholder={
+                messageLimitReached
+                  ? "This project has reached its demo message limit."
+                  : "Ask about services, pricing, policies, or the business..."
+              }
               className="min-h-[52px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
             />
 
@@ -277,6 +339,7 @@ export default function AiBuilderDemoChat({
               disabled={
                 chatUnavailable ||
                 sending ||
+                messageLimitReached ||
                 !message.trim()
               }
               className="min-h-[52px] rounded-xl border border-amber-300/15 bg-[#081226] px-5 py-3 font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,.24)] transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40"
