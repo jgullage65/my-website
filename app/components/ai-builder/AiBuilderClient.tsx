@@ -8,6 +8,7 @@ import type {
   StructuredWebsiteKnowledge,
   WebsiteKnowledgePage,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import { applyStructuredWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderForm from "./AiBuilderForm";
@@ -129,6 +130,17 @@ async function fetchProject(
   return payload;
 }
 
+function restoreWebsiteReviewKnowledge(
+  session: AiBuilderSession,
+  websiteKnowledge: PersistedWebsiteKnowledge | null | undefined,
+): AiBuilderSession {
+  return applyStructuredWebsiteKnowledge(
+    session,
+    websiteKnowledge?.knowledge,
+    { defaultStatus: "proposed" },
+  );
+}
+
 export default function AiBuilderClient({
   initialProjectId = null,
 }: Props) {
@@ -240,7 +252,12 @@ export default function AiBuilderClient({
             ? [payload.websiteKnowledge.current_crawl_attempt_id]
             : [],
         }));
-        setSession(payload.session);
+        setSession(
+          restoreWebsiteReviewKnowledge(
+            payload.session,
+            payload.websiteKnowledge,
+          ),
+        );
         setChatThread(payload.chatThread ?? null);
 
         const requestedStep = new URL(
@@ -431,7 +448,10 @@ export default function AiBuilderClient({
         const savedProject = await fetchProject(projectId);
 
         setSession(
-          savedProject.session ?? payload.session,
+          restoreWebsiteReviewKnowledge(
+            savedProject.session ?? payload.session,
+            savedProject.websiteKnowledge,
+          ),
         );
         setChatThread(savedProject.chatThread ?? null);
       } catch (projectLoadError) {
