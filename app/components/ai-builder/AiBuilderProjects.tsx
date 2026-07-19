@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
@@ -25,6 +26,7 @@ function date(value: string) {
 }
 
 export default function AiBuilderProjects() {
+  const { isLoaded, isSignedIn } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +35,24 @@ export default function AiBuilderProjects() {
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   useEffect(() => {
+    if (!isLoaded) return;
+
+    if (!isSignedIn) {
+      setProjects([]);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     fetch("/api/ai-builder/projects", { cache: "no-store" })
       .then(async (response) => {
+        const contentType = response.headers.get("content-type") ?? "";
+        if (!contentType.includes("application/json")) {
+          throw new Error("Your projects could not be loaded. Please sign in again.");
+        }
         const payload = await response.json();
         if (!response.ok || !payload.ok) {
           throw new Error(payload.error?.message ?? "Projects could not be loaded.");
@@ -57,7 +74,7 @@ export default function AiBuilderProjects() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isLoaded, isSignedIn]);
 
   async function rename(project: Project) {
     const businessName = window
@@ -148,7 +165,7 @@ export default function AiBuilderProjects() {
           <p className="mx-auto mt-3 max-w-2xl text-slate-400">
             Continue building and refining your business AI systems.
           </p>
-          {!loading && projects.length ? (
+          {isSignedIn && !loading && projects.length ? (
             <Link
               href="/ai-builder?new=1"
               className="mt-6 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
@@ -168,7 +185,7 @@ export default function AiBuilderProjects() {
             Loading your projects…
           </div>
         ) : null}
-        {!loading && !projects.length ? (
+        {isSignedIn && !loading && !projects.length ? (
           <div className="mt-10 rounded-[30px] border border-amber-300/20 bg-[#030713] px-6 py-16 text-center shadow-[0_24px_90px_rgba(0,0,0,.34)]">
             <h2 className="text-2xl font-black tracking-[-.035em]">
               Build your first business AI
