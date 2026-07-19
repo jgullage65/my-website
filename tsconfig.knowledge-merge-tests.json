@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "target": "es2020", "module": "commonjs", "moduleResolution": "node", "outDir": "/tmp/knowledge-merge-tests", "noEmit": false, "incremental": false },
+  "include": ["app/lib/ai-engine/business-memory/contracts.ts", "app/lib/ai-engine/contracts/**/*.ts", "app/lib/ai-engine/knowledge-merge/**/*.ts"]
+}
