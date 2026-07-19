@@ -8,6 +8,7 @@ import type {
   BusinessContextEntry,
   GeneratedFaqEntry,
 } from "@/app/lib/ai-engine/contracts";
+import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 
 type Props = {
@@ -44,6 +45,7 @@ const approveActionClassName =
 
 function calculateCounts(
   entries: BusinessContextEntry[],
+  faqEntries: GeneratedFaqEntry[],
 ): AiBuilderSession["contextCounts"] {
   const byCategory: AiBuilderSession["contextCounts"]["byCategory"] = {};
 
@@ -57,9 +59,24 @@ function calculateCounts(
       (entry) => entry.status === "approved" || entry.status === "corrected",
     ).length,
     proposed: entries.filter((entry) => entry.status === "proposed").length,
-    archived: entries.filter((entry) => entry.status === "archived").length,
+    archived:
+      entries.filter((entry) => entry.status === "archived").length +
+      faqEntries.filter((entry) => entry.status === "archived").length,
     byCategory,
   };
+}
+
+function uniqueEntriesById<T extends { id: string; status: string }>(
+  entries: T[],
+): T[] {
+  const unique = new Map<string, T>();
+
+  entries.forEach((entry) => {
+    const existing = unique.get(entry.id);
+    if (!existing || entry.status === "archived") unique.set(entry.id, entry);
+  });
+
+  return Array.from(unique.values());
 }
 
 export default function AiBuilderReview({
@@ -70,11 +87,21 @@ export default function AiBuilderReview({
 }: Props) {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editingFaq, setEditingFaq] = useState<string | null>(null);
+  const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
+
+  const contextEntries = useMemo(
+    () => uniqueEntriesById(session.contextEntries),
+    [session.contextEntries],
+  );
+  const faqEntries = useMemo(
+    () => uniqueEntriesById(session.faqEntries),
+    [session.faqEntries],
+  );
 
   const grouped = useMemo(() => {
     const map = new Map<BusinessContextCategory, BusinessContextEntry[]>();
 
-    session.contextEntries
+    contextEntries
       .filter((entry) => entry.status !== "archived")
       .forEach((entry) => {
         const current = map.get(entry.category) ?? [];
@@ -82,11 +109,11 @@ export default function AiBuilderReview({
       });
 
     return Array.from(map.entries());
-  }, [session.contextEntries]);
+  }, [contextEntries]);
 
   const visibleFaqEntries = useMemo(
-    () => session.faqEntries.filter((faq) => faq.status !== "archived"),
-    [session.faqEntries],
+    () => faqEntries.filter((faq) => faq.status !== "archived"),
+    [faqEntries],
   );
 
   const updateSession = (updates: Partial<AiBuilderSession>) => {
@@ -101,7 +128,7 @@ export default function AiBuilderReview({
     id: string,
     updates: Partial<BusinessContextEntry>,
   ) => {
-    const contextEntries = session.contextEntries.map((entry) =>
+    const nextContextEntries = contextEntries.map((entry) =>
       entry.id === id
         ? { ...entry, ...updates, updatedAt: new Date().toISOString() }
         : entry,
@@ -109,8 +136,9 @@ export default function AiBuilderReview({
 
     updateSession({
       status: "review_required",
-      contextEntries,
-      contextCounts: calculateCounts(contextEntries),
+      contextEntries: nextContextEntries,
+      faqEntries,
+      contextCounts: calculateCounts(nextContextEntries, faqEntries),
     });
   };
 
@@ -118,20 +146,44 @@ export default function AiBuilderReview({
     id: string,
     updates: Partial<GeneratedFaqEntry>,
   ) => {
+    const nextFaqEntries = faqEntries.map((faq) =>
+      faq.id === id
+        ? { ...faq, ...updates, updatedAt: new Date().toISOString() }
+        : faq,
+    );
+
     updateSession({
       status: "review_required",
-      faqEntries: session.faqEntries.map((faq) =>
-        faq.id === id
-          ? { ...faq, ...updates, updatedAt: new Date().toISOString() }
-          : faq,
-      ),
+      contextEntries,
+      faqEntries: nextFaqEntries,
+      contextCounts: calculateCounts(contextEntries, nextFaqEntries),
     });
+  };
+
+  const removeEntry = async (
+    kind: "knowledge" | "faq",
+    id: string,
+  ) => {
+    const confirmed = await showConfirm({
+      title: "Remove information?",
+      message:
+        "This information will be removed from the review list and will not be used by your assistant.",
+      confirmLabel: "Remove",
+      cancelLabel: "Cancel",
+    });
+    if (!confirmed) return;
+
+    if (kind === "knowledge") {
+      updateEntry(id, { status: "archived" });
+    } else {
+      updateFaq(id, { status: "archived" });
+    }
   };
 
   const approveAll = () => {
     const now = new Date().toISOString();
 
-    const contextEntries = session.contextEntries.map((entry) =>
+    const nextContextEntries = contextEntries.map((entry) =>
       entry.status === "archived"
         ? entry
         : {
@@ -144,7 +196,7 @@ export default function AiBuilderReview({
           },
     );
 
-    const faqEntries = session.faqEntries.map((faq) =>
+    const nextFaqEntries = faqEntries.map((faq) =>
       faq.status === "archived"
         ? faq
         : {
@@ -159,9 +211,9 @@ export default function AiBuilderReview({
 
     updateSession({
       status: "ready",
-      contextEntries,
-      faqEntries,
-      contextCounts: calculateCounts(contextEntries),
+      contextEntries: nextContextEntries,
+      faqEntries: nextFaqEntries,
+      contextCounts: calculateCounts(nextContextEntries, nextFaqEntries),
     });
   };
 
@@ -170,6 +222,7 @@ export default function AiBuilderReview({
 
   return (
     <div className="mx-auto max-w-5xl space-y-10">
+      {confirmDialogNode}
       <section className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] px-5 py-8 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8 sm:py-10">
         <AiBuilderAuthCta />
         <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
@@ -315,12 +368,10 @@ export default function AiBuilderReview({
 
                       <button
                         type="button"
-                        onClick={() =>
-                          updateEntry(entry.id, { status: "archived" })
-                        }
+                        onClick={() => void removeEntry("knowledge", entry.id)}
                         className={itemActionClassName}
                       >
-                        Remove
+                        Remove Information
                       </button>
                     </div>
                   </article>
@@ -413,10 +464,10 @@ export default function AiBuilderReview({
 
                   <button
                     type="button"
-                    onClick={() => updateFaq(faq.id, { status: "archived" })}
+                    onClick={() => void removeEntry("faq", faq.id)}
                     className={itemActionClassName}
                   >
-                    Remove
+                    Remove Information
                   </button>
                 </div>
               </article>

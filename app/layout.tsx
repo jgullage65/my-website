@@ -13,6 +13,110 @@ const siteDescription =
 const ogImage =
   "https://i.postimg.cc/xTh3s9Jx/EE89ABF2-BE6B-41F3-BBE9-2F2074F81C03.png";
 
+const clerkAppearance = {
+  layout: {
+    logoImageUrl: "/favicon.png",
+    logoLinkUrl: "/",
+    socialButtonsVariant: "blockButton" as const,
+  },
+  variables: {
+    colorPrimary: "#d4af37",
+    colorPrimaryForeground: "#030713",
+    colorBackground: "#030713",
+    colorForeground: "#ebf0ff",
+    colorMuted: "#081226",
+    colorMutedForeground: "#a0aac8",
+    colorInput: "#020611",
+    colorInputForeground: "#ebf0ff",
+    colorBorder: "rgba(212, 175, 55, 0.22)",
+    colorRing: "#f59e0b",
+    colorModalBackdrop: "rgba(2, 6, 17, 0.86)",
+    colorShadow: "#000000",
+    borderRadius: "0.75rem",
+    fontFamily:
+      'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontFamilyButtons:
+      'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  },
+  elements: {
+    modalBackdrop: {
+      backdropFilter: "blur(10px)",
+    },
+    modalContent: {
+      borderRadius: "24px",
+    },
+    card: {
+      background: "#030713",
+      border: "1px solid rgba(245, 158, 11, 0.22)",
+      borderRadius: "24px",
+      boxShadow:
+        "0 26px 70px rgba(0, 0, 0, 0.48), 0 0 50px rgba(245, 158, 11, 0.07)",
+    },
+    logoImage: {
+      height: "42px",
+      width: "42px",
+    },
+    headerTitle: {
+      color: "#ffffff",
+      fontWeight: "800",
+      letterSpacing: "-0.025em",
+    },
+    headerSubtitle: {
+      color: "#a0aac8",
+    },
+    socialButtonsBlockButton: {
+      background: "#081226",
+      border: "1px solid rgba(245, 158, 11, 0.18)",
+      color: "#ffffff",
+      boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+      fontWeight: "700",
+    },
+    socialButtonsBlockButtonText: {
+      color: "#ffffff",
+    },
+    dividerLine: {
+      background: "rgba(212, 175, 55, 0.18)",
+    },
+    dividerText: {
+      color: "#a0aac8",
+    },
+    formFieldLabel: {
+      color: "#ebf0ff",
+      fontWeight: "700",
+    },
+    formFieldInput: {
+      background: "#020611",
+      border: "1px solid rgba(212, 175, 55, 0.22)",
+      color: "#ebf0ff",
+      boxShadow: "none",
+    },
+    formButtonPrimary: {
+      background: "#081226",
+      border: "1px solid rgba(245, 158, 11, 0.28)",
+      color: "#ffffff",
+      boxShadow:
+        "0 14px 34px rgba(245, 158, 11, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+      fontWeight: "800",
+    },
+    footerActionLink: {
+      color: "#d4af37",
+      fontWeight: "700",
+    },
+    identityPreview: {
+      background: "#081226",
+      border: "1px solid rgba(212, 175, 55, 0.18)",
+    },
+    identityPreviewText: {
+      color: "#ebf0ff",
+    },
+    modalCloseButton: {
+      color: "#d4af37",
+      border: "1px solid rgba(245, 158, 11, 0.22)",
+      background: "#030713",
+    },
+  },
+};
+
 export const metadata: Metadata = {
   title: {
     default: siteName,
@@ -72,7 +176,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <ClerkProvider>
+        <ClerkProvider appearance={clerkAppearance}>
         <div className="site-background" aria-hidden="true">
           <div className="site-background__depth" />
           <div className="site-background__grid" />
