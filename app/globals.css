@@ -69,20 +69,6 @@ body {
   display: none;
 }
 
-/* The operations console inherits older utility markup in a few dense data
-   views. Keep those surfaces in the builder's gold/navy system, never white. */
-.admin-console [class*="border-white"] {
-  border-color: rgba(212, 175, 55, 0.13);
-}
-
-.admin-console [class*="divide-white"] > :not([hidden]) ~ :not([hidden]) {
-  border-color: rgba(212, 175, 55, 0.09);
-}
-
-.admin-console [class*="bg-white/"] {
-  background-color: rgba(212, 175, 55, 0.025);
-}
-
 .site-background__depth {
   opacity: 0.95;
   background:

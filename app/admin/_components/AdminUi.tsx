@@ -31,7 +31,7 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
 }
 
 export function SearchBar({ placeholder, defaultValue, extras }: { placeholder: string; defaultValue?: string; extras?: ReactNode }) {
-  return <form className={`${card} mx-auto flex w-full max-w-5xl flex-col gap-3 p-3 md:flex-row`}>
+  return <form className={`${card} mx-auto flex w-full max-w-4xl flex-col gap-3 p-3 md:flex-row`}>
     <div className="relative min-w-0 md:min-w-72 md:flex-1"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-300/60"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input name="q" defaultValue={defaultValue} placeholder={placeholder} className={`${input} w-full py-3 pl-11 pr-4 text-sm`} /></div>
     {extras}<button className="cta-raised rounded-xl border border-amber-300/20 bg-[#081226] px-5 py-3 text-sm font-black text-white hover:border-amber-300/40 hover:bg-[#0b1830]">Search</button>
   </form>;
