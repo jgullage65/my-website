@@ -8,6 +8,7 @@ import type {
   BusinessContextEntry,
   GeneratedFaqEntry,
 } from "@/app/lib/ai-engine/contracts";
+import AiBuilderAuthCta from "./AiBuilderAuthCta";
 
 type Props = {
   session: AiBuilderSession;
@@ -170,6 +171,7 @@ export default function AiBuilderReview({
   return (
     <div className="mx-auto max-w-5xl space-y-10">
       <section className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] px-5 py-8 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8 sm:py-10">
+        <AiBuilderAuthCta />
         <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
         <div className="relative">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300 sm:text-sm">

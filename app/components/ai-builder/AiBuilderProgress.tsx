@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { BuilderState } from "./AiBuilderClient";
+import AiBuilderAuthCta from "./AiBuilderAuthCta";
 
 type Props = {
   builder: BuilderState;
@@ -33,6 +34,7 @@ export default function AiBuilderProgress({
   return (
     <div className="mx-auto max-w-5xl">
       <section className={shellClassName}>
+        <AiBuilderAuthCta />
         <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
 
         <div className="relative text-center">

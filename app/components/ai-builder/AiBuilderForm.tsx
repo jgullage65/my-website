@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import { useState, type ReactNode } from "react";
 import type {
   BuilderState,
@@ -175,7 +176,8 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
   return (
     <div className="space-y-20 pb-8 sm:space-y-24">
-      <div className="mx-auto max-w-5xl rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
+      <div className="relative mx-auto max-w-5xl rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
+        <AiBuilderAuthCta />
         <section className="mx-auto max-w-4xl text-center">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
           AI Builder

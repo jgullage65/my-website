@@ -14,6 +14,7 @@ import type {
   ChatDiagnostics,
   ChatResponse,
 } from "@/app/lib/ai-engine/chat";
+import AiBuilderAuthCta from "./AiBuilderAuthCta";
 
 const PROJECT_USER_MESSAGE_LIMIT = 20;
 
@@ -165,10 +166,11 @@ export default function AiBuilderDemoChat({
 
     const { clientHeight, scrollHeight, scrollTop } = element;
     const trackHeight = track.clientHeight;
+    const maximumThumbHeight = Math.max(40, trackHeight * 0.35);
     const height = Math.max(
       40,
       Math.min(
-        trackHeight,
+        maximumThumbHeight,
         (clientHeight / scrollHeight) * trackHeight,
       ),
     );
@@ -481,6 +483,7 @@ export default function AiBuilderDemoChat({
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <section className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] px-5 py-7 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8 sm:py-9">
+        <AiBuilderAuthCta />
         <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
 
         <div className="relative">
@@ -633,5 +636,3 @@ export default function AiBuilderDemoChat({
     </div>
   );
 }
-         
-      

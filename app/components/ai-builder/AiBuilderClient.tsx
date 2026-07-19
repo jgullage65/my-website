@@ -9,6 +9,7 @@ import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
+import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import "./AiBuilderFormOverrides.css";
 
 export type UserKnowledge = {
@@ -436,7 +437,8 @@ export default function AiBuilderClient({
   return (
     <AiBuilderShell>
       {step === "loading" ? (
-        <div className="mx-auto max-w-3xl rounded-[30px] border border-amber-300/20 bg-[#030713] px-6 py-12 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]">
+        <div className="relative mx-auto max-w-3xl rounded-[30px] border border-amber-300/20 bg-[#030713] px-6 py-12 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]">
+          <AiBuilderAuthCta />
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-300">
             Loading AI project
           </p>
