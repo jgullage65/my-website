@@ -7,7 +7,7 @@ const buttonClassName =
 
 export default function AiBuilderAuthCta() {
   return (
-    <div className="absolute right-4 top-2 z-10 sm:right-6 sm:top-4 lg:right-8">
+    <div className="z-10 mb-4 flex justify-end sm:absolute sm:right-6 sm:top-4 sm:mb-0 lg:right-8">
       <SignedOut>
         <SignInButton mode="modal">
           <button type="button" className={buttonClassName}>
