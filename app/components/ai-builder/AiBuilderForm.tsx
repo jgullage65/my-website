@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type {
   BuilderState,
   UserKnowledge,
@@ -48,6 +48,21 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [showWebsiteKnowledge, setShowWebsiteKnowledge] = useState(false);
+
+  useEffect(() => {
+    if (!importing) return;
+
+    const timer = window.setInterval(() => {
+      setImportProgress((current) => {
+        if (current >= 96) return current;
+        if (current < 20) return current + 2;
+        if (current < 50) return current + 1;
+        return current + 0.5;
+      });
+    }, 700);
+
+    return () => window.clearInterval(timer);
+  }, [importing]);
 
   const updateProfile = (
     key: "businessName" | "industry" | "website" | "tone",
@@ -99,7 +114,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           if (!line.trim()) continue;
           const event = JSON.parse(line) as WebsiteImportEvent;
           if (event.type === "progress") {
-            setImportProgress(event.percent);
+            setImportProgress((current) => Math.max(current, event.percent));
           } else if (event.type === "error") {
             if (event.crawlAttemptId && !value.crawlAttemptIds.includes(event.crawlAttemptId)) onChange({ ...value, crawlAttemptIds: [...value.crawlAttemptIds, event.crawlAttemptId] });
             throw new Error(event.error?.message || "The website could not be imported.");
@@ -264,6 +279,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                     ? "Re-import Website"
                     : "Import Website"}
               </button>
+
             </div>
 
             {importError ? <Status tone="error">{importError}</Status> : null}
@@ -567,7 +583,7 @@ function WebsiteKnowledgeModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-transparent p-0 sm:items-center sm:p-6"
+      className="fixed inset-0 z-[240] flex h-[100dvh] w-screen items-stretch justify-center bg-[#030713] p-0 sm:h-auto sm:w-auto sm:items-center sm:bg-transparent sm:p-6"
       onMouseDown={onClose}
     >
       <div

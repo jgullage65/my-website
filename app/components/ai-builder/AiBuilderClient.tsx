@@ -328,7 +328,7 @@ export default function AiBuilderClient({
     setSession(null);
     setChatThread(null);
     setBuildPercent(0);
-    setStep("building");
+    navigateToStep("building");
 
     try {
       const response = await fetch("/api/ai-builder/intake", {

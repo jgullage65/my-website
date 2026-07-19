@@ -66,19 +66,6 @@ function calculateCounts(
   };
 }
 
-function uniqueEntriesById<T extends { id: string; status: string }>(
-  entries: T[],
-): T[] {
-  const unique = new Map<string, T>();
-
-  entries.forEach((entry) => {
-    const existing = unique.get(entry.id);
-    if (!existing || entry.status === "archived") unique.set(entry.id, entry);
-  });
-
-  return Array.from(unique.values());
-}
-
 export default function AiBuilderReview({
   session,
   onSessionChange,
@@ -89,30 +76,30 @@ export default function AiBuilderReview({
   const [editingFaq, setEditingFaq] = useState<string | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
-  const contextEntries = useMemo(
-    () => uniqueEntriesById(session.contextEntries),
-    [session.contextEntries],
-  );
-  const faqEntries = useMemo(
-    () => uniqueEntriesById(session.faqEntries),
-    [session.faqEntries],
-  );
+  const contextEntries = session.contextEntries;
+  const faqEntries = session.faqEntries;
 
   const grouped = useMemo(() => {
-    const map = new Map<BusinessContextCategory, BusinessContextEntry[]>();
+    const map = new Map<
+      BusinessContextCategory,
+      Array<{ entry: BusinessContextEntry; sourceIndex: number }>
+    >();
 
-    contextEntries
-      .filter((entry) => entry.status !== "archived")
-      .forEach((entry) => {
+    contextEntries.forEach((entry, sourceIndex) => {
+      if (entry.status !== "archived") {
         const current = map.get(entry.category) ?? [];
-        map.set(entry.category, current.concat(entry));
-      });
+        map.set(entry.category, current.concat({ entry, sourceIndex }));
+      }
+    });
 
     return Array.from(map.entries());
   }, [contextEntries]);
 
   const visibleFaqEntries = useMemo(
-    () => faqEntries.filter((faq) => faq.status !== "archived"),
+    () =>
+      faqEntries.flatMap((faq, sourceIndex) =>
+        faq.status === "archived" ? [] : [{ faq, sourceIndex }],
+      ),
     [faqEntries],
   );
 
@@ -125,11 +112,11 @@ export default function AiBuilderReview({
   };
 
   const updateEntry = (
-    id: string,
+    sourceIndex: number,
     updates: Partial<BusinessContextEntry>,
   ) => {
-    const nextContextEntries = contextEntries.map((entry) =>
-      entry.id === id
+    const nextContextEntries = contextEntries.map((entry, index) =>
+      index === sourceIndex
         ? { ...entry, ...updates, updatedAt: new Date().toISOString() }
         : entry,
     );
@@ -143,11 +130,11 @@ export default function AiBuilderReview({
   };
 
   const updateFaq = (
-    id: string,
+    sourceIndex: number,
     updates: Partial<GeneratedFaqEntry>,
   ) => {
-    const nextFaqEntries = faqEntries.map((faq) =>
-      faq.id === id
+    const nextFaqEntries = faqEntries.map((faq, index) =>
+      index === sourceIndex
         ? { ...faq, ...updates, updatedAt: new Date().toISOString() }
         : faq,
     );
@@ -162,7 +149,7 @@ export default function AiBuilderReview({
 
   const removeEntry = async (
     kind: "knowledge" | "faq",
-    id: string,
+    sourceIndex: number,
   ) => {
     const confirmed = await showConfirm({
       title: "Remove information?",
@@ -174,9 +161,9 @@ export default function AiBuilderReview({
     if (!confirmed) return;
 
     if (kind === "knowledge") {
-      updateEntry(id, { status: "archived" });
+      updateEntry(sourceIndex, { status: "archived" });
     } else {
-      updateFaq(id, { status: "archived" });
+      updateFaq(sourceIndex, { status: "archived" });
     }
   };
 
@@ -282,8 +269,9 @@ export default function AiBuilderReview({
         {grouped.map(([category, categoryEntries]) => (
           <section key={category} className="mx-auto max-w-4xl">
             <div className="mx-auto grid max-w-3xl gap-3 md:grid-cols-2">
-              {categoryEntries.map((entry, index) => {
-                const editing = editingEntry === entry.id;
+              {categoryEntries.map(({ entry, sourceIndex }, index) => {
+                const entryRenderKey = `${entry.id}:${sourceIndex}`;
+                const editing = editingEntry === entryRenderKey;
                 const shouldSpanFull =
                   categoryEntries.length === 1 ||
                   (categoryEntries.length % 2 === 1 &&
@@ -291,7 +279,7 @@ export default function AiBuilderReview({
 
                 return (
                   <article
-                    key={entry.id}
+                    key={entryRenderKey}
                     className={`flex min-h-[190px] flex-col items-center justify-center rounded-[20px] border border-amber-300/25 bg-black/15 px-4 py-5 text-center ${
                       shouldSpanFull ? "md:col-span-2" : ""
                     }`}
@@ -305,7 +293,7 @@ export default function AiBuilderReview({
                         <input
                           value={entry.title}
                           onChange={(event) =>
-                            updateEntry(entry.id, {
+                            updateEntry(sourceIndex, {
                               title: event.target.value,
                               status: "corrected",
                               metadata: {
@@ -321,7 +309,7 @@ export default function AiBuilderReview({
                           rows={4}
                           value={entry.content}
                           onChange={(event) =>
-                            updateEntry(entry.id, {
+                            updateEntry(sourceIndex, {
                               content: event.target.value,
                               status: "corrected",
                               metadata: {
@@ -346,7 +334,7 @@ export default function AiBuilderReview({
                       <button
                         type="button"
                         onClick={() =>
-                          updateEntry(entry.id, {
+                          updateEntry(sourceIndex, {
                             status:
                               entry.status === "approved"
                                 ? "proposed"
@@ -360,7 +348,9 @@ export default function AiBuilderReview({
 
                       <button
                         type="button"
-                        onClick={() => setEditingEntry(editing ? null : entry.id)}
+                        onClick={() =>
+                          setEditingEntry(editing ? null : entryRenderKey)
+                        }
                         className={itemActionClassName}
                       >
                         {editing ? "Done" : "Edit"}
@@ -368,7 +358,9 @@ export default function AiBuilderReview({
 
                       <button
                         type="button"
-                        onClick={() => void removeEntry("knowledge", entry.id)}
+                        onClick={() =>
+                          void removeEntry("knowledge", sourceIndex)
+                        }
                         className={itemActionClassName}
                       >
                         Remove Information
@@ -390,8 +382,9 @@ export default function AiBuilderReview({
         />
 
         <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-2">
-          {visibleFaqEntries.map((faq, index) => {
-            const editing = editingFaq === faq.id;
+          {visibleFaqEntries.map(({ faq, sourceIndex }, index) => {
+            const faqRenderKey = `${faq.id}:${sourceIndex}`;
+            const editing = editingFaq === faqRenderKey;
             const shouldSpanFull =
               visibleFaqEntries.length === 1 ||
               (visibleFaqEntries.length % 2 === 1 &&
@@ -399,7 +392,7 @@ export default function AiBuilderReview({
 
             return (
               <article
-                key={faq.id}
+                key={faqRenderKey}
                 className={`flex min-h-[210px] flex-col items-center justify-center rounded-[22px] border border-amber-300/25 bg-[#030713] px-5 py-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.18)] ${
                   shouldSpanFull ? "md:col-span-2" : ""
                 }`}
@@ -409,7 +402,7 @@ export default function AiBuilderReview({
                     <input
                       value={faq.question}
                       onChange={(event) =>
-                        updateFaq(faq.id, {
+                        updateFaq(sourceIndex, {
                           question: event.target.value,
                           status: "corrected",
                         })
@@ -421,7 +414,7 @@ export default function AiBuilderReview({
                       rows={4}
                       value={faq.answer}
                       onChange={(event) =>
-                        updateFaq(faq.id, {
+                        updateFaq(sourceIndex, {
                           answer: event.target.value,
                           status: "corrected",
                         })
@@ -444,7 +437,7 @@ export default function AiBuilderReview({
                   <button
                     type="button"
                     onClick={() =>
-                      updateFaq(faq.id, {
+                      updateFaq(sourceIndex, {
                         status:
                           faq.status === "approved" ? "proposed" : "approved",
                       })
@@ -456,7 +449,9 @@ export default function AiBuilderReview({
 
                   <button
                     type="button"
-                    onClick={() => setEditingFaq(editing ? null : faq.id)}
+                    onClick={() =>
+                      setEditingFaq(editing ? null : faqRenderKey)
+                    }
                     className={itemActionClassName}
                   >
                     {editing ? "Done" : "Edit"}
@@ -464,7 +459,7 @@ export default function AiBuilderReview({
 
                   <button
                     type="button"
-                    onClick={() => void removeEntry("faq", faq.id)}
+                    onClick={() => void removeEntry("faq", sourceIndex)}
                     className={itemActionClassName}
                   >
                     Remove Information

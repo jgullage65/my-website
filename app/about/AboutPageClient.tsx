@@ -167,7 +167,7 @@ export default function AboutPageClient() {
               key={item.title}
               className="rounded-[1.35rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-6 text-center shadow-[0_28px_80px_rgba(0,0,0,.34)]"
             >
-              <h3 className="text-2xl font-black tracking-[-.04em]">
+              <h3 className="text-2xl font-black tracking-[-.04em] text-[var(--gold)]">
                 {item.title}
               </h3>
               <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
