@@ -8,6 +8,10 @@ import type {
   UserKnowledge,
   WebsiteKnowledge,
 } from "./AiBuilderClient";
+import type {
+  StructuredWebsiteKnowledge,
+  WebsiteKnowledgePage,
+} from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 
 type Props = {
   value: BuilderState;
@@ -26,7 +30,8 @@ type WebsiteImportPayload = {
     idealCustomers?: string;
     additionalKnowledge?: string;
   };
-  pages?: Array<{ url: string; title: string; pageType: string }>;
+  knowledge?: StructuredWebsiteKnowledge;
+  pages?: WebsiteKnowledgePage[];
   warnings?: string[];
   error?: { message?: string };
 };
@@ -140,6 +145,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         productsServices: imported.productsServices?.trim() || "",
         idealCustomers: imported.idealCustomers?.trim() || "",
         additionalKnowledge: imported.additionalKnowledge?.trim() || "",
+        knowledge: payload.knowledge,
         pages: payload.pages ?? [],
         warnings: payload.warnings ?? [],
         importedAt: new Date().toISOString(),
