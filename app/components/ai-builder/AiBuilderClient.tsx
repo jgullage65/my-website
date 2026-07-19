@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
 import type {
+  PersistedWebsiteKnowledge,
   StructuredWebsiteKnowledge,
   WebsiteKnowledgePage,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
@@ -80,6 +81,7 @@ type ProjectResponse = {
     website?: string;
     tone?: string;
   };
+  websiteKnowledge?: PersistedWebsiteKnowledge | null;
   chatThread?: ChatThread | null;
   error?: {
     code?: string;
@@ -214,6 +216,29 @@ export default function AiBuilderClient({
           industry: payload.builder?.industry ?? "",
           website: payload.builder?.website ?? "",
           tone: payload.builder?.tone ?? "Professional",
+          websiteKnowledge: payload.websiteKnowledge
+            ? {
+                businessName: payload.builder?.businessName ?? "",
+                industry: payload.builder?.industry ?? "",
+                website:
+                  payload.websiteKnowledge.resolved_url ??
+                  payload.websiteKnowledge.requested_url ??
+                  payload.builder?.website ??
+                  "",
+                productsServices: "",
+                idealCustomers: "",
+                additionalKnowledge: "",
+                knowledge: payload.websiteKnowledge.knowledge,
+                pages: payload.websiteKnowledge.pages,
+                warnings: payload.websiteKnowledge.warnings,
+                importedAt: payload.websiteKnowledge.imported_at ?? "",
+                crawlAttemptId:
+                  payload.websiteKnowledge.current_crawl_attempt_id ?? undefined,
+              }
+            : null,
+          crawlAttemptIds: payload.websiteKnowledge?.current_crawl_attempt_id
+            ? [payload.websiteKnowledge.current_crawl_attempt_id]
+            : [],
         }));
         setSession(payload.session);
         setChatThread(payload.chatThread ?? null);

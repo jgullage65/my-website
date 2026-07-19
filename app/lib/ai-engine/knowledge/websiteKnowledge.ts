@@ -36,7 +36,7 @@ export type WebsiteKnowledgePage = { url: string; title: string; pageType: strin
 
 export type PersistedWebsiteKnowledge = {
   schema_version: 1;
-  document_version: 1;
+  document_version: number;
   current_crawl_attempt_id: string | null;
   imported_at: string | null;
   requested_url: string | null;
