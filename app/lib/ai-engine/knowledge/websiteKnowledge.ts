@@ -52,7 +52,7 @@ import type {
   BusinessContextEntry,
   BusinessContextStatus,
   ContextConfidence,
-} from "@/app/lib/ai-engine/contracts";
+} from "../contracts";
 
 const WEBSITE_FACT_CATEGORIES: Record<
   WebsiteKnowledgeFact["category"],
@@ -78,22 +78,36 @@ function normalizeFactIdentityValue(value: string): string {
   return value.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-function stableWebsiteFactId(fact: WebsiteKnowledgeFact): string {
+/** Canonical restoration identity: category, title, value, and evidence URLs. */
+export function websiteFactIdentityMaterial(fact: WebsiteKnowledgeFact): string {
   const evidenceUrls = fact.evidence
-    .map((evidence) => normalizeFactIdentityValue(evidence.url))
+    .map((item) => normalizeFactIdentityValue(item.url))
     .filter(Boolean)
-    .sort()
-    .join("|");
-  const identity = [fact.category, fact.title, fact.value, evidenceUrls]
+    .sort();
+  return [fact.category, fact.title, fact.value, ...evidenceUrls]
     .map(normalizeFactIdentityValue)
     .join("\u0000");
+}
 
+/** Business Memory fingerprint: restoration identity plus every evidence excerpt. */
+export function websiteFactFingerprint(fact: WebsiteKnowledgeFact): string {
+  const evidence = fact.evidence
+    .map((item) => `${item.url}\u0000${item.excerpt}`)
+    .map(normalizeFactIdentityValue)
+    .filter(Boolean)
+    .sort();
+  return [fact.category, fact.title, fact.value, ...evidence]
+    .map(normalizeFactIdentityValue)
+    .join("\u0000");
+}
+
+export function websiteFactIdentity(fact: WebsiteKnowledgeFact): string {
+  const identity = websiteFactIdentityMaterial(fact);
   let hash = 2166136261;
   for (let index = 0; index < identity.length; index += 1) {
     hash ^= identity.charCodeAt(index);
     hash = Math.imul(hash, 16777619);
   }
-
   return `website_fact_${(hash >>> 0).toString(16)}`;
 }
 
@@ -127,14 +141,14 @@ export function applyStructuredWebsiteKnowledge(
   const existingEntries = new Map(
     session.contextEntries.map((entry) => [entry.id, entry]),
   );
-  const structuredIds = new Set(knowledge.facts.map(stableWebsiteFactId));
+  const structuredIds = new Set(knowledge.facts.map(websiteFactIdentity));
   const retainedEntries = session.contextEntries.filter(
     (entry) => !isLegacyWebsiteEntry(entry) || structuredIds.has(entry.id),
   );
   const createdAt = session.createdAt;
 
   const structuredEntries = knowledge.facts.flatMap((fact) => {
-    const id = stableWebsiteFactId(fact);
+    const id = websiteFactIdentity(fact);
     if (existingEntries.has(id)) return [];
 
     const evidence = fact.evidence[0];

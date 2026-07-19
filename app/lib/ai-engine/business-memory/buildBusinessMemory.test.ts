@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { AiBuilderSession, BusinessContextEntry } from "@/app/lib/ai-engine/contracts";
-import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import type { AiBuilderSession, BusinessContextEntry } from "../contracts";
+import { websiteFactIdentity, type PersistedWebsiteKnowledge } from "../knowledge/websiteKnowledge";
 import { buildBusinessMemory } from "./buildBusinessMemory";
 
 const createdAt = "2026-07-19T10:00:00.000Z";
@@ -171,4 +171,101 @@ test("selects preferred alias display deterministically", () => {
   assert.equal(planning.name, "Planning");
   assert.deepEqual(planning.aliases, ["Planning"]);
   assert.ok(memory.entities.some((item) => item.aliases.includes("Strategic Planning")));
+});
+
+function restoredWebsiteEntry(fact = planningWebsiteFact, overrides: Partial<BusinessContextEntry> = {}): BusinessContextEntry {
+  return entry({
+    id: websiteFactIdentity(fact),
+    category: "service",
+    title: fact.title,
+    content: fact.value,
+    status: "approved",
+    source: { intakeBlockId: "website_knowledge", excerpt: fact.evidence[0].excerpt, sourceType: "website", sourceUrl: fact.evidence[0].url },
+    metadata: { generated: true, userEdited: false, conflictingEntryIds: [], tags: [fact.category] },
+    ...overrides,
+  });
+}
+
+test("preserves sourceType origin independently of edit metadata", () => {
+  const website = entry({ id: "website", source: { intakeBlockId: "website_knowledge", excerpt: "x", sourceType: "website", sourceUrl: "https://example.com" } });
+  const generated = entry({ id: "generated", source: { intakeBlockId: "generated", excerpt: "x", sourceType: "generated_qa", sourceUrl: null } });
+  const manual = entry({ id: "manual-origin" });
+  const userEdit = entry({ id: "user-edit", source: { intakeBlockId: "manual", excerpt: "x", sourceType: "manual_intake", sourceUrl: null }, metadata: { generated: false, userEdited: true, conflictingEntryIds: [], tags: [] } });
+  const memory = buildBusinessMemory({ session: session({ contextEntries: [website, generated, manual, userEdit] }), websiteKnowledge: null });
+  const originFor = (id: string) => memory.sources.find((source) => source.sourceEntryId === id)?.origin;
+  assert.equal(originFor(website.id), "website");
+  assert.equal(originFor(generated.id), "generated_qa");
+  assert.equal(originFor(manual.id), "manual_intake");
+  assert.equal(originFor(userEdit.id), "user_edit");
+});
+
+test("reconciles restored website facts into one workflow-preserving assertion with full provenance", () => {
+  for (const status of ["approved", "corrected", "archived"] as const) {
+    const restored = restoredWebsiteEntry(planningWebsiteFact, { status });
+    const memory = buildBusinessMemory({ session: session({ contextEntries: [restored] }), websiteKnowledge: websiteKnowledge([planningWebsiteFact]) });
+    assert.equal(memory.assertions.length, 1);
+    assert.equal(memory.assertions[0].reviewState, status);
+    assert.equal(memory.assertions[0].authority, status === "corrected" ? "corrected" : "observed");
+    assert.equal(memory.evidence.length, planningWebsiteFact.evidence.length);
+    assert.deepEqual(memory.sources.map((source) => source.url).sort(), planningWebsiteFact.evidence.map((item) => item.url).sort());
+    assert.ok(memory.sources.every((source) => source.crawlAttemptId === "crawl_1"));
+  }
+});
+
+test("uses the newest imported or assertion timestamp for memory freshness", () => {
+  const imported = "2026-07-20T12:00:00.000Z";
+  const knowledge = { ...websiteKnowledge([planningWebsiteFact]), imported_at: imported };
+  assert.equal(buildBusinessMemory({ session: session({ updatedAt }), websiteKnowledge: knowledge }).updatedAt, imported);
+  assert.equal(buildBusinessMemory({ session: session({ contextEntries: [entry({ updatedAt: "2026-07-21T12:00:00.000Z" })] }), websiteKnowledge: null }).updatedAt, "2026-07-21T12:00:00.000Z");
+});
+
+test("relationship provenance retains both endpoint entity and assertion IDs", () => {
+  const source = entry();
+  const faq = { id: "faq_provenance", sessionId: "project_1", question: "Do you plan?", answer: "Yes.", confidence: "high" as const, confidenceScore: 0.9, sourceEntryIds: [source.id], status: "approved" as const, createdAt, updatedAt };
+  const memory = buildBusinessMemory({ session: session({ contextEntries: [source], faqEntries: [faq] }), websiteKnowledge: null });
+  const relationship = memory.relationships[0];
+  assert.equal(relationship.fromEntityId, memory.assertions.find((item) => item.id === relationship.fromAssertionId)?.entityId);
+  assert.equal(relationship.toEntityId, memory.assertions.find((item) => item.id === relationship.toAssertionId)?.entityId);
+});
+
+test("uses long deterministic IDs and serializes reviewed merge contracts deterministically", () => {
+  const merges = [{ canonicalEntityId: "entity_b", mergedEntityIds: ["entity_c", "entity_a"], approvedAliases: ["Beta", "Alpha"], mergedAt: "2026-07-22T00:00:00.000Z" }];
+  const forward = buildBusinessMemory({ session: session({ contextEntries: [entry(), entry({ id: "entry_2" })] }), websiteKnowledge: null, entityMerges: merges });
+  const reversed = buildBusinessMemory({ session: session({ contextEntries: [entry({ id: "entry_2" }), entry()] }), websiteKnowledge: null, entityMerges: merges });
+  assert.equal(JSON.stringify(forward), JSON.stringify(reversed));
+  assert.match(forward.id, /^business_memory_[a-f0-9]{64}$/);
+  assert.deepEqual(forward.entityMerges, [{ ...merges[0], mergedEntityIds: ["entity_a", "entity_c"], approvedAliases: ["Alpha", "Beta"] }]);
+  assert.equal("entityMerges" in buildBusinessMemory({ session: session(), websiteKnowledge: null }), false);
+});
+
+test("reconciles a corrected website fact after save, restore, and recrawl", () => {
+  const initialFact = planningWebsiteFact;
+  const imported = restoredWebsiteEntry(initialFact);
+  const corrected = {
+    ...imported,
+    status: "corrected" as const,
+    metadata: { ...imported.metadata, userEdited: false },
+    content: "Planning sessions are available globally.",
+    updatedAt: "2026-07-20T10:00:00.000Z",
+  };
+  // A restored session preserves the structured entry ID and its reviewed workflow state.
+  const restored = session({ contextEntries: [corrected] });
+  const recrawledFact = {
+    ...initialFact,
+    evidence: initialFact.evidence.map((item) => ({ ...item, excerpt: `${item.excerpt} Refreshed.` })),
+  };
+  const recrawledKnowledge = {
+    ...websiteKnowledge([recrawledFact]),
+    current_crawl_attempt_id: "crawl_2",
+    imported_at: "2026-07-21T10:00:00.000Z",
+  };
+  const memory = buildBusinessMemory({ session: restored, websiteKnowledge: recrawledKnowledge });
+  assert.equal(memory.assertions.length, 1);
+  assert.equal(memory.assertions[0].reviewState, "corrected");
+  assert.equal(memory.assertions[0].authority, "corrected");
+  assert.equal(memory.entities.length, 1);
+  assert.equal(memory.entities[0].id, buildBusinessMemory({ session: session({ contextEntries: [corrected] }), websiteKnowledge: null }).entities[0].id);
+  assert.deepEqual(memory.evidence.map((item) => item.excerpt).sort(), recrawledFact.evidence.map((item) => item.excerpt).sort());
+  assert.ok(memory.sources.every((source) => source.crawlAttemptId === "crawl_2"));
+  assert.equal(memory.assertions.filter((item) => item.reviewState === "proposed").length, 0);
 });

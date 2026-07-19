@@ -36,6 +36,7 @@ export type KnowledgeSource = {
   url: string | null;
   label: string | null;
   capturedAt: string;
+  crawlAttemptId: string | null;
 };
 
 export type EvidenceRecord = {
@@ -80,10 +81,20 @@ export type BusinessRelationship = {
   type: BusinessRelationshipType;
   fromEntityId: string;
   toEntityId: string;
+  fromAssertionId: string;
+  toAssertionId: string;
   sourceEntryIds: string[];
   reviewState: ReviewState;
   createdAt: string;
   updatedAt: string;
+};
+
+/** A reviewed future merge decision; the mapper never creates these automatically. */
+export type EntityMergeContract = {
+  canonicalEntityId: string;
+  mergedEntityIds: string[];
+  approvedAliases: string[];
+  mergedAt: string;
 };
 
 export type BusinessMemory = {
@@ -95,6 +106,8 @@ export type BusinessMemory = {
   relationships: BusinessRelationship[];
   sources: KnowledgeSource[];
   evidence: EvidenceRecord[];
+  /** Omitted when no reviewed merge decisions are supplied. */
+  entityMerges?: EntityMergeContract[];
   createdAt: string;
   updatedAt: string;
 };
