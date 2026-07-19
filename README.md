@@ -16,6 +16,23 @@ bun run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Clerk authentication
+
+Copy `.env.example` to `.env.local` and configure these variables in each
+Vercel environment as well:
+
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+
+The publishable key is intentionally client-visible. The secret key must remain
+server-only. In Clerk, set a user's public metadata to `{ "role": "admin" }`
+to authorize the existing `/admin` area. In **Sessions → Customize session
+token**, add `{ "metadata": "{{user.public_metadata}}", "primaryEmail":
+"{{user.primary_email_address}}" }` so admin authorization does not require an
+extra Clerk Backend API lookup. The server safely falls back to Clerk's current
+user API if either claim is not configured. Regular authenticated users remain
+limited to their own AI Builder projects.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.

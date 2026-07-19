@@ -6,6 +6,7 @@ import type {
 } from "@/app/lib/ai-engine/contracts";
 import { ensureAiBuilderSchema } from "./ai-builder-schema";
 import { getSql } from "./client";
+import { requireClerkUserId } from "@/app/lib/auth/clerk";
 
 type DatabaseRow = Record<string, unknown>;
 
@@ -58,6 +59,7 @@ export async function persistAiBuilderProject({
   website,
   initialThread,
 }: PersistAiBuilderProjectInput): Promise<void> {
+  const clerkUserId = await requireClerkUserId();
   await ensureAiBuilderSchema();
 
   const sql = getSql();
@@ -73,7 +75,8 @@ export async function persistAiBuilderProject({
       context_counts,
       created_at,
       updated_at,
-      expires_at
+      expires_at,
+      clerk_user_id
     ) VALUES (
       ${session.id},
       ${session.status},
@@ -84,7 +87,8 @@ export async function persistAiBuilderProject({
       ${JSON.stringify(session.contextCounts)}::jsonb,
       ${session.createdAt}::timestamptz,
       ${session.updatedAt}::timestamptz,
-      ${session.expiresAt}::timestamptz
+      ${session.expiresAt}::timestamptz,
+      ${clerkUserId}
     )
     ON CONFLICT (id) DO UPDATE SET
       status = EXCLUDED.status,
@@ -94,7 +98,13 @@ export async function persistAiBuilderProject({
       assistant_configuration = EXCLUDED.assistant_configuration,
       context_counts = EXCLUDED.context_counts,
       updated_at = EXCLUDED.updated_at,
-      expires_at = EXCLUDED.expires_at
+      expires_at = EXCLUDED.expires_at,
+      clerk_user_id = COALESCE(
+        ai_builder_projects.clerk_user_id,
+        EXCLUDED.clerk_user_id
+      )
+    WHERE ai_builder_projects.clerk_user_id IS NULL
+       OR ai_builder_projects.clerk_user_id = ${clerkUserId}
   `;
 
   await Promise.all(
@@ -305,6 +315,7 @@ export async function persistAiBuilderProject({
 export async function getAiBuilderProject(
   projectId: string,
 ): Promise<LoadedAiBuilderProject | null> {
+  const clerkUserId = await requireClerkUserId();
   await ensureAiBuilderSchema();
 
   const sql = getSql();
@@ -312,6 +323,7 @@ export async function getAiBuilderProject(
     SELECT *
     FROM ai_builder_projects
     WHERE id = ${projectId}
+      AND clerk_user_id = ${clerkUserId}
       AND archived_at IS NULL
     LIMIT 1
   `) as DatabaseRow[];
@@ -430,6 +442,7 @@ export async function getAiBuilderProject(
 }
 
 export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]> {
+  const clerkUserId = await requireClerkUserId();
   await ensureAiBuilderSchema();
   const sql = getSql();
   const rows = (await sql`
@@ -446,6 +459,7 @@ export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]
     LEFT JOIN ai_builder_chat_threads threads ON threads.project_id = projects.id
     LEFT JOIN ai_builder_chat_messages messages ON messages.thread_id = threads.id
     WHERE projects.archived_at IS NULL
+      AND projects.clerk_user_id = ${clerkUserId}
     GROUP BY projects.id
     ORDER BY projects.updated_at DESC
   `) as DatabaseRow[];
@@ -466,12 +480,14 @@ export async function renameAiBuilderProject(
   projectId: string,
   businessName: string,
 ): Promise<boolean> {
+  const clerkUserId = await requireClerkUserId();
   await ensureAiBuilderSchema();
   const sql = getSql();
   const rows = (await sql`
     UPDATE ai_builder_projects
     SET business_name = ${businessName}, updated_at = NOW()
     WHERE id = ${projectId}
+      AND clerk_user_id = ${clerkUserId}
       AND archived_at IS NULL
     RETURNING id
   `) as DatabaseRow[];
@@ -479,12 +495,14 @@ export async function renameAiBuilderProject(
 }
 
 export async function archiveAiBuilderProject(projectId: string): Promise<boolean> {
+  const clerkUserId = await requireClerkUserId();
   await ensureAiBuilderSchema();
   const sql = getSql();
   const rows = (await sql`
     UPDATE ai_builder_projects
     SET archived_at = NOW(), updated_at = NOW()
     WHERE id = ${projectId}
+      AND clerk_user_id = ${clerkUserId}
       AND archived_at IS NULL
     RETURNING id
   `) as DatabaseRow[];

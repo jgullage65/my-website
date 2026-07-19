@@ -6,7 +6,7 @@ export type ImpersonationCapability = { available: false; reason: string } | { a
 
 export async function getImpersonationCapability(): Promise<ImpersonationCapability> {
   await requireAdmin();
-  return { available: false, reason: "Connect the Clerk server SDK before impersonation can be enabled." };
+  return { available: false, reason: "Clerk application impersonation support and plan access have not been verified; secure impersonation remains disabled." };
 }
 
 /** Clerk integration boundary. Never replace this with a local cookie or project-id override. */

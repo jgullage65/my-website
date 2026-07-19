@@ -30,6 +30,7 @@ async function createAiBuilderSchema() {
 
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS owner_name TEXT`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS owner_email TEXT`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS clerk_user_id TEXT`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_status TEXT`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_fields JSONB NOT NULL DEFAULT '{}'::jsonb`;
 
@@ -239,6 +240,7 @@ async function createAiBuilderSchema() {
 
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_updated_at_idx ON ai_builder_projects(updated_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_owner_email_idx ON ai_builder_projects(owner_email)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_clerk_user_id_idx ON ai_builder_projects(clerk_user_id, updated_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_archived_at_idx ON ai_builder_projects(archived_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_intake_blocks_project_idx ON ai_builder_intake_blocks(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;

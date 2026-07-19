@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
+import { requireClerkUserId } from "@/app/lib/auth/clerk";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -104,6 +105,9 @@ async function sendPurchaseInterestEmail(
 }
 
 export async function GET(request: Request) {
+  let clerkUserId: string;
+  try { clerkUserId = await requireClerkUserId(); }
+  catch { return errorResponse(401, "authentication_required", "Sign in to use AI Builder."); }
   const requestUrl = new URL(request.url);
   const projectId = normalizeProjectId(
     requestUrl.searchParams.get("projectId"),
@@ -121,6 +125,7 @@ export async function GET(request: Request) {
       SELECT id
       FROM ai_builder_projects
       WHERE id = ${projectId}
+        AND clerk_user_id = ${clerkUserId}
         AND archived_at IS NULL
       LIMIT 1
     `) as DatabaseRow[];
@@ -159,6 +164,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let clerkUserId: string;
+  try { clerkUserId = await requireClerkUserId(); }
+  catch { return errorResponse(401, "authentication_required", "Sign in to use AI Builder."); }
   let body: PurchaseInterestBody;
 
   try {
@@ -185,6 +193,7 @@ export async function POST(request: Request) {
       SELECT id, business_name, industry, website
       FROM ai_builder_projects
       WHERE id = ${projectId}
+        AND clerk_user_id = ${clerkUserId}
         AND archived_at IS NULL
       LIMIT 1
     `) as DatabaseRow[];

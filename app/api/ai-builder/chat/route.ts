@@ -12,6 +12,7 @@ import type {
 import { runOpenAiChat } from "@/app/lib/ai-engine/providers/openaiChatRunner";
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
+import { requireClerkUserId } from "@/app/lib/auth/clerk";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,7 @@ async function resolvePersistentThread(input: {
   projectId?: string;
   threadId?: string;
 }): Promise<PersistentThread | null> {
+  const clerkUserId = await requireClerkUserId();
   const projectId = input.projectId?.trim();
   const threadId = input.threadId?.trim();
 
@@ -101,6 +103,7 @@ async function resolvePersistentThread(input: {
     WHERE threads.id = ${threadId}
       AND threads.project_id = ${projectId}
       AND projects.archived_at IS NULL
+      AND projects.clerk_user_id = ${clerkUserId}
     GROUP BY threads.id, threads.project_id
     LIMIT 1
   `) as DatabaseRow[];
@@ -125,6 +128,7 @@ async function persistChatExchange(input: {
   userMessageId: string;
   assistantMessageId: string;
 }> {
+  const clerkUserId = await requireClerkUserId();
   await ensureAiBuilderSchema();
 
   const sql = getSql();
@@ -132,6 +136,18 @@ async function persistChatExchange(input: {
   const assistantCreatedAt = new Date(userCreatedAt.getTime() + 1);
   const userMessageId = `user_${randomUUID()}`;
   const assistantMessageId = `assistant_${randomUUID()}`;
+
+  const ownedThreads = (await sql`
+    SELECT threads.id
+    FROM ai_builder_chat_threads threads
+    JOIN ai_builder_projects projects ON projects.id = threads.project_id
+    WHERE threads.id = ${input.threadId}
+      AND threads.project_id = ${input.projectId}
+      AND projects.clerk_user_id = ${clerkUserId}
+      AND projects.archived_at IS NULL
+    LIMIT 1
+  `) as DatabaseRow[];
+  if (!ownedThreads[0]) throw new Error("chat_thread_not_found");
 
   await sql`
     INSERT INTO ai_builder_chat_messages (
@@ -198,6 +214,14 @@ function getErrorDetails(error: unknown): {
       ? error.message
       : "ai_builder_chat_failed";
 
+  if (code === "authentication_required") {
+    return {
+      status: 401,
+      code,
+      message: "Sign in to use AI Builder.",
+    };
+  }
+
   if (code === "invalid_chat_persistence_context") {
     return {
       status: 400,
@@ -242,6 +266,7 @@ function getErrorDetails(error: unknown): {
 
 export async function POST(request: Request) {
   try {
+    await requireClerkUserId();
     const body = (await request.json()) as unknown;
 
     if (!isValidRequest(body)) {

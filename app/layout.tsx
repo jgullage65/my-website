@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import JGChatWidget from "./components/JGChatWidget";
 import SiteNavLinks from "./components/SiteNavLinks";
+import { ClerkProvider } from "@clerk/nextjs";
 
 const siteName = "JG Creative Studio";
 const siteDescription =
@@ -57,11 +58,21 @@ const footerNavItems = [
 ];
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  if (
+    process.env.NODE_ENV === "production" &&
+    (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || !process.env.CLERK_SECRET_KEY)
+  ) {
+    throw new Error(
+      "Clerk authentication is not configured: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY are required.",
+    );
+  }
+
   const year = new Date().getFullYear();
 
   return (
     <html lang="en">
       <body>
+        <ClerkProvider>
         <div className="site-background" aria-hidden="true">
           <div className="site-background__depth" />
           <div className="site-background__grid" />
@@ -210,6 +221,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
           <JGChatWidget />
         </div>
+        </ClerkProvider>
       </body>
     </html>
   );

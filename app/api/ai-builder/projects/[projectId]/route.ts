@@ -7,6 +7,7 @@ import {
 } from "@/app/lib/db/ai-builder-repository";
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
+import { isAuthenticationRequired, requireClerkUserId } from "@/app/lib/auth/clerk";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -148,6 +149,7 @@ export async function GET(_request: Request, context: RouteContext) {
       chatThread,
     });
   } catch (error) {
+    if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
     console.error("AI_BUILDER_PROJECT_LOAD_FAILED", {
       projectId: normalizedProjectId,
       message: error instanceof Error ? error.message : "unknown_error",
@@ -200,6 +202,7 @@ export async function PUT(request: Request, context: RouteContext) {
   }
 
   try {
+    const clerkUserId = await requireClerkUserId();
     await ensureAiBuilderSchema();
     const sql = getSql();
 
@@ -207,6 +210,7 @@ export async function PUT(request: Request, context: RouteContext) {
       SELECT id
       FROM ai_builder_projects
       WHERE id = ${normalizedProjectId}
+        AND clerk_user_id = ${clerkUserId}
         AND archived_at IS NULL
       LIMIT 1
     `) as Array<Record<string, unknown>>;
@@ -228,6 +232,7 @@ export async function PUT(request: Request, context: RouteContext) {
         updated_at = ${session.updatedAt}::timestamptz,
         expires_at = ${session.expiresAt}::timestamptz
       WHERE id = ${normalizedProjectId}
+        AND clerk_user_id = ${clerkUserId}
         AND archived_at IS NULL
     `;
 
@@ -271,6 +276,7 @@ export async function PUT(request: Request, context: RouteContext) {
       updatedAt: session.updatedAt,
     });
   } catch (error) {
+    if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
     console.error("AI_BUILDER_PROJECT_SAVE_FAILED", {
       projectId: normalizedProjectId,
       message: error instanceof Error ? error.message : "unknown_error",
@@ -315,6 +321,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       businessName,
     });
   } catch (error) {
+    if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
     console.error("AI_BUILDER_PROJECT_RENAME_FAILED", {
       projectId: normalizedProjectId,
       message: error instanceof Error ? error.message : "unknown_error",
@@ -346,6 +353,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
     return NextResponse.json({ ok: true, archived: true });
   } catch (error) {
+    if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
     console.error("AI_BUILDER_PROJECT_ARCHIVE_FAILED", {
       projectId: normalizedProjectId,
       message: error instanceof Error ? error.message : "unknown_error",

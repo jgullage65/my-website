@@ -1,14 +1,18 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
-export function middleware(request: NextRequest) {
-  // Clerk will replace this closed gate. Page-level requireAdmin checks remain
-  // the authoritative authorization boundary as defense in depth.
-  if (request.nextUrl.pathname.startsWith("/admin")) {
-    return new NextResponse("Not Found", { status: 404 });
-  }
-  return NextResponse.next();
+function isProtectedRoute(pathname: string): boolean {
+  return ["/ai-builder", "/api/ai-builder", "/admin"].some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
 }
 
+export default clerkMiddleware(async (auth, request) => {
+  if (isProtectedRoute(request.nextUrl.pathname)) await auth.protect();
+});
+
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
 };

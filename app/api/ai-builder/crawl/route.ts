@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { BusinessWebsiteCrawlError, crawlBusinessWebsite } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
 import { finishCrawlTelemetry, startCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
+import { requireClerkUserId } from "@/app/lib/auth/clerk";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +40,11 @@ function errorResponse(status: number, code: string, message: string) {
 }
 
 export async function POST(request: Request) {
+  try {
+    await requireClerkUserId();
+  } catch {
+    return NextResponse.json({ ok: false, error: { code: "authentication_required", message: "Sign in to use AI Builder." } }, { status: 401 });
+  }
   let body: { website?: unknown };
 
   try {

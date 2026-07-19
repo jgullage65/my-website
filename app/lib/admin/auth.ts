@@ -1,6 +1,7 @@
 import "server-only";
 
 import { notFound } from "next/navigation";
+import { auth, currentUser } from "@clerk/nextjs/server";
 
 export type AdminPrincipal = {
   id: string;
@@ -8,14 +9,28 @@ export type AdminPrincipal = {
   role: "admin";
 };
 
-/**
- * Clerk integration point.
- *
- * This deliberately returns null until Clerk is installed. Keeping the default
- * closed means admin pages and their data cannot be reached in the meantime.
- */
+/** Server-verified Clerk public metadata is the admin authorization source. */
 export async function getAdminPrincipal(): Promise<AdminPrincipal | null> {
-  return null;
+  const { userId, sessionClaims } = await auth();
+  if (!userId) return null;
+
+  const claimMetadata = sessionClaims?.metadata as
+    | Record<string, unknown>
+    | undefined;
+  let role = claimMetadata?.role;
+  let email =
+    typeof sessionClaims?.primaryEmail === "string"
+      ? sessionClaims.primaryEmail
+      : null;
+
+  if (role !== "admin" || !email) {
+    const user = await currentUser();
+    role = user?.publicMetadata?.role;
+    email ??= user?.primaryEmailAddress?.emailAddress ?? null;
+  }
+  if (role !== "admin" || !email) return null;
+
+  return { id: userId, email, role: "admin" };
 }
 
 export async function requireAdmin(): Promise<AdminPrincipal> {

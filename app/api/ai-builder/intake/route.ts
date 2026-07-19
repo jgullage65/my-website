@@ -5,6 +5,7 @@ import type { OpenAiIntakeCallMetadata } from "@/app/lib/ai-engine/providers/ope
 import { runEngine } from "@/app/lib/ai-engine/runtime";
 import { persistAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { finishGenerationTelemetry, linkCrawlTelemetry, startGenerationTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
+import { requireClerkUserId } from "@/app/lib/auth/clerk";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -111,6 +112,12 @@ function addKnowledgeBlock(
 }
 
 export async function POST(request: Request) {
+  try {
+    await requireClerkUserId();
+  } catch {
+    return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
+  }
+
   let body: IntakeRequestBody;
 
   try {

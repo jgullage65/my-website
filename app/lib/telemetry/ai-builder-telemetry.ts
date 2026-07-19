@@ -2,6 +2,7 @@ import "server-only";
 
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
+import { requireClerkUserId } from "@/app/lib/auth/clerk";
 
 type JsonItem = Record<string, unknown>;
 const safeMessage=(error:unknown)=>error instanceof Error?error.message.slice(0,500):"Unknown error";
@@ -31,7 +32,7 @@ export async function finishCrawlTelemetry(id:string,data:{status:string;resolve
       errors=${JSON.stringify(safeItems(data.errors))}::jsonb,restrictions=${data.restrictions?.length?JSON.stringify(safeRestrictions(data.restrictions)):null}::jsonb,failure_stage=${data.failureStage??null} WHERE id=${id}`;});
 }
 
-export async function linkCrawlTelemetry(id:string,projectId:string){await safely("AI_BUILDER_CRAWL_TELEMETRY_LINK_FAILED",async()=>{const sql=getSql();await sql`UPDATE ai_builder_crawl_telemetry SET project_id=${projectId} WHERE id=${id} AND project_id IS NULL`;});}
+export async function linkCrawlTelemetry(id:string,projectId:string){const clerkUserId=await requireClerkUserId();await safely("AI_BUILDER_CRAWL_TELEMETRY_LINK_FAILED",async()=>{const sql=getSql();await sql`UPDATE ai_builder_crawl_telemetry SET project_id=${projectId} WHERE id=${id} AND project_id IS NULL AND EXISTS (SELECT 1 FROM ai_builder_projects WHERE id=${projectId} AND clerk_user_id=${clerkUserId})`;});}
 
 export async function startGenerationTelemetry(id:string,projectId:string,startedAt:string){await safely("AI_BUILDER_GENERATION_TELEMETRY_START_FAILED",async()=>{const sql=getSql();await sql`
   INSERT INTO ai_builder_generation_telemetry (id,project_id,status,attempt_number,started_at)
