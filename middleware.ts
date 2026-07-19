@@ -1,7 +1,7 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 
 function isProtectedRoute(pathname: string): boolean {
-  return ["/ai-builder", "/api/ai-builder", "/admin"].some(
+  return ["/api/ai-builder", "/admin"].some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 }
