@@ -1,27 +1,27 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export const card = "rounded-[24px] border border-amber-300/10 bg-[linear-gradient(145deg,rgba(5,11,24,.94),rgba(3,7,19,.88))] shadow-[0_20px_60px_rgba(0,0,0,.28),0_0_36px_rgba(245,158,11,.025),inset_0_1px_0_rgba(212,175,55,.05)]";
+export const card = "rounded-[22px] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(8,15,30,.96),rgba(3,7,19,.96))] shadow-[0_24px_70px_rgba(0,0,0,.3)]";
 export const inset = "rounded-2xl bg-[#050b18]/80 ring-1 ring-inset ring-amber-300/10";
 export const input = "rounded-xl border border-amber-300/10 bg-[#020611]/90 text-slate-200 outline-none transition placeholder:text-slate-600 focus:border-amber-300/45 focus:ring-4 focus:ring-amber-300/[.05]";
-export const th = "whitespace-nowrap px-5 py-3.5 text-left text-[10px] font-black uppercase tracking-[.16em] text-amber-200/55";
-export const td = "px-5 py-4 text-sm text-slate-300";
+export const th = "whitespace-nowrap px-4 py-3 text-left text-[10px] font-black uppercase tracking-[.16em] text-amber-200/55";
+export const td = "px-4 py-3.5 text-sm text-slate-300";
 
 export function PageHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: ReactNode }) {
-  return <header className="relative overflow-hidden rounded-[28px] border border-amber-300/10 bg-[#030713]/90 px-6 py-7 text-center shadow-[0_22px_70px_rgba(0,0,0,.3),0_0_40px_rgba(245,158,11,.04)] sm:px-8 sm:py-9">
+  return <header className="relative overflow-hidden rounded-[26px] border border-[rgba(212,175,55,.14)] bg-[linear-gradient(145deg,rgba(8,15,30,.96),rgba(3,7,19,.96))] px-6 py-8 text-center shadow-[0_28px_85px_rgba(0,0,0,.34)] sm:px-10 sm:py-10">
     <div className="pointer-events-none absolute -left-24 -top-32 h-72 w-72 rounded-full bg-amber-400/[.08] blur-[90px]" />
     <div className="relative flex flex-col items-center gap-5">
       <div className="flex flex-col items-center"><p className="text-xs font-semibold uppercase tracking-[.28em] text-amber-300">{eyebrow}</p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-[-.04em] text-white sm:text-5xl">{title}</h1>
+        <h1 className="mt-3 text-3xl font-black tracking-[-.045em] text-white sm:text-5xl">{title}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">{description}</p></div>{action}</div>
   </header>;
 }
 
 export function KpiCard({ label, value, detail, accent = "gold" }: { label: string; value: ReactNode; detail?: string; accent?: "gold" | "blue" | "green" }) {
   const glow = accent === "green" ? "bg-emerald-400" : accent === "blue" ? "bg-blue-400" : "bg-amber-300";
-  return <article className={`${card} group relative min-h-36 overflow-hidden p-5 transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/35`}>
+  return <article className={`${card} group relative flex min-h-40 items-center justify-center overflow-hidden p-5 text-center transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/35`}>
     <span className={`absolute -right-8 -top-8 h-24 w-24 rounded-full ${glow} opacity-[.07] blur-2xl transition group-hover:opacity-[.12]`} />
-    <div className="relative flex h-full flex-col justify-between gap-4"><p className="text-[10px] font-black uppercase tracking-[.17em] text-amber-200/55">{label}</p><div><p className="text-3xl font-semibold tracking-[-.04em] text-white">{value}</p>{detail && <p className="mt-1.5 text-xs text-slate-500">{detail}</p>}</div></div>
+    <div className="relative flex flex-col items-center"><p className="text-[10px] font-black uppercase tracking-[.17em] text-amber-200/55">{label}</p><p className="mt-4 text-3xl font-black tracking-[-.04em] text-white">{value}</p>{detail && <p className="mt-2 text-xs text-slate-500">{detail}</p>}</div>
   </article>;
 }
 

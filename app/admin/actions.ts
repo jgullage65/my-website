@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/app/lib/admin/auth";
 import { createAdminNote, deleteAdminNote, PURCHASE_STAGES, updateAdminNote, updateAdminProject, updateAdminPurchase } from "@/app/lib/admin/repository";
+import { beginCustomerImpersonation, recordCustomerImpersonationStopped } from "@/app/lib/admin/impersonation";
 
 const field = (data: FormData, name: string, max = 5000) => String(data.get(name) ?? "").trim().slice(0, max);
 const optional = (data: FormData, name: string, max?: number) => field(data, name, max) || null;
@@ -39,4 +40,19 @@ export async function savePurchaseAction(data: FormData) {
   if (!purchaseId || !PURCHASE_STAGES.includes(status as typeof PURCHASE_STAGES[number]) || !PURCHASE_STAGES.includes(followUpStage as typeof PURCHASE_STAGES[number])) return;
   await updateAdminPurchase(purchaseId,{status,followUpStage,internalComments:optional(data,"internalComments",10000)});
   revalidatePath("/admin/purchases"); if(projectId) revalidatePath(`/admin/projects/${projectId}`);
+}
+
+export async function startCustomerImpersonationAction(projectIdInput: string) {
+  const projectId = String(projectIdInput ?? "").trim().slice(0, 200);
+  if (!projectId) return { ok: false as const, error: "A project is required for impersonation." };
+  try {
+    const result = await beginCustomerImpersonation(projectId);
+    return { ok: true as const, token: result.token };
+  } catch (error) {
+    return { ok: false as const, error: error instanceof Error ? error.message : "Impersonation could not be started." };
+  }
+}
+
+export async function stopCustomerImpersonationAction() {
+  await recordCustomerImpersonationStopped();
 }

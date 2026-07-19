@@ -6,7 +6,7 @@ import type {
 } from "@/app/lib/ai-engine/contracts";
 import { ensureAiBuilderSchema } from "./ai-builder-schema";
 import { getSql } from "./client";
-import { requireClerkUserId } from "@/app/lib/auth/clerk";
+import { requireClerkIdentity, requireClerkUserId } from "@/app/lib/auth/clerk";
 
 type DatabaseRow = Record<string, unknown>;
 
@@ -59,7 +59,8 @@ export async function persistAiBuilderProject({
   website,
   initialThread,
 }: PersistAiBuilderProjectInput): Promise<void> {
-  const clerkUserId = await requireClerkUserId();
+  const identity = await requireClerkIdentity();
+  const clerkUserId = identity.userId;
   await ensureAiBuilderSchema();
 
   const sql = getSql();
@@ -76,7 +77,9 @@ export async function persistAiBuilderProject({
       created_at,
       updated_at,
       expires_at,
-      clerk_user_id
+      clerk_user_id,
+      owner_name,
+      owner_email
     ) VALUES (
       ${session.id},
       ${session.status},
@@ -88,7 +91,9 @@ export async function persistAiBuilderProject({
       ${session.createdAt}::timestamptz,
       ${session.updatedAt}::timestamptz,
       ${session.expiresAt}::timestamptz,
-      ${clerkUserId}
+      ${clerkUserId},
+      ${identity.displayName},
+      ${identity.email}
     )
     ON CONFLICT (id) DO UPDATE SET
       status = EXCLUDED.status,
@@ -102,7 +107,19 @@ export async function persistAiBuilderProject({
       clerk_user_id = COALESCE(
         ai_builder_projects.clerk_user_id,
         EXCLUDED.clerk_user_id
-      )
+      ),
+      owner_name = CASE
+        WHEN ai_builder_projects.clerk_user_id IS NULL
+          OR ai_builder_projects.clerk_user_id = ${clerkUserId}
+        THEN COALESCE(NULLIF(ai_builder_projects.owner_name, ''), EXCLUDED.owner_name)
+        ELSE ai_builder_projects.owner_name
+      END,
+      owner_email = CASE
+        WHEN ai_builder_projects.clerk_user_id IS NULL
+          OR ai_builder_projects.clerk_user_id = ${clerkUserId}
+        THEN COALESCE(NULLIF(ai_builder_projects.owner_email, ''), EXCLUDED.owner_email)
+        ELSE ai_builder_projects.owner_email
+      END
     WHERE ai_builder_projects.clerk_user_id IS NULL
        OR ai_builder_projects.clerk_user_id = ${clerkUserId}
   `;
@@ -315,10 +332,17 @@ export async function persistAiBuilderProject({
 export async function getAiBuilderProject(
   projectId: string,
 ): Promise<LoadedAiBuilderProject | null> {
-  const clerkUserId = await requireClerkUserId();
+  const identity = await requireClerkIdentity();
+  const clerkUserId = identity.userId;
   await ensureAiBuilderSchema();
 
   const sql = getSql();
+  await sql`
+    UPDATE ai_builder_projects
+    SET owner_name = COALESCE(NULLIF(owner_name, ''), ${identity.displayName}),
+        owner_email = COALESCE(NULLIF(owner_email, ''), ${identity.email})
+    WHERE id = ${projectId} AND clerk_user_id = ${clerkUserId}
+  `;
   const projects = (await sql`
     SELECT *
     FROM ai_builder_projects
@@ -442,9 +466,17 @@ export async function getAiBuilderProject(
 }
 
 export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]> {
-  const clerkUserId = await requireClerkUserId();
+  const identity = await requireClerkIdentity();
+  const clerkUserId = identity.userId;
   await ensureAiBuilderSchema();
   const sql = getSql();
+  await sql`
+    UPDATE ai_builder_projects
+    SET owner_name = COALESCE(NULLIF(owner_name, ''), ${identity.displayName}),
+        owner_email = COALESCE(NULLIF(owner_email, ''), ${identity.email})
+    WHERE clerk_user_id = ${clerkUserId}
+      AND (owner_name IS NULL OR owner_name = '' OR owner_email IS NULL OR owner_email = '')
+  `;
   const rows = (await sql`
     SELECT
       projects.id,

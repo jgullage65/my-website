@@ -7,12 +7,12 @@ import { requireAdmin } from "./auth";
 type Row = Record<string, unknown>;
 export type AdminProject = {
   id: string; businessName: string; industry: string; ownerName: string | null;
-  ownerEmail: string | null; status: string; website: string | null;
+  ownerEmail: string | null; clerkUserId: string | null; status: string; website: string | null;
   knowledgeCount: number; faqCount: number; purchaseRequested: boolean;
   createdAt: string; updatedAt: string;
 };
 export type AdminUser = {
-  email: string; ownerName: string; businessName: string; createdAt: string;
+  clerkUserId: string; email: string; ownerName: string; businessName: string; createdAt: string;
   projectCount: number; purchaseStatus: string; lastActivity: string;
 };
 export type AdminPurchase = {
@@ -34,7 +34,7 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
   await ensureAiBuilderSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT p.id, p.business_name, p.industry, p.owner_name, p.owner_email,
+    SELECT p.id, p.business_name, p.industry, p.owner_name, p.owner_email, p.clerk_user_id,
       p.status, p.website, p.created_at, p.updated_at,
       COUNT(DISTINCT k.id)::integer AS knowledge_count,
       COUNT(DISTINCT f.id)::integer AS faq_count,
@@ -49,7 +49,7 @@ export async function listAdminProjects(): Promise<AdminProject[]> {
   ` as Row[];
   return rows.map((r) => ({
     id: String(r.id), businessName: String(r.business_name), industry: String(r.industry),
-    ownerName: text(r.owner_name), ownerEmail: text(r.owner_email), status: String(r.status),
+    ownerName: text(r.owner_name), ownerEmail: text(r.owner_email), clerkUserId: text(r.clerk_user_id), status: String(r.status),
     website: text(r.website), knowledgeCount: Number(r.knowledge_count), faqCount: Number(r.faq_count),
     purchaseRequested: Boolean(r.purchase_requested), createdAt: iso(r.created_at), updatedAt: iso(r.updated_at),
   }));
@@ -60,18 +60,20 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
   await ensureAiBuilderSchema();
   const sql = getSql();
   const rows = await sql`
-    SELECT p.owner_email, MAX(p.owner_name) AS owner_name,
+    SELECT p.clerk_user_id, MAX(NULLIF(p.owner_email, '')) AS owner_email,
+      MAX(NULLIF(p.owner_name, '')) AS owner_name,
       MIN(p.business_name) AS business_name, MIN(p.created_at) AS created_at,
       MAX(p.updated_at) AS last_activity, COUNT(DISTINCT p.id)::integer AS project_count,
       COALESCE(MAX(pi.status), 'none') AS purchase_status
     FROM ai_builder_projects p
     LEFT JOIN ai_builder_purchase_interest pi ON pi.project_id = p.id
-    WHERE p.archived_at IS NULL AND p.owner_email IS NOT NULL
-    GROUP BY p.owner_email
+    WHERE p.archived_at IS NULL AND p.clerk_user_id IS NOT NULL
+    GROUP BY p.clerk_user_id
     ORDER BY MAX(p.updated_at) DESC
   ` as Row[];
   return rows.map((r) => ({
-    email: String(r.owner_email), ownerName: String(r.owner_name || "Not provided"),
+    clerkUserId: String(r.clerk_user_id), email: String(r.owner_email || "Email unavailable"),
+    ownerName: String(r.owner_name || r.owner_email || "Clerk user"),
     businessName: String(r.business_name), createdAt: iso(r.created_at),
     projectCount: Number(r.project_count), purchaseStatus: String(r.purchase_status),
     lastActivity: iso(r.last_activity),
@@ -128,9 +130,10 @@ export async function listAdminActivity(): Promise<AdminActivity[]> {
       SELECT 'generation', p.id::text, p.id, 'AI generation completed', p.business_name, p.updated_at
       FROM ai_builder_projects p WHERE p.status = 'ready' AND p.archived_at IS NULL
       UNION ALL
-      SELECT 'user', p.owner_email, MIN(p.id), 'New user', COALESCE(p.owner_name, p.owner_email), MIN(p.created_at)
-      FROM ai_builder_projects p WHERE p.owner_email IS NOT NULL
-      GROUP BY p.owner_email, p.owner_name
+      SELECT 'user', p.clerk_user_id, MIN(p.id), 'New user',
+        COALESCE(MAX(NULLIF(p.owner_name, '')), MAX(NULLIF(p.owner_email, '')), 'Clerk user'), MIN(p.created_at)
+      FROM ai_builder_projects p WHERE p.clerk_user_id IS NOT NULL
+      GROUP BY p.clerk_user_id
     ) events ORDER BY occurred_at DESC LIMIT 30
   ` as Row[];
   return rows.map((r) => ({ id: `${r.kind}-${r.id}`, kind: r.kind as AdminActivity["kind"],
@@ -158,7 +161,8 @@ export async function getAdminProjectDetail(projectId: string) {
   ]) as Row[][];
   const p = projects[0];
   return { project: { id: String(p.id), businessName: String(p.business_name), industry: String(p.industry),
-      website: text(p.website), ownerName: text(p.owner_name), ownerEmail: text(p.owner_email), status: String(p.status),
+      website: text(p.website), ownerName: text(p.owner_name), ownerEmail: text(p.owner_email),
+      clerkUserId: text(p.clerk_user_id), status: String(p.status),
       configuration: p.assistant_configuration, counts: p.context_counts,
       internalStatus: text(p.internal_status), internalFields: p.internal_fields,
       createdAt: iso(p.created_at), updatedAt: iso(p.updated_at), expiresAt: p.expires_at ? iso(p.expires_at) : null },
