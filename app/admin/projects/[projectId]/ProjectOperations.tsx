@@ -5,11 +5,11 @@ import { Badge, card, formatDateTime } from "../../_components/AdminUi";
 type Row=Record<string,unknown>;
 const v=(r:Row,k:string)=>String(r[k]??"");
 const date=(x:unknown)=>x?formatDateTime(new Date(String(x)).toISOString()):"Unavailable";
-const input="w-full rounded-xl border border-white/10 bg-[#020611] px-3 py-2.5 text-sm text-white outline-none focus:border-amber-300/40";
+const input="w-full rounded-xl border border-amber-300/15 bg-[#020611] px-3 py-2.5 text-sm text-white outline-none transition focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/[.05]";
 const label="space-y-1 text-xs font-bold text-slate-400";
 const button="cta-raised rounded-xl border border-amber-300/20 bg-[#101936] px-4 py-2.5 text-sm font-black text-white hover:border-amber-300/40";
 
-function Panel({title,subtitle,children}:{title:string;subtitle?:string;children:React.ReactNode}){return <section className={`${card} overflow-hidden`}><div className="border-b border-white/[.06] px-5 py-4"><h2 className="font-black text-white">{title}</h2>{subtitle&&<p className="mt-1 text-xs text-slate-500">{subtitle}</p>}</div><div className="p-5">{children}</div></section>}
+function Panel({title,subtitle,children}:{title:string;subtitle?:string;children:React.ReactNode}){return <section className={`${card} overflow-hidden`}><div className="border-b border-amber-300/10 px-6 py-5"><p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-300/55">Operations</p><h2 className="mt-1 text-lg font-semibold text-white">{title}</h2>{subtitle&&<p className="mt-1 text-xs text-slate-500">{subtitle}</p>}</div><div className="p-5 sm:p-6">{children}</div></section>}
 
 export function CustomerEditor({project}:{project:{id:string;businessName:string;ownerName:string|null;ownerEmail:string|null;website:string|null;internalStatus:string|null;internalFields:unknown}}){
   const fields=(project.internalFields&&typeof project.internalFields==="object"?project.internalFields:{}) as {summary?:string};
