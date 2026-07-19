@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "/tmp/business-memory-tests",
+    "noEmit": false,
+    "incremental": false
+  },
+  "include": ["app/lib/ai-engine/business-memory/**/*.ts"]
+}
