@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
+import type {
+  StructuredWebsiteKnowledge,
+  WebsiteKnowledgePage,
+} from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderForm from "./AiBuilderForm";
@@ -25,11 +29,8 @@ export type WebsiteKnowledge = {
   productsServices: string;
   idealCustomers: string;
   additionalKnowledge: string;
-  pages: Array<{
-    url: string;
-    title: string;
-    pageType: string;
-  }>;
+  knowledge?: StructuredWebsiteKnowledge;
+  pages: WebsiteKnowledgePage[];
   warnings: string[];
   importedAt: string;
   crawlAttemptId?: string;

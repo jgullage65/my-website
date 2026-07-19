@@ -6,6 +6,13 @@ import { runEngine } from "@/app/lib/ai-engine/runtime";
 import { persistAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { finishGenerationTelemetry, linkCrawlTelemetry, startGenerationTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
+import {
+  WEBSITE_KNOWLEDGE_CATEGORIES,
+  WEBSITE_KNOWLEDGE_CONFIDENCE_LEVELS,
+  WEBSITE_KNOWLEDGE_COVERAGE_FIELDS,
+  type PersistedWebsiteKnowledge,
+  type StructuredWebsiteKnowledge,
+} from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +30,7 @@ type WebsiteKnowledgeRequest = {
   productsServices?: unknown;
   idealCustomers?: unknown;
   additionalKnowledge?: unknown;
+  knowledge?: unknown;
   pages?: unknown;
   warnings?: unknown;
   importedAt?: unknown;
@@ -46,6 +54,103 @@ function normalizeText(value: unknown): string {
     .replace(/[ \t]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function normalizeBoundedText(value: unknown, maximumLength: number): string {
+  return normalizeText(value).slice(0, maximumLength);
+}
+
+function normalizeWebsiteUrl(value: unknown): string {
+  const url = normalizeBoundedText(value, 2_048);
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+const websiteKnowledgeCategories = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
+const websiteKnowledgeConfidenceLevels = new Set<string>(WEBSITE_KNOWLEDGE_CONFIDENCE_LEVELS);
+
+function normalizeSubmittedWebsiteKnowledge(value: unknown): StructuredWebsiteKnowledge | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const raw = value as Record<string, unknown>;
+  let hasValidValue = false;
+  const facts = (Array.isArray(raw.facts) ? raw.facts : []).slice(0, 100).flatMap((item) => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const fact = item as Record<string, unknown>;
+    const category = normalizeBoundedText(fact.category, 64);
+    const title = normalizeBoundedText(fact.title, 300);
+    const factValue = normalizeBoundedText(fact.value, 4_000);
+    const confidence = normalizeBoundedText(fact.confidence, 32);
+    const evidence = (Array.isArray(fact.evidence) ? fact.evidence : []).slice(0, 8).flatMap((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+      const item = entry as Record<string, unknown>;
+      const url = normalizeWebsiteUrl(item.url);
+      const excerpt = normalizeBoundedText(item.excerpt, 1_000);
+      return url && excerpt ? [{ url, excerpt }] : [];
+    });
+
+    if (!websiteKnowledgeCategories.has(category) || !title || !factValue || !websiteKnowledgeConfidenceLevels.has(confidence) || !evidence.length) return [];
+    hasValidValue = true;
+    return [{ category, title, value: factValue, confidence, evidence }] as StructuredWebsiteKnowledge["facts"];
+  });
+
+  const rawCoverage = raw.coverage && typeof raw.coverage === "object" && !Array.isArray(raw.coverage)
+    ? raw.coverage as Record<string, unknown>
+    : {};
+  const coverage = Object.fromEntries(WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.map((field) => {
+    const rawValue = rawCoverage[field];
+    const number = typeof rawValue === "number" ? rawValue : Number(rawValue);
+    if (Number.isFinite(number)) hasValidValue = true;
+    return [field, Number.isFinite(number) ? Math.min(100, Math.max(0, number)) : 0];
+  })) as StructuredWebsiteKnowledge["coverage"];
+  const unresolvedQuestions = (Array.isArray(raw.unresolvedQuestions) ? raw.unresolvedQuestions : [])
+    .slice(0, 100)
+    .map((item) => normalizeBoundedText(item, 500))
+    .filter(Boolean);
+  if (unresolvedQuestions.length) hasValidValue = true;
+
+  return hasValidValue ? { facts, coverage, unresolvedQuestions } : null;
+}
+
+function normalizePersistedWebsiteKnowledge(params: {
+  knowledge: unknown;
+  crawlAttemptId: string;
+  importedAt: string;
+  requestedUrl: string;
+  resolvedUrl: string;
+  pages: unknown;
+  warnings: unknown;
+}): PersistedWebsiteKnowledge | null {
+  const knowledge = normalizeSubmittedWebsiteKnowledge(params.knowledge);
+  if (!knowledge) return null;
+
+  const pages = (Array.isArray(params.pages) ? params.pages : []).slice(0, 20).flatMap((page) => {
+    if (!page || typeof page !== "object" || Array.isArray(page)) return [];
+    const item = page as Record<string, unknown>;
+    const url = normalizeWebsiteUrl(item.url);
+    const title = normalizeBoundedText(item.title, 500);
+    const pageType = normalizeBoundedText(item.pageType, 100);
+    return url ? [{ url, title, pageType }] : [];
+  });
+  const warnings = (Array.isArray(params.warnings) ? params.warnings : []).slice(0, 100)
+    .map((warning) => normalizeBoundedText(warning, 500))
+    .filter(Boolean);
+
+  return {
+    schema_version: 1,
+    document_version: 1,
+    current_crawl_attempt_id: normalizeBoundedText(params.crawlAttemptId, 200) || null,
+    imported_at: normalizeBoundedText(params.importedAt, 100) || null,
+    requested_url: normalizeWebsiteUrl(params.requestedUrl) || null,
+    resolved_url: normalizeWebsiteUrl(params.resolvedUrl) || null,
+    pages,
+    warnings,
+    knowledge,
+  };
 }
 
 function createId(prefix: string): string {
@@ -166,6 +271,15 @@ export async function POST(request: Request) {
   if (crawlAttemptId && !crawlAttemptIds.includes(crawlAttemptId)) {
     crawlAttemptIds.push(crawlAttemptId);
   }
+  const persistedWebsiteKnowledge = normalizePersistedWebsiteKnowledge({
+    knowledge: websiteKnowledge?.knowledge,
+    crawlAttemptId,
+    importedAt,
+    requestedUrl: website,
+    resolvedUrl: websiteSourceUrl,
+    pages: websiteKnowledge?.pages,
+    warnings: websiteKnowledge?.warnings,
+  });
 
   const effectiveProductsServices =
     userProductsServices || websiteProductsServices;
@@ -352,6 +466,7 @@ export async function POST(request: Request) {
           businessName,
           industry,
           website: website || null,
+          websiteKnowledge: persistedWebsiteKnowledge,
           initialThread: {
             id: threadId,
             memory: initialMemory,

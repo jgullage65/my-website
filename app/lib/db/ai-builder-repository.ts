@@ -4,6 +4,7 @@ import type {
   AiBuilderSession,
   ConversationMemory,
 } from "@/app/lib/ai-engine/contracts";
+import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import { ensureAiBuilderSchema } from "./ai-builder-schema";
 import { getSql } from "./client";
 import { requireClerkIdentity, requireClerkUserId } from "@/app/lib/auth/clerk";
@@ -15,6 +16,7 @@ type PersistAiBuilderProjectInput = {
   businessName: string;
   industry: string;
   website: string | null;
+  websiteKnowledge: PersistedWebsiteKnowledge | null;
   initialThread: {
     id: string;
     memory: ConversationMemory;
@@ -57,6 +59,7 @@ export async function persistAiBuilderProject({
   businessName,
   industry,
   website,
+  websiteKnowledge,
   initialThread,
 }: PersistAiBuilderProjectInput): Promise<void> {
   const identity = await requireClerkIdentity();
@@ -74,6 +77,7 @@ export async function persistAiBuilderProject({
       website,
       assistant_configuration,
       context_counts,
+      internal_fields,
       created_at,
       updated_at,
       expires_at,
@@ -88,6 +92,7 @@ export async function persistAiBuilderProject({
       ${website},
       ${JSON.stringify(session.assistantConfiguration)}::jsonb,
       ${JSON.stringify(session.contextCounts)}::jsonb,
+      ${JSON.stringify(websiteKnowledge ? { website_knowledge: websiteKnowledge } : {})}::jsonb,
       ${session.createdAt}::timestamptz,
       ${session.updatedAt}::timestamptz,
       ${session.expiresAt}::timestamptz,
@@ -102,6 +107,15 @@ export async function persistAiBuilderProject({
       website = EXCLUDED.website,
       assistant_configuration = EXCLUDED.assistant_configuration,
       context_counts = EXCLUDED.context_counts,
+      internal_fields = CASE
+        WHEN EXCLUDED.internal_fields ? 'website_knowledge' THEN jsonb_set(
+          COALESCE(ai_builder_projects.internal_fields, '{}'::jsonb),
+          '{website_knowledge}',
+          EXCLUDED.internal_fields -> 'website_knowledge',
+          TRUE
+        )
+        ELSE ai_builder_projects.internal_fields
+      END,
       updated_at = EXCLUDED.updated_at,
       expires_at = EXCLUDED.expires_at,
       clerk_user_id = COALESCE(
