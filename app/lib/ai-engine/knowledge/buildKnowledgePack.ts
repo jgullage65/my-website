@@ -49,6 +49,19 @@ import type {
   
     return result;
   }
+
+  function normalizeSourceUrl(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+
+    const normalized = normalizeText(value);
+    if (!normalized) return null;
+
+    try {
+      return new URL(normalized).toString();
+    } catch {
+      return null;
+    }
+  }
   
   function mapFact(entry: BusinessContextEntry): KnowledgeFact {
     return {
@@ -61,6 +74,7 @@ import type {
       sourceEntryId: entry.id,
       sourceExcerpt: normalizeText(entry.source.excerpt),
       sourceType: entry.source.sourceType,
+      sourceUrl: normalizeSourceUrl(entry.source.sourceUrl),
       tags: normalizeStringArray(entry.metadata.tags),
     };
   }

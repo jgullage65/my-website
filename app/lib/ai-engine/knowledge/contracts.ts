@@ -19,6 +19,7 @@ import type {
     sourceEntryId: string;
     sourceExcerpt: string;
     sourceType: string;
+    sourceUrl: string | null;
     tags: string[];
   };
   
