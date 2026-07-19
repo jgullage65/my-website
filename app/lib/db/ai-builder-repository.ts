@@ -4,7 +4,13 @@ import type {
   AiBuilderSession,
   ConversationMemory,
 } from "@/app/lib/ai-engine/contracts";
-import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import {
+  WEBSITE_KNOWLEDGE_CATEGORIES,
+  WEBSITE_KNOWLEDGE_CONFIDENCE_LEVELS,
+  WEBSITE_KNOWLEDGE_COVERAGE_FIELDS,
+  type PersistedWebsiteKnowledge,
+  type StructuredWebsiteKnowledge,
+} from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import { ensureAiBuilderSchema } from "./ai-builder-schema";
 import { getSql } from "./client";
 import { requireClerkIdentity, requireClerkUserId } from "@/app/lib/auth/clerk";
@@ -28,11 +34,108 @@ export type LoadedAiBuilderProject = {
   businessName: string;
   industry: string;
   website: string | null;
+  websiteKnowledge: PersistedWebsiteKnowledge | null;
   initialThread: {
     id: string;
     memory: ConversationMemory;
   } | null;
 };
+
+const websiteKnowledgeCategories = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
+const websiteKnowledgeConfidenceLevels = new Set<string>(WEBSITE_KNOWLEDGE_CONFIDENCE_LEVELS);
+
+function normalizeText(value: unknown, maximumLength: number): string {
+  if (typeof value !== "string") return "";
+
+  return value
+    .replace(/\u0000/g, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, maximumLength);
+}
+
+function normalizeWebsiteUrl(value: unknown): string | null {
+  const candidate = normalizeText(value, 2_048);
+  try {
+    const url = new URL(candidate);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeWebsiteKnowledge(value: unknown): PersistedWebsiteKnowledge | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const document = value as Record<string, unknown>;
+  if (document.schema_version !== 1) return null;
+  const documentVersion = document.document_version;
+  if (typeof documentVersion !== "number" || !Number.isSafeInteger(documentVersion) || documentVersion < 1) return null;
+
+  const rawKnowledge = document.knowledge;
+  if (!rawKnowledge || typeof rawKnowledge !== "object" || Array.isArray(rawKnowledge)) return null;
+  const knowledgeRecord = rawKnowledge as Record<string, unknown>;
+  let hasKnowledge = false;
+  const facts = (Array.isArray(knowledgeRecord.facts) ? knowledgeRecord.facts : []).slice(0, 100).flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const fact = entry as Record<string, unknown>;
+    const category = normalizeText(fact.category, 64);
+    const title = normalizeText(fact.title, 300);
+    const factValue = normalizeText(fact.value, 4_000);
+    const confidence = normalizeText(fact.confidence, 32);
+    const evidence = (Array.isArray(fact.evidence) ? fact.evidence : []).slice(0, 8).flatMap((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+      const record = item as Record<string, unknown>;
+      const url = normalizeWebsiteUrl(record.url);
+      const excerpt = normalizeText(record.excerpt, 1_000);
+      return url && excerpt ? [{ url, excerpt }] : [];
+    });
+    if (!websiteKnowledgeCategories.has(category) || !title || !factValue || !websiteKnowledgeConfidenceLevels.has(confidence) || !evidence.length) return [];
+    hasKnowledge = true;
+    return [{ category, title, value: factValue, confidence, evidence }];
+  }) as StructuredWebsiteKnowledge["facts"];
+
+  const rawCoverage = knowledgeRecord.coverage && typeof knowledgeRecord.coverage === "object" && !Array.isArray(knowledgeRecord.coverage)
+    ? knowledgeRecord.coverage as Record<string, unknown>
+    : {};
+  const coverage = Object.fromEntries(WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.map((field) => {
+    const value = rawCoverage[field];
+    const numericValue = typeof value === "number" ? value : Number(value);
+    if (Number.isFinite(numericValue)) hasKnowledge = true;
+    return [field, Number.isFinite(numericValue) ? Math.max(0, Math.min(100, numericValue)) : 0];
+  })) as StructuredWebsiteKnowledge["coverage"];
+  const unresolvedQuestions = (Array.isArray(knowledgeRecord.unresolvedQuestions) ? knowledgeRecord.unresolvedQuestions : [])
+    .slice(0, 100)
+    .map((question) => normalizeText(question, 500))
+    .filter(Boolean);
+  if (unresolvedQuestions.length) hasKnowledge = true;
+  if (!hasKnowledge) return null;
+
+  const pages = (Array.isArray(document.pages) ? document.pages : []).slice(0, 20).flatMap((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+    const page = entry as Record<string, unknown>;
+    const url = normalizeWebsiteUrl(page.url);
+    return url ? [{ url, title: normalizeText(page.title, 500), pageType: normalizeText(page.pageType, 100) }] : [];
+  });
+  const warnings = (Array.isArray(document.warnings) ? document.warnings : [])
+    .slice(0, 100)
+    .map((warning) => normalizeText(warning, 500))
+    .filter(Boolean);
+
+  return {
+    schema_version: 1,
+    document_version: documentVersion,
+    current_crawl_attempt_id: normalizeText(document.current_crawl_attempt_id, 200) || null,
+    imported_at: normalizeText(document.imported_at, 100) || null,
+    requested_url: normalizeWebsiteUrl(document.requested_url),
+    resolved_url: normalizeWebsiteUrl(document.resolved_url),
+    pages,
+    warnings,
+    knowledge: { facts, coverage, unresolvedQuestions },
+  };
+}
 
 export type AiBuilderProjectSummary = {
   id: string;
@@ -358,7 +461,18 @@ export async function getAiBuilderProject(
     WHERE id = ${projectId} AND clerk_user_id = ${clerkUserId}
   `;
   const projects = (await sql`
-    SELECT *
+    SELECT
+      id,
+      status,
+      business_name,
+      industry,
+      website,
+      assistant_configuration,
+      context_counts,
+      created_at,
+      updated_at,
+      expires_at,
+      internal_fields -> 'website_knowledge' AS website_knowledge
     FROM ai_builder_projects
     WHERE id = ${projectId}
       AND clerk_user_id = ${clerkUserId}
@@ -475,6 +589,7 @@ export async function getAiBuilderProject(
     businessName: String(project.business_name),
     industry: String(project.industry),
     website: project.website == null ? null : String(project.website),
+    websiteKnowledge: normalizeWebsiteKnowledge(project.website_knowledge),
     initialThread,
   };
 }

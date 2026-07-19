@@ -146,6 +146,7 @@ export async function GET(_request: Request, context: RouteContext) {
         website: project.website ?? "",
         tone: project.session.assistantConfiguration.tone,
       },
+      websiteKnowledge: project.websiteKnowledge,
       chatThread,
     });
   } catch (error) {
