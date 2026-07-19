@@ -1,17 +1,17 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export const card = "rounded-[28px] border border-amber-300/20 bg-[linear-gradient(145deg,rgba(5,11,24,.96),rgba(3,7,19,.9))] shadow-[0_24px_80px_rgba(0,0,0,.32),0_0_45px_rgba(245,158,11,.035),inset_0_1px_0_rgba(212,175,55,.08)]";
-export const inset = "rounded-2xl border border-amber-300/15 bg-[#050b18]/80";
-export const input = "rounded-xl border border-amber-300/15 bg-[#020611]/90 text-slate-200 outline-none transition placeholder:text-slate-600 focus:border-amber-300/50 focus:ring-4 focus:ring-amber-300/[.05]";
+export const card = "rounded-[24px] border border-amber-300/10 bg-[linear-gradient(145deg,rgba(5,11,24,.94),rgba(3,7,19,.88))] shadow-[0_20px_60px_rgba(0,0,0,.28),0_0_36px_rgba(245,158,11,.025),inset_0_1px_0_rgba(212,175,55,.05)]";
+export const inset = "rounded-2xl bg-[#050b18]/80 ring-1 ring-inset ring-amber-300/10";
+export const input = "rounded-xl border border-amber-300/10 bg-[#020611]/90 text-slate-200 outline-none transition placeholder:text-slate-600 focus:border-amber-300/45 focus:ring-4 focus:ring-amber-300/[.05]";
 export const th = "whitespace-nowrap px-5 py-3.5 text-left text-[10px] font-black uppercase tracking-[.16em] text-amber-200/55";
 export const td = "px-5 py-4 text-sm text-slate-300";
 
 export function PageHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description: string; action?: ReactNode }) {
-  return <header className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713]/90 px-6 py-7 shadow-[0_24px_90px_rgba(0,0,0,.34),0_0_50px_rgba(245,158,11,.06)] sm:px-8 sm:py-9">
+  return <header className="relative overflow-hidden rounded-[28px] border border-amber-300/10 bg-[#030713]/90 px-6 py-7 text-center shadow-[0_22px_70px_rgba(0,0,0,.3),0_0_40px_rgba(245,158,11,.04)] sm:px-8 sm:py-9">
     <div className="pointer-events-none absolute -left-24 -top-32 h-72 w-72 rounded-full bg-amber-400/[.08] blur-[90px]" />
-    <div className="relative flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-      <div><p className="text-xs font-semibold uppercase tracking-[.28em] text-amber-300">{eyebrow}</p>
+    <div className="relative flex flex-col items-center gap-5">
+      <div className="flex flex-col items-center"><p className="text-xs font-semibold uppercase tracking-[.28em] text-amber-300">{eyebrow}</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-[-.04em] text-white sm:text-5xl">{title}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">{description}</p></div>{action}</div>
   </header>;
@@ -31,8 +31,8 @@ export function Badge({ children, tone = "neutral" }: { children: ReactNode; ton
 }
 
 export function SearchBar({ placeholder, defaultValue, extras }: { placeholder: string; defaultValue?: string; extras?: ReactNode }) {
-  return <form className={`${card} flex flex-col gap-3 p-3 sm:flex-row`}>
-    <div className="relative min-w-0 flex-1"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-300/60"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input name="q" defaultValue={defaultValue} placeholder={placeholder} className={`${input} w-full py-3 pl-11 pr-4 text-sm`} /></div>
+  return <form className={`${card} mx-auto flex w-full max-w-5xl flex-col gap-3 p-3 md:flex-row`}>
+    <div className="relative min-w-0 md:min-w-72 md:flex-1"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-300/60"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><input name="q" defaultValue={defaultValue} placeholder={placeholder} className={`${input} w-full py-3 pl-11 pr-4 text-sm`} /></div>
     {extras}<button className="cta-raised rounded-xl border border-amber-300/20 bg-[#081226] px-5 py-3 text-sm font-black text-white hover:border-amber-300/40 hover:bg-[#0b1830]">Search</button>
   </form>;
 }

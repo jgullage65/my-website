@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <AdminNav />
         <div className="mt-8 hidden rounded-2xl border border-amber-300/15 bg-amber-300/[.035] p-4 lg:block"><p className="text-[10px] font-black uppercase tracking-[.16em] text-amber-300/70">Live workspace</p><p className="mt-2 text-xs leading-5 text-slate-500">Builder usage, customer progress, and sales intent in one place.</p></div>
       </aside>
-      <main className="min-w-0 p-4 sm:p-7 lg:p-10 xl:p-12">{children}</main>
+      <main className="min-w-0 p-4 sm:p-7 lg:p-9 xl:p-10"><div className="mx-auto w-full max-w-[86rem]">{children}</div></main>
     </div>
   </div>;
 }
