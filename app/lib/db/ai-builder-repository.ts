@@ -13,6 +13,7 @@ import {
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import { ensureAiBuilderSchema } from "./ai-builder-schema";
 import { getSql } from "./client";
+import { writeCanonicalProvenanceShadow } from "./canonical-provenance-shadow";
 import { requireClerkIdentity, requireClerkUserId } from "@/app/lib/auth/clerk";
 
 type DatabaseRow = Record<string, unknown>;
@@ -444,6 +445,23 @@ export async function persistAiBuilderProject({
       memory = EXCLUDED.memory,
       updated_at = EXCLUDED.updated_at
   `;
+
+  // Provenance is a non-runtime shadow write. A partial failure leaves legacy
+  // persistence authoritative; deterministic conflict keys allow a later retry
+  // to fill any missing canonical rows without duplicating observations.
+  try {
+    await writeCanonicalProvenanceShadow({
+      projectId: session.id,
+      session,
+      website,
+      websiteKnowledge,
+    });
+  } catch (error) {
+    console.error("AI_BUILDER_CANONICAL_PROVENANCE_SHADOW_FAILED", {
+      projectId: session.id,
+      message: error instanceof Error ? error.message : "unknown_error",
+    });
+  }
 }
 
 export async function getAiBuilderProject(
