@@ -35,6 +35,49 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_fields JSONB NOT NULL DEFAULT '{}'::jsonb`;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_canonical_sources (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('manual', 'website')),
+      canonical_identity TEXT NOT NULL UNIQUE,
+      url TEXT,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_canonical_source_snapshots (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      source_id TEXT NOT NULL REFERENCES ai_builder_canonical_sources(id) ON DELETE CASCADE,
+      snapshot_identity TEXT NOT NULL UNIQUE,
+      snapshot_kind TEXT NOT NULL,
+      payload JSONB NOT NULL,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      captured_at TIMESTAMPTZ NOT NULL
+    )
+  `;
+
+  await sql`ALTER TABLE ai_builder_canonical_source_snapshots ADD COLUMN IF NOT EXISTS snapshot_identity TEXT`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS ai_builder_canonical_source_snapshots_identity_idx ON ai_builder_canonical_source_snapshots(snapshot_identity) WHERE snapshot_identity IS NOT NULL`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_canonical_evidence (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      source_id TEXT NOT NULL REFERENCES ai_builder_canonical_sources(id) ON DELETE CASCADE,
+      source_snapshot_id TEXT NOT NULL REFERENCES ai_builder_canonical_source_snapshots(id) ON DELETE CASCADE,
+      evidence_identity TEXT NOT NULL UNIQUE,
+      content TEXT NOT NULL,
+      url TEXT,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      captured_at TIMESTAMPTZ NOT NULL
+    )
+  `;
+
+  await sql`ALTER TABLE ai_builder_canonical_sources ALTER COLUMN id SET DEFAULT gen_random_uuid()::text`;
+  await sql`ALTER TABLE ai_builder_canonical_source_snapshots ALTER COLUMN id SET DEFAULT gen_random_uuid()::text`;
+  await sql`ALTER TABLE ai_builder_canonical_evidence ALTER COLUMN id SET DEFAULT gen_random_uuid()::text`;
+  await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_intake_blocks (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
@@ -242,6 +285,9 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_owner_email_idx ON ai_builder_projects(owner_email)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_clerk_user_id_idx ON ai_builder_projects(clerk_user_id, updated_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_archived_at_idx ON ai_builder_projects(archived_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_sources_project_idx ON ai_builder_canonical_sources(project_id, created_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_source_snapshots_source_idx ON ai_builder_canonical_source_snapshots(source_id, captured_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_evidence_snapshot_idx ON ai_builder_canonical_evidence(source_snapshot_id, captured_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_intake_blocks_project_idx ON ai_builder_intake_blocks(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_faq_entries_project_idx ON ai_builder_faq_entries(project_id)`;
