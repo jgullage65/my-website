@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:ai-builder-db": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/db/*.test.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.6",
