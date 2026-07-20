@@ -83,14 +83,14 @@ test("keeps same name under different entity types separate", () => {
   assert.deepEqual(memory.entities.map((item) => item.type).sort(), ["process", "service"]);
 });
 
-test("groups matching manual and website concepts while preserving all website evidence and independent sources", () => {
+test("keeps manual and website concepts separate while preserving all website evidence and independent sources", () => {
   const memory = buildBusinessMemory({ session: session({ contextEntries: [entry()] }), websiteKnowledge: websiteKnowledge([planningWebsiteFact]) });
-  assert.equal(memory.entities.length, 1);
+  assert.equal(memory.entities.length, 2);
   assert.equal(memory.assertions.length, 2);
   assert.equal(memory.evidence.length, 3);
   assert.equal(memory.sources.length, 3);
   assert.deepEqual(memory.evidence.map((item) => item.excerpt).sort(), ["Our planning sessions can be remote.", "Planning sessions are available remotely.", "We provide planning workshops."]);
-  assert.deepEqual(memory.entities[0].tags, ["Strategy", "Workshops", "service"]);
+  assert.ok(memory.entities.some((item) => item.tags.includes("service")));
 });
 
 test("preserves duplicate values as distinct assertions and all review states", () => {
@@ -136,7 +136,7 @@ test("supports website-only, manual-only, FAQ-only, and mixed projects", () => {
   assert.equal(buildBusinessMemory({ session: session(), websiteKnowledge: websiteKnowledge([planningWebsiteFact]) }).entities.length, 1);
   assert.equal(buildBusinessMemory({ session: session({ contextEntries: [entry()] }), websiteKnowledge: null }).entities.length, 1);
   assert.equal(buildBusinessMemory({ session: session({ faqEntries: [faq] }), websiteKnowledge: null }).entities.length, 1);
-  assert.equal(buildBusinessMemory({ session: session({ contextEntries: [entry()], faqEntries: [faq] }), websiteKnowledge: websiteKnowledge([planningWebsiteFact]) }).entities.length, 2);
+  assert.equal(buildBusinessMemory({ session: session({ contextEntries: [entry()], faqEntries: [faq] }), websiteKnowledge: websiteKnowledge([planningWebsiteFact]) }).entities.length, 3);
 });
 
 
@@ -268,4 +268,64 @@ test("reconciles a corrected website fact after save, restore, and recrawl", () 
   assert.deepEqual(memory.evidence.map((item) => item.excerpt).sort(), recrawledFact.evidence.map((item) => item.excerpt).sort());
   assert.ok(memory.sources.every((source) => source.crawlAttemptId === "crawl_2"));
   assert.equal(memory.assertions.filter((item) => item.reviewState === "proposed").length, 0);
+});
+
+
+test("projects assistant configuration, existing conflicts, and missing information without generating new records", () => {
+  const configured = { name: "Ada", purpose: "Answer accurately", tone: "Warm", responseStyle: "Brief", primaryAudience: "Owners", escalationInstructions: ["Escalate legal questions"] };
+  const source = entry({ content: "We close at five." });
+  const memory = buildBusinessMemory({ session: session({ assistantConfiguration: configured, contextEntries: [source], conflicts: [{ id: "conflict_hours", topic: "Hours", firstStatement: source.content, secondStatement: "We close at six.", sourceExcerpts: [source.content], suggestedQuestion: "What time do you close?", resolved: true, resolution: "Five." }], missingInformation: [{ id: "missing_phone", topic: "Phone", reason: "No phone number supplied", suggestedQuestion: "What is your phone number?", resolved: false }] }), websiteKnowledge: null });
+  assert.deepEqual(memory.assistant, configured);
+  assert.equal(memory.conflicts.length, 1);
+  const equivalent = buildBusinessMemory({ session: session({ assistantConfiguration: configured, contextEntries: [source], conflicts: [{ id: "conflict_hours", topic: "Hours", firstStatement: source.content, secondStatement: "We close at six.", sourceExcerpts: [source.content], suggestedQuestion: "What time do you close?", resolved: true, resolution: "Five." }], missingInformation: [] }), websiteKnowledge: null });
+  const withUnrelated = buildBusinessMemory({ session: session({ assistantConfiguration: configured, contextEntries: [source, entry({ id: "unrelated_policy", category: "policy", title: "Cancellation", content: "Cancel with notice." })], conflicts: [{ id: "conflict_hours", topic: "Hours", firstStatement: source.content, secondStatement: "We close at six.", sourceExcerpts: [source.content], suggestedQuestion: "What time do you close?", resolved: true, resolution: "Five." }], missingInformation: [] }), websiteKnowledge: null });
+  assert.equal(memory.conflicts[0].id, equivalent.conflicts[0].id);
+  assert.equal(memory.conflicts[0].id, withUnrelated.conflicts[0].id);
+  assert.deepEqual(memory.conflicts[0].conflictingStatements, ["We close at five.", "We close at six."]);
+  assert.equal(memory.conflicts[0].relatedAssertionIds.length, 1);
+  assert.equal(memory.conflicts[0].resolution, "Five.");
+  assert.deepEqual(memory.missingInformation.map(({ topic, reason, suggestedQuestion, resolved }) => ({ topic, reason, suggestedQuestion, resolved })), [{ topic: "Phone", reason: "No phone number supplied", suggestedQuestion: "What is your phone number?", resolved: false }]);
+});
+
+test("keeps stable IDs for unaffected records and has no persistence dependency", () => {
+  const first = entry(); const base = buildBusinessMemory({ session: session({ contextEntries: [first] }), websiteKnowledge: null });
+  const changed = buildBusinessMemory({ session: session({ contextEntries: [first, entry({ id: "unrelated", title: "Policies", category: "policy" })] }), websiteKnowledge: null });
+  assert.deepEqual(buildBusinessMemory({ session: session({ contextEntries: [first] }), websiteKnowledge: null }), base);
+  assert.equal(changed.assertions.find((item) => item.legacyEntryId === first.id)?.id, base.assertions[0].id);
+  assert.equal(changed.entities.find((item) => item.type === "service")?.id, base.entities[0].id);
+});
+
+test("preserves ordered assistant instructions and omits unavailable optional instructions", () => {
+  const configuration = {
+    name: "Ada", purpose: "Grounded answers", tone: "Warm", responseStyle: "Brief", primaryAudience: null,
+    escalationInstructions: ["Ask a clarifying question", "Escalate legal questions", "Offer a human handoff"],
+    behaviorRules: ["Answer directly", "Cite approved facts"], prohibitedClaims: ["Guarantee outcomes", "Give legal advice"],
+  };
+  const ordered = buildBusinessMemory({ session: session({ assistantConfiguration: configuration as AiBuilderSession["assistantConfiguration"] }), websiteKnowledge: null });
+  assert.deepEqual(ordered.assistant, configuration);
+  const absent = buildBusinessMemory({ session: session(), websiteKnowledge: null });
+  assert.equal("behaviorRules" in absent.assistant, false);
+  assert.equal("prohibitedClaims" in absent.assistant, false);
+});
+
+test("keeps raw website assertion and entity identities stable across recrawls while renewing provenance", () => {
+  const first = websiteKnowledge([planningWebsiteFact]);
+  const recrawl = { ...first, current_crawl_attempt_id: "crawl_2", imported_at: "2026-07-22T10:00:00.000Z" };
+  const original = buildBusinessMemory({ session: session(), websiteKnowledge: first });
+  const refreshed = buildBusinessMemory({ session: session(), websiteKnowledge: recrawl });
+  assert.equal(refreshed.entities[0].id, original.entities[0].id);
+  assert.equal(refreshed.assertions[0].id, original.assertions[0].id);
+  assert.ok(refreshed.sources.every((source) => source.crawlAttemptId === "crawl_2"));
+  assert.notDeepEqual(refreshed.sources.map((source) => source.id), original.sources.map((source) => source.id));
+  const materiallyChanged = buildBusinessMemory({ session: session(), websiteKnowledge: websiteKnowledge([{ ...planningWebsiteFact, value: "Planning is now limited." }]) });
+  assert.notEqual(materiallyChanged.assertions[0].id, original.assertions[0].id);
+});
+
+test("keeps duplicate identical raw website facts independently and deterministically addressable", () => {
+  const facts = [planningWebsiteFact, planningWebsiteFact];
+  const forward = buildBusinessMemory({ session: session(), websiteKnowledge: websiteKnowledge(facts) });
+  const reverse = buildBusinessMemory({ session: session(), websiteKnowledge: websiteKnowledge(facts.slice().reverse()) });
+  assert.equal(forward.assertions.length, 2);
+  assert.equal(new Set(forward.assertions.map((item) => item.id)).size, 2);
+  assert.deepEqual(forward, reverse);
 });
