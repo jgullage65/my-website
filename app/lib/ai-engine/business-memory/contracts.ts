@@ -1,4 +1,13 @@
+/**
+ * The future canonical Business Memory domain model. Legacy AI Builder contracts
+ * remain active during migration. Sources and standalone evidence stay lossless,
+ * while assertions are reviewed independently. Persistence and mapping changes
+ * are intentionally deferred to later slices.
+ */
 import type { ContextConfidence } from "@/app/lib/ai-engine/contracts";
+
+/** Version for the canonical Business Memory document; mapping and persistence remain deferred. */
+export const BUSINESS_MEMORY_SCHEMA_VERSION = 1 as const;
 
 export type ReviewState = "proposed" | "approved" | "corrected" | "archived";
 
@@ -20,11 +29,28 @@ export type BusinessEntityType =
   | "differentiator"
   | "guarantee"
   | "faq"
+  | "general_knowledge"
   | "other";
 
-export type BusinessRelationshipType = "supports";
+export type BusinessRelationshipType =
+  | "supports"
+  | "has_pricing"
+  | "serves_audience"
+  | "applies_to"
+  | "answers_topic"
+  | "derived_from"
+  | "conflicts_with"
+  | (string & {});
 
-export type KnowledgeSourceOrigin = "website" | "manual_intake" | "generated_qa" | "user_edit";
+export type KnowledgeSourceOrigin =
+  | "website"
+  | "manual_intake"
+  | "generated_qa"
+  | "generated"
+  | "user_edit"
+  | "imported_data"
+  | "system"
+  | (string & {});
 
 export type AssertionAuthority = "observed" | "provided" | "generated" | "confirmed" | "corrected";
 
@@ -37,12 +63,15 @@ export type KnowledgeSource = {
   label: string | null;
   capturedAt: string;
   crawlAttemptId: string | null;
+  pageType?: string | null;
+  importedAt?: string | null;
 };
 
 export type EvidenceRecord = {
   id: string;
   sourceId: string;
   excerpt: string;
+  url: string | null;
   capturedAt: string;
 };
 
@@ -89,6 +118,47 @@ export type BusinessRelationship = {
   updatedAt: string;
 };
 
+export type BusinessMemoryAssistant = {
+  name: string;
+  purpose: string;
+  tone: string;
+  responseStyle: string;
+  primaryAudience: string | null;
+  escalationInstructions: string[];
+  behaviorRules?: string[];
+  prohibitedClaims?: string[];
+};
+
+export type BusinessMemoryConflict = {
+  id: string;
+  projectId: string;
+  topic: string;
+  conflictingStatements: string[];
+  relatedEntityIds: string[];
+  relatedAssertionIds: string[];
+  sourceIds: string[];
+  evidenceIds: string[];
+  suggestedClarificationQuestion: string;
+  resolved: boolean;
+  resolution: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type BusinessMemoryMissingInformation = {
+  id: string;
+  projectId: string;
+  topic: string;
+  reason: string;
+  suggestedQuestion: string;
+  relatedEntityTypes: BusinessEntityType[];
+  relatedEntityIds: string[];
+  relatedAssertionIds: string[];
+  resolved: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 /** A reviewed future merge decision; the mapper never creates these automatically. */
 export type EntityMergeContract = {
   canonicalEntityId: string;
@@ -99,13 +169,16 @@ export type EntityMergeContract = {
 
 export type BusinessMemory = {
   id: string;
-  schemaVersion: 1;
+  schemaVersion: typeof BUSINESS_MEMORY_SCHEMA_VERSION;
   projectId: string;
+  assistant: BusinessMemoryAssistant;
   entities: BusinessEntity[];
   assertions: BusinessAssertion[];
   relationships: BusinessRelationship[];
   sources: KnowledgeSource[];
   evidence: EvidenceRecord[];
+  conflicts: BusinessMemoryConflict[];
+  missingInformation: BusinessMemoryMissingInformation[];
   /** Omitted when no reviewed merge decisions are supplied. */
   entityMerges?: EntityMergeContract[];
   createdAt: string;
