@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
-import { manualCompatibilityMetadata, manualEvidenceIdentity, manualSnapshotPayload, sourceIdentity, sourceSnapshotIdentity, websiteCompatibilityMetadata, websiteEvidenceIdentity, websiteSnapshotPayload } from "./canonical-provenance-identities";
+import { candidateClaimIdentity, manualCompatibilityMetadata, manualEvidenceIdentity, manualSnapshotPayload, sourceIdentity, sourceSnapshotIdentity, websiteCompatibilityMetadata, websiteEvidenceIdentity, websiteSnapshotPayload } from "./canonical-provenance-identities";
 
 const block = (content = "We provide planning workshops.") => ({ id: "legacy-block-1", label: "Services", content, createdAt: "2026-07-20T10:00:00.000Z", updatedAt: "2026-07-20T10:00:00.000Z" });
 const blocks = (content?: string) => [block(content)] as AiBuilderSession["intakeBlocks"];
@@ -36,4 +36,33 @@ test("website identities are order-independent and preserve crawl-compatible inp
 test("compatibility metadata explicitly retains legacy references", () => {
   assert.deepEqual(manualCompatibilityMetadata("legacy-project-1", "legacy-block-1"), { legacyProjectId: "legacy-project-1", legacyIntakeBlockId: "legacy-block-1" });
   assert.deepEqual(websiteCompatibilityMetadata("legacy-project-1", website()), { legacyProjectId: "legacy-project-1", legacyCrawlAttemptId: "legacy-crawl-1", legacyWebsiteKnowledgeDocumentVersion: 1 });
+});
+
+
+test("candidate claim identities are deterministic and tied to their provenance snapshot", () => {
+  const snapshot = sourceSnapshotIdentity("legacy-project-1", "manual", manualSnapshotPayload(blocks()));
+  assert.equal(
+    candidateClaimIdentity(snapshot, "context_entry", "legacy-entry-1", "Planning workshops are available."),
+    candidateClaimIdentity(snapshot, "context_entry", "legacy-entry-1", "Planning workshops are available."),
+  );
+  assert.notEqual(
+    candidateClaimIdentity(snapshot, "context_entry", "legacy-entry-1", "Planning workshops are available."),
+    candidateClaimIdentity(snapshot, "context_entry", "legacy-entry-1", "Planning workshops and audits are available."),
+  );
+});
+
+test("website evidence identities resolve the same records after evidence reordering", () => {
+  const first = website();
+  const fact = first.knowledge.facts[0];
+  const additionalEvidence = { url: "https://example.test/about", excerpt: "Our planning team leads every workshop." };
+  const withTwoEvidenceItems = { ...first, knowledge: { ...first.knowledge, facts: [{ ...fact, evidence: [fact.evidence[0], additionalEvidence] }] } };
+  const reordered = { ...withTwoEvidenceItems, knowledge: { ...withTwoEvidenceItems.knowledge, facts: [{ ...withTwoEvidenceItems.knowledge.facts[0], evidence: [additionalEvidence, fact.evidence[0]] }] } };
+  const snapshot = sourceSnapshotIdentity("legacy-project-1", "website", websiteSnapshotPayload(withTwoEvidenceItems));
+  const storedEvidence = new Map(withTwoEvidenceItems.knowledge.facts[0].evidence.map((evidence) => [websiteEvidenceIdentity(snapshot, withTwoEvidenceItems.knowledge.facts[0], evidence), `storage:${evidence.url}`]));
+
+  assert.equal(snapshot, sourceSnapshotIdentity("legacy-project-1", "website", websiteSnapshotPayload(reordered)));
+  assert.deepEqual(
+    reordered.knowledge.facts[0].evidence.map((evidence) => storedEvidence.get(websiteEvidenceIdentity(snapshot, reordered.knowledge.facts[0], evidence))).sort(),
+    ["storage:https://example.test/about", "storage:https://example.test/services"],
+  );
 });

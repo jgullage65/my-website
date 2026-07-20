@@ -66,3 +66,8 @@ export function manualCompatibilityMetadata(projectId: string, legacyIntakeBlock
 export function websiteCompatibilityMetadata(projectId: string, knowledge: PersistedWebsiteKnowledge): { legacyProjectId: string; legacyCrawlAttemptId: string | null; legacyWebsiteKnowledgeDocumentVersion: number } {
   return { legacyProjectId: projectId, legacyCrawlAttemptId: knowledge.current_crawl_attempt_id, legacyWebsiteKnowledgeDocumentVersion: knowledge.document_version };
 }
+
+
+export function candidateClaimIdentity(snapshotId: string, claimType: string, claimKey: string, normalizedContent: string): string {
+  return canonicalId("candidate_claim", snapshotId, claimType, fingerprint({ claimKey, normalizedContent }));
+}
