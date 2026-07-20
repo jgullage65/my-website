@@ -4,6 +4,14 @@
 
 This audit examines the actual isolated contracts, mapper, and Node tests in `app/lib/ai-engine/business-memory`. The mapper is pure and has no production consumer. **No BLOCKING finding exists:** every currently representable AI Builder context entry, FAQ, website fact, source URL, evidence excerpt, confidence value, and workflow status has a destination in the output. The categories below use exactly one classification per finding.
 
+## Provenance shadow boundary
+
+The existing canonical provenance shadow tables are an **audit, provenance, and governance-history layer**. During the current migration stage, legacy AI Builder persistence remains authoritative. The provenance shadow is not the persistence model for the new canonical `BusinessMemory`, and its current writes must not be read as a canonical Business Memory cutover or runtime integration.
+
+Initial provenance-shadow writes are non-authoritative: they may fail without breaking the already-committed legacy project save. In contrast, governance/review shadow writes are intentionally atomic with their matching legacy review mutations so that each legacy review decision and its governance history succeed or fail together. Neither behavior makes the shadow the source of truth for project loading, review, chat, retrieval, or any other runtime path.
+
+Future Business Memory persistence will be designed separately for canonical entities, assertions, relationships, conflicts, missing information, assistant configuration, and the other `BusinessMemory` structures. The deterministic mapper assessed below is therefore a read-only projection and validation boundary, not evidence that the provenance tables already provide complete Business Memory persistence.
+
 ## Lifecycle
 
 ```text
