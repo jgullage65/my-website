@@ -71,3 +71,16 @@ export function websiteCompatibilityMetadata(projectId: string, knowledge: Persi
 export function candidateClaimIdentity(snapshotId: string, claimType: string, claimKey: string, normalizedContent: string): string {
   return canonicalId("candidate_claim", snapshotId, claimType, fingerprint({ claimKey, normalizedContent }));
 }
+
+
+export type CanonicalClaimReviewAction = "approve" | "correction" | "archive" | "restore" | "reject";
+
+/** A review event is idempotent for one legacy review mutation, never a mutable state key. */
+export function claimReviewIdentity(projectId: string, legacyKind: "context_entry" | "faq", legacyEntryId: string, candidateClaimIdentity: string, action: CanonicalClaimReviewAction, reviewedAt: string): string {
+  return canonicalId("claim_review", projectId, legacyKind, legacyEntryId, action, fingerprint({ candidateClaimIdentity, reviewedAt }));
+}
+
+/** Trusted Knowledge revisions are immutable and are anchored to their governing review. */
+export function trustedKnowledgeIdentity(projectId: string, legacyKind: "context_entry" | "faq", legacyEntryId: string, reviewIdentity: string): string {
+  return canonicalId("trusted_knowledge", projectId, legacyKind, legacyEntryId, fingerprint({ reviewIdentity }));
+}

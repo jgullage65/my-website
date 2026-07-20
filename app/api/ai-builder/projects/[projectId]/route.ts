@@ -7,6 +7,7 @@ import {
 } from "@/app/lib/db/ai-builder-repository";
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
+import { interpretLegacyReviewDeltas, writeCanonicalGovernanceShadow } from "@/app/lib/db/canonical-provenance-shadow";
 import { isAuthenticationRequired, requireClerkUserId } from "@/app/lib/auth/clerk";
 
 export const runtime = "nodejs";
@@ -229,6 +230,21 @@ export async function PUT(request: Request, context: RouteContext) {
       );
     }
 
+    // Capture the authoritative legacy state before applying the submitted
+    // whole-session mutation. Governance is driven by this delta only.
+    const priorContextRows = (await sql`SELECT id, status, content, updated_at FROM ai_builder_context_entries WHERE project_id = ${normalizedProjectId}`) as Array<{ id: string; status: string; content: string; updated_at: unknown }>;
+    const priorFaqRows = (await sql`SELECT id, status, question, answer, updated_at FROM ai_builder_faq_entries WHERE project_id = ${normalizedProjectId}`) as Array<{ id: string; status: string; question: string; answer: string; updated_at: unknown }>;
+    const reviewTransitions = interpretLegacyReviewDeltas(
+      [
+        ...priorContextRows.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: toIsoString(entry.updated_at), kind: "context_entry" as const })),
+        ...priorFaqRows.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: toIsoString(entry.updated_at), kind: "faq" as const })),
+      ],
+      [
+        ...session.contextEntries.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: entry.updatedAt, kind: "context_entry" as const })),
+        ...session.faqEntries.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: entry.updatedAt, kind: "faq" as const })),
+      ],
+    );
+
     await sql`
       UPDATE ai_builder_projects
       SET
@@ -275,6 +291,16 @@ export async function PUT(request: Request, context: RouteContext) {
           AND project_id = ${normalizedProjectId}
       `),
     );
+
+    // Both legacy compatibility tables are now persisted. The governance
+    // dual-write receives only actual review transitions, never a snapshot.
+    if (reviewTransitions.length) {
+      await writeCanonicalGovernanceShadow({
+        projectId: normalizedProjectId,
+        transitions: reviewTransitions,
+        actor: { clerkUserId, displayName: null, email: null },
+      }, sql);
+    }
 
     return NextResponse.json({
       ok: true,

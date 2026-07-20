@@ -105,6 +105,41 @@ async function createAiBuilderSchema() {
   `;
 
   await sql`ALTER TABLE ai_builder_canonical_candidate_claims ALTER COLUMN id SET DEFAULT gen_random_uuid()::text`;
+
+  // Governance history is append-only. Legacy workflow rows remain authoritative
+  // during the dual-write migration, while these rows preserve their decisions.
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_canonical_claim_reviews (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      review_identity TEXT NOT NULL UNIQUE,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      candidate_claim_id TEXT NOT NULL REFERENCES ai_builder_canonical_candidate_claims(id) ON DELETE RESTRICT,
+      action TEXT NOT NULL CHECK (action IN ('approve', 'correction', 'archive', 'restore', 'reject')),
+      actor JSONB NOT NULL DEFAULT '{}'::jsonb,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      legacy_references JSONB NOT NULL DEFAULT '{}'::jsonb,
+      reviewed_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_canonical_trusted_knowledge (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      trusted_knowledge_identity TEXT NOT NULL UNIQUE,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      candidate_claim_id TEXT NOT NULL REFERENCES ai_builder_canonical_candidate_claims(id) ON DELETE RESTRICT,
+      claim_review_id TEXT NOT NULL REFERENCES ai_builder_canonical_claim_reviews(id) ON DELETE RESTRICT,
+      previous_trusted_knowledge_id TEXT REFERENCES ai_builder_canonical_trusted_knowledge(id) ON DELETE RESTRICT,
+      legacy_kind TEXT NOT NULL CHECK (legacy_kind IN ('context_entry', 'faq')),
+      legacy_entry_id TEXT NOT NULL,
+      revision INTEGER NOT NULL,
+      lifecycle TEXT NOT NULL CHECK (lifecycle IN ('active', 'archived', 'rejected')),
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL,
+      UNIQUE (project_id, legacy_kind, legacy_entry_id, revision)
+    )
+  `;
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_intake_blocks (
       id TEXT PRIMARY KEY,
