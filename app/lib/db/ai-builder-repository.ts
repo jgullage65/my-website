@@ -331,69 +331,17 @@ export async function persistAiBuilderProject(
   });
 }
 
-export async function getAiBuilderProject(
+
+/** Hydrates database rows into the legacy session returned by project loading. */
+export function hydrateAiBuilderProjectSession(
+  project: DatabaseRow,
   projectId: string,
-): Promise<LoadedAiBuilderProject | null> {
-  const identity = await requireClerkIdentity();
-  const clerkUserId = identity.userId;
-  await ensureAiBuilderSchema();
-
-  const sql = getSql();
-  await sql`
-    UPDATE ai_builder_projects
-    SET owner_name = COALESCE(NULLIF(owner_name, ''), ${identity.displayName}),
-        owner_email = COALESCE(NULLIF(owner_email, ''), ${identity.email})
-    WHERE id = ${projectId} AND clerk_user_id = ${clerkUserId}
-  `;
-  const projects = (await sql`
-    SELECT
-      id,
-      status,
-      business_name,
-      industry,
-      website,
-      assistant_configuration,
-      context_counts,
-      created_at,
-      updated_at,
-      expires_at,
-      internal_fields -> 'website_knowledge' AS website_knowledge
-    FROM ai_builder_projects
-    WHERE id = ${projectId}
-      AND clerk_user_id = ${clerkUserId}
-      AND archived_at IS NULL
-    LIMIT 1
-  `) as DatabaseRow[];
-
-  const project = projects[0];
-  if (!project) return null;
-
-  const [
-    intakeBlocks,
-    contextEntries,
-    faqEntries,
-    conflicts,
-    missingInformation,
-    buildProgress,
-    threads,
-  ] = (await Promise.all([
-    sql`SELECT * FROM ai_builder_intake_blocks WHERE project_id = ${projectId} ORDER BY created_at, id`,
-    sql`SELECT * FROM ai_builder_context_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
-    sql`SELECT * FROM ai_builder_faq_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
-    sql`SELECT * FROM ai_builder_conflicts WHERE project_id = ${projectId} ORDER BY id`,
-    sql`SELECT * FROM ai_builder_missing_information WHERE project_id = ${projectId} ORDER BY id`,
-    sql`SELECT * FROM ai_builder_progress WHERE project_id = ${projectId} ORDER BY id`,
-    sql`SELECT * FROM ai_builder_chat_threads WHERE project_id = ${projectId} ORDER BY created_at LIMIT 1`,
-  ])) as [
-    DatabaseRow[],
-    DatabaseRow[],
-    DatabaseRow[],
-    DatabaseRow[],
-    DatabaseRow[],
-    DatabaseRow[],
-    DatabaseRow[],
-  ];
-
+  rows: {
+    intakeBlocks: DatabaseRow[]; contextEntries: DatabaseRow[]; faqEntries: DatabaseRow[];
+    conflicts: DatabaseRow[]; missingInformation: DatabaseRow[]; buildProgress: DatabaseRow[];
+  },
+): AiBuilderSession {
+  const { intakeBlocks, contextEntries, faqEntries, conflicts, missingInformation, buildProgress } = rows;
   const session: AiBuilderSession = {
     id: String(project.id),
     status: project.status as AiBuilderSession["status"],
@@ -462,6 +410,82 @@ export async function getAiBuilderProject(
     expiresAt: toNullableIsoString(project.expires_at),
   };
 
+  return session;
+}
+
+export type GetAiBuilderProjectDependencies = {
+  identity: AiBuilderIdentity;
+  ensureSchema: () => Promise<void>;
+  sql: ReturnType<typeof getSql>;
+};
+
+/** Executes the same authoritative project loading flow with injectable infrastructure. */
+export async function getAiBuilderProjectWithDependencies(
+  projectId: string,
+  dependencies: GetAiBuilderProjectDependencies,
+): Promise<LoadedAiBuilderProject | null> {
+  const { identity, ensureSchema, sql } = dependencies;
+  const clerkUserId = identity.userId;
+  await ensureSchema();
+  await sql`
+    UPDATE ai_builder_projects
+    SET owner_name = COALESCE(NULLIF(owner_name, ''), ${identity.displayName}),
+        owner_email = COALESCE(NULLIF(owner_email, ''), ${identity.email})
+    WHERE id = ${projectId} AND clerk_user_id = ${clerkUserId}
+  `;
+  const projects = (await sql`
+    SELECT
+      id,
+      status,
+      business_name,
+      industry,
+      website,
+      assistant_configuration,
+      context_counts,
+      created_at,
+      updated_at,
+      expires_at,
+      internal_fields -> 'website_knowledge' AS website_knowledge
+    FROM ai_builder_projects
+    WHERE id = ${projectId}
+      AND clerk_user_id = ${clerkUserId}
+      AND archived_at IS NULL
+    LIMIT 1
+  `) as DatabaseRow[];
+
+  const project = projects[0];
+  if (!project) return null;
+
+  const [
+    intakeBlocks,
+    contextEntries,
+    faqEntries,
+    conflicts,
+    missingInformation,
+    buildProgress,
+    threads,
+  ] = (await Promise.all([
+    sql`SELECT * FROM ai_builder_intake_blocks WHERE project_id = ${projectId} ORDER BY created_at, id`,
+    sql`SELECT * FROM ai_builder_context_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
+    sql`SELECT * FROM ai_builder_faq_entries WHERE project_id = ${projectId} ORDER BY created_at, id`,
+    sql`SELECT * FROM ai_builder_conflicts WHERE project_id = ${projectId} ORDER BY id`,
+    sql`SELECT * FROM ai_builder_missing_information WHERE project_id = ${projectId} ORDER BY id`,
+    sql`SELECT * FROM ai_builder_progress WHERE project_id = ${projectId} ORDER BY id`,
+    sql`SELECT * FROM ai_builder_chat_threads WHERE project_id = ${projectId} ORDER BY created_at LIMIT 1`,
+  ])) as [
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+    DatabaseRow[],
+  ];
+
+  const session = hydrateAiBuilderProjectSession(project, projectId, {
+    intakeBlocks, contextEntries, faqEntries, conflicts, missingInformation, buildProgress,
+  });
+
   const initialThread = threads[0]
     ? {
         id: String(threads[0].id),
@@ -477,6 +501,18 @@ export async function getAiBuilderProject(
     websiteKnowledge: normalizeWebsiteKnowledge(project.website_knowledge),
     initialThread,
   };
+}
+
+
+export async function getAiBuilderProject(
+  projectId: string,
+): Promise<LoadedAiBuilderProject | null> {
+  const identity = await requireClerkIdentity();
+  return getAiBuilderProjectWithDependencies(projectId, {
+    identity,
+    ensureSchema: ensureAiBuilderSchema,
+    sql: getSql(),
+  });
 }
 
 export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]> {
