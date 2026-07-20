@@ -23,7 +23,8 @@ const input = (status = "review") => ({
   initialThread: { id: "thread-1", memory: {} as never },
 });
 
-type State = { projects: Map<string, { owner: string; status: string }>; children: Map<string, Map<string, string>>; progress: string[] };
+type Child = { projectId: string; content: string };
+type State = { projects: Map<string, { owner: string; status: string }>; children: Map<string, Map<string, Child>>; progress: string[] };
 const childTables = ["intake_blocks", "context_entries", "faq_entries", "conflicts", "missing_information", "chat_threads"];
 
 function clone(state: State): State {
@@ -44,6 +45,10 @@ function fakeDatabase(options: { failAt?: string; owner?: string } = {}) {
           const owner = values[11] as string;
           const existing = working.projects.get(id);
           if (!existing || existing.owner === owner) working.projects.set(id, { owner, status });
+        } else if (text.includes("child_ownership_verified")) {
+          const table = childTables.find((name) => text.includes(`ai_builder_${name}`));
+          const [id, projectId] = values as [string, string];
+          if (!table || working.children.get(table)?.get(id)?.projectId !== projectId) throw new Error("AI_BUILDER_CHILD_OWNERSHIP_COLLISION");
         } else if (text.includes("ownership_verified")) {
           const [id, owner] = values as [string, string];
           if (working.projects.get(id)?.owner !== owner) throw new Error("AI_BUILDER_PROJECT_OWNERSHIP_COLLISION");
@@ -52,8 +57,12 @@ function fakeDatabase(options: { failAt?: string; owner?: string } = {}) {
         } else if (text.includes("INSERT INTO ai_builder_progress")) {
           working.progress.push(values[1] as string);
         } else {
-          const table = childTables.find((name) => text.includes(`ai_builder_${name}`));
-          if (table) working.children.get(table)?.set(values[0] as string, values[1] as string);
+          const table = childTables.find((name) => text.includes(`INSERT INTO ai_builder_${name}`));
+          if (table) {
+            const id = values[0] as string; const projectId = values[1] as string;
+            const existing = working.children.get(table)?.get(id);
+            if (!existing || existing.projectId === projectId) working.children.get(table)?.set(id, { projectId, content: String(values[4] ?? values[3] ?? "") });
+          }
         }
       }
       state.projects = working.projects; state.children = working.children; state.progress = working.progress;
@@ -114,14 +123,41 @@ test("same-owner re-persist upserts the project and atomically replaces progress
   assertCompleteGraph({ ...db.state, progress: ["intake"] });
 });
 
-test("the transaction batch retains a parameterized ownership guard and ordered graph", () => {
-  const statements: string[] = [];
-  const sql = ((strings: TemplateStringsArray) => {
-    const text = strings.join("?").replace(/\s+/g, " ").trim(); statements.push(text); return { queryData: { text } };
+test("a context id owned by another project aborts without changing either graph", async () => {
+  const db = fakeDatabase();
+  db.state.children.get("context_entries")?.set("context-1", { projectId: "project-other", content: "Other project content" });
+  await assert.rejects(persist(db), /AI_BUILDER_CHILD_OWNERSHIP_COLLISION/);
+  assert.deepEqual(db.state.children.get("context_entries")?.get("context-1"), { projectId: "project-other", content: "Other project content" });
+  assert.equal(db.state.projects.size, 0);
+  for (const table of childTables.filter((table) => table !== "context_entries")) assert.equal(db.state.children.get(table)?.size, 0, table);
+  assert.deepEqual(db.state.progress, ["old-progress"]);
+});
+
+test("a late chat-thread collision rolls back the complete ordered graph", async () => {
+  const db = fakeDatabase();
+  db.state.children.get("chat_threads")?.set("thread-1", { projectId: "project-other", content: "Other memory" });
+  await assert.rejects(persist(db), /AI_BUILDER_CHILD_OWNERSHIP_COLLISION/);
+  assert.equal(db.state.projects.size, 0);
+  for (const table of childTables.filter((table) => table !== "chat_threads")) assert.equal(db.state.children.get(table)?.size, 0, table);
+  assert.deepEqual(db.state.children.get("chat_threads")?.get("thread-1"), { projectId: "project-other", content: "Other memory" });
+  assert.deepEqual(db.state.progress, ["old-progress"]);
+});
+
+test("the transaction batch protects and verifies every child upsert", () => {
+  const statements: Array<{ text: string; values: unknown[] }> = [];
+  const sql = ((strings: TemplateStringsArray, ...values: unknown[]) => {
+    const text = strings.join("?").replace(/\s+/g, " ").trim(); statements.push({ text, values }); return { queryData: { text, values } };
   }) as never;
   buildLegacyProjectPersistenceQueries(sql, { ...input(), identity: { userId: "user-1", displayName: "Ada", email: "ada@example.test" } });
-  assert.match(statements[1], /AI_BUILDER_PROJECT_OWNERSHIP_COLLISION/);
-  assert.match(statements[1], /WHERE id = \? AND clerk_user_id = \?/);
-  assert.match(statements[2], /ai_builder_intake_blocks/);
-  assert.match(statements.at(-1) ?? "", /ai_builder_chat_threads/);
+  assert.match(statements[1].text, /AI_BUILDER_PROJECT_OWNERSHIP_COLLISION/);
+  assert.match(statements[1].text, /WHERE id = \? AND clerk_user_id = \?/);
+  for (const table of childTables) {
+    const upsert = statements.find(({ text }) => text.includes(`INSERT INTO ai_builder_${table}`));
+    const verification = statements.find(({ text }) => text.includes(`FROM ai_builder_${table}`) && text.includes("child_ownership_verified"));
+    assert.match(upsert?.text ?? "", new RegExp(`WHERE ai_builder_${table}\\.project_id = EXCLUDED\\.project_id`));
+    assert.match(verification?.text ?? "", /AI_BUILDER_CHILD_OWNERSHIP_COLLISION/);
+    assert.match(verification?.text ?? "", /WHERE id = \? AND project_id = \?/);
+    assert.deepEqual(verification?.values, [table === "chat_threads" ? "thread-1" : `${table === "intake_blocks" ? "intake" : table === "context_entries" ? "context" : table === "faq_entries" ? "faq" : table === "missing_information" ? "missing" : "conflict"}-1`, "project-1"]);
+  }
+  assert.ok(statements.findIndex(({ text }) => text.includes("ownership_verified")) < statements.findIndex(({ text }) => text.includes("INSERT INTO ai_builder_intake_blocks")));
 });
