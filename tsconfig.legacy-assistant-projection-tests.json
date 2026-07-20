@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "target": "es2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "/tmp/legacy-assistant-projection-tests",
+    "noEmit": false,
+    "incremental": false
+  },
+  "include": ["app/lib/ai-engine/knowledge/**/*.ts", "app/lib/ai-engine/chat/**/*.ts", "app/lib/ai-engine/contracts/**/*.ts"]
+}

@@ -36,6 +36,10 @@ pack.assistantPurpose,
 "Do not invent unsupported business facts. Be transparent when required information is missing.",
 `Response guidance: ${responseDecision.reason}`,
 RESPONSE_DEPTH_INSTRUCTIONS[responseDecision.depth],
+"Behavior rules (always follow):",
+...pack.behaviorRules.map((rule) => `${rule.title}: ${rule.content}`),
+"Prohibited claims (never make):",
+...pack.prohibitedClaims.map((claim) => `${claim.title}: ${claim.content}`),
 retrieved.facts.join("\n"),
 retrieved.faq.join("\n")
  ].join("\n\n");

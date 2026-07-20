@@ -20,4 +20,5 @@ export type ChatDiagnostics={
   retrievedFacts:number;
   retrievedFaq:number;
   retrievalMs:number;
+  runtimeSource?: "server_legacy_projection";
 };

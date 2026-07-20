@@ -12,7 +12,9 @@ import type {
 import { runOpenAiChat } from "@/app/lib/ai-engine/providers/openaiChatRunner";
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
+import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
+import { buildLegacyAssistantProjection } from "@/app/lib/ai-engine/knowledge/buildLegacyAssistantProjection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +22,9 @@ export const revalidate = 0;
 
 const PROJECT_USER_MESSAGE_LIMIT = 20;
 
-type PersistentChatRequest = ChatRequest & {
+type PersistentChatRequest = Omit<ChatRequest, "knowledge"> & {
+  // Retained only for request compatibility. It is never used by the runtime.
+  knowledge?: unknown;
   projectId?: string;
   threadId?: string;
 };
@@ -39,26 +43,21 @@ function isValidRequest(value: unknown): value is PersistentChatRequest {
   const candidate = value as Partial<PersistentChatRequest>;
 
   const hasValidRequiredFields = Boolean(
-    candidate.knowledge &&
-      typeof candidate.knowledge === "object" &&
-      typeof candidate.message === "string" &&
-      candidate.message.trim().length > 0,
+    typeof candidate.message === "string" && candidate.message.trim().length > 0,
   );
 
   if (!hasValidRequiredFields) return false;
 
   if (
-    candidate.projectId !== undefined &&
-    (typeof candidate.projectId !== "string" ||
-      candidate.projectId.trim().length === 0)
+    typeof candidate.projectId !== "string" ||
+    candidate.projectId.trim().length === 0
   ) {
     return false;
   }
 
   if (
-    candidate.threadId !== undefined &&
-    (typeof candidate.threadId !== "string" ||
-      candidate.threadId.trim().length === 0)
+    typeof candidate.threadId !== "string" ||
+    candidate.threadId.trim().length === 0
   ) {
     return false;
   }
@@ -249,6 +248,15 @@ function getErrorDetails(error: unknown): {
     };
   }
 
+  if (code === "approved_knowledge_unavailable") {
+    return {
+      status: 422,
+      code,
+      message:
+        "This project has no approved business knowledge available for chat.",
+    };
+  }
+
   if (code === "openai_api_key_missing") {
     return {
       status: 500,
@@ -276,7 +284,7 @@ export async function POST(request: Request) {
           error: {
             code: "invalid_chat_request",
             message:
-              "Approved knowledge and a message are required.",
+              "A project conversation and a message are required.",
           },
         },
         { status: 400 },
@@ -287,6 +295,23 @@ export async function POST(request: Request) {
       projectId: body.projectId,
       threadId: body.threadId,
     });
+
+    // resolvePersistentThread verifies this active project and thread belong to
+    // the authenticated user before any project knowledge is loaded.
+    if (!persistenceContext) {
+      throw new Error("invalid_chat_persistence_context");
+    }
+
+    const project = await getAiBuilderProject(persistenceContext.projectId);
+    if (!project) throw new Error("chat_thread_not_found");
+
+    const projection = buildLegacyAssistantProjection(project.session);
+    if (
+      projection.knowledge.facts.length === 0 &&
+      projection.knowledge.faq.length === 0
+    ) {
+      throw new Error("approved_knowledge_unavailable");
+    }
 
     if (
       persistenceContext &&
@@ -314,13 +339,13 @@ export async function POST(request: Request) {
     const startedAt = Date.now();
 
     const retrieved = retrieveKnowledge({
-      knowledge: body.knowledge,
+      knowledge: projection.knowledge,
       message,
     });
     const responseDepthDecision = classifyResponseDepth(message);
 
     const systemPrompt = buildSystemPrompt(
-      body.knowledge,
+      projection.knowledge,
       retrieved,
       responseDepthDecision,
     );
@@ -337,6 +362,7 @@ export async function POST(request: Request) {
         retrievedFacts: retrieved.facts.length,
         retrievedFaq: retrieved.faq.length,
         retrievalMs: Date.now() - startedAt,
+        runtimeSource: projection.source,
       },
     };
 
