@@ -3,7 +3,8 @@ import test from "node:test";
 
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
-import { candidateClaimIdentity, manualCompatibilityMetadata, manualEvidenceIdentity, manualSnapshotPayload, sourceIdentity, sourceSnapshotIdentity, websiteCompatibilityMetadata, websiteEvidenceIdentity, websiteSnapshotPayload } from "./canonical-provenance-identities";
+import { candidateClaimIdentity, claimReviewIdentity, manualCompatibilityMetadata, manualEvidenceIdentity, manualSnapshotPayload, sourceIdentity, sourceSnapshotIdentity, trustedKnowledgeIdentity, websiteCompatibilityMetadata, websiteEvidenceIdentity, websiteSnapshotPayload } from "./canonical-provenance-identities";
+import { interpretLegacyReviewDeltas } from "./canonical-provenance-shadow";
 
 const block = (content = "We provide planning workshops.") => ({ id: "legacy-block-1", label: "Services", content, createdAt: "2026-07-20T10:00:00.000Z", updatedAt: "2026-07-20T10:00:00.000Z" });
 const blocks = (content?: string) => [block(content)] as AiBuilderSession["intakeBlocks"];
@@ -49,6 +50,28 @@ test("candidate claim identities are deterministic and tied to their provenance 
     candidateClaimIdentity(snapshot, "context_entry", "legacy-entry-1", "Planning workshops are available."),
     candidateClaimIdentity(snapshot, "context_entry", "legacy-entry-1", "Planning workshops and audits are available."),
   );
+});
+
+test("review and trusted knowledge identities are deterministic and retain the governed claim", () => {
+  const candidate = "canonical:candidate_claim:manual:abc";
+  const reviewedAt = "2026-07-20T12:00:00.000Z";
+  const review = claimReviewIdentity("legacy-project-1", "context_entry", "legacy-entry-1", candidate, "correction", reviewedAt);
+  assert.equal(review, claimReviewIdentity("legacy-project-1", "context_entry", "legacy-entry-1", candidate, "correction", reviewedAt));
+  assert.notEqual(review, claimReviewIdentity("legacy-project-1", "context_entry", "legacy-entry-1", candidate, "approve", reviewedAt));
+  assert.equal(
+    trustedKnowledgeIdentity("legacy-project-1", "context_entry", "legacy-entry-1", review),
+    trustedKnowledgeIdentity("legacy-project-1", "context_entry", "legacy-entry-1", review),
+  );
+});
+
+test("review delta interpreter emits only real context and FAQ governance transitions", () => {
+  const entry = (kind: "context_entry" | "faq", status: string, content: string) => ({ id: `${kind}-1`, kind, status, content, updatedAt: "2026-07-20T12:00:00.000Z" });
+  assert.deepEqual(interpretLegacyReviewDeltas([entry("context_entry", "approved", "A")], [entry("context_entry", "approved", "A")]), []);
+  assert.equal(interpretLegacyReviewDeltas([entry("context_entry", "proposed", "A")], [entry("context_entry", "approved", "A")])[0]?.action, "approve");
+  assert.equal(interpretLegacyReviewDeltas([entry("faq", "proposed", "A")], [entry("faq", "archived", "A")])[0]?.action, "reject");
+  assert.equal(interpretLegacyReviewDeltas([entry("context_entry", "approved", "A")], [entry("context_entry", "archived", "A")])[0]?.action, "archive");
+  assert.equal(interpretLegacyReviewDeltas([entry("faq", "archived", "A")], [entry("faq", "approved", "A")])[0]?.action, "restore");
+  assert.equal(interpretLegacyReviewDeltas([entry("context_entry", "corrected", "A")], [entry("context_entry", "corrected", "B")])[0]?.action, "correction");
 });
 
 test("website evidence identities resolve the same records after evidence reordering", () => {
