@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { PoolClient } from "@neondatabase/serverless";
+
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import {
@@ -16,6 +18,7 @@ import {
   websiteSnapshotPayload,
 } from "./canonical-provenance-identities";
 import { getSql } from "./client";
+
 
 /** Slice 2 compatibility adapter. Canonical rows are write-only provenance. */
 type CanonicalProvenanceInput = { projectId: string; session: AiBuilderSession; website: string | null; websiteKnowledge: PersistedWebsiteKnowledge | null };
@@ -155,41 +158,55 @@ export function interpretLegacyReviewDeltas(previous: LegacyReviewEntry[], next:
   });
 }
 
-export async function writeCanonicalGovernanceShadow(input: { projectId: string; transitions: LegacyReviewTransition[]; actor: CanonicalActor }, sql: ReturnType<typeof getSql>): Promise<void> {
+export type GovernanceWriteResult = { transitionCount: number; reviewCount: number; trustedKnowledgeCount: number };
+
+/** Writes one immutable governance event at a time on the caller's connection. */
+export async function writeCanonicalGovernanceShadow(
+  input: { projectId: string; transitions: LegacyReviewTransition[]; actor: CanonicalActor },
+  tx: PoolClient,
+): Promise<GovernanceWriteResult> {
+  let reviewCount = 0;
+  let trustedKnowledgeCount = 0;
   for (const transition of input.transitions) {
-    const metadataKey = transition.entry.kind === "context_entry" ? "legacyContextEntryId" : "legacyFaqEntryId";
-    const candidates = await sql`SELECT id, claim_identity FROM ai_builder_canonical_candidate_claims WHERE project_id = ${input.projectId} AND metadata ->> ${metadataKey} = ${transition.entry.id} AND normalized_content = ${transition.entry.content.trim()} ORDER BY created_at DESC LIMIT 1` as Array<{ id: string; claim_identity: string }>;
-    let candidate = candidates[0];
-    // A correction is a new immutable observation of the same evidenced
-    // legacy entry. Keep the prior source snapshot/evidence; never edit it.
-    if (!candidate && transition.action === "correction") {
-      const priorCandidates = await sql`SELECT id, claim_identity, source_snapshot_id, claim_type, category, title, confidence, confidence_score, metadata, created_at FROM ai_builder_canonical_candidate_claims WHERE project_id = ${input.projectId} AND metadata ->> ${metadataKey} = ${transition.entry.id} ORDER BY created_at DESC LIMIT 1` as Array<{ id: string; claim_identity: string; source_snapshot_id: string; claim_type: string; category: string; title: string; confidence: string; confidence_score: number; metadata: object; created_at: string }>;
-      const prior = priorCandidates[0];
-      if (prior) {
-        const identity = candidateClaimIdentity(prior.source_snapshot_id, prior.claim_type, `${transition.entry.kind}\u0000${transition.entry.id}`, transition.entry.content.trim());
-        const created = await sql`INSERT INTO ai_builder_canonical_candidate_claims (claim_identity, project_id, source_snapshot_id, claim_type, category, title, normalized_content, confidence, confidence_score, status, metadata, created_at, updated_at) VALUES (${identity}, ${input.projectId}, ${prior.source_snapshot_id}, ${prior.claim_type}, ${prior.category}, ${prior.title}, ${transition.entry.content.trim()}, ${prior.confidence}, ${prior.confidence_score}, ${"corrected"}, ${JSON.stringify(prior.metadata)}::jsonb, ${transition.entry.updatedAt}::timestamptz, ${transition.entry.updatedAt}::timestamptz) ON CONFLICT (claim_identity) DO UPDATE SET claim_identity = EXCLUDED.claim_identity RETURNING id, claim_identity` as Array<{ id: string; claim_identity: string }>;
-        candidate = created[0];
-        if (candidate) await sql`INSERT INTO ai_builder_canonical_candidate_claim_evidence (candidate_claim_id, evidence_id) SELECT ${candidate.id}, evidence_id FROM ai_builder_canonical_candidate_claim_evidence WHERE candidate_claim_id = ${prior.id} ON CONFLICT DO NOTHING`;
+    const key = transition.entry.kind === "context_entry" ? "legacyContextEntryId" : "legacyFaqEntryId";
+    const content = transition.entry.content.trim();
+    const matching = await tx.query(`SELECT id, claim_identity FROM ai_builder_canonical_candidate_claims WHERE project_id = $1 AND metadata ->> $2 = $3 AND normalized_content = $4 ORDER BY created_at DESC, id DESC LIMIT 1`, [input.projectId, key, transition.entry.id, content]);
+    let candidate = matching.rows[0] as { id: string; claim_identity: string } | undefined;
+
+    if (transition.action === "correction") {
+      const predecessorRows = await tx.query(`SELECT id, source_snapshot_id, claim_type, category, title, confidence, confidence_score, metadata, created_at FROM ai_builder_canonical_candidate_claims WHERE project_id = $1 AND metadata ->> $2 = $3 AND normalized_content <> $4 ${candidate ? "AND id <> $5" : ""} ORDER BY created_at DESC, id DESC LIMIT 1`, candidate ? [input.projectId, key, transition.entry.id, content, candidate.id] : [input.projectId, key, transition.entry.id, content]);
+      const predecessor = predecessorRows.rows[0] as { id: string; source_snapshot_id: string; claim_type: string; category: string; title: string; confidence: string; confidence_score: number; metadata: object } | undefined;
+      if (!predecessor) throw new Error(`canonical_governance_candidate_missing:${transition.entry.kind}:${transition.entry.id}`);
+      if (!candidate) {
+        const identity = candidateClaimIdentity(predecessor.source_snapshot_id, predecessor.claim_type, `${transition.entry.kind}\u0000${transition.entry.id}`, content);
+        const created = await tx.query(`INSERT INTO ai_builder_canonical_candidate_claims (claim_identity, project_id, source_snapshot_id, claim_type, category, title, normalized_content, confidence, confidence_score, status, metadata, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'corrected',$10::jsonb,$11::timestamptz,$11::timestamptz) ON CONFLICT (claim_identity) DO UPDATE SET claim_identity = EXCLUDED.claim_identity RETURNING id, claim_identity`, [identity, input.projectId, predecessor.source_snapshot_id, predecessor.claim_type, predecessor.category, predecessor.title, content, predecessor.confidence, predecessor.confidence_score, JSON.stringify(predecessor.metadata), transition.entry.updatedAt]);
+        candidate = created.rows[0] as { id: string; claim_identity: string } | undefined;
       }
+      if (!candidate) throw new Error(`canonical_governance_candidate_missing:${transition.entry.kind}:${transition.entry.id}`);
+      await tx.query(`INSERT INTO ai_builder_canonical_candidate_claim_evidence (candidate_claim_id, evidence_id) SELECT $1, evidence_id FROM ai_builder_canonical_candidate_claim_evidence WHERE candidate_claim_id = $2 ON CONFLICT DO NOTHING`, [candidate.id, predecessor.id]);
+      const evidence = await tx.query(`SELECT (SELECT count(*) FROM ai_builder_canonical_candidate_claim_evidence WHERE candidate_claim_id = $1) AS corrected, (SELECT count(*) FROM ai_builder_canonical_candidate_claim_evidence WHERE candidate_claim_id = $2) AS predecessor`, [candidate.id, predecessor.id]);
+      const counts = evidence.rows[0] as { corrected: string; predecessor: string } | undefined;
+      if (counts && Number(counts.corrected) < Number(counts.predecessor)) throw new Error(`canonical_correction_evidence_inheritance_failed:${transition.entry.kind}:${transition.entry.id}`);
     }
     if (!candidate) throw new Error(`canonical_governance_candidate_missing:${transition.entry.kind}:${transition.entry.id}`);
+
     const reviewIdentity = claimReviewIdentity(input.projectId, transition.entry.kind, transition.entry.id, candidate.claim_identity, transition.action, transition.entry.updatedAt);
-    const legacyReferences = JSON.stringify({ legacyProjectId: input.projectId, legacyKind: transition.entry.kind, legacyEntryId: transition.entry.id });
-    if (transition.action === "reject") {
-      await sql`INSERT INTO ai_builder_canonical_claim_reviews (review_identity, project_id, candidate_claim_id, action, actor, metadata, legacy_references, reviewed_at, created_at) VALUES (${reviewIdentity}, ${input.projectId}, ${candidate.id}, ${transition.action}, ${JSON.stringify(input.actor)}::jsonb, ${JSON.stringify({ migrationSlice: 4 })}::jsonb, ${legacyReferences}::jsonb, ${transition.entry.updatedAt}::timestamptz, ${transition.entry.updatedAt}::timestamptz) ON CONFLICT (review_identity) DO UPDATE SET review_identity = EXCLUDED.review_identity`;
-      continue;
-    }
-    // One CTE atomically resolves the review and the next immutable revision.
-    // SERIALIZABLE retries are safe because the review identity is stable.
-    const lifecycle = transition.action === "archive" ? "archived" : "active";
-    const writeRevision = () => sql.transaction([sql`WITH review AS (INSERT INTO ai_builder_canonical_claim_reviews (review_identity, project_id, candidate_claim_id, action, actor, metadata, legacy_references, reviewed_at, created_at) VALUES (${reviewIdentity}, ${input.projectId}, ${candidate.id}, ${transition.action}, ${JSON.stringify(input.actor)}::jsonb, ${JSON.stringify({ migrationSlice: 4 })}::jsonb, ${legacyReferences}::jsonb, ${transition.entry.updatedAt}::timestamptz, ${transition.entry.updatedAt}::timestamptz) ON CONFLICT (review_identity) DO UPDATE SET review_identity = EXCLUDED.review_identity RETURNING id), latest AS (SELECT id, revision FROM ai_builder_canonical_trusted_knowledge WHERE project_id = ${input.projectId} AND legacy_kind = ${transition.entry.kind} AND legacy_entry_id = ${transition.entry.id} ORDER BY revision DESC LIMIT 1 FOR UPDATE) INSERT INTO ai_builder_canonical_trusted_knowledge (trusted_knowledge_identity, project_id, candidate_claim_id, claim_review_id, previous_trusted_knowledge_id, legacy_kind, legacy_entry_id, revision, lifecycle, metadata, created_at) SELECT ${trustedKnowledgeIdentity(input.projectId, transition.entry.kind, transition.entry.id, reviewIdentity)}, ${input.projectId}, ${candidate.id}, review.id, latest.id, ${transition.entry.kind}, ${transition.entry.id}, COALESCE(latest.revision, 0) + 1, ${lifecycle}, ${JSON.stringify({ migrationSlice: 4, reviewAction: transition.action })}::jsonb, ${transition.entry.updatedAt}::timestamptz FROM review LEFT JOIN latest ON TRUE WHERE ${transition.action} <> 'archive' OR latest.id IS NOT NULL ON CONFLICT (trusted_knowledge_identity) DO UPDATE SET trusted_knowledge_identity = EXCLUDED.trusted_knowledge_identity`], { isolationLevel: "Serializable" });
-    for (let attempt = 0; ; attempt += 1) {
-      try { await writeRevision(); break; } catch (error) {
-        const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
-        if (code !== "40001" || attempt === 2) throw error;
-      }
-    }
+    const review = await tx.query(`INSERT INTO ai_builder_canonical_claim_reviews (review_identity, project_id, candidate_claim_id, action, actor, metadata, legacy_references, reviewed_at, created_at) VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8::timestamptz,$8::timestamptz) ON CONFLICT (review_identity) DO UPDATE SET review_identity = EXCLUDED.review_identity RETURNING id, review_identity`, [reviewIdentity, input.projectId, candidate.id, transition.action, JSON.stringify(input.actor), JSON.stringify({ migrationSlice: 4 }), JSON.stringify({ legacyProjectId: input.projectId, legacyKind: transition.entry.kind, legacyEntryId: transition.entry.id }), transition.entry.updatedAt]);
+    const reviewRow = review.rows[0] as { id: string } | undefined;
+    if (!reviewRow) throw new Error(`canonical_governance_review_resolution_failed:${transition.entry.kind}:${transition.entry.id}`);
+    reviewCount += 1;
+    if (transition.action === "reject") continue;
+
+    const latest = await tx.query(`SELECT id, revision FROM ai_builder_canonical_trusted_knowledge WHERE project_id = $1 AND legacy_kind = $2 AND legacy_entry_id = $3 ORDER BY revision DESC LIMIT 1 FOR UPDATE`, [input.projectId, transition.entry.kind, transition.entry.id]);
+    const previous = latest.rows[0] as { id: string; revision: number } | undefined;
+    if (transition.action === "archive" && !previous) throw new Error(`canonical_governance_archive_without_trusted_knowledge:${transition.entry.kind}:${transition.entry.id}`);
+    const trustedIdentity = trustedKnowledgeIdentity(input.projectId, transition.entry.kind, transition.entry.id, reviewIdentity);
+    const trusted = await tx.query(`INSERT INTO ai_builder_canonical_trusted_knowledge (trusted_knowledge_identity, project_id, candidate_claim_id, claim_review_id, previous_trusted_knowledge_id, legacy_kind, legacy_entry_id, revision, lifecycle, metadata, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::timestamptz) ON CONFLICT (trusted_knowledge_identity) DO UPDATE SET trusted_knowledge_identity = EXCLUDED.trusted_knowledge_identity RETURNING id`, [trustedIdentity, input.projectId, candidate.id, reviewRow.id, previous?.id ?? null, transition.entry.kind, transition.entry.id, (previous?.revision ?? 0) + 1, transition.action === "archive" ? "archived" : "active", JSON.stringify({ migrationSlice: 4, reviewAction: transition.action }), transition.entry.updatedAt]);
+    if (!trusted.rows[0]) throw new Error(`canonical_governance_trusted_knowledge_resolution_failed:${transition.entry.kind}:${transition.entry.id}`);
+    trustedKnowledgeCount += 1;
   }
+  if (reviewCount !== input.transitions.length || trustedKnowledgeCount !== input.transitions.filter((item) => item.action !== "reject").length) throw new Error("canonical_governance_write_count_mismatch");
+  return { transitionCount: input.transitions.length, reviewCount, trustedKnowledgeCount };
 }
 
 export async function writeCanonicalProvenanceShadow(input: CanonicalProvenanceInput): Promise<void> {
