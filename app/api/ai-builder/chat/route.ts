@@ -49,20 +49,35 @@ function isValidRequest(value: unknown): value is PersistentChatRequest {
   if (!hasValidRequiredFields) return false;
 
   if (
-    typeof candidate.projectId !== "string" ||
-    candidate.projectId.trim().length === 0
+    candidate.projectId !== undefined &&
+    (typeof candidate.projectId !== "string" ||
+      candidate.projectId.trim().length === 0)
   ) {
     return false;
   }
 
   if (
-    typeof candidate.threadId !== "string" ||
-    candidate.threadId.trim().length === 0
+    candidate.threadId !== undefined &&
+    (typeof candidate.threadId !== "string" ||
+      candidate.threadId.trim().length === 0)
   ) {
     return false;
   }
 
   return true;
+}
+
+function getNonpersistentProjectId(knowledge: unknown): string | null {
+  if (!knowledge || typeof knowledge !== "object" || Array.isArray(knowledge)) {
+    return null;
+  }
+
+  const sessionId = (knowledge as { sessionId?: unknown }).sessionId;
+  if (typeof sessionId !== "string" || sessionId.trim().length === 0) {
+    return null;
+  }
+
+  return sessionId.trim();
 }
 
 async function resolvePersistentThread(input: {
@@ -283,8 +298,7 @@ export async function POST(request: Request) {
           ok: false,
           error: {
             code: "invalid_chat_request",
-            message:
-              "A project conversation and a message are required.",
+            message: "A message and valid optional conversation IDs are required.",
           },
         },
         { status: 400 },
@@ -295,23 +309,6 @@ export async function POST(request: Request) {
       projectId: body.projectId,
       threadId: body.threadId,
     });
-
-    // resolvePersistentThread verifies this active project and thread belong to
-    // the authenticated user before any project knowledge is loaded.
-    if (!persistenceContext) {
-      throw new Error("invalid_chat_persistence_context");
-    }
-
-    const project = await getAiBuilderProject(persistenceContext.projectId);
-    if (!project) throw new Error("chat_thread_not_found");
-
-    const projection = buildLegacyAssistantProjection(project.session);
-    if (
-      projection.knowledge.facts.length === 0 &&
-      projection.knowledge.faq.length === 0
-    ) {
-      throw new Error("approved_knowledge_unavailable");
-    }
 
     if (
       persistenceContext &&
@@ -333,6 +330,25 @@ export async function POST(request: Request) {
         },
         { status: 429 },
       );
+    }
+
+    // The nonpersistent selector identifies the server-owned project only;
+    // no client knowledge is used to construct the runtime projection.
+    const projectId = persistenceContext?.projectId ??
+      getNonpersistentProjectId(body.knowledge);
+    if (!projectId) throw new Error("invalid_chat_persistence_context");
+
+    const project = projectId
+      ? await getAiBuilderProject(projectId)
+      : null;
+    if (!project) throw new Error("chat_thread_not_found");
+
+    const projection = buildLegacyAssistantProjection(project.session);
+    if (
+      projection.knowledge.facts.length === 0 &&
+      projection.knowledge.faq.length === 0
+    ) {
+      throw new Error("approved_knowledge_unavailable");
     }
 
     const message = body.message.trim().slice(0, 4000);
