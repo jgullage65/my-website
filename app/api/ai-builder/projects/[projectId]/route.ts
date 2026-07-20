@@ -7,11 +7,24 @@ import {
 } from "@/app/lib/db/ai-builder-repository";
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
+import { Pool } from "@neondatabase/serverless";
 import { interpretLegacyReviewDeltas, writeCanonicalGovernanceShadow } from "@/app/lib/db/canonical-provenance-shadow";
 import { isAuthenticationRequired, requireClerkUserId } from "@/app/lib/auth/clerk";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+// Keep the interactive connection pool alongside the application's database
+// module lifetime rather than allocating one for every save request.
+let transactionPool: Pool | null = null;
+
+function getTransactionPool(): Pool {
+  if (transactionPool) return transactionPool;
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL is not configured.");
+  transactionPool = new Pool({ connectionString });
+  return transactionPool;
+}
 
 type RouteContext = {
   params: Promise<{
@@ -230,77 +243,32 @@ export async function PUT(request: Request, context: RouteContext) {
       );
     }
 
-    // Capture the authoritative legacy state before applying the submitted
-    // whole-session mutation. Governance is driven by this delta only.
-    const priorContextRows = (await sql`SELECT id, status, content, updated_at FROM ai_builder_context_entries WHERE project_id = ${normalizedProjectId}`) as Array<{ id: string; status: string; content: string; updated_at: unknown }>;
-    const priorFaqRows = (await sql`SELECT id, status, question, answer, updated_at FROM ai_builder_faq_entries WHERE project_id = ${normalizedProjectId}`) as Array<{ id: string; status: string; question: string; answer: string; updated_at: unknown }>;
-    const reviewTransitions = interpretLegacyReviewDeltas(
-      [
-        ...priorContextRows.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: toIsoString(entry.updated_at), kind: "context_entry" as const })),
-        ...priorFaqRows.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: toIsoString(entry.updated_at), kind: "faq" as const })),
-      ],
-      [
-        ...session.contextEntries.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: entry.updatedAt, kind: "context_entry" as const })),
-        ...session.faqEntries.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: entry.updatedAt, kind: "faq" as const })),
-      ],
-    );
-
-    await sql`
-      UPDATE ai_builder_projects
-      SET
-        status = ${session.status},
-        assistant_configuration = ${JSON.stringify(session.assistantConfiguration)}::jsonb,
-        context_counts = ${JSON.stringify(session.contextCounts)}::jsonb,
-        updated_at = ${session.updatedAt}::timestamptz,
-        expires_at = ${session.expiresAt}::timestamptz
-      WHERE id = ${normalizedProjectId}
-        AND clerk_user_id = ${clerkUserId}
-        AND archived_at IS NULL
-    `;
-
-    await Promise.all(
-      session.contextEntries.map((entry) => sql`
-        UPDATE ai_builder_context_entries
-        SET
-          category = ${entry.category},
-          title = ${entry.title},
-          content = ${entry.content},
-          confidence = ${entry.confidence},
-          confidence_score = ${entry.confidenceScore},
-          status = ${entry.status},
-          source = ${JSON.stringify(entry.source)}::jsonb,
-          metadata = ${JSON.stringify(entry.metadata)}::jsonb,
-          updated_at = ${entry.updatedAt}::timestamptz
-        WHERE id = ${entry.id}
-          AND project_id = ${normalizedProjectId}
-      `),
-    );
-
-    await Promise.all(
-      session.faqEntries.map((entry) => sql`
-        UPDATE ai_builder_faq_entries
-        SET
-          question = ${entry.question},
-          answer = ${entry.answer},
-          confidence = ${entry.confidence},
-          confidence_score = ${entry.confidenceScore},
-          source_entry_ids = ${JSON.stringify(entry.sourceEntryIds)}::jsonb,
-          status = ${entry.status},
-          updated_at = ${entry.updatedAt}::timestamptz
-        WHERE id = ${entry.id}
-          AND project_id = ${normalizedProjectId}
-      `),
-    );
-
-    // Both legacy compatibility tables are now persisted. The governance
-    // dual-write receives only actual review transitions, never a snapshot.
-    if (reviewTransitions.length) {
-      await writeCanonicalGovernanceShadow({
-        projectId: normalizedProjectId,
-        transitions: reviewTransitions,
-        actor: { clerkUserId, displayName: null, email: null },
-      }, sql);
-    }
+    // Each retry obtains a fresh interactive connection so locked reads and
+    // transition interpretation are never reused from a failed attempt.
+    const pool = getTransactionPool();
+    for (let attempt = 0; ; attempt += 1) {
+        const client = await pool.connect();
+        try {
+          await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+          const tx = client;
+          const priorContextRows = (await tx.query(`SELECT id, status, content, updated_at FROM ai_builder_context_entries WHERE project_id = $1 FOR UPDATE`, [normalizedProjectId])).rows as Array<{ id: string; status: string; content: string; updated_at: unknown }>;
+          const priorFaqRows = (await tx.query(`SELECT id, status, question, answer, updated_at FROM ai_builder_faq_entries WHERE project_id = $1 FOR UPDATE`, [normalizedProjectId])).rows as Array<{ id: string; status: string; question: string; answer: string; updated_at: unknown }>;
+          const reviewTransitions = interpretLegacyReviewDeltas(
+            [...priorContextRows.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: toIsoString(entry.updated_at), kind: "context_entry" as const })), ...priorFaqRows.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: toIsoString(entry.updated_at), kind: "faq" as const }))],
+            [...session.contextEntries.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: entry.updatedAt, kind: "context_entry" as const })), ...session.faqEntries.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: entry.updatedAt, kind: "faq" as const }))],
+          );
+          await writeCanonicalGovernanceShadow({ projectId: normalizedProjectId, transitions: reviewTransitions, actor: { clerkUserId, displayName: null, email: null } }, tx);
+          await tx.query(`UPDATE ai_builder_projects SET status = $1, assistant_configuration = $2::jsonb, context_counts = $3::jsonb, updated_at = $4::timestamptz, expires_at = $5::timestamptz WHERE id = $6 AND clerk_user_id = $7 AND archived_at IS NULL`, [session.status, JSON.stringify(session.assistantConfiguration), JSON.stringify(session.contextCounts), session.updatedAt, session.expiresAt, normalizedProjectId, clerkUserId]);
+          for (const entry of session.contextEntries) await tx.query(`UPDATE ai_builder_context_entries SET category=$1,title=$2,content=$3,confidence=$4,confidence_score=$5,status=$6,source=$7::jsonb,metadata=$8::jsonb,updated_at=$9::timestamptz WHERE id=$10 AND project_id=$11`, [entry.category, entry.title, entry.content, entry.confidence, entry.confidenceScore, entry.status, JSON.stringify(entry.source), JSON.stringify(entry.metadata), entry.updatedAt, entry.id, normalizedProjectId]);
+          for (const entry of session.faqEntries) await tx.query(`UPDATE ai_builder_faq_entries SET question=$1,answer=$2,confidence=$3,confidence_score=$4,source_entry_ids=$5::jsonb,status=$6,updated_at=$7::timestamptz WHERE id=$8 AND project_id=$9`, [entry.question, entry.answer, entry.confidence, entry.confidenceScore, JSON.stringify(entry.sourceEntryIds), entry.status, entry.updatedAt, entry.id, normalizedProjectId]);
+          await client.query("COMMIT");
+          break;
+        } catch (error) {
+          await client.query("ROLLBACK").catch(() => undefined);
+          const code = typeof error === "object" && error && "code" in error ? String(error.code) : "";
+          if (code !== "40001" || attempt === 2) throw error;
+        } finally { client.release(); }
+      }
 
     return NextResponse.json({
       ok: true,
