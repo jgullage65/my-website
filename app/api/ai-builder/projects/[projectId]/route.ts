@@ -32,6 +32,7 @@ type StoredChatMessage = {
     retrievedFacts: number;
     retrievedFaq: number;
     retrievalMs: number;
+    runtimeSource?: "server_legacy_projection";
   };
   createdAt: string;
 };
@@ -120,6 +121,10 @@ export async function GET(_request: Request, context: RouteContext) {
                 retrievedFacts: Number(rawDiagnostics.retrievedFacts ?? 0),
                 retrievedFaq: Number(rawDiagnostics.retrievedFaq ?? 0),
                 retrievalMs: Number(rawDiagnostics.retrievalMs ?? 0),
+                runtimeSource:
+                  rawDiagnostics.runtimeSource === "server_legacy_projection"
+                    ? ("server_legacy_projection" as const)
+                    : undefined,
               }
             : undefined;
 
