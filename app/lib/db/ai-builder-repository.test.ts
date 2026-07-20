@@ -23,7 +23,7 @@ const input = (status = "review") => ({
   initialThread: { id: "thread-1", memory: {} as never },
 });
 
-type Child = { projectId: string; content: string };
+type Child = { projectId: string; content: string; status?: string };
 type State = { projects: Map<string, { owner: string; status: string }>; children: Map<string, Map<string, Child>>; progress: string[] };
 const childTables = ["intake_blocks", "context_entries", "faq_entries", "conflicts", "missing_information", "chat_threads"];
 
@@ -54,6 +54,14 @@ function fakeDatabase(options: { failAt?: string; owner?: string } = {}) {
           if (working.projects.get(id)?.owner !== owner) throw new Error("AI_BUILDER_PROJECT_OWNERSHIP_COLLISION");
         } else if (text.includes("DELETE FROM ai_builder_progress")) {
           working.progress = [];
+        } else if (text.startsWith("DELETE FROM ai_builder_")) {
+          const table = childTables.find((name) => text.includes(`DELETE FROM ai_builder_${name}`));
+          if (table) {
+            const [projectId, submittedIds] = values as [string, string[] | undefined];
+            for (const [id, child] of working.children.get(table) ?? []) {
+              if (child.projectId === projectId && (!submittedIds || !submittedIds.includes(id))) working.children.get(table)?.delete(id);
+            }
+          }
         } else if (text.includes("INSERT INTO ai_builder_progress")) {
           working.progress.push(values[1] as string);
         } else {
@@ -61,7 +69,7 @@ function fakeDatabase(options: { failAt?: string; owner?: string } = {}) {
           if (table) {
             const id = values[0] as string; const projectId = values[1] as string;
             const existing = working.children.get(table)?.get(id);
-            if (!existing || existing.projectId === projectId) working.children.get(table)?.set(id, { projectId, content: String(values[4] ?? values[3] ?? "") });
+            if (!existing || existing.projectId === projectId) working.children.get(table)?.set(id, { projectId, content: String(values[4] ?? values[3] ?? ""), status: table === "context_entries" || table === "faq_entries" ? String(values[7]) : undefined });
           }
         }
       }
@@ -69,6 +77,17 @@ function fakeDatabase(options: { failAt?: string; owner?: string } = {}) {
     },
   };
   return { state, sql, options };
+}
+
+function seedAuthoritativeChildren(state: State, projectId: string, suffix: "1" | "2" | "3" = "2") {
+  for (const table of childTables.filter((table) => table !== "chat_threads")) {
+    const prefix = table === "intake_blocks" ? "intake" : table === "context_entries" ? "context" : table === "faq_entries" ? "faq" : table === "missing_information" ? "missing" : "conflict";
+    state.children.get(table)?.set(`${prefix}-${suffix}`, { projectId, content: `${table}-${suffix}` });
+  }
+}
+
+function reducedInput() {
+  return input();
 }
 
 async function persist(db: ReturnType<typeof fakeDatabase>, project = input(), shadow = async () => {}) {
@@ -143,6 +162,81 @@ test("a late chat-thread collision rolls back the complete ordered graph", async
   assert.deepEqual(db.state.progress, ["old-progress"]);
 });
 
+test("reconciliation removes stale authoritative rows but preserves submitted rows, progress, and chat", async () => {
+  const db = fakeDatabase();
+  await persist(db);
+  seedAuthoritativeChildren(db.state, "project-1");
+  await persist(db, reducedInput());
+  for (const table of childTables.filter((table) => table !== "chat_threads")) {
+    assert.equal(db.state.children.get(table)?.size, 1, table);
+    assert.equal([...db.state.children.get(table)?.values() ?? []][0]?.projectId, "project-1");
+  }
+  assert.equal(db.state.projects.size, 1);
+  assert.deepEqual(db.state.progress, ["intake"]);
+  assert.equal(db.state.children.get("chat_threads")?.size, 1);
+});
+
+test("empty authoritative collections clear only their project rows without invalid SQL", async () => {
+  const db = fakeDatabase();
+  await persist(db);
+  seedAuthoritativeChildren(db.state, "project-1");
+  const empty = input();
+  empty.session.intakeBlocks = [];
+  empty.session.contextEntries = [];
+  empty.session.faqEntries = [];
+  empty.session.conflicts = [];
+  empty.session.missingInformation = [];
+  await persist(db, empty);
+  for (const table of childTables.filter((table) => table !== "chat_threads")) assert.equal(db.state.children.get(table)?.size, 0, table);
+  assert.deepEqual(db.state.progress, ["intake"]);
+  assert.equal(db.state.children.get("chat_threads")?.size, 1);
+});
+
+test("reconciliation never deletes another project's authoritative rows", async () => {
+  const db = fakeDatabase();
+  await persist(db);
+  seedAuthoritativeChildren(db.state, "project-1", "2");
+  seedAuthoritativeChildren(db.state, "project-other", "3");
+  await persist(db, reducedInput());
+  for (const table of childTables.filter((table) => table !== "chat_threads")) {
+    const prefix = table === "intake_blocks" ? "intake" : table === "context_entries" ? "context" : table === "faq_entries" ? "faq" : table === "missing_information" ? "missing" : "conflict";
+    assert.equal(db.state.children.get(table)?.has(`${prefix}-2`), false, table);
+    const foreignRow = db.state.children.get(table)?.get(`${prefix}-3`);
+    assert.ok(foreignRow, table);
+    assert.equal(foreignRow.projectId, "project-other", table);
+  }
+});
+
+test("archived submitted context and FAQ entries remain in the authoritative collections", async () => {
+  const db = fakeDatabase();
+  const archived = input();
+  archived.session.contextEntries[0].status = "archived";
+  archived.session.faqEntries[0].status = "archived";
+  await persist(db, archived);
+  assert.equal(db.state.children.get("context_entries")?.get("context-1")?.status, "archived");
+  assert.equal(db.state.children.get("faq_entries")?.get("faq-1")?.status, "archived");
+});
+
+test("a child collision rolls cleanup and all later writes back", async () => {
+  const db = fakeDatabase();
+  db.state.projects.set("project-1", { owner: "user-1", status: "existing" });
+  seedAuthoritativeChildren(db.state, "project-1");
+  db.state.children.get("context_entries")?.set("context-1", { projectId: "project-other", content: "foreign" });
+  const original = clone(db.state);
+  await assert.rejects(persist(db), /AI_BUILDER_CHILD_OWNERSHIP_COLLISION/);
+  assert.deepEqual(db.state, original);
+});
+
+test("late chat-thread failure restores rows targeted by stale cleanup", async () => {
+  const db = fakeDatabase();
+  db.state.projects.set("project-1", { owner: "user-1", status: "existing" });
+  seedAuthoritativeChildren(db.state, "project-1");
+  db.state.children.get("chat_threads")?.set("thread-1", { projectId: "project-other", content: "foreign" });
+  const original = clone(db.state);
+  await assert.rejects(persist(db), /AI_BUILDER_CHILD_OWNERSHIP_COLLISION/);
+  assert.deepEqual(db.state, original);
+});
+
 test("the transaction batch protects and verifies every child upsert", () => {
   const statements: Array<{ text: string; values: unknown[] }> = [];
   const sql = ((strings: TemplateStringsArray, ...values: unknown[]) => {
@@ -160,4 +254,39 @@ test("the transaction batch protects and verifies every child upsert", () => {
     assert.deepEqual(verification?.values, [table === "chat_threads" ? "thread-1" : `${table === "intake_blocks" ? "intake" : table === "context_entries" ? "context" : table === "faq_entries" ? "faq" : table === "missing_information" ? "missing" : "conflict"}-1`, "project-1"]);
   }
   assert.ok(statements.findIndex(({ text }) => text.includes("ownership_verified")) < statements.findIndex(({ text }) => text.includes("INSERT INTO ai_builder_intake_blocks")));
+});
+
+test("the transaction batch reconciles every authoritative collection in dependency-safe order", () => {
+  const statements: Array<{ text: string; values: unknown[] }> = [];
+  const sql = ((strings: TemplateStringsArray, ...values: unknown[]) => {
+    const text = strings.join("?").replace(/\s+/g, " ").trim(); statements.push({ text, values }); return { queryData: { text, values } };
+  }) as never;
+  buildLegacyProjectPersistenceQueries(sql, { ...input(), identity: { userId: "user-1", displayName: "Ada", email: "ada@example.test" } });
+  const authoritative = ["faq_entries", "context_entries", "intake_blocks", "conflicts", "missing_information"];
+  const cleanupIndexes = authoritative.map((table) => {
+    const index = statements.findIndex(({ text }) => text.includes(`DELETE FROM ai_builder_${table}`));
+    assert.ok(index >= 0, table);
+    assert.match(statements[index]!.text, /WHERE project_id = \? AND id <> ALL\(\?\)/);
+    assert.deepEqual(statements[index]!.values[0], "project-1");
+    assert.ok(Array.isArray(statements[index]!.values[1]));
+    return index;
+  });
+  assert.deepEqual(cleanupIndexes, [...cleanupIndexes].sort((a, b) => a - b));
+  const lastChildVerification = Math.max(...statements.map(({ text }, index) => text.includes("child_ownership_verified") && !text.includes("ai_builder_chat_threads") ? index : -1));
+  assert.ok(lastChildVerification < cleanupIndexes[0]!);
+  assert.ok(cleanupIndexes.at(-1)! < statements.findIndex(({ text }) => text.includes("DELETE FROM ai_builder_progress")));
+  assert.equal(statements.some(({ text }) => text.includes("DELETE FROM ai_builder_chat_threads") || text.includes("DELETE FROM ai_builder_chat_messages")), false);
+
+  const empty = input();
+  empty.session.intakeBlocks = []; empty.session.contextEntries = []; empty.session.faqEntries = []; empty.session.conflicts = []; empty.session.missingInformation = [];
+  const emptyStatements: Array<{ text: string; values: unknown[] }> = [];
+  const emptySql = ((strings: TemplateStringsArray, ...values: unknown[]) => {
+    const text = strings.join("?").replace(/\s+/g, " ").trim(); emptyStatements.push({ text, values }); return { queryData: { text, values } };
+  }) as never;
+  buildLegacyProjectPersistenceQueries(emptySql, { ...empty, identity: { userId: "user-1", displayName: "Ada", email: "ada@example.test" } });
+  for (const table of authoritative) {
+    const statement = emptyStatements.find(({ text }) => text.includes(`DELETE FROM ai_builder_${table}`));
+    assert.match(statement?.text ?? "", /WHERE project_id = \?$/);
+    assert.deepEqual(statement?.values, ["project-1"]);
+  }
 });

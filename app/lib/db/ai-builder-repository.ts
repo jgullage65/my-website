@@ -193,6 +193,37 @@ function childOwnershipCollisionGuardQuery(
   }
 }
 
+type AuthoritativeChildTable = "ai_builder_intake_blocks" | "ai_builder_context_entries" | "ai_builder_faq_entries" | "ai_builder_conflicts" | "ai_builder_missing_information";
+
+/**
+ * Legacy child collections are an exact projection of the persisted session.
+ * Use a separate empty-set query so PostgreSQL never receives NOT IN ().
+ */
+function staleChildCleanupQuery(
+  sql: TransactionSql,
+  table: AuthoritativeChildTable,
+  projectId: string,
+  submittedIds: string[],
+): NeonQueryInTransaction {
+  if (!submittedIds.length) {
+    switch (table) {
+      case "ai_builder_intake_blocks": return sql`DELETE FROM ai_builder_intake_blocks WHERE project_id = ${projectId}`;
+      case "ai_builder_context_entries": return sql`DELETE FROM ai_builder_context_entries WHERE project_id = ${projectId}`;
+      case "ai_builder_faq_entries": return sql`DELETE FROM ai_builder_faq_entries WHERE project_id = ${projectId}`;
+      case "ai_builder_conflicts": return sql`DELETE FROM ai_builder_conflicts WHERE project_id = ${projectId}`;
+      case "ai_builder_missing_information": return sql`DELETE FROM ai_builder_missing_information WHERE project_id = ${projectId}`;
+    }
+  }
+
+  switch (table) {
+    case "ai_builder_intake_blocks": return sql`DELETE FROM ai_builder_intake_blocks WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
+    case "ai_builder_context_entries": return sql`DELETE FROM ai_builder_context_entries WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
+    case "ai_builder_faq_entries": return sql`DELETE FROM ai_builder_faq_entries WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
+    case "ai_builder_conflicts": return sql`DELETE FROM ai_builder_conflicts WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
+    case "ai_builder_missing_information": return sql`DELETE FROM ai_builder_missing_information WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
+  }
+}
+
 /**
  * Builds the ordered HTTP transaction batch used for authoritative legacy
  * persistence. Neon executes this batch as one non-interactive transaction.
@@ -236,6 +267,13 @@ export function buildLegacyProjectPersistenceQueries(
   for (const entry of session.faqEntries) { queries.push(sql`INSERT INTO ai_builder_faq_entries (id, project_id, question, answer, confidence, confidence_score, source_entry_ids, status, created_at, updated_at) VALUES (${entry.id}, ${session.id}, ${entry.question}, ${entry.answer}, ${entry.confidence}, ${entry.confidenceScore}, ${JSON.stringify(entry.sourceEntryIds)}::jsonb, ${entry.status}, ${entry.createdAt}::timestamptz, ${entry.updatedAt}::timestamptz) ON CONFLICT (id) DO UPDATE SET question = EXCLUDED.question, answer = EXCLUDED.answer, confidence = EXCLUDED.confidence, confidence_score = EXCLUDED.confidence_score, source_entry_ids = EXCLUDED.source_entry_ids, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at WHERE ai_builder_faq_entries.project_id = EXCLUDED.project_id`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_faq_entries", entry.id, session.id)); }
   for (const conflict of session.conflicts) { queries.push(sql`INSERT INTO ai_builder_conflicts (id, project_id, topic, first_statement, second_statement, source_excerpts, suggested_question, resolved, resolution) VALUES (${conflict.id}, ${session.id}, ${conflict.topic}, ${conflict.firstStatement}, ${conflict.secondStatement}, ${JSON.stringify(conflict.sourceExcerpts)}::jsonb, ${conflict.suggestedQuestion}, ${conflict.resolved}, ${conflict.resolution ?? null}) ON CONFLICT (id) DO UPDATE SET topic = EXCLUDED.topic, first_statement = EXCLUDED.first_statement, second_statement = EXCLUDED.second_statement, source_excerpts = EXCLUDED.source_excerpts, suggested_question = EXCLUDED.suggested_question, resolved = EXCLUDED.resolved, resolution = EXCLUDED.resolution WHERE ai_builder_conflicts.project_id = EXCLUDED.project_id`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_conflicts", conflict.id, session.id)); }
   for (const item of session.missingInformation) { queries.push(sql`INSERT INTO ai_builder_missing_information (id, project_id, topic, reason, suggested_question, resolved) VALUES (${item.id}, ${session.id}, ${item.topic}, ${item.reason}, ${item.suggestedQuestion}, ${item.resolved}) ON CONFLICT (id) DO UPDATE SET topic = EXCLUDED.topic, reason = EXCLUDED.reason, suggested_question = EXCLUDED.suggested_question, resolved = EXCLUDED.resolved WHERE ai_builder_missing_information.project_id = EXCLUDED.project_id`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_missing_information", item.id, session.id)); }
+  // Delete dependents before their logical sources, after every submitted child
+  // has passed its project-ownership guard.
+  queries.push(staleChildCleanupQuery(sql, "ai_builder_faq_entries", session.id, session.faqEntries.map((entry) => entry.id)));
+  queries.push(staleChildCleanupQuery(sql, "ai_builder_context_entries", session.id, session.contextEntries.map((entry) => entry.id)));
+  queries.push(staleChildCleanupQuery(sql, "ai_builder_intake_blocks", session.id, session.intakeBlocks.map((block) => block.id)));
+  queries.push(staleChildCleanupQuery(sql, "ai_builder_conflicts", session.id, session.conflicts.map((conflict) => conflict.id)));
+  queries.push(staleChildCleanupQuery(sql, "ai_builder_missing_information", session.id, session.missingInformation.map((item) => item.id)));
   queries.push(sql`DELETE FROM ai_builder_progress WHERE project_id = ${session.id}`);
   for (const progress of session.buildProgress) queries.push(sql`INSERT INTO ai_builder_progress (project_id, stage, message, completed, count, created_at) VALUES (${session.id}, ${progress.stage}, ${progress.message}, ${progress.completed}, ${progress.count ?? null}, ${progress.createdAt}::timestamptz)`);
   queries.push(sql`INSERT INTO ai_builder_chat_threads (id, project_id, title, memory, created_at, updated_at) VALUES (${initialThread.id}, ${session.id}, ${"Demo conversation"}, ${JSON.stringify(initialThread.memory)}::jsonb, ${session.createdAt}::timestamptz, ${session.updatedAt}::timestamptz) ON CONFLICT (id) DO UPDATE SET memory = EXCLUDED.memory, updated_at = EXCLUDED.updated_at WHERE ai_builder_chat_threads.project_id = EXCLUDED.project_id`);
