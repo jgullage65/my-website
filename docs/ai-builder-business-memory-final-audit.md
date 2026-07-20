@@ -18,6 +18,14 @@ AiBuilderSession + PersistedWebsiteKnowledge
 
 The input flow is implemented by `contextAssertion`, `faqAssertion`, and `websiteAssertions`; the projection is assembled by `buildBusinessMemory`. `buildBusinessMemory.ts — lines 87-218`.
 
+## Provenance-shadow boundary
+
+The existing canonical provenance shadow tables are an **audit, provenance, and governance-history layer**. During the current migration stage, legacy AI Builder persistence remains authoritative. The shadow is not the persistence model for the new canonical `BusinessMemory`, and its presence does not mean that Business Memory persistence or a canonical Business Memory cutover has occurred.
+
+Future Business Memory persistence will be designed separately for canonical entities, assertions, relationships, conflicts, missing information, assistant configuration, and other Business Memory structures. The current shadow-writing behavior must not be interpreted as runtime integration, retrieval integration, canonical Business Memory persistence, or a canonical Business Memory cutover.
+
+Initial provenance-shadow writes are non-authoritative: they may fail without breaking the authoritative legacy project save. In contrast, governance and review shadow writes are intentionally atomic with their matching legacy review mutations so that an accepted legacy review decision and its governance history cannot diverge.
+
 ## Object audit
 
 | Object | Responsibility and why it exists | Identity/provenance/timestamps/data classification | Finding |

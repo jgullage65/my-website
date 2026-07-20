@@ -205,6 +205,12 @@ export type BusinessMemory = {
 
 ## 11. Persistence recommendation
 
+### Current provenance-shadow boundary
+
+The existing canonical provenance shadow tables are an **audit, provenance, and governance-history layer**; they are not complete Business Memory persistence. During the current migration stage, legacy AI Builder persistence remains authoritative. The provenance shadow is not the persistence model for the new canonical `BusinessMemory`, and shadow-writing must not be read as a canonical Business Memory cutover, runtime integration, or retrieval integration.
+
+Future Business Memory persistence will be designed separately for canonical entities, assertions, relationships, conflicts, missing information, assistant configuration, and other Business Memory structures. Initial provenance-shadow writes are non-authoritative and may fail without breaking the authoritative legacy project save. Governance and review shadow writes, by contrast, are intentionally atomic with their matching legacy review mutations.
+
 Use Postgres with a versioned `business_memory` JSONB document per project initially, plus an append-only `business_memory_revisions`/source-event table when history becomes active. JSONB matches existing project persistence and allows contracts to evolve; normal relational tables can be introduced later for indexed entity/relationship queries without changing the canonical contract. Store source/evidence records separately or de-duplicated by IDs inside the document; never rely on a caller’s pack to reconstruct them. Do not use an external graph database.
 
 A new memory row should contain `schema_version`, deterministic mapper version, source snapshot links (`website_knowledge` document version/crawl attempt and workflow row IDs), and `built_from` fingerprint. Upsert only when the normalized input fingerprint changes. Keep source snapshots immutable and mark lifecycle/revisions rather than deleting them.
