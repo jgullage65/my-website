@@ -78,6 +78,34 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_canonical_source_snapshots ALTER COLUMN id SET DEFAULT gen_random_uuid()::text`;
   await sql`ALTER TABLE ai_builder_canonical_evidence ALTER COLUMN id SET DEFAULT gen_random_uuid()::text`;
   await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_canonical_candidate_claims (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      claim_identity TEXT NOT NULL UNIQUE,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      source_snapshot_id TEXT NOT NULL REFERENCES ai_builder_canonical_source_snapshots(id) ON DELETE CASCADE,
+      claim_type TEXT NOT NULL,
+      category TEXT NOT NULL,
+      title TEXT NOT NULL,
+      normalized_content TEXT NOT NULL,
+      confidence TEXT NOT NULL,
+      confidence_score DOUBLE PRECISION NOT NULL,
+      status TEXT NOT NULL,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_canonical_candidate_claim_evidence (
+      candidate_claim_id TEXT NOT NULL REFERENCES ai_builder_canonical_candidate_claims(id) ON DELETE CASCADE,
+      evidence_id TEXT NOT NULL REFERENCES ai_builder_canonical_evidence(id) ON DELETE CASCADE,
+      PRIMARY KEY (candidate_claim_id, evidence_id)
+    )
+  `;
+
+  await sql`ALTER TABLE ai_builder_canonical_candidate_claims ALTER COLUMN id SET DEFAULT gen_random_uuid()::text`;
+  await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_intake_blocks (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
@@ -288,6 +316,9 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_sources_project_idx ON ai_builder_canonical_sources(project_id, created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_source_snapshots_source_idx ON ai_builder_canonical_source_snapshots(source_id, captured_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_evidence_snapshot_idx ON ai_builder_canonical_evidence(source_snapshot_id, captured_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_candidate_claims_project_idx ON ai_builder_canonical_candidate_claims(project_id, created_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_candidate_claims_snapshot_idx ON ai_builder_canonical_candidate_claims(source_snapshot_id, created_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_candidate_claim_evidence_evidence_idx ON ai_builder_canonical_candidate_claim_evidence(evidence_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_intake_blocks_project_idx ON ai_builder_intake_blocks(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_faq_entries_project_idx ON ai_builder_faq_entries(project_id)`;
