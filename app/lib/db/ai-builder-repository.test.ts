@@ -6,6 +6,7 @@ import {
   buildLegacyProjectPersistenceQueries,
   persistAiBuilderProjectWithDependencies,
 } from "./ai-builder-repository";
+import { buildCanonicalProvenanceShadowQueries } from "./canonical-provenance-shadow";
 
 const timestamp = "2026-07-20T10:00:00.000Z";
 const input = (status = "review") => ({
@@ -40,6 +41,7 @@ function fakeDatabase(options: { failAt?: string; owner?: string } = {}) {
       for (const query of build(tag)) {
         const { text, values } = query.queryData;
         if (options.failAt && text.includes(options.failAt)) throw new Error(`simulated_${options.failAt}`);
+        if (text.includes("ai_builder_canonical_")) continue;
         if (text.includes("INSERT INTO ai_builder_projects")) {
           const [id, status] = values as [string, string];
           const owner = values[11] as string;
@@ -90,10 +92,10 @@ function reducedInput() {
   return input();
 }
 
-async function persist(db: ReturnType<typeof fakeDatabase>, project = input(), shadow = async () => {}) {
+async function persist(db: ReturnType<typeof fakeDatabase>, project = input()) {
   return persistAiBuilderProjectWithDependencies(project, {
     identity: { userId: "user-1", displayName: "Ada", email: "ada@example.test" },
-    ensureSchema: async () => {}, sql: db.sql as never, writeCanonicalProvenanceShadow: shadow as never,
+    ensureSchema: async () => {}, sql: db.sql as never, buildCanonicalProvenanceShadowQueries,
   });
 }
 
@@ -124,11 +126,12 @@ test("another Clerk owner aborts before child data changes", async () => {
   assert.deepEqual(db.state.progress, ["old-progress"]);
 });
 
-test("canonical shadow failure runs after the committed legacy graph", async () => {
-  const db = fakeDatabase();
-  const originalError = console.error; console.error = () => {};
-  try { await persist(db, input(), async () => { throw new Error("shadow failed"); }); } finally { console.error = originalError; }
-  assertCompleteGraph(db.state);
+test("canonical provenance failure rolls back the complete legacy graph", async () => {
+  const db = fakeDatabase({ failAt: "ai_builder_canonical_sources" });
+  await assert.rejects(persist(db));
+  assert.equal(db.state.projects.size, 0);
+  for (const table of childTables) assert.equal(db.state.children.get(table)?.size, 0, table);
+  assert.deepEqual(db.state.progress, ["old-progress"]);
 });
 
 test("same-owner re-persist upserts the project and atomically replaces progress", async () => {
@@ -289,4 +292,31 @@ test("the transaction batch reconciles every authoritative collection in depende
     assert.match(statement?.text ?? "", /WHERE project_id = \?$/);
     assert.deepEqual(statement?.values, ["project-1"]);
   }
+});
+
+test("project, progress, and canonical persistence failures each abort the one creation batch", async () => {
+  for (const failurePoint of ["INSERT INTO ai_builder_projects", "INSERT INTO ai_builder_progress", "ai_builder_canonical_sources"]) {
+    const db = fakeDatabase({ failAt: failurePoint });
+    await assert.rejects(persist(db));
+    assert.equal(db.state.projects.size, 0, failurePoint);
+    for (const table of childTables) assert.equal(db.state.children.get(table)?.size, 0, `${failurePoint}:${table}`);
+    assert.deepEqual(db.state.progress, ["old-progress"], failurePoint);
+  }
+});
+
+test("canonical provenance statements are appended to the authoritative creation transaction", () => {
+  const statements: string[] = [];
+  const sql = ((strings: TemplateStringsArray, ..._values: unknown[]) => {
+    const text = strings.join("?").replace(/\s+/g, " ").trim();
+    statements.push(text);
+    return { queryData: { text, values: [] } };
+  }) as never;
+  const project = input();
+  const legacy = buildLegacyProjectPersistenceQueries(sql, { ...project, identity: { userId: "user-1", displayName: "Ada", email: "ada@example.test" } });
+  const canonical = buildCanonicalProvenanceShadowQueries(sql, { projectId: project.session.id, session: project.session, website: project.website, websiteKnowledge: project.websiteKnowledge });
+  assert.ok(legacy.length > 0);
+  assert.ok(canonical.length > 0);
+  assert.ok(statements.findIndex((text) => text.includes("INSERT INTO ai_builder_chat_threads")) < statements.findIndex((text) => text.includes("INSERT INTO ai_builder_canonical_sources")));
+  assert.ok(statements.some((text) => text.includes("AI_BUILDER_CANONICAL_PROVENANCE_OWNERSHIP_COLLISION")));
+  assert.ok(statements.some((text) => text.includes("INSERT INTO ai_builder_canonical_candidate_claims")));
 });

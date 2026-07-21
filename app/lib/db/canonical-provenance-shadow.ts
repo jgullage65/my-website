@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { PoolClient } from "@neondatabase/serverless";
+import type { NeonQueryFunctionInTransaction, NeonQueryInTransaction, PoolClient } from "@neondatabase/serverless";
 
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
@@ -136,6 +136,77 @@ async function writeCandidateClaims(input: CanonicalProvenanceInput, manual: Pro
     return resolveCandidateClaim({ projectId: input.projectId, snapshotStorageId: website.snapshotStorageId, claimIdentity: candidateClaimIdentity(website.snapshotStorageId, "website_fact", `${fact.category}\u0000${fact.title}`, fact.value), claimType: "website_fact", category: fact.category, title: fact.title, normalizedContent: fact.value, confidence: fact.confidence, confidenceScore: fact.confidence === "high" ? 0.9 : fact.confidence === "medium" ? 0.6 : 0.3, status: "proposed", metadata: { legacyProjectId: input.projectId, legacyWebsiteKnowledgeDocumentVersion: websiteKnowledge.document_version }, createdAt: websiteKnowledge.imported_at ?? input.session.createdAt, updatedAt: websiteKnowledge.imported_at ?? input.session.updatedAt, evidenceIds });
   }));
   return candidates;
+}
+
+
+type TransactionSql = NeonQueryFunctionInTransaction<boolean, boolean>;
+
+/**
+ * Builds the canonical provenance compatibility projection for the same Neon
+ * batch as initial project creation. Each dependent statement resolves its
+ * parent by immutable identity, so no separately-opened transaction or
+ * returned generated id is required.
+ */
+export function buildCanonicalProvenanceShadowQueries(sql: TransactionSql, input: CanonicalProvenanceInput): NeonQueryInTransaction[] {
+  const queries: NeonQueryInTransaction[] = [];
+  const addSource = (kind: "manual" | "website", identity: string, url: string | null, metadata: object, createdAt: string) => {
+    queries.push(sql`INSERT INTO ai_builder_canonical_sources (project_id, kind, canonical_identity, url, metadata, created_at) VALUES (${input.projectId}, ${kind}, ${identity}, ${url}, ${JSON.stringify(metadata)}::jsonb, ${createdAt}::timestamptz) ON CONFLICT (canonical_identity) DO UPDATE SET canonical_identity = EXCLUDED.canonical_identity`);
+    queries.push(sql`SELECT CASE WHEN EXISTS (SELECT 1 FROM ai_builder_canonical_sources WHERE canonical_identity = ${identity} AND project_id = ${input.projectId} AND kind = ${kind}) THEN 1 ELSE CAST('AI_BUILDER_CANONICAL_PROVENANCE_OWNERSHIP_COLLISION:' || pg_backend_pid() AS INTEGER) END AS canonical_ownership_verified`);
+  };
+  const addSnapshot = (sourceIdentityValue: string, identity: string, kind: string, payload: unknown, metadata: object, capturedAt: string) => {
+    queries.push(sql`INSERT INTO ai_builder_canonical_source_snapshots (source_id, snapshot_identity, snapshot_kind, payload, metadata, captured_at) VALUES ((SELECT id FROM ai_builder_canonical_sources WHERE canonical_identity = ${sourceIdentityValue}), ${identity}, ${kind}, ${JSON.stringify(payload)}::jsonb, ${JSON.stringify(metadata)}::jsonb, ${capturedAt}::timestamptz) ON CONFLICT (snapshot_identity) DO UPDATE SET snapshot_identity = EXCLUDED.snapshot_identity`);
+    queries.push(sql`SELECT CASE WHEN EXISTS (SELECT 1 FROM ai_builder_canonical_source_snapshots snapshot JOIN ai_builder_canonical_sources source ON source.id = snapshot.source_id WHERE snapshot.snapshot_identity = ${identity} AND source.canonical_identity = ${sourceIdentityValue}) THEN 1 ELSE CAST('AI_BUILDER_CANONICAL_PROVENANCE_OWNERSHIP_COLLISION:' || pg_backend_pid() AS INTEGER) END AS canonical_ownership_verified`);
+  };
+  const addEvidence = (sourceIdentityValue: string, snapshotIdentityValue: string, identity: string, content: string, url: string | null, metadata: object, capturedAt: string) => {
+    queries.push(sql`INSERT INTO ai_builder_canonical_evidence (source_id, source_snapshot_id, evidence_identity, content, url, metadata, captured_at) VALUES ((SELECT id FROM ai_builder_canonical_sources WHERE canonical_identity = ${sourceIdentityValue}), (SELECT id FROM ai_builder_canonical_source_snapshots WHERE snapshot_identity = ${snapshotIdentityValue}), ${identity}, ${content}, ${url}, ${JSON.stringify(metadata)}::jsonb, ${capturedAt}::timestamptz) ON CONFLICT (evidence_identity) DO UPDATE SET evidence_identity = EXCLUDED.evidence_identity`);
+    queries.push(sql`SELECT CASE WHEN EXISTS (SELECT 1 FROM ai_builder_canonical_evidence evidence JOIN ai_builder_canonical_sources source ON source.id = evidence.source_id JOIN ai_builder_canonical_source_snapshots snapshot ON snapshot.id = evidence.source_snapshot_id WHERE evidence.evidence_identity = ${identity} AND source.canonical_identity = ${sourceIdentityValue} AND snapshot.snapshot_identity = ${snapshotIdentityValue}) THEN 1 ELSE CAST('AI_BUILDER_CANONICAL_PROVENANCE_OWNERSHIP_COLLISION:' || pg_backend_pid() AS INTEGER) END AS canonical_ownership_verified`);
+  };
+  const addClaim = (snapshotIdentityValue: string, identity: string, type: string, category: string, title: string, content: string, confidence: string, score: number, status: string, metadata: object, createdAt: string, updatedAt: string, evidenceIdentities: string[]) => {
+    if (!evidenceIdentities.length) return;
+    queries.push(sql`INSERT INTO ai_builder_canonical_candidate_claims (claim_identity, project_id, source_snapshot_id, claim_type, category, title, normalized_content, confidence, confidence_score, status, metadata, created_at, updated_at) VALUES (${identity}, ${input.projectId}, (SELECT id FROM ai_builder_canonical_source_snapshots WHERE snapshot_identity = ${snapshotIdentityValue}), ${type}, ${category}, ${title}, ${content}, ${confidence}, ${score}, ${status}, ${JSON.stringify(metadata)}::jsonb, ${createdAt}::timestamptz, ${updatedAt}::timestamptz) ON CONFLICT (claim_identity) DO UPDATE SET claim_identity = EXCLUDED.claim_identity`);
+    queries.push(sql`SELECT CASE WHEN EXISTS (SELECT 1 FROM ai_builder_canonical_candidate_claims claim JOIN ai_builder_canonical_source_snapshots snapshot ON snapshot.id = claim.source_snapshot_id WHERE claim.claim_identity = ${identity} AND claim.project_id = ${input.projectId} AND snapshot.snapshot_identity = ${snapshotIdentityValue}) THEN 1 ELSE CAST('AI_BUILDER_CANONICAL_PROVENANCE_OWNERSHIP_COLLISION:' || pg_backend_pid() AS INTEGER) END AS canonical_ownership_verified`);
+    for (const evidenceIdentity of evidenceIdentities) queries.push(sql`INSERT INTO ai_builder_canonical_candidate_claim_evidence (candidate_claim_id, evidence_id) VALUES ((SELECT id FROM ai_builder_canonical_candidate_claims WHERE claim_identity = ${identity}), (SELECT id FROM ai_builder_canonical_evidence WHERE evidence_identity = ${evidenceIdentity})) ON CONFLICT DO NOTHING`);
+  };
+
+  const manualSource = sourceIdentity(input.projectId, "manual");
+  const manualPayload = manualSnapshotPayload(input.session.intakeBlocks);
+  const manualSnapshot = sourceSnapshotIdentity(input.projectId, "manual", manualPayload);
+  const manualMetadata = manualCompatibilityMetadata(input.projectId);
+  addSource("manual", manualSource, null, manualMetadata, input.session.createdAt);
+  addSnapshot(manualSource, manualSnapshot, "intake_submission", manualPayload, manualMetadata, input.session.createdAt);
+  const manualEvidence = new Map<string, string>();
+  for (const block of input.session.intakeBlocks) {
+    const identity = manualEvidenceIdentity(manualSnapshot, block);
+    manualEvidence.set(block.id, identity);
+    addEvidence(manualSource, manualSnapshot, identity, block.content, null, { ...manualCompatibilityMetadata(input.projectId, block.id), label: block.label }, block.createdAt);
+  }
+  for (const entry of input.session.contextEntries) {
+    const evidence = entry.source.sourceType === "manual_intake" ? manualEvidence.get(entry.source.intakeBlockId) : undefined;
+    if (evidence) addClaim(manualSnapshot, candidateClaimIdentity(manualSnapshot, "context_entry", `${entry.category}\u0000${entry.title}`, entry.content.trim()), "context_entry", entry.category, entry.title, entry.content.trim(), entry.confidence, entry.confidenceScore, entry.status, { legacyProjectId: input.projectId, legacyContextEntryId: entry.id, sourceType: entry.source.sourceType, generated: entry.metadata.generated }, entry.createdAt, entry.updatedAt, [evidence]);
+  }
+  for (const entry of input.session.faqEntries) {
+    const evidence = entry.sourceEntryIds.map((id) => manualEvidence.get(id)).filter((value): value is string => Boolean(value));
+    if (evidence.length) addClaim(manualSnapshot, candidateClaimIdentity(manualSnapshot, "faq", entry.question, `${entry.question}\n${entry.answer}`), "faq", "faq", entry.question, `${entry.question}\n${entry.answer}`, entry.confidence, entry.confidenceScore, entry.status, { legacyProjectId: input.projectId, legacyFaqEntryId: entry.id, legacySourceEntryIds: entry.sourceEntryIds }, entry.createdAt, entry.updatedAt, Array.from(new Set(evidence)));
+  }
+  if (input.websiteKnowledge) {
+    const knowledge = input.websiteKnowledge;
+    const websiteSource = sourceIdentity(input.projectId, "website");
+    const websitePayload = websiteSnapshotPayload(knowledge);
+    const websiteSnapshot = sourceSnapshotIdentity(input.projectId, "website", websitePayload);
+    const capturedAt = knowledge.imported_at ?? input.session.createdAt;
+    const metadata = websiteCompatibilityMetadata(input.projectId, knowledge);
+    addSource("website", websiteSource, knowledge.resolved_url ?? knowledge.requested_url ?? input.website, metadata, capturedAt);
+    addSnapshot(websiteSource, websiteSnapshot, "website_import", websitePayload, metadata, capturedAt);
+    for (const fact of knowledge.knowledge.facts) {
+      const evidence = fact.evidence.map((item) => {
+        const identity = websiteEvidenceIdentity(websiteSnapshot, fact, item);
+        addEvidence(websiteSource, websiteSnapshot, identity, item.excerpt, item.url, { ...metadata, category: fact.category, title: fact.title, value: fact.value, confidence: fact.confidence }, capturedAt);
+        return identity;
+      });
+      addClaim(websiteSnapshot, candidateClaimIdentity(websiteSnapshot, "website_fact", `${fact.category}\u0000${fact.title}`, fact.value), "website_fact", fact.category, fact.title, fact.value, fact.confidence, fact.confidence === "high" ? 0.9 : fact.confidence === "medium" ? 0.6 : 0.3, "proposed", { legacyProjectId: input.projectId, legacyWebsiteKnowledgeDocumentVersion: knowledge.document_version }, knowledge.imported_at ?? input.session.createdAt, knowledge.imported_at ?? input.session.updatedAt, evidence);
+    }
+  }
+  return queries;
 }
 
 export type LegacyReviewEntry = { id: string; status: string; content: string; updatedAt: string; kind: "context_entry" | "faq" };

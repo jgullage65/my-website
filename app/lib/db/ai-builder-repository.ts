@@ -14,7 +14,7 @@ import {
 import { ensureAiBuilderSchema } from "./ai-builder-schema";
 import { getSql } from "./client";
 import type { NeonQueryFunctionInTransaction, NeonQueryInTransaction } from "@neondatabase/serverless";
-import { writeCanonicalProvenanceShadow } from "./canonical-provenance-shadow";
+import { buildCanonicalProvenanceShadowQueries } from "./canonical-provenance-shadow";
 import { requireClerkIdentity, requireClerkUserId } from "@/app/lib/auth/clerk";
 
 type DatabaseRow = Record<string, unknown>;
@@ -158,7 +158,7 @@ type PersistAiBuilderProjectDependencies = {
   identity: AiBuilderIdentity;
   ensureSchema: () => Promise<void>;
   sql: LegacyPersistenceSql;
-  writeCanonicalProvenanceShadow: typeof writeCanonicalProvenanceShadow;
+  buildCanonicalProvenanceShadowQueries: typeof buildCanonicalProvenanceShadowQueries;
 };
 
 /**
@@ -294,29 +294,14 @@ export async function persistAiBuilderProjectWithDependencies(
   input: PersistAiBuilderProjectInput,
   dependencies: PersistAiBuilderProjectDependencies,
 ): Promise<void> {
-  const { identity, ensureSchema, sql, writeCanonicalProvenanceShadow } = dependencies;
+  const { identity, ensureSchema, sql, buildCanonicalProvenanceShadowQueries } = dependencies;
   await ensureSchema();
-  await sql.transaction((tx) => buildLegacyProjectPersistenceQueries(tx, {
-    ...input,
-    identity,
-  }));
-
-  // Provenance is a non-runtime shadow write. A partial failure leaves legacy
-  // persistence authoritative; deterministic conflict keys allow a later retry
-  // to fill any missing canonical rows without duplicating observations.
-  try {
-    await writeCanonicalProvenanceShadow({
-      projectId: input.session.id,
-      session: input.session,
-      website: input.website,
-      websiteKnowledge: input.websiteKnowledge,
-    });
-  } catch (error) {
-    console.error("AI_BUILDER_CANONICAL_PROVENANCE_SHADOW_FAILED", {
-      projectId: input.session.id,
-      message: error instanceof Error ? error.message : "unknown_error",
-    });
-  }
+  await sql.transaction((tx) => [
+    ...buildLegacyProjectPersistenceQueries(tx, { ...input, identity }),
+    ...buildCanonicalProvenanceShadowQueries(tx, {
+      projectId: input.session.id, session: input.session, website: input.website, websiteKnowledge: input.websiteKnowledge,
+    }),
+  ]);
 }
 
 export async function persistAiBuilderProject(
@@ -327,7 +312,7 @@ export async function persistAiBuilderProject(
     identity,
     ensureSchema: ensureAiBuilderSchema,
     sql: getSql(),
-    writeCanonicalProvenanceShadow,
+    buildCanonicalProvenanceShadowQueries,
   });
 }
 

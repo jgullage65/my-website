@@ -128,7 +128,7 @@ test("repository persistence round-trips the representative project through the 
   persisted.contextEntries.push(entry("website-a", "service", "Website evidence", "proposed", { intakeBlockId: "website_knowledge", excerpt: websiteFacts[0]!.evidence[0]!.excerpt, sourceType: "website", sourceUrl: websiteFacts[0]!.evidence[0]!.url }));
   const initialThread = { id: "thread-fixed", memory: { summary: "Northstar thread" } as never };
   const identity = { userId: "user-fixed", displayName: "Ada", email: "ada@northstar.test" };
-  await persistAiBuilderProjectWithDependencies({ session: persisted, businessName: "Northstar Studio", industry: "Design", website: "https://northstar.test/", websiteKnowledge, initialThread }, { identity, ensureSchema: async () => {}, sql, writeCanonicalProvenanceShadow: (async () => {}) as never });
+  await persistAiBuilderProjectWithDependencies({ session: persisted, businessName: "Northstar Studio", industry: "Design", website: "https://northstar.test/", websiteKnowledge, initialThread }, { identity, ensureSchema: async () => {}, sql, buildCanonicalProvenanceShadowQueries: ((): never[] => []) as never });
   const reopened = await getAiBuilderProjectWithDependencies("project-fixed", { identity, ensureSchema: async () => {}, sql });
   assert.deepEqual(reopened, { session: persisted, businessName: "Northstar Studio", industry: "Design", website: "https://northstar.test/", websiteKnowledge, initialThread });
 });
