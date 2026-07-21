@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 function normalizePreferred(raw: string) {
   const v = decodeURIComponent(raw || "").trim().toLowerCase();
   if (["text", "sms"].includes(v)) return "Text";
@@ -40,6 +40,7 @@ function ServiceOptions() {
 }
 
 export default function ContactPageClient() {
+  const router = useRouter();
   const params = useSearchParams();
   const preService = normalizeService(params.get("service") || "");
   const prePreferred = normalizePreferred(params.get("preferred_contact") || params.get("preferred") || params.get("contact") || "");
@@ -49,10 +50,10 @@ export default function ContactPageClient() {
 
   const field = "contact-field mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-center text-white placeholder:text-center placeholder:text-white outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
   const label = "block text-center text-sm font-semibold text-[var(--gold)]";
-  const card = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
+  const card = "flex min-h-0 w-full flex-1 flex-col rounded-none border-0 bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] p-6 shadow-[0_30px_90px_rgba(0,0,0,.58),inset_0_1px_0_rgba(255,255,255,0.05)] sm:block sm:rounded-3xl sm:border sm:border-[rgba(212,175,55,.16)] sm:bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] sm:p-8 sm:shadow-[0_24px_70px_rgba(0,0,0,.34)]";
 
   return (
-    <main className="min-h-screen bg-[#030713] text-white">
+    <main className="fixed inset-0 z-[81] flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#030713] text-white sm:static sm:block sm:min-h-screen sm:w-auto sm:overflow-visible">
       <style jsx global>{`
         .contact-field:-webkit-autofill,
         .contact-field:-webkit-autofill:hover,
@@ -65,6 +66,15 @@ export default function ContactPageClient() {
         }
 
         @media (max-width: 767px) {
+          .contact-form-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+
+          .contact-form-scroll::-webkit-scrollbar {
+            display: none;
+          }
+
           .contact-mobile-select {
             text-align: center;
             text-align-last: center;
@@ -76,16 +86,24 @@ export default function ContactPageClient() {
         }
       `}</style>
 
-      <section className="mx-auto max-w-5xl px-6 py-16">
+      <section className="flex min-h-0 w-full flex-1 flex-col sm:mx-auto sm:max-w-5xl sm:px-6 sm:py-16">
         <section className={card}>
-          <header className="mb-10 space-y-3 text-center">
+          <header className="relative mb-10 space-y-3 text-center">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              aria-label="Close contact form"
+              className="absolute right-0 top-0 text-xl text-white/80 hover:text-white sm:hidden"
+            >
+              ✕
+            </button>
             <h1 className="text-4xl font-black tracking-[-.045em] text-[var(--gold)] sm:text-5xl">Contact</h1>
             <p className="mx-auto max-w-2xl text-lg leading-8 text-[var(--muted)]">
               Ready to get started? Send a message and I’ll respond as soon as possible.
             </p>
           </header>
 
-          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="grid gap-5">
+          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="contact-form-scroll grid min-h-0 flex-1 gap-5 overflow-y-auto sm:overflow-visible">
             <input type="hidden" name="form_type" value="Project Request" />
 
             <div className="grid gap-5 md:grid-cols-2">
