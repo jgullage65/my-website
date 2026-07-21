@@ -133,7 +133,7 @@ export default function JGChatWidget() {
         <section
           id="jg-assistant-panel"
           aria-label="JG Assistant"
-          className="fixed inset-0 z-[81] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none border-0 bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] shadow-[0_30px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.05)] sm:inset-auto sm:bottom-20 sm:right-5 sm:h-[min(680px,calc(100vh-7rem))] sm:w-[calc(100vw-2rem)] sm:max-w-[430px] sm:rounded-[24px] sm:border sm:border-[rgba(212,175,55,0.24)] xl:bottom-0 xl:right-0 xl:h-[min(760px,100vh)] xl:max-w-[430px] xl:rounded-none xl:rounded-tl-[24px] xl:border-b-0 xl:border-r-0"
+          className="jg-assistant-panel fixed inset-0 z-[81] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none border-0 bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] shadow-[0_30px_90px_rgba(0,0,0,0.58),inset_0_1px_0_rgba(255,255,255,0.05)] sm:inset-auto sm:bottom-20 sm:right-5 sm:h-[min(680px,calc(100vh-7rem))] sm:w-[calc(100vw-2rem)] sm:max-w-[430px] sm:rounded-[24px] sm:border sm:border-[rgba(212,175,55,0.24)] xl:bottom-0 xl:right-0 xl:h-[min(760px,100vh)] xl:max-w-[430px] xl:rounded-none xl:rounded-tl-[24px] xl:border-b-0 xl:border-r-0"
         >
           <header className="relative flex items-center gap-3 border-b border-white/[0.07] px-4 py-3.5">
             <Image
@@ -173,16 +173,21 @@ export default function JGChatWidget() {
               const showActions = incoming && message.id === finalAssistantMessageId && view.options.length > 0;
               return (
                 <div key={message.id} className={incoming ? "flex justify-start" : "flex justify-end"}>
-                  <div className={incoming ? "max-w-[92%]" : "max-w-[84%]"}>
+                  <div className={incoming ? "jg-assistant-answer-message" : "max-w-[84%]"}>
                     <div
                       className={[
                         "whitespace-pre-wrap text-sm leading-6",
                         incoming
-                          ? "relative overflow-hidden rounded-2xl border border-[rgba(212,175,55,0.18)] bg-[linear-gradient(180deg,rgba(16,25,58,0.88),rgba(8,14,34,0.94))] px-4 py-3.5 text-slate-100 shadow-[0_14px_35px_rgba(0,0,0,0.26),inset_0_1px_0_rgba(255,255,255,0.04)]"
-                          : "rounded-2xl rounded-br-md bg-[linear-gradient(180deg,#d7b43c,#aa7f18)] px-4 py-3 font-semibold text-[#07101f] shadow-[0_10px_24px_rgba(212,175,55,0.14)]",
+                          ? "jg-assistant-unified-card jg-assistant-answer-card text-slate-100"
+                          : "rounded-2xl rounded-br-md border border-[rgba(245,158,11,0.18)] px-4 py-3 font-semibold text-slate-200",
                       ].join(" ")}
                     >
-                      {incoming ? <div className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-[var(--gold)]/70 to-transparent" /> : null}
+                      {incoming ? (
+                        <>
+                          <div className="jg-assistant-canonical-amber-overlay" />
+                          <div className="jg-assistant-shell-topline" />
+                        </>
+                      ) : null}
                       <span className="relative">{message.text}</span>
                       {showActions ? (
                         <div className="relative mt-3 flex w-full flex-col gap-2">
