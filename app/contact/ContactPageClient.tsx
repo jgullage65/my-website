@@ -66,6 +66,15 @@ export default function ContactPageClient() {
         }
 
         @media (max-width: 767px) {
+          .contact-form-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+
+          .contact-form-scroll::-webkit-scrollbar {
+            display: none;
+          }
+
           .contact-mobile-select {
             text-align: center;
             text-align-last: center;
@@ -94,7 +103,7 @@ export default function ContactPageClient() {
             </p>
           </header>
 
-          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="grid min-h-0 flex-1 gap-5 overflow-y-auto pr-1 sm:overflow-visible sm:pr-0">
+          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="contact-form-scroll grid min-h-0 flex-1 gap-5 overflow-y-auto sm:overflow-visible">
             <input type="hidden" name="form_type" value="Project Request" />
 
             <div className="grid gap-5 md:grid-cols-2">
