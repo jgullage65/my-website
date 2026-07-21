@@ -12,6 +12,7 @@ import {
   WEBSITE_KNOWLEDGE_COVERAGE_FIELDS,
   type PersistedWebsiteKnowledge,
   type StructuredWebsiteKnowledge,
+  reconcileStructuredWebsiteKnowledge,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 
 export const runtime = "nodejs";
@@ -459,10 +460,18 @@ export async function POST(request: Request) {
           tone,
         };
 
+        // The stream and the database must agree: website facts become durable
+        // review rows before this session is ever returned to the browser.
+        const reconciledSession = reconcileStructuredWebsiteKnowledge(
+          session,
+          persistedWebsiteKnowledge?.knowledge,
+          { defaultStatus: "proposed" },
+        );
+
         send({ type: "progress", percent: 90 });
 
         await persistAiBuilderProject({
-          session,
+          session: reconciledSession,
           businessName,
           industry,
           website: website || null,
@@ -482,8 +491,8 @@ export async function POST(request: Request) {
         send({
           type: "result",
           ok: true,
-          projectId: session.id,
-          session,
+          projectId: reconciledSession.id,
+          session: reconciledSession,
         });
       } catch (error) {
         const message =

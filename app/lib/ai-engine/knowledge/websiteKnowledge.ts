@@ -49,7 +49,6 @@ export type PersistedWebsiteKnowledge = {
 import type {
   AiBuilderSession,
   BusinessContextCategory,
-  BusinessContextEntry,
   BusinessContextStatus,
   ContextConfidence,
 } from "../contracts";
@@ -111,15 +110,13 @@ export function websiteFactIdentity(fact: WebsiteKnowledgeFact): string {
   return `website_fact_${(hash >>> 0).toString(16)}`;
 }
 
-function confidenceScore(confidence: ContextConfidence): number {
-  return confidence === "high" ? 0.9 : confidence === "medium" ? 0.7 : 0.5;
+/** Stable FAQ identity derived from the same canonical website observation. */
+export function websiteFaqIdentity(fact: WebsiteKnowledgeFact): string {
+  return `website_faq_${websiteFactIdentity(fact).slice("website_fact_".length)}`;
 }
 
-function isLegacyWebsiteEntry(entry: BusinessContextEntry): boolean {
-  return (
-    entry.source.sourceType === "website" ||
-    entry.source.intakeBlockId.startsWith("website_")
-  );
+function confidenceScore(confidence: ContextConfidence): number {
+  return confidence === "high" ? 0.9 : confidence === "medium" ? 0.7 : 0.5;
 }
 
 type ApplyStructuredWebsiteKnowledgeOptions = {
@@ -127,11 +124,10 @@ type ApplyStructuredWebsiteKnowledgeOptions = {
 };
 
 /**
- * Replaces intake-model entries derived from flattened website fields with the
- * durable facts saved by the crawler. Existing structured entries are retained
- * verbatim so their reviewed status and user edits survive reopening a project.
+ * Builds the durable website-review graph from crawler source data. Existing
+ * records win verbatim, preserving every review decision and user correction.
  */
-export function applyStructuredWebsiteKnowledge(
+export function reconcileStructuredWebsiteKnowledge(
   session: AiBuilderSession,
   knowledge: StructuredWebsiteKnowledge | null | undefined,
   options: ApplyStructuredWebsiteKnowledgeOptions,
@@ -141,10 +137,12 @@ export function applyStructuredWebsiteKnowledge(
   const existingEntries = new Map(
     session.contextEntries.map((entry) => [entry.id, entry]),
   );
-  const structuredIds = new Set(knowledge.facts.map(websiteFactIdentity));
-  const retainedEntries = session.contextEntries.filter(
-    (entry) => !isLegacyWebsiteEntry(entry) || structuredIds.has(entry.id),
+  const existingFaqEntries = new Map(
+    session.faqEntries.map((entry) => [entry.id, entry]),
   );
+  // Never remove a persisted website row here: an archived/removed legacy row
+  // is a review decision, not a cue to recreate or discard state.
+  const retainedEntries = session.contextEntries;
   const createdAt = session.createdAt;
 
   const structuredEntries = knowledge.facts.flatMap((fact) => {
@@ -179,6 +177,25 @@ export function applyStructuredWebsiteKnowledge(
   });
 
   const contextEntries = retainedEntries.concat(structuredEntries);
+  const structuredFaqEntries = knowledge.facts.flatMap((fact) => {
+    if (fact.category !== "faq") return [];
+    const id = websiteFaqIdentity(fact);
+    if (existingFaqEntries.has(id)) return [];
+    return [{
+      id,
+      sessionId: session.id,
+      question: fact.title,
+      answer: fact.value,
+      confidence: fact.confidence,
+      confidenceScore: confidenceScore(fact.confidence),
+      // The matching website context row preserves the canonical evidence link.
+      sourceEntryIds: [websiteFactIdentity(fact)],
+      status: options.defaultStatus,
+      createdAt,
+      updatedAt: createdAt,
+    }];
+  });
+  const faqEntries = session.faqEntries.concat(structuredFaqEntries);
   const byCategory: AiBuilderSession["contextCounts"]["byCategory"] = {};
   contextEntries.forEach((entry) => {
     byCategory[entry.category] = (byCategory[entry.category] ?? 0) + 1;
@@ -187,6 +204,7 @@ export function applyStructuredWebsiteKnowledge(
   return {
     ...session,
     contextEntries,
+    faqEntries,
     contextCounts: {
       total: contextEntries.length,
       approved: contextEntries.filter(
@@ -195,8 +213,11 @@ export function applyStructuredWebsiteKnowledge(
       proposed: contextEntries.filter((entry) => entry.status === "proposed").length,
       archived:
         contextEntries.filter((entry) => entry.status === "archived").length +
-        session.faqEntries.filter((entry) => entry.status === "archived").length,
+        faqEntries.filter((entry) => entry.status === "archived").length,
       byCategory,
     },
   };
 }
+
+/** @deprecated Browser restoration must not create review records. Kept only for compatibility. */
+export const applyStructuredWebsiteKnowledge = reconcileStructuredWebsiteKnowledge;
