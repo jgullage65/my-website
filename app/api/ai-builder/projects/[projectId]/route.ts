@@ -9,7 +9,7 @@ import {
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
 import { Pool } from "@neondatabase/serverless";
-import { interpretLegacyReviewDeltas, writeCanonicalGovernanceShadow } from "@/app/lib/db/canonical-provenance-shadow";
+import { interpretLegacyReviewDeltas, verifyCanonicalGovernanceShadow, writeCanonicalGovernanceShadow } from "@/app/lib/db/canonical-provenance-shadow";
 import { isAuthenticationRequired, requireClerkUserId } from "@/app/lib/auth/clerk";
 import { classifyContextProvenance, classifyFaqProvenance, correctedProvenanceMetadata, isAiBuilderProvenanceClassification, normalizeContextProvenance, normalizeFaqProvenance } from "@/app/lib/ai-engine/provenance";
 
@@ -312,7 +312,8 @@ export async function PUT(request: Request, context: RouteContext) {
             const result = await tx.query(`UPDATE ai_builder_faq_entries SET question=$1,answer=$2,confidence=$3,confidence_score=$4,source_entry_ids=$5::jsonb,status=$6,metadata=$7::jsonb,updated_at=$8::timestamptz WHERE id=$9 AND project_id=$10 RETURNING id`, [entry.question, entry.answer, entry.confidence, entry.confidenceScore, JSON.stringify(entry.sourceEntryIds), entry.status, JSON.stringify(entry.metadata ?? {}), entry.updatedAt, entry.id, normalizedProjectId]);
             if (result.rowCount !== 1) throw new Error(`governance_faq_entry_update_failed:${entry.id}`);
           }
-          await writeCanonicalGovernanceShadow({ projectId: normalizedProjectId, transitions: reviewTransitions, actor: { clerkUserId, displayName: null, email: null } }, tx);
+          const governancePostconditions = await writeCanonicalGovernanceShadow({ projectId: normalizedProjectId, transitions: reviewTransitions, actor: { clerkUserId, displayName: null, email: null } }, tx);
+          await verifyCanonicalGovernanceShadow(governancePostconditions, tx);
           const projectUpdate = await tx.query(`UPDATE ai_builder_projects SET status = $1, assistant_configuration = $2::jsonb, context_counts = $3::jsonb, updated_at = $4::timestamptz, expires_at = $5::timestamptz, governance_revision = governance_revision + 1 WHERE id = $6 AND clerk_user_id = $7 AND archived_at IS NULL AND governance_revision = $8 RETURNING governance_revision`, [session.status, JSON.stringify(session.assistantConfiguration), JSON.stringify(session.contextCounts), session.updatedAt, session.expiresAt, normalizedProjectId, clerkUserId, expectedRevision]);
           if (projectUpdate.rowCount !== 1) throw new Error("stale_governance_revision");
           await client.query("COMMIT");
