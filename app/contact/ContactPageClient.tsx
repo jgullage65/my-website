@@ -1,6 +1,7 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 function normalizePreferred(raw: string) {
   const v = decodeURIComponent(raw || "").trim().toLowerCase();
   if (["text", "sms"].includes(v)) return "Text";
@@ -40,6 +41,7 @@ function ServiceOptions() {
 }
 
 export default function ContactPageClient() {
+  const router = useRouter();
   const params = useSearchParams();
   const preService = normalizeService(params.get("service") || "");
   const prePreferred = normalizePreferred(params.get("preferred_contact") || params.get("preferred") || params.get("contact") || "");
@@ -49,10 +51,36 @@ export default function ContactPageClient() {
 
   const field = "contact-field mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-center text-white placeholder:text-center placeholder:text-white outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
   const label = "block text-center text-sm font-semibold text-[var(--gold)]";
-  const card = "rounded-3xl border border-[rgba(212,175,55,.16)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-8 shadow-[0_24px_70px_rgba(0,0,0,.34)]";
+  const card = "flex min-h-0 w-full flex-1 flex-col rounded-none border-0 bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] p-6 shadow-[0_30px_90px_rgba(0,0,0,.58),inset_0_1px_0_rgba(255,255,255,0.05)] sm:block sm:rounded-3xl sm:border sm:border-[rgba(212,175,55,.16)] sm:bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] sm:p-8 sm:shadow-[0_24px_70px_rgba(0,0,0,.34)]";
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const html = document.documentElement;
+    const { overflow: htmlOverflow, height: htmlHeight } = html.style;
+    const { overflow: bodyOverflow, height: bodyHeight } = document.body.style;
+
+    const updateScrollLock = () => {
+      const shouldLock = mediaQuery.matches;
+      html.style.overflow = shouldLock ? "hidden" : htmlOverflow;
+      html.style.height = shouldLock ? "100%" : htmlHeight;
+      document.body.style.overflow = shouldLock ? "hidden" : bodyOverflow;
+      document.body.style.height = shouldLock ? "100%" : bodyHeight;
+    };
+
+    updateScrollLock();
+    mediaQuery.addEventListener("change", updateScrollLock);
+
+    return () => {
+      mediaQuery.removeEventListener("change", updateScrollLock);
+      html.style.overflow = htmlOverflow;
+      html.style.height = htmlHeight;
+      document.body.style.overflow = bodyOverflow;
+      document.body.style.height = bodyHeight;
+    };
+  }, []);
 
   return (
-    <main className="min-h-screen bg-[#030713] text-white">
+    <main className="fixed inset-0 z-[81] flex h-[100dvh] w-screen touch-none flex-col overflow-hidden overscroll-none bg-[#030713] text-white sm:static sm:block sm:min-h-screen sm:w-auto sm:touch-auto sm:overflow-visible sm:overscroll-auto">
       <style jsx global>{`
         .contact-field:-webkit-autofill,
         .contact-field:-webkit-autofill:hover,
@@ -76,16 +104,24 @@ export default function ContactPageClient() {
         }
       `}</style>
 
-      <section className="mx-auto max-w-5xl px-6 py-16">
+      <section className="flex min-h-0 w-full flex-1 flex-col sm:mx-auto sm:max-w-5xl sm:px-6 sm:py-16">
         <section className={card}>
-          <header className="mb-10 space-y-3 text-center">
+          <header className="relative mb-10 space-y-3 text-center">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              aria-label="Close contact form"
+              className="absolute right-0 top-0 text-xl text-white/80 hover:text-white sm:hidden"
+            >
+              ✕
+            </button>
             <h1 className="text-4xl font-black tracking-[-.045em] text-[var(--gold)] sm:text-5xl">Contact</h1>
             <p className="mx-auto max-w-2xl text-lg leading-8 text-[var(--muted)]">
               Ready to get started? Send a message and I’ll respond as soon as possible.
             </p>
           </header>
 
-          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="grid gap-5">
+          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="grid min-h-0 flex-1 touch-pan-y gap-5 overflow-y-auto overscroll-contain pr-1 sm:touch-auto sm:overflow-visible sm:overscroll-auto sm:pr-0">
             <input type="hidden" name="form_type" value="Project Request" />
 
             <div className="grid gap-5 md:grid-cols-2">
