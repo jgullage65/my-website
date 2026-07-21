@@ -16,6 +16,7 @@ async function createAiBuilderSchema() {
       website TEXT,
       assistant_configuration JSONB NOT NULL DEFAULT '{}'::jsonb,
       context_counts JSONB NOT NULL DEFAULT '{}'::jsonb,
+      governance_revision INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL,
       expires_at TIMESTAMPTZ,
@@ -33,6 +34,7 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS clerk_user_id TEXT`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_status TEXT`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_fields JSONB NOT NULL DEFAULT '{}'::jsonb`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS governance_revision INTEGER NOT NULL DEFAULT 0`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_canonical_sources (

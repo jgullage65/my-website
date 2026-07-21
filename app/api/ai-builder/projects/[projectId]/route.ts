@@ -251,16 +251,35 @@ export async function PUT(request: Request, context: RouteContext) {
         try {
           await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
           const tx = client;
+          // This is the authoritative ownership and concurrency check.  The
+          // earlier lookup only provides a fast 404; it is never trusted for a
+          // governance write.
+          const lockedProject = (await tx.query(`SELECT id, governance_revision FROM ai_builder_projects WHERE id = $1 AND clerk_user_id = $2 AND archived_at IS NULL FOR UPDATE`, [normalizedProjectId, clerkUserId])).rows as Array<{ id: string; governance_revision: number }>;
+          if (!lockedProject[0]) throw new Error("governance_project_not_found_or_not_owned");
+          const expectedRevision = Number(session.governanceRevision ?? 0);
+          if (lockedProject[0].governance_revision !== expectedRevision) throw new Error("stale_governance_revision");
+
           const priorContextRows = (await tx.query(`SELECT id, status, content, updated_at FROM ai_builder_context_entries WHERE project_id = $1 FOR UPDATE`, [normalizedProjectId])).rows as Array<{ id: string; status: string; content: string; updated_at: unknown }>;
           const priorFaqRows = (await tx.query(`SELECT id, status, question, answer, updated_at FROM ai_builder_faq_entries WHERE project_id = $1 FOR UPDATE`, [normalizedProjectId])).rows as Array<{ id: string; status: string; question: string; answer: string; updated_at: unknown }>;
+          const contextIds = new Set(priorContextRows.map((entry) => entry.id));
+          const faqIds = new Set(priorFaqRows.map((entry) => entry.id));
+          for (const entry of session.contextEntries) if (!contextIds.has(entry.id)) throw new Error(`governance_context_entry_not_found_or_not_owned:${entry.id}`);
+          for (const entry of session.faqEntries) if (!faqIds.has(entry.id)) throw new Error(`governance_faq_entry_not_found_or_not_owned:${entry.id}`);
           const reviewTransitions = interpretLegacyReviewDeltas(
             [...priorContextRows.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: toIsoString(entry.updated_at), kind: "context_entry" as const })), ...priorFaqRows.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: toIsoString(entry.updated_at), kind: "faq" as const }))],
             [...session.contextEntries.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: entry.updatedAt, kind: "context_entry" as const })), ...session.faqEntries.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: entry.updatedAt, kind: "faq" as const }))],
           );
+          for (const entry of session.contextEntries) {
+            const result = await tx.query(`UPDATE ai_builder_context_entries SET category=$1,title=$2,content=$3,confidence=$4,confidence_score=$5,status=$6,source=$7::jsonb,metadata=$8::jsonb,updated_at=$9::timestamptz WHERE id=$10 AND project_id=$11 RETURNING id`, [entry.category, entry.title, entry.content, entry.confidence, entry.confidenceScore, entry.status, JSON.stringify(entry.source), JSON.stringify(entry.metadata), entry.updatedAt, entry.id, normalizedProjectId]);
+            if (result.rowCount !== 1) throw new Error(`governance_context_entry_update_failed:${entry.id}`);
+          }
+          for (const entry of session.faqEntries) {
+            const result = await tx.query(`UPDATE ai_builder_faq_entries SET question=$1,answer=$2,confidence=$3,confidence_score=$4,source_entry_ids=$5::jsonb,status=$6,updated_at=$7::timestamptz WHERE id=$8 AND project_id=$9 RETURNING id`, [entry.question, entry.answer, entry.confidence, entry.confidenceScore, JSON.stringify(entry.sourceEntryIds), entry.status, entry.updatedAt, entry.id, normalizedProjectId]);
+            if (result.rowCount !== 1) throw new Error(`governance_faq_entry_update_failed:${entry.id}`);
+          }
           await writeCanonicalGovernanceShadow({ projectId: normalizedProjectId, transitions: reviewTransitions, actor: { clerkUserId, displayName: null, email: null } }, tx);
-          await tx.query(`UPDATE ai_builder_projects SET status = $1, assistant_configuration = $2::jsonb, context_counts = $3::jsonb, updated_at = $4::timestamptz, expires_at = $5::timestamptz WHERE id = $6 AND clerk_user_id = $7 AND archived_at IS NULL`, [session.status, JSON.stringify(session.assistantConfiguration), JSON.stringify(session.contextCounts), session.updatedAt, session.expiresAt, normalizedProjectId, clerkUserId]);
-          for (const entry of session.contextEntries) await tx.query(`UPDATE ai_builder_context_entries SET category=$1,title=$2,content=$3,confidence=$4,confidence_score=$5,status=$6,source=$7::jsonb,metadata=$8::jsonb,updated_at=$9::timestamptz WHERE id=$10 AND project_id=$11`, [entry.category, entry.title, entry.content, entry.confidence, entry.confidenceScore, entry.status, JSON.stringify(entry.source), JSON.stringify(entry.metadata), entry.updatedAt, entry.id, normalizedProjectId]);
-          for (const entry of session.faqEntries) await tx.query(`UPDATE ai_builder_faq_entries SET question=$1,answer=$2,confidence=$3,confidence_score=$4,source_entry_ids=$5::jsonb,status=$6,updated_at=$7::timestamptz WHERE id=$8 AND project_id=$9`, [entry.question, entry.answer, entry.confidence, entry.confidenceScore, JSON.stringify(entry.sourceEntryIds), entry.status, entry.updatedAt, entry.id, normalizedProjectId]);
+          const projectUpdate = await tx.query(`UPDATE ai_builder_projects SET status = $1, assistant_configuration = $2::jsonb, context_counts = $3::jsonb, updated_at = $4::timestamptz, expires_at = $5::timestamptz, governance_revision = governance_revision + 1 WHERE id = $6 AND clerk_user_id = $7 AND archived_at IS NULL AND governance_revision = $8 RETURNING governance_revision`, [session.status, JSON.stringify(session.assistantConfiguration), JSON.stringify(session.contextCounts), session.updatedAt, session.expiresAt, normalizedProjectId, clerkUserId, expectedRevision]);
+          if (projectUpdate.rowCount !== 1) throw new Error("stale_governance_revision");
           await client.query("COMMIT");
           break;
         } catch (error) {
@@ -274,12 +293,17 @@ export async function PUT(request: Request, context: RouteContext) {
       ok: true,
       projectId: normalizedProjectId,
       updatedAt: session.updatedAt,
+      governanceRevision: Number(session.governanceRevision ?? 0) + 1,
     });
   } catch (error) {
     if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
+    const message = error instanceof Error ? error.message : "unknown_error";
+    if (message === "stale_governance_revision") return errorResponse(409, "stale_governance_revision", "This project changed in another session. Reload it before saving review changes.");
+    if (message.startsWith("invalid_review_transition")) return errorResponse(400, "invalid_review_transition", "The submitted review-state transition is not supported.");
+    if (message.startsWith("governance_context_entry_") || message.startsWith("governance_faq_entry_") || message === "governance_project_not_found_or_not_owned") return errorResponse(409, "governance_row_validation_failed", "A reviewed item no longer belongs to this project or no longer exists.");
     console.error("AI_BUILDER_PROJECT_SAVE_FAILED", {
       projectId: normalizedProjectId,
-      message: error instanceof Error ? error.message : "unknown_error",
+      message,
     });
 
     return errorResponse(

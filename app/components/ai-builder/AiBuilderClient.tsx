@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
 import type {
@@ -151,6 +151,55 @@ export default function AiBuilderClient({
     null,
   );
   const [buildPercent, setBuildPercent] = useState(0);
+  // A request may commit after its browser fetch has been cancelled. Keep the
+  // save coordinator independent from effect cleanup and serialize requests.
+  const latestSessionRef = useRef<AiBuilderSession | null>(null);
+  const saveInFlightRef = useRef(false);
+  const saveTimerRef = useRef<number | null>(null);
+
+  const runGovernanceSave = useCallback(async () => {
+    if (saveInFlightRef.current) return;
+    const savedSession = latestSessionRef.current;
+    if (!savedSession) return;
+    saveInFlightRef.current = true;
+    setSaveStatus("saving");
+    setSaveError(null);
+
+    try {
+      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(savedSession.id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session: savedSession }),
+      });
+      const payload = (await response.json()) as { ok?: boolean; governanceRevision?: number; error?: { code?: string; message?: string } };
+      if (!response.ok || !payload.ok) throw new Error(payload.error?.message || "The AI Builder project changes could not be saved.");
+
+      // Merge only the server token. Never replace newer local edits with the
+      // snapshot that was sent by this older request.
+      const current = latestSessionRef.current;
+      if (current) {
+        const withRevision = { ...current, governanceRevision: payload.governanceRevision ?? current.governanceRevision };
+        latestSessionRef.current = withRevision;
+        setSession((visible) => visible ? { ...visible, governanceRevision: withRevision.governanceRevision } : visible);
+      }
+      if (current === savedSession) {
+        setReviewChangesPending(false);
+        setSaveStatus("saved");
+      } else {
+        // Edits arrived while this request was in flight. Save the newer full
+        // session only after retaining the revision returned by this request.
+        setSaveStatus("idle");
+        saveTimerRef.current = window.setTimeout(() => void runGovernanceSave(), 800);
+      }
+    } catch (saveRequestError) {
+      // Keep the local edits pending for the user, but do not schedule an
+      // automatic stale-payload retry loop after a conflict or other failure.
+      setSaveStatus("error");
+      setSaveError(saveRequestError instanceof Error ? saveRequestError.message : "The AI Builder project changes could not be saved.");
+    } finally {
+      saveInFlightRef.current = false;
+    }
+  }, []);
 
   const navigateToStep = useCallback((nextStep: BuilderStep) => {
     setStep(nextStep);
@@ -274,73 +323,22 @@ export default function AiBuilderClient({
   }, [initialProjectId]);
 
   useEffect(() => {
+    latestSessionRef.current = session;
+  }, [session]);
+
+  useEffect(() => {
     if (!session || !reviewChangesPending) return;
-
-    const controller = new AbortController();
-
-    const saveTimer = window.setTimeout(async () => {
-      setSaveStatus("saving");
-      setSaveError(null);
-
-      try {
-        const response = await fetch(
-          `/api/ai-builder/projects/${encodeURIComponent(
-            session.id,
-          )}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              session,
-            }),
-            signal: controller.signal,
-          },
-        );
-
-        const payload = (await response.json()) as {
-          ok?: boolean;
-          error?: {
-            message?: string;
-          };
-        };
-
-        if (!response.ok || !payload.ok) {
-          throw new Error(
-            payload.error?.message ||
-              "The AI Builder project changes could not be saved.",
-          );
-        }
-
-        setReviewChangesPending(false);
-        setSaveStatus("saved");
-      } catch (saveRequestError) {
-        if (
-          saveRequestError instanceof DOMException &&
-          saveRequestError.name === "AbortError"
-        ) {
-          return;
-        }
-
-        setSaveStatus("error");
-        setSaveError(
-          saveRequestError instanceof Error
-            ? saveRequestError.message
-            : "The AI Builder project changes could not be saved.",
-        );
-      }
-    }, 800);
+    saveTimerRef.current = window.setTimeout(() => void runGovernanceSave(), 800);
 
     return () => {
-      window.clearTimeout(saveTimer);
-      controller.abort();
+      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
     };
-  }, [session, reviewChangesPending]);
+  }, [session, reviewChangesPending, runGovernanceSave]);
 
   const handleSessionChange = (
     nextSession: AiBuilderSession,
   ) => {
+    latestSessionRef.current = nextSession;
     setSession(nextSession);
     setReviewChangesPending(true);
     setSaveStatus("idle");
