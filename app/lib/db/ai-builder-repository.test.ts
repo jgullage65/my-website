@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import { websiteFactIdentity } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import {
   buildLegacyProjectPersistenceQueries,
   persistAiBuilderProjectWithDependencies,
@@ -32,7 +33,7 @@ function clone(state: State): State {
   return { projects: new Map(state.projects), children: new Map(Array.from(state.children).map(([key, value]) => [key, new Map(value)])), progress: [...state.progress] };
 }
 
-function fakeDatabase(options: { failAt?: string; owner?: string } = {}) {
+function fakeDatabase(options: { failAt?: string; failWhen?: (text: string, values: unknown[]) => boolean; owner?: string } = {}) {
   const state: State = { projects: new Map(options.owner ? [["project-1", { owner: options.owner, status: "existing" }]] : []), children: new Map(childTables.map((table) => [table, new Map()])), progress: ["old-progress"] };
   const sql = {
     transaction: async (build: (tx: never) => Array<{ queryData: { text: string; values: unknown[] } }>) => {
@@ -41,6 +42,7 @@ function fakeDatabase(options: { failAt?: string; owner?: string } = {}) {
       for (const query of build(tag)) {
         const { text, values } = query.queryData;
         if (options.failAt && text.includes(options.failAt)) throw new Error(`simulated_${options.failAt}`);
+        if (options.failWhen?.(text, values)) throw new Error("simulated_query_failure");
         if (text.includes("ai_builder_canonical_")) continue;
         if (text.includes("INSERT INTO ai_builder_projects")) {
           const [id, status] = values as [string, string];
@@ -319,4 +321,73 @@ test("canonical provenance statements are appended to the authoritative creation
   assert.ok(statements.findIndex((text) => text.includes("INSERT INTO ai_builder_chat_threads")) < statements.findIndex((text) => text.includes("INSERT INTO ai_builder_canonical_sources")));
   assert.ok(statements.some((text) => text.includes("AI_BUILDER_CANONICAL_PROVENANCE_OWNERSHIP_COLLISION")));
   assert.ok(statements.some((text) => text.includes("INSERT INTO ai_builder_canonical_candidate_claims")));
+});
+
+
+function withWebsiteContext(project = input()) {
+  const fact = { category: "service", title: "Website planning", value: "Website planning", confidence: "high", evidence: [{ url: "https://acme.test/services", excerpt: "Planning services" }, { url: "https://acme.test/about", excerpt: "Experienced planners" }] } as const;
+  const websiteKnowledge = {
+    schema_version: 1, document_version: 1, current_crawl_attempt_id: "crawl-1", imported_at: timestamp,
+    requested_url: "https://acme.test/", resolved_url: "https://acme.test/", pages: [], warnings: [],
+    knowledge: { facts: [fact], coverage: { businessIdentity: 0, offers: 100, customers: 0, pricing: 0, policies: 0, processes: 0, faq: 0, contact: 0, overall: 10 }, unresolvedQuestions: [] },
+  } as never;
+  const websiteContextId = websiteFactIdentity(fact);
+  project.website = "https://acme.test/";
+  project.websiteKnowledge = websiteKnowledge;
+  project.session.contextEntries.push({ id: websiteContextId, category: "services", title: fact.title, content: fact.value, confidence: "high", confidenceScore: 0.9, status: "proposed", source: { sourceType: "website", intakeBlockId: "website_knowledge", sourceUrl: fact.evidence[0].url, excerpt: fact.evidence[0].excerpt }, metadata: { generated: true }, createdAt: timestamp, updatedAt: timestamp });
+  return { project, websiteContextId };
+}
+
+function canonicalClaimStatements(project: ReturnType<typeof input>): Array<{ text: string; values: unknown[] }> {
+  const statements: Array<{ text: string; values: unknown[] }> = [];
+  const sql = ((strings: TemplateStringsArray, ...values: unknown[]) => {
+    const text = strings.join("?").replace(/\s+/g, " ").trim();
+    const statement = { text, values }; statements.push(statement); return { queryData: statement };
+  }) as never;
+  buildCanonicalProvenanceShadowQueries(sql, { projectId: project.session.id, session: project.session, website: project.website, websiteKnowledge: project.websiteKnowledge });
+  return statements;
+}
+
+function faqClaim(statements: Array<{ text: string; values: unknown[] }>) {
+  return statements.find(({ values }) => String(values[10]).includes("legacyFaqEntryId"));
+}
+
+test("manual FAQ provenance uses its context entry provenance", () => {
+  const claim = faqClaim(canonicalClaimStatements(input()));
+  assert.ok(claim);
+  assert.equal(claim.values[3], "faq");
+});
+
+test("website FAQ provenance uses website context evidence from one snapshot", () => {
+  const { project, websiteContextId } = withWebsiteContext();
+  project.session.faqEntries = [{ ...project.session.faqEntries[0], sourceEntryIds: [websiteContextId] }];
+  const statements = canonicalClaimStatements(project);
+  const claim = faqClaim(statements);
+  assert.ok(claim);
+  const links = statements.filter(({ text, values }) => text.includes("candidate_claim_evidence") && values.some((value) => value === claim.values[0]));
+  assert.equal(links.length, 2);
+});
+
+test("FAQ provenance combines multiple context evidence records from one snapshot", () => {
+  const { project, websiteContextId } = withWebsiteContext();
+  project.session.faqEntries = [{ ...project.session.faqEntries[0], sourceEntryIds: [websiteContextId, websiteContextId] }];
+  const statements = canonicalClaimStatements(project);
+  const claim = faqClaim(statements);
+  assert.ok(claim);
+  const links = statements.filter(({ text, values }) => text.includes("candidate_claim_evidence") && values.some((value) => value === claim.values[0]));
+  assert.equal(links.length, 2);
+});
+
+test("mixed-snapshot FAQ provenance is skipped", () => {
+  const { project, websiteContextId } = withWebsiteContext();
+  project.session.faqEntries = [{ ...project.session.faqEntries[0], sourceEntryIds: ["context-1", websiteContextId] }];
+  assert.equal(faqClaim(canonicalClaimStatements(project)), undefined);
+});
+
+test("FAQ canonical persistence failure rolls back the atomic project graph", async () => {
+  const db = fakeDatabase({ failWhen: (text, values) => text.includes("INSERT INTO ai_builder_canonical_candidate_claims") && String(values[10]).includes("legacyFaqEntryId") });
+  await assert.rejects(persist(db));
+  assert.equal(db.state.projects.size, 0);
+  for (const table of childTables) assert.equal(db.state.children.get(table)?.size, 0, table);
+  assert.deepEqual(db.state.progress, ["old-progress"]);
 });

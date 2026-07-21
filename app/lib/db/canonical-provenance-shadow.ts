@@ -17,6 +17,8 @@ import {
   websiteEvidenceIdentity,
   websiteSnapshotPayload,
 } from "./canonical-provenance-identities";
+import { websiteFactIdentity } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+
 import { getSql } from "./client";
 
 
@@ -174,6 +176,7 @@ export function buildCanonicalProvenanceShadowQueries(sql: TransactionSql, input
   const manualMetadata = manualCompatibilityMetadata(input.projectId);
   addSource("manual", manualSource, null, manualMetadata, input.session.createdAt);
   addSnapshot(manualSource, manualSnapshot, "intake_submission", manualPayload, manualMetadata, input.session.createdAt);
+  const contextProvenance = new Map<string, { snapshotIdentity: string; evidenceIdentities: string[] }>();
   const manualEvidence = new Map<string, string>();
   for (const block of input.session.intakeBlocks) {
     const identity = manualEvidenceIdentity(manualSnapshot, block);
@@ -182,11 +185,7 @@ export function buildCanonicalProvenanceShadowQueries(sql: TransactionSql, input
   }
   for (const entry of input.session.contextEntries) {
     const evidence = entry.source.sourceType === "manual_intake" ? manualEvidence.get(entry.source.intakeBlockId) : undefined;
-    if (evidence) addClaim(manualSnapshot, candidateClaimIdentity(manualSnapshot, "context_entry", `${entry.category}\u0000${entry.title}`, entry.content.trim()), "context_entry", entry.category, entry.title, entry.content.trim(), entry.confidence, entry.confidenceScore, entry.status, { legacyProjectId: input.projectId, legacyContextEntryId: entry.id, sourceType: entry.source.sourceType, generated: entry.metadata.generated }, entry.createdAt, entry.updatedAt, [evidence]);
-  }
-  for (const entry of input.session.faqEntries) {
-    const evidence = entry.sourceEntryIds.map((id) => manualEvidence.get(id)).filter((value): value is string => Boolean(value));
-    if (evidence.length) addClaim(manualSnapshot, candidateClaimIdentity(manualSnapshot, "faq", entry.question, `${entry.question}\n${entry.answer}`), "faq", "faq", entry.question, `${entry.question}\n${entry.answer}`, entry.confidence, entry.confidenceScore, entry.status, { legacyProjectId: input.projectId, legacyFaqEntryId: entry.id, legacySourceEntryIds: entry.sourceEntryIds }, entry.createdAt, entry.updatedAt, Array.from(new Set(evidence)));
+    if (evidence) contextProvenance.set(entry.id, { snapshotIdentity: manualSnapshot, evidenceIdentities: [evidence] });
   }
   if (input.websiteKnowledge) {
     const knowledge = input.websiteKnowledge;
@@ -204,7 +203,27 @@ export function buildCanonicalProvenanceShadowQueries(sql: TransactionSql, input
         return identity;
       });
       addClaim(websiteSnapshot, candidateClaimIdentity(websiteSnapshot, "website_fact", `${fact.category}\u0000${fact.title}`, fact.value), "website_fact", fact.category, fact.title, fact.value, fact.confidence, fact.confidence === "high" ? 0.9 : fact.confidence === "medium" ? 0.6 : 0.3, "proposed", { legacyProjectId: input.projectId, legacyWebsiteKnowledgeDocumentVersion: knowledge.document_version }, knowledge.imported_at ?? input.session.createdAt, knowledge.imported_at ?? input.session.updatedAt, evidence);
+      for (const entry of input.session.contextEntries) {
+        const matchesFact = entry.source.sourceType === "website" && (
+          entry.id === websiteFactIdentity(fact) || fact.evidence.some((item) => item.url === entry.source.sourceUrl && item.excerpt === entry.source.excerpt)
+        );
+        if (matchesFact && evidence.length) contextProvenance.set(entry.id, { snapshotIdentity: websiteSnapshot, evidenceIdentities: evidence });
+      }
     }
+  }
+  for (const entry of input.session.contextEntries) {
+    const provenance = contextProvenance.get(entry.id);
+    if (!provenance) continue;
+    addClaim(provenance.snapshotIdentity, candidateClaimIdentity(provenance.snapshotIdentity, "context_entry", `${entry.category}\u0000${entry.title}`, entry.content.trim()), "context_entry", entry.category, entry.title, entry.content.trim(), entry.confidence, entry.confidenceScore, entry.status, { legacyProjectId: input.projectId, legacyContextEntryId: entry.id, sourceType: entry.source.sourceType, generated: entry.metadata.generated }, entry.createdAt, entry.updatedAt, provenance.evidenceIdentities);
+  }
+  for (const entry of input.session.faqEntries) {
+    const provenance = entry.sourceEntryIds.map((id) => contextProvenance.get(id));
+    if (provenance.length !== entry.sourceEntryIds.length || provenance.some((item) => !item)) continue;
+    const resolved = provenance as Array<{ snapshotIdentity: string; evidenceIdentities: string[] }>;
+    const snapshotIdentity = resolved[0]?.snapshotIdentity;
+    if (!snapshotIdentity || resolved.some((item) => item.snapshotIdentity !== snapshotIdentity)) continue;
+    const evidence = Array.from(new Set(resolved.flatMap((item) => item.evidenceIdentities)));
+    addClaim(snapshotIdentity, candidateClaimIdentity(snapshotIdentity, "faq", entry.question, `${entry.question}\n${entry.answer}`), "faq", "faq", entry.question, `${entry.question}\n${entry.answer}`, entry.confidence, entry.confidenceScore, entry.status, { legacyProjectId: input.projectId, legacyFaqEntryId: entry.id, legacySourceEntryIds: entry.sourceEntryIds }, entry.createdAt, entry.updatedAt, evidence);
   }
   return queries;
 }
