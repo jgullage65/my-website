@@ -13,6 +13,54 @@
   --text: #ebf0ff;
   --muted: #a0aac8;
   --border: rgba(212, 175, 55, 0.22);
+  --lf-brand-navy-shell: #070c1e;
+  --lf-brand-navy-shell-mid: #0b1128;
+  --lf-brand-navy-shell-end: #090e21;
+  --lf-shell-gradient: linear-gradient(
+    145deg,
+    var(--lf-brand-navy-shell),
+    var(--lf-brand-navy-shell-mid) 42%,
+    var(--lf-brand-navy-shell-end)
+  );
+}
+
+/* LeadForge-inspired response surface used by the JG Assistant only. */
+.jg-assistant-panel .jg-assistant-answer-message {
+  max-width: min(92%, 44rem);
+}
+
+.jg-assistant-panel .jg-assistant-answer-card {
+  padding: 1rem;
+}
+
+.jg-assistant-unified-card {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.72);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+  text-align: left;
+}
+
+.jg-assistant-canonical-amber-overlay {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(15, 23, 42, 0.05), rgba(2, 6, 23, 0.15) 50%, rgba(0, 2, 8, 0.28)),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.085), rgba(2, 6, 23, 0.22));
+}
+
+.jg-assistant-shell-topline {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  right: 1.25rem;
+  left: 1.25rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.78), transparent);
 }
 
 * {
