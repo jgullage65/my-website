@@ -229,7 +229,39 @@ export function buildCanonicalProvenanceShadowQueries(sql: TransactionSql, input
 }
 
 export type LegacyReviewEntry = { id: string; status: string; content: string; updatedAt: string; kind: "context_entry" | "faq" };
-export type LegacyReviewTransition = { entry: LegacyReviewEntry; action: "approve" | "correction" | "archive" | "restore" | "reject" };
+export type LegacyReviewTransition = { entry: LegacyReviewEntry; previousStatus: string; action: "approve" | "correction" | "archive" | "restore" | "reject" | "unapprove" };
+
+const REVIEW_TRANSITIONS: Record<string, LegacyReviewTransition["action"]> = {
+  "proposed:approved": "approve",
+  "proposed:corrected": "correction",
+  "proposed:archived": "reject",
+  "approved:corrected": "correction",
+  "approved:archived": "archive",
+  // The review UI exposes an Unapprove control, so this is deliberately a
+  // supported transition rather than an accidental compatibility side effect.
+  "approved:proposed": "unapprove",
+  "corrected:archived": "archive",
+  "archived:approved": "restore",
+  // A corrected restoration must take the correction path so the canonical
+  // writer creates the corrected claim and inherits predecessor evidence.
+  "archived:corrected": "correction",
+};
+
+/** Central review-state graph for both legacy context and FAQ entries. */
+export function validateLegacyReviewTransition(previous: LegacyReviewEntry, next: LegacyReviewEntry): LegacyReviewTransition | null {
+  if (previous.status === next.status) {
+    if (previous.status === "corrected" && previous.content !== next.content) {
+      return { entry: next, previousStatus: previous.status, action: "correction" };
+    }
+    if (previous.status === "approved" && previous.content !== next.content) {
+      throw new Error(`invalid_review_transition:${previous.kind}:${previous.id}:${previous.status}:content_changed_without_corrected_status`);
+    }
+    return null;
+  }
+  const action = REVIEW_TRANSITIONS[`${previous.status}:${next.status}`];
+  if (!action) throw new Error(`invalid_review_transition:${previous.kind}:${previous.id}:${previous.status}:${next.status}`);
+  return { entry: next, previousStatus: previous.status, action };
+}
 
 /** Interprets only a persisted legacy review mutation; a current status is not an event. */
 export function interpretLegacyReviewDeltas(previous: LegacyReviewEntry[], next: LegacyReviewEntry[]): LegacyReviewTransition[] {
@@ -237,14 +269,8 @@ export function interpretLegacyReviewDeltas(previous: LegacyReviewEntry[], next:
   return next.flatMap((entry): LegacyReviewTransition[] => {
     const prior = before.get(`${entry.kind}:${entry.id}`);
     if (!prior) return [];
-    const priorTrusted = prior.status === "approved" || prior.status === "corrected";
-    const nextTrusted = entry.status === "approved" || entry.status === "corrected";
-    if (prior.status === "proposed" && entry.status === "approved") return [{ entry, action: "approve" as const }];
-    if (prior.status === "proposed" && entry.status === "archived") return [{ entry, action: "reject" as const }];
-    if (priorTrusted && entry.status === "archived") return [{ entry, action: "archive" as const }];
-    if (prior.status === "archived" && nextTrusted) return [{ entry, action: "restore" as const }];
-    if (priorTrusted && nextTrusted && prior.content !== entry.content) return [{ entry, action: "correction" as const }];
-    return [];
+    const transition = validateLegacyReviewTransition(prior, entry);
+    return transition ? [transition] : [];
   });
 }
 
@@ -280,8 +306,12 @@ export async function writeCanonicalGovernanceShadow(
     }
     if (!candidate) throw new Error(`canonical_governance_candidate_missing:${transition.entry.kind}:${transition.entry.id}`);
 
-    const reviewIdentity = claimReviewIdentity(input.projectId, transition.entry.kind, transition.entry.id, candidate.claim_identity, transition.action, transition.entry.updatedAt);
-    const review = await tx.query(`INSERT INTO ai_builder_canonical_claim_reviews (review_identity, project_id, candidate_claim_id, action, actor, metadata, legacy_references, reviewed_at, created_at) VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8::timestamptz,$8::timestamptz) ON CONFLICT (review_identity) DO UPDATE SET review_identity = EXCLUDED.review_identity RETURNING id, review_identity`, [reviewIdentity, input.projectId, candidate.id, transition.action, JSON.stringify(input.actor), JSON.stringify({ migrationSlice: 4 }), JSON.stringify({ legacyProjectId: input.projectId, legacyKind: transition.entry.kind, legacyEntryId: transition.entry.id }), transition.entry.updatedAt]);
+    // Canonical schema predates the compatibility UI's explicit Unapprove
+    // control.  It is represented as an archival trusted-knowledge revision
+    // while metadata retains the precise legacy state transition.
+    const canonicalAction = transition.action === "unapprove" ? "archive" : transition.action;
+    const reviewIdentity = claimReviewIdentity(input.projectId, transition.entry.kind, transition.entry.id, candidate.claim_identity, canonicalAction, transition.entry.updatedAt);
+    const review = await tx.query(`INSERT INTO ai_builder_canonical_claim_reviews (review_identity, project_id, candidate_claim_id, action, actor, metadata, legacy_references, reviewed_at, created_at) VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8::timestamptz,$8::timestamptz) ON CONFLICT (review_identity) DO UPDATE SET review_identity = EXCLUDED.review_identity RETURNING id, review_identity`, [reviewIdentity, input.projectId, candidate.id, canonicalAction, JSON.stringify(input.actor), JSON.stringify({ migrationSlice: 4, previousStatus: transition.previousStatus, resultingStatus: transition.entry.status }), JSON.stringify({ legacyProjectId: input.projectId, legacyKind: transition.entry.kind, legacyEntryId: transition.entry.id }), transition.entry.updatedAt]);
     const reviewRow = review.rows[0] as { id: string } | undefined;
     if (!reviewRow) throw new Error(`canonical_governance_review_resolution_failed:${transition.entry.kind}:${transition.entry.id}`);
     reviewCount += 1;
@@ -289,9 +319,9 @@ export async function writeCanonicalGovernanceShadow(
 
     const latest = await tx.query(`SELECT id, revision FROM ai_builder_canonical_trusted_knowledge WHERE project_id = $1 AND legacy_kind = $2 AND legacy_entry_id = $3 ORDER BY revision DESC LIMIT 1 FOR UPDATE`, [input.projectId, transition.entry.kind, transition.entry.id]);
     const previous = latest.rows[0] as { id: string; revision: number } | undefined;
-    if (transition.action === "archive" && !previous) throw new Error(`canonical_governance_archive_without_trusted_knowledge:${transition.entry.kind}:${transition.entry.id}`);
+    if ((transition.action === "archive" || transition.action === "unapprove") && !previous) throw new Error(`canonical_governance_archive_without_trusted_knowledge:${transition.entry.kind}:${transition.entry.id}`);
     const trustedIdentity = trustedKnowledgeIdentity(input.projectId, transition.entry.kind, transition.entry.id, reviewIdentity);
-    const trusted = await tx.query(`INSERT INTO ai_builder_canonical_trusted_knowledge (trusted_knowledge_identity, project_id, candidate_claim_id, claim_review_id, previous_trusted_knowledge_id, legacy_kind, legacy_entry_id, revision, lifecycle, metadata, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::timestamptz) ON CONFLICT (trusted_knowledge_identity) DO UPDATE SET trusted_knowledge_identity = EXCLUDED.trusted_knowledge_identity RETURNING id`, [trustedIdentity, input.projectId, candidate.id, reviewRow.id, previous?.id ?? null, transition.entry.kind, transition.entry.id, (previous?.revision ?? 0) + 1, transition.action === "archive" ? "archived" : "active", JSON.stringify({ migrationSlice: 4, reviewAction: transition.action }), transition.entry.updatedAt]);
+    const trusted = await tx.query(`INSERT INTO ai_builder_canonical_trusted_knowledge (trusted_knowledge_identity, project_id, candidate_claim_id, claim_review_id, previous_trusted_knowledge_id, legacy_kind, legacy_entry_id, revision, lifecycle, metadata, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::timestamptz) ON CONFLICT (trusted_knowledge_identity) DO UPDATE SET trusted_knowledge_identity = EXCLUDED.trusted_knowledge_identity RETURNING id`, [trustedIdentity, input.projectId, candidate.id, reviewRow.id, previous?.id ?? null, transition.entry.kind, transition.entry.id, (previous?.revision ?? 0) + 1, transition.action === "archive" || transition.action === "unapprove" ? "archived" : "active", JSON.stringify({ migrationSlice: 4, reviewAction: transition.action }), transition.entry.updatedAt]);
     if (!trusted.rows[0]) throw new Error(`canonical_governance_trusted_knowledge_resolution_failed:${transition.entry.kind}:${transition.entry.id}`);
     trustedKnowledgeCount += 1;
   }

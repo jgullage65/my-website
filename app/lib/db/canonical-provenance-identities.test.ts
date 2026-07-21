@@ -68,10 +68,14 @@ test("review delta interpreter emits only real context and FAQ governance transi
   const entry = (kind: "context_entry" | "faq", status: string, content: string) => ({ id: `${kind}-1`, kind, status, content, updatedAt: "2026-07-20T12:00:00.000Z" });
   assert.deepEqual(interpretLegacyReviewDeltas([entry("context_entry", "approved", "A")], [entry("context_entry", "approved", "A")]), []);
   assert.equal(interpretLegacyReviewDeltas([entry("context_entry", "proposed", "A")], [entry("context_entry", "approved", "A")])[0]?.action, "approve");
+  assert.equal(interpretLegacyReviewDeltas([entry("context_entry", "proposed", "A")], [entry("context_entry", "corrected", "B")])[0]?.action, "correction");
   assert.equal(interpretLegacyReviewDeltas([entry("faq", "proposed", "A")], [entry("faq", "archived", "A")])[0]?.action, "reject");
   assert.equal(interpretLegacyReviewDeltas([entry("context_entry", "approved", "A")], [entry("context_entry", "archived", "A")])[0]?.action, "archive");
   assert.equal(interpretLegacyReviewDeltas([entry("faq", "archived", "A")], [entry("faq", "approved", "A")])[0]?.action, "restore");
+  assert.equal(interpretLegacyReviewDeltas([entry("faq", "archived", "A")], [entry("faq", "corrected", "B")])[0]?.action, "correction");
   assert.equal(interpretLegacyReviewDeltas([entry("context_entry", "corrected", "A")], [entry("context_entry", "corrected", "B")])[0]?.action, "correction");
+  assert.equal(interpretLegacyReviewDeltas([entry("faq", "approved", "A")], [entry("faq", "proposed", "A")])[0]?.action, "unapprove");
+  assert.throws(() => interpretLegacyReviewDeltas([entry("faq", "proposed", "A")], [entry("faq", "restored", "A")]));
 });
 
 test("website evidence identities resolve the same records after evidence reordering", () => {

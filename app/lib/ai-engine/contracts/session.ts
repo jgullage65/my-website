@@ -87,5 +87,7 @@ import type {
     createdAt: string;
     updatedAt: string;
     expiresAt: string | null;
+    /** Optimistic concurrency token for legacy full-session governance saves. */
+    governanceRevision?: number;
   };
-  
+

@@ -400,6 +400,7 @@ export function hydrateAiBuilderProjectSession(
     createdAt: toIsoString(project.created_at),
     updatedAt: toIsoString(project.updated_at),
     expiresAt: toNullableIsoString(project.expires_at),
+    ...(project.governance_revision == null ? {} : { governanceRevision: Number(project.governance_revision) }),
   };
 
   return session;
