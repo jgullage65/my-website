@@ -170,6 +170,7 @@ export function reconcileStructuredWebsiteKnowledge(
         userEdited: false,
         conflictingEntryIds: [],
         tags: [fact.category],
+        provenanceClassification: "website" as const,
       },
       createdAt,
       updatedAt: createdAt,
@@ -191,6 +192,7 @@ export function reconcileStructuredWebsiteKnowledge(
       // The matching website context row preserves the canonical evidence link.
       sourceEntryIds: [websiteFactIdentity(fact)],
       status: options.defaultStatus,
+      metadata: { provenanceClassification: "website" as const, upstreamSourceEntryIds: [websiteFactIdentity(fact)], mixedSourceProvenance: false },
       createdAt,
       updatedAt: createdAt,
     }];

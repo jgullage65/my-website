@@ -39,11 +39,16 @@ export const BUSINESS_CONTEXT_CATEGORIES = [
     sourceUrl?: string | null;
   };
   
-  export type BusinessContextMetadata = {
+export type BusinessContextMetadata = {
     generated: boolean;
     userEdited: boolean;
     conflictingEntryIds: string[];
     tags: string[];
+    provenanceClassification?: import("../provenance").AiBuilderProvenanceClassification;
+    predecessorProvenanceClassification?: import("../provenance").AiBuilderProvenanceClassification;
+    originalProvenanceClassification?: import("../provenance").AiBuilderProvenanceClassification;
+    upstreamSourceEntryIds?: string[];
+    mixedSourceProvenance?: boolean;
   };
   
   export type BusinessContextEntry = {
@@ -61,7 +66,7 @@ export const BUSINESS_CONTEXT_CATEGORIES = [
     updatedAt: string;
   };
   
-  export type GeneratedFaqEntry = {
+export type GeneratedFaqEntry = {
     id: string;
     sessionId: string;
     question: string;
@@ -70,6 +75,7 @@ export const BUSINESS_CONTEXT_CATEGORIES = [
     confidenceScore: number;
     sourceEntryIds: string[];
     status: BusinessContextStatus;
+    metadata?: Partial<BusinessContextMetadata>;
     createdAt: string;
     updatedAt: string;
   };
@@ -81,4 +87,4 @@ export const BUSINESS_CONTEXT_CATEGORIES = [
     archived: number;
     byCategory: Partial<Record<BusinessContextCategory, number>>;
   };
-  
+

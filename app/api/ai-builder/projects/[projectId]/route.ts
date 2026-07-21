@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import type { AiBuilderProvenanceClassification } from "@/app/lib/ai-engine/provenance";
 import {
   archiveAiBuilderProject,
   getAiBuilderProject,
@@ -10,6 +11,7 @@ import { getSql } from "@/app/lib/db/client";
 import { Pool } from "@neondatabase/serverless";
 import { interpretLegacyReviewDeltas, writeCanonicalGovernanceShadow } from "@/app/lib/db/canonical-provenance-shadow";
 import { isAuthenticationRequired, requireClerkUserId } from "@/app/lib/auth/clerk";
+import { classifyContextProvenance, classifyFaqProvenance, correctedProvenanceMetadata, isAiBuilderProvenanceClassification, normalizeContextProvenance, normalizeFaqProvenance } from "@/app/lib/ai-engine/provenance";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -259,22 +261,55 @@ export async function PUT(request: Request, context: RouteContext) {
           const expectedRevision = Number(session.governanceRevision ?? 0);
           if (lockedProject[0].governance_revision !== expectedRevision) throw new Error("stale_governance_revision");
 
-          const priorContextRows = (await tx.query(`SELECT id, status, content, updated_at FROM ai_builder_context_entries WHERE project_id = $1 FOR UPDATE`, [normalizedProjectId])).rows as Array<{ id: string; status: string; content: string; updated_at: unknown }>;
-          const priorFaqRows = (await tx.query(`SELECT id, status, question, answer, updated_at FROM ai_builder_faq_entries WHERE project_id = $1 FOR UPDATE`, [normalizedProjectId])).rows as Array<{ id: string; status: string; question: string; answer: string; updated_at: unknown }>;
+          const priorContextRows = (await tx.query(`SELECT id, status, content, source, metadata, updated_at FROM ai_builder_context_entries WHERE project_id = $1 FOR UPDATE`, [normalizedProjectId])).rows as Array<{ id: string; status: string; content: string; source: unknown; metadata: unknown; updated_at: unknown }>;
+          const priorFaqRows = (await tx.query(`SELECT id, status, question, answer, source_entry_ids, metadata, updated_at FROM ai_builder_faq_entries WHERE project_id = $1 FOR UPDATE`, [normalizedProjectId])).rows as Array<{ id: string; status: string; question: string; answer: string; source_entry_ids: unknown; metadata: unknown; updated_at: unknown }>;
           const contextIds = new Set(priorContextRows.map((entry) => entry.id));
           const faqIds = new Set(priorFaqRows.map((entry) => entry.id));
           for (const entry of session.contextEntries) if (!contextIds.has(entry.id)) throw new Error(`governance_context_entry_not_found_or_not_owned:${entry.id}`);
           for (const entry of session.faqEntries) if (!faqIds.has(entry.id)) throw new Error(`governance_faq_entry_not_found_or_not_owned:${entry.id}`);
-          const reviewTransitions = interpretLegacyReviewDeltas(
+          const interpretedTransitions = interpretLegacyReviewDeltas(
             [...priorContextRows.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: toIsoString(entry.updated_at), kind: "context_entry" as const })), ...priorFaqRows.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: toIsoString(entry.updated_at), kind: "faq" as const }))],
             [...session.contextEntries.map((entry) => ({ id: entry.id, status: entry.status, content: entry.content, updatedAt: entry.updatedAt, kind: "context_entry" as const })), ...session.faqEntries.map((entry) => ({ id: entry.id, status: entry.status, content: `${entry.question}\n${entry.answer}`, updatedAt: entry.updatedAt, kind: "faq" as const }))],
           );
-          for (const entry of session.contextEntries) {
+          const persistedContextForProvenance = priorContextRows.map((row) => ({ id: row.id, source: row.source, metadata: row.metadata, status: row.status })) as never;
+          const reviewTransitions = interpretedTransitions.map((transition) => {
+            if (transition.action !== "correction") return transition;
+            const isContext = transition.entry.kind === "context_entry";
+            const prior = isContext ? priorContextRows.find((row) => row.id === transition.entry.id) : priorFaqRows.find((row) => row.id === transition.entry.id);
+            const priorFaq = prior as typeof priorFaqRows[number] | undefined;
+            const priorFaqSource = priorFaq?.source_entry_ids;
+            const priorFaqSourceIds = Array.isArray(priorFaqSource) ? priorFaqSource.filter((id: unknown): id is string => typeof id === "string") : [];
+            const predecessor = isContext
+              ? classifyContextProvenance({ source: (prior as typeof priorContextRows[number] | undefined)?.source, metadata: prior?.metadata, status: prior?.status } as never)
+              : classifyFaqProvenance({ sourceEntryIds: priorFaqSourceIds, metadata: prior?.metadata, status: prior?.status, question: priorFaq?.question ?? "", answer: priorFaq?.answer ?? "" } as never, persistedContextForProvenance);
+            const priorMetadata = prior?.metadata && typeof prior.metadata === "object" ? prior.metadata as Record<string, unknown> : {};
+            const original = isAiBuilderProvenanceClassification(priorMetadata.originalProvenanceClassification) ? priorMetadata.originalProvenanceClassification : predecessor;
+            return { ...transition, entry: { ...transition.entry, provenance: { predecessor, original } } };
+          });
+          const transitionByEntry = new Map(reviewTransitions.map((transition) => [`${transition.entry.kind}:${transition.entry.id}`, transition]));
+          const priorContextById = new Map(priorContextRows.map((row) => [row.id, row]));
+          const trustedContextEntries = session.contextEntries.map((entry) => {
+            const prior = priorContextById.get(entry.id)!;
+            const transition = transitionByEntry.get(`context_entry:${entry.id}`);
+            // The browser may edit text and state, but it cannot replace a
+            // persisted source/provenance chain.
+            const metadata = transition?.action === "correction" ? correctedProvenanceMetadata(prior.metadata, (transition.entry.provenance?.predecessor ?? classifyContextProvenance({ source: prior.source, metadata: prior.metadata, status: prior.status } as never)) as AiBuilderProvenanceClassification) : prior.metadata;
+            return normalizeContextProvenance({ ...entry, source: prior.source as typeof entry.source, metadata: metadata as typeof entry.metadata });
+          });
+          for (const entry of trustedContextEntries) {
             const result = await tx.query(`UPDATE ai_builder_context_entries SET category=$1,title=$2,content=$3,confidence=$4,confidence_score=$5,status=$6,source=$7::jsonb,metadata=$8::jsonb,updated_at=$9::timestamptz WHERE id=$10 AND project_id=$11 RETURNING id`, [entry.category, entry.title, entry.content, entry.confidence, entry.confidenceScore, entry.status, JSON.stringify(entry.source), JSON.stringify(entry.metadata), entry.updatedAt, entry.id, normalizedProjectId]);
             if (result.rowCount !== 1) throw new Error(`governance_context_entry_update_failed:${entry.id}`);
           }
-          for (const entry of session.faqEntries) {
-            const result = await tx.query(`UPDATE ai_builder_faq_entries SET question=$1,answer=$2,confidence=$3,confidence_score=$4,source_entry_ids=$5::jsonb,status=$6,updated_at=$7::timestamptz WHERE id=$8 AND project_id=$9 RETURNING id`, [entry.question, entry.answer, entry.confidence, entry.confidenceScore, JSON.stringify(entry.sourceEntryIds), entry.status, entry.updatedAt, entry.id, normalizedProjectId]);
+          const contextIdSet = new Set(trustedContextEntries.map((entry) => entry.id));
+          const priorFaqById = new Map(priorFaqRows.map((row) => [row.id, row]));
+          for (const submitted of session.faqEntries) {
+            const prior = priorFaqById.get(submitted.id)!;
+            const sourceEntryIds = Array.isArray(prior.source_entry_ids) ? prior.source_entry_ids.filter((id): id is string => typeof id === "string") : [];
+            if (sourceEntryIds.some((id) => !contextIdSet.has(id))) throw new Error(`governance_faq_source_entry_not_found_or_not_owned:${submitted.id}`);
+            const transition = transitionByEntry.get(`faq:${submitted.id}`);
+            const metadata = transition?.action === "correction" ? correctedProvenanceMetadata(prior.metadata, (transition.entry.provenance?.predecessor ?? classifyFaqProvenance({ sourceEntryIds, metadata: prior.metadata, status: prior.status, question: prior.question, answer: prior.answer } as never, trustedContextEntries)) as AiBuilderProvenanceClassification) : prior.metadata;
+            const entry = normalizeFaqProvenance({ ...submitted, sourceEntryIds, metadata: metadata as typeof submitted.metadata }, trustedContextEntries);
+            const result = await tx.query(`UPDATE ai_builder_faq_entries SET question=$1,answer=$2,confidence=$3,confidence_score=$4,source_entry_ids=$5::jsonb,status=$6,metadata=$7::jsonb,updated_at=$8::timestamptz WHERE id=$9 AND project_id=$10 RETURNING id`, [entry.question, entry.answer, entry.confidence, entry.confidenceScore, JSON.stringify(entry.sourceEntryIds), entry.status, JSON.stringify(entry.metadata ?? {}), entry.updatedAt, entry.id, normalizedProjectId]);
             if (result.rowCount !== 1) throw new Error(`governance_faq_entry_update_failed:${entry.id}`);
           }
           await writeCanonicalGovernanceShadow({ projectId: normalizedProjectId, transitions: reviewTransitions, actor: { clerkUserId, displayName: null, email: null } }, tx);

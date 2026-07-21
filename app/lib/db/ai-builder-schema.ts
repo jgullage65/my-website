@@ -184,6 +184,7 @@ async function createAiBuilderSchema() {
       updated_at TIMESTAMPTZ NOT NULL
     )
   `;
+  await sql`ALTER TABLE ai_builder_faq_entries ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_conflicts (
