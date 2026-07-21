@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { AiBuilderSession, BusinessContextEntry, GeneratedFaqEntry } from "@/app/lib/ai-engine/contracts";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge/buildKnowledgePack";
-import { applyStructuredWebsiteKnowledge, websiteFactIdentity, type PersistedWebsiteKnowledge, type WebsiteKnowledgeFact } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import { applyStructuredWebsiteKnowledge, reconcileStructuredWebsiteKnowledge, websiteFactIdentity, websiteFaqIdentity, type PersistedWebsiteKnowledge, type WebsiteKnowledgeFact } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import { buildLegacyProjectPersistenceQueries, getAiBuilderProjectWithDependencies, hydrateAiBuilderProjectSession, persistAiBuilderProjectWithDependencies } from "./ai-builder-repository";
 
 const time = "2026-07-20T10:00:00.000Z";
@@ -43,6 +43,33 @@ test("website restoration preserves saved entries and creates deterministically 
     ...websiteFacts.map((fact) => ({ id: websiteFactIdentity(fact), status: "proposed", source: { intakeBlockId: "website_knowledge", excerpt: fact.evidence[0]!.excerpt, sourceType: "website", sourceUrl: fact.evidence[0]!.url } })),
   ]);
   assert.equal(restored.contextCounts.total, 8);
+});
+
+test("website reconciliation never overwrites reviewed, archived, or removed records", () => {
+  const id = websiteFactIdentity(websiteFacts[0]!);
+  const reviewed = entry(id, "business_profile", "Corrected company", "corrected", {
+    intakeBlockId: "website_knowledge", excerpt: "Northstar Studio.", sourceType: "website", sourceUrl: "https://northstar.test/about",
+  });
+  reviewed.content = "Northstar & Co.";
+  const archived = entry(websiteFactIdentity(websiteFacts[1]!), "service", "Archived service", "archived", {
+    intakeBlockId: "website_knowledge", excerpt: "Five-day brand sprint.", sourceType: "website", sourceUrl: "https://northstar.test/services",
+  });
+  const restored = reconcileStructuredWebsiteKnowledge({ ...session(), contextEntries: [reviewed, archived] }, websiteKnowledge.knowledge, { defaultStatus: "proposed" });
+  assert.equal(restored.contextEntries.find((item) => item.id === id)?.content, "Northstar & Co.");
+  assert.equal(restored.contextEntries.find((item) => item.id === archived.id)?.status, "archived");
+  assert.equal(restored.contextEntries.filter((item) => item.id === id).length, 1);
+});
+
+test("website FAQ reconciliation is stable and preserves reviewed FAQ decisions", () => {
+  const sourceFact = websiteFacts.find((fact) => fact.category === "faq")!;
+  const id = websiteFaqIdentity(sourceFact);
+  const first = reconcileStructuredWebsiteKnowledge(session(), websiteKnowledge.knowledge, { defaultStatus: "proposed" });
+  const second = reconcileStructuredWebsiteKnowledge(first, websiteKnowledge.knowledge, { defaultStatus: "proposed" });
+  assert.equal(first.faqEntries.filter((item) => item.id === id).length, 1);
+  assert.equal(second.faqEntries.filter((item) => item.id === id).length, 1);
+  const reviewed = { ...first, faqEntries: first.faqEntries.map((item) => item.id === id ? { ...item, question: "Corrected timeline", answer: "Six weeks after kickoff.", status: "corrected" as const, updatedAt: later } : item) };
+  const restored = reconcileStructuredWebsiteKnowledge(reviewed, websiteKnowledge.knowledge, { defaultStatus: "proposed" });
+  assert.deepEqual(restored.faqEntries.find((item) => item.id === id), reviewed.faqEntries.find((item) => item.id === id));
 });
 
 test("KnowledgePack includes only approved knowledge and has stable category, title, FAQ, and reference ordering", () => {
@@ -129,6 +156,75 @@ test("repository persistence round-trips the representative project through the 
   const initialThread = { id: "thread-fixed", memory: { summary: "Northstar thread" } as never };
   const identity = { userId: "user-fixed", displayName: "Ada", email: "ada@northstar.test" };
   await persistAiBuilderProjectWithDependencies({ session: persisted, businessName: "Northstar Studio", industry: "Design", website: "https://northstar.test/", websiteKnowledge, initialThread }, { identity, ensureSchema: async () => {}, sql, buildCanonicalProvenanceShadowQueries: ((): never[] => []) as never });
+  assert.equal(state.faq.filter((item) => item.id === websiteFaqIdentity(websiteFacts[5]!)).length, 1);
   const reopened = await getAiBuilderProjectWithDependencies("project-fixed", { identity, ensureSchema: async () => {}, sql });
-  assert.deepEqual(reopened, { session: persisted, businessName: "Northstar Studio", industry: "Design", website: "https://northstar.test/", websiteKnowledge, initialThread });
+  assert.deepEqual(reopened, { session: reconcileStructuredWebsiteKnowledge(persisted, websiteKnowledge.knowledge, { defaultStatus: "proposed" }), businessName: "Northstar Studio", industry: "Design", website: "https://northstar.test/", websiteKnowledge, initialThread });
+});
+
+function websiteRepairSqlState(input: { project: Record<string, unknown>; context: Record<string, unknown>[]; faq: Record<string, unknown>[] }) {
+  const state = { project: { ...input.project }, context: input.context.map((row) => ({ ...row })), faq: input.faq.map((row) => ({ ...row })), repairFaqInserts: 0, verificationQueries: 0 };
+  const sql = ((strings: TemplateStringsArray) => {
+    const text = strings.join("?");
+    if (text.includes("FROM ai_builder_projects")) return Promise.resolve([{ ...state.project }]);
+    if (text.includes("FROM ai_builder_context_entries")) return Promise.resolve(state.context.filter((row) => row.project_id === "project-fixed").map((row) => ({ ...row })));
+    if (text.includes("FROM ai_builder_faq_entries")) return Promise.resolve(state.faq.filter((row) => row.project_id === "project-fixed").map((row) => ({ ...row })));
+    return Promise.resolve([]);
+  }) as never;
+  (sql as { transaction: (build: (tx: never) => Array<{ queryData: { text: string; values: unknown[] } }>) => Promise<void> }).transaction = async (build) => {
+    const tx = ((strings: TemplateStringsArray, ...values: unknown[]) => ({ queryData: { text: strings.join("?"), values } })) as never;
+    const working = { project: { ...state.project }, context: state.context.map((row) => ({ ...row })), faq: state.faq.map((row) => ({ ...row })) };
+    for (const query of build(tx)) {
+      const { text, values } = query.queryData;
+      if (text.includes("INSERT INTO ai_builder_context_entries")) {
+        if (!working.context.some((row) => row.id === values[0])) working.context.push({ id: values[0], project_id: values[1], category: values[2], title: values[3], content: values[4], confidence: values[5], confidence_score: values[6], status: values[7], source: JSON.parse(String(values[8])), metadata: JSON.parse(String(values[9])), created_at: values[10], updated_at: values[11] });
+      } else if (text.includes("INSERT INTO ai_builder_faq_entries")) {
+        if (!working.faq.some((row) => row.id === values[0])) { working.faq.push({ id: values[0], project_id: values[1], question: values[2], answer: values[3], confidence: values[4], confidence_score: values[5], source_entry_ids: JSON.parse(String(values[6])), status: values[7], created_at: values[8], updated_at: values[9] }); state.repairFaqInserts += 1; }
+      } else if (text.includes("verified_repair_owner")) {
+        state.verificationQueries += 1;
+        const table = text.includes("ai_builder_faq_entries") ? working.faq : working.context;
+        if (!table.some((row) => row.id === values[0] && row.project_id === values[1])) throw new Error("division by zero");
+      } else if (text.includes("UPDATE ai_builder_projects SET context_counts")) working.project.context_counts = JSON.parse(String(values[0]));
+    }
+    state.project = working.project; state.context = working.context; state.faq = working.faq;
+  };
+  return { sql, state };
+}
+
+function websiteFaqRepairFixture() {
+  const faqFact = websiteFacts[5]!;
+  const faqKnowledge = { ...websiteKnowledge, knowledge: { ...websiteKnowledge.knowledge, facts: [faqFact] } };
+  const source = reconcileStructuredWebsiteKnowledge({ ...session(), contextEntries: [], faqEntries: [] }, faqKnowledge.knowledge, { defaultStatus: "proposed" });
+  const context = source.contextEntries[0]!;
+  const project = { id: "project-fixed", status: "ready", business_name: "Northstar Studio", industry: "Design", website: "https://northstar.test/", assistant_configuration: session().assistantConfiguration, context_counts: { total: 1, approved: 0, proposed: 1, archived: 0, byCategory: { faq: 1 } }, website_knowledge: faqKnowledge, created_at: time, updated_at: later, expires_at: null };
+  return { faqFact, faqKnowledge, project, context: { ...context, project_id: "project-fixed", created_at: context.createdAt, updated_at: context.updatedAt } };
+}
+
+test("an older project repairs and durably retains one missing website FAQ", async () => {
+  const fixture = websiteFaqRepairFixture();
+  const { sql, state } = websiteRepairSqlState({ project: fixture.project, context: [fixture.context], faq: [] });
+  const identity = { userId: "user-fixed", displayName: "Ada", email: "ada@northstar.test" };
+  const first = await getAiBuilderProjectWithDependencies("project-fixed", { identity, ensureSchema: async () => {}, sql });
+  const id = websiteFaqIdentity(fixture.faqFact);
+  assert.equal(state.repairFaqInserts, 1);
+  assert.equal(state.faq.filter((row) => row.id === id && row.project_id === "project-fixed").length, 1);
+  assert.equal(first?.session.faqEntries.filter((entry) => entry.id === id).length, 1);
+  const second = await getAiBuilderProjectWithDependencies("project-fixed", { identity, ensureSchema: async () => {}, sql });
+  assert.equal(state.repairFaqInserts, 1);
+  assert.equal(second?.session.faqEntries.filter((entry) => entry.id === id).length, 1);
+});
+
+test("a conflicting website repair ID aborts loading without committing repairs", async () => {
+  const fixture = websiteFaqRepairFixture();
+  const foreignId = websiteFactIdentity(fixture.faqFact);
+  const foreignContext = { ...fixture.context, id: foreignId, project_id: "another-project" };
+  const originalCounts = fixture.project.context_counts;
+  const { sql, state } = websiteRepairSqlState({ project: fixture.project, context: [foreignContext], faq: [] });
+  await assert.rejects(
+    getAiBuilderProjectWithDependencies("project-fixed", { identity: { userId: "user-fixed", displayName: "Ada", email: "ada@northstar.test" }, ensureSchema: async () => {}, sql }),
+    /division by zero/,
+  );
+  assert.ok(state.verificationQueries > 0);
+  assert.deepEqual(state.project.context_counts, originalCounts);
+  assert.deepEqual(state.context, [foreignContext]);
+  assert.deepEqual(state.faq, []);
 });

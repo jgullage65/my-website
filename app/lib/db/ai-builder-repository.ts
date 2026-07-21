@@ -10,6 +10,7 @@ import {
   WEBSITE_KNOWLEDGE_COVERAGE_FIELDS,
   type PersistedWebsiteKnowledge,
   type StructuredWebsiteKnowledge,
+  reconcileStructuredWebsiteKnowledge,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import { ensureAiBuilderSchema } from "./ai-builder-schema";
 import { getSql } from "./client";
@@ -295,11 +296,17 @@ export async function persistAiBuilderProjectWithDependencies(
   dependencies: PersistAiBuilderProjectDependencies,
 ): Promise<void> {
   const { identity, ensureSchema, sql, buildCanonicalProvenanceShadowQueries } = dependencies;
+  const session = reconcileStructuredWebsiteKnowledge(
+    input.session,
+    input.websiteKnowledge?.knowledge,
+    { defaultStatus: "proposed" },
+  );
+  const reconciledInput = { ...input, session };
   await ensureSchema();
   await sql.transaction((tx) => [
-    ...buildLegacyProjectPersistenceQueries(tx, { ...input, identity }),
+    ...buildLegacyProjectPersistenceQueries(tx, { ...reconciledInput, identity }),
     ...buildCanonicalProvenanceShadowQueries(tx, {
-      projectId: input.session.id, session: input.session, website: input.website, websiteKnowledge: input.websiteKnowledge,
+      projectId: session.id, session, website: input.website, websiteKnowledge: input.websiteKnowledge,
     }),
   ]);
 }
@@ -404,6 +411,48 @@ export type GetAiBuilderProjectDependencies = {
   sql: ReturnType<typeof getSql>;
 };
 
+/** Writes only missing website review rows; it never performs session-wide cleanup. */
+async function persistWebsiteReviewRepair(
+  sql: ReturnType<typeof getSql>,
+  session: AiBuilderSession,
+  insertedEntries: AiBuilderSession["contextEntries"],
+  insertedFaqEntries: AiBuilderSession["faqEntries"],
+): Promise<void> {
+  if (!insertedEntries.length && !insertedFaqEntries.length) return;
+  await sql.transaction((tx) => [
+    ...insertedEntries.flatMap((entry) => [tx`
+      INSERT INTO ai_builder_context_entries (
+        id, project_id, category, title, content, confidence, confidence_score,
+        status, source, metadata, created_at, updated_at
+      ) VALUES (
+        ${entry.id}, ${session.id}, ${entry.category}, ${entry.title},
+        ${entry.content}, ${entry.confidence}, ${entry.confidenceScore},
+        ${entry.status}, ${JSON.stringify(entry.source)}::jsonb,
+        ${JSON.stringify(entry.metadata)}::jsonb, ${entry.createdAt}::timestamptz,
+        ${entry.updatedAt}::timestamptz
+      ) ON CONFLICT (id) DO NOTHING
+    `, tx`SELECT 1 / CASE WHEN EXISTS (
+      SELECT 1 FROM ai_builder_context_entries
+      WHERE id = ${entry.id} AND project_id = ${session.id}
+    ) THEN 1 ELSE 0 END AS verified_repair_owner`]),
+    ...insertedFaqEntries.flatMap((entry) => [tx`
+      INSERT INTO ai_builder_faq_entries (
+        id, project_id, question, answer, confidence, confidence_score,
+        source_entry_ids, status, created_at, updated_at
+      ) VALUES (
+        ${entry.id}, ${session.id}, ${entry.question}, ${entry.answer},
+        ${entry.confidence}, ${entry.confidenceScore},
+        ${JSON.stringify(entry.sourceEntryIds)}::jsonb, ${entry.status},
+        ${entry.createdAt}::timestamptz, ${entry.updatedAt}::timestamptz
+      ) ON CONFLICT (id) DO NOTHING
+    `, tx`SELECT 1 / CASE WHEN EXISTS (
+      SELECT 1 FROM ai_builder_faq_entries
+      WHERE id = ${entry.id} AND project_id = ${session.id}
+    ) THEN 1 ELSE 0 END AS verified_repair_owner`]),
+    tx`UPDATE ai_builder_projects SET context_counts = ${JSON.stringify(session.contextCounts)}::jsonb WHERE id = ${session.id}`,
+  ]);
+}
+
 /** Executes the same authoritative project loading flow with injectable infrastructure. */
 export async function getAiBuilderProjectWithDependencies(
   projectId: string,
@@ -470,6 +519,18 @@ export async function getAiBuilderProjectWithDependencies(
   const session = hydrateAiBuilderProjectSession(project, projectId, {
     intakeBlocks, contextEntries, faqEntries, conflicts, missingInformation, buildProgress,
   });
+  const websiteKnowledge = normalizeWebsiteKnowledge(project.website_knowledge);
+  const reconciledSession = reconcileStructuredWebsiteKnowledge(
+    session,
+    websiteKnowledge?.knowledge,
+    { defaultStatus: "proposed" },
+  );
+  const existingIds = new Set(session.contextEntries.map((entry) => entry.id));
+  const existingFaqIds = new Set(session.faqEntries.map((entry) => entry.id));
+  const insertedEntries = reconciledSession.contextEntries.filter((entry) => !existingIds.has(entry.id));
+  const insertedFaqEntries = reconciledSession.faqEntries.filter((entry) => !existingFaqIds.has(entry.id));
+  // A repaired graph is committed before it can become the returned authority.
+  await persistWebsiteReviewRepair(sql, reconciledSession, insertedEntries, insertedFaqEntries);
 
   const initialThread = threads[0]
     ? {
@@ -479,11 +540,11 @@ export async function getAiBuilderProjectWithDependencies(
     : null;
 
   return {
-    session,
+    session: reconciledSession,
     businessName: String(project.business_name),
     industry: String(project.industry),
     website: project.website == null ? null : String(project.website),
-    websiteKnowledge: normalizeWebsiteKnowledge(project.website_knowledge),
+    websiteKnowledge,
     initialThread,
   };
 }
