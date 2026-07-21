@@ -93,6 +93,15 @@ export default function ContactPageClient() {
         }
 
         @media (max-width: 767px) {
+          .contact-form-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+
+          .contact-form-scroll::-webkit-scrollbar {
+            display: none;
+          }
+
           .contact-mobile-select {
             text-align: center;
             text-align-last: center;
