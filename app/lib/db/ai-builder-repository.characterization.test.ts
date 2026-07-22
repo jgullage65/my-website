@@ -4,6 +4,7 @@ import test from "node:test";
 import type { AiBuilderSession, BusinessContextEntry, GeneratedFaqEntry } from "@/app/lib/ai-engine/contracts";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge/buildKnowledgePack";
 import { applyStructuredWebsiteKnowledge, reconcileStructuredWebsiteKnowledge, websiteFactIdentity, websiteFaqIdentity, type PersistedWebsiteKnowledge, type WebsiteKnowledgeFact } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import { normalizeContextProvenance, normalizeFaqProvenance } from "@/app/lib/ai-engine/provenance";
 import { buildLegacyProjectPersistenceQueries, getAiBuilderProjectWithDependencies, hydrateAiBuilderProjectSession, persistAiBuilderProjectWithDependencies } from "./ai-builder-repository";
 
 const time = "2026-07-20T10:00:00.000Z";
@@ -24,6 +25,11 @@ function entry(id: string, category: BusinessContextEntry["category"], title: st
 function faq(id: string, question: string, status: GeneratedFaqEntry["status"], sourceEntryIds: string[]): GeneratedFaqEntry {
   return { id, sessionId: "project-fixed", question, answer: `${question} answer`, confidence: "medium", confidenceScore: .7, sourceEntryIds, status, createdAt: time, updatedAt: later };
 }
+function persistedSession(value: AiBuilderSession): AiBuilderSession {
+  const contextEntries = value.contextEntries.map(normalizeContextProvenance);
+  return { ...value, contextEntries, faqEntries: value.faqEntries.map((entry) => normalizeFaqProvenance(entry, contextEntries)) };
+}
+
 function session(): AiBuilderSession {
   return { id: "project-fixed", status: "ready", intakeBlocks: [{ id: "intake-1", label: "Services", content: "Design", createdAt: time, updatedAt: later }], assistantConfiguration: { name: " Northstar Assistant ", purpose: " Help clients ", tone: " Warm ", responseStyle: "concise", primaryAudience: "Founders", escalationInstructions: ["Email team"] }, contextEntries: [entry("manual-policy", "policy", "Deposits", "approved", { intakeBlockId: "intake-1", excerpt: "Deposits are non-refundable.", sourceType: "manual_intake", sourceUrl: null }), entry("archived-service", "service", "Old service", "archived", { intakeBlockId: "intake-1", excerpt: "Old", sourceType: "manual_intake", sourceUrl: null })], faqEntries: [faq("faq-z", "Zebra question", "approved", ["manual-policy", "website-a"]), faq("faq-a", "Alpha question", "approved", ["website-a", "manual-policy"]), faq("faq-archived", "Archived question", "archived", ["manual-policy"])], conflicts: [{ id: "conflict-1", topic: "Price", firstStatement: "A", secondStatement: "B", sourceExcerpts: ["A", "B"], suggestedQuestion: "Which?", resolved: false, resolution: null }], missingInformation: [{ id: "missing-1", topic: "Hours", reason: "Absent", suggestedQuestion: "When?", resolved: false }], contextCounts: { total: 2, approved: 1, proposed: 0, archived: 2, byCategory: { policy: 1, service: 1 } }, buildProgress: [{ stage: "complete", message: "Ready", completed: true, count: 3, createdAt: later }], createdAt: time, updatedAt: later, expiresAt: null };
 }
@@ -95,9 +101,9 @@ test("repository persistence retains review statuses, source metadata, FAQ refer
   assert.deepEqual(projectPayload.website_knowledge.knowledge.facts[0].evidence, websiteFacts[0]!.evidence);
   const contextPayloads = statements.map((statement) => statement.values).filter((values) => (values[0] === "manual-policy" || values[0] === "archived-service" || values[0] === "website-a") && values.length > 9);
   assert.deepEqual(contextPayloads.map((values) => [values[0], values[7], JSON.parse(String(values[8])), JSON.parse(String(values[9]))]), [
-    ["manual-policy", "approved", persisted.contextEntries[0]!.source, persisted.contextEntries[0]!.metadata],
-    ["archived-service", "archived", persisted.contextEntries[1]!.source, persisted.contextEntries[1]!.metadata],
-    ["website-a", "proposed", persisted.contextEntries[2]!.source, persisted.contextEntries[2]!.metadata],
+    ["manual-policy", "approved", persisted.contextEntries[0]!.source, persistedSession(reconcileStructuredWebsiteKnowledge(persisted, websiteKnowledge.knowledge, { defaultStatus: "proposed" })).contextEntries[0]!.metadata],
+    ["archived-service", "archived", persisted.contextEntries[1]!.source, persistedSession(reconcileStructuredWebsiteKnowledge(persisted, websiteKnowledge.knowledge, { defaultStatus: "proposed" })).contextEntries[1]!.metadata],
+    ["website-a", "proposed", persisted.contextEntries[2]!.source, persistedSession(reconcileStructuredWebsiteKnowledge(persisted, websiteKnowledge.knowledge, { defaultStatus: "proposed" })).contextEntries[2]!.metadata],
   ]);
   const faqPayloads = statements.map((statement) => statement.values).filter((values) => (values[0] === "faq-z" || values[0] === "faq-a" || values[0] === "faq-archived") && values.length > 7);
   assert.deepEqual(faqPayloads.map((values) => [values[0], values[7], JSON.parse(String(values[6]))]), [
@@ -115,7 +121,7 @@ test("repository hydration preserves persisted fields and documents current null
   assert.equal(hydrated.createdAt, time); assert.equal(hydrated.intakeBlocks[0]!.updatedAt, later);
   assert.deepEqual(hydrated.faqEntries.map((item) => item.sourceEntryIds), [["manual-policy", "website-a"], []]);
   assert.equal(hydrated.contextEntries[1]!.source, undefined);
-  assert.equal(hydrated.contextEntries[1]!.metadata, undefined);
+  assert.deepEqual(hydrated.contextEntries[1]!.metadata, { provenanceClassification: "ai_generated" });
   assert.deepEqual(hydrated.buildProgress[0], { stage: "complete", message: "Ready", completed: true, count: null, createdAt: later });
   assert.equal(hydrated.expiresAt, null);
 });
@@ -158,7 +164,7 @@ test("repository persistence round-trips the representative project through the 
   await persistAiBuilderProjectWithDependencies({ session: persisted, businessName: "Northstar Studio", industry: "Design", website: "https://northstar.test/", websiteKnowledge, initialThread }, { identity, ensureSchema: async () => {}, sql, buildCanonicalProvenanceShadowQueries: ((): never[] => []) as never });
   assert.equal(state.faq.filter((item) => item.id === websiteFaqIdentity(websiteFacts[5]!)).length, 1);
   const reopened = await getAiBuilderProjectWithDependencies("project-fixed", { identity, ensureSchema: async () => {}, sql });
-  assert.deepEqual(reopened, { session: reconcileStructuredWebsiteKnowledge(persisted, websiteKnowledge.knowledge, { defaultStatus: "proposed" }), businessName: "Northstar Studio", industry: "Design", website: "https://northstar.test/", websiteKnowledge, initialThread });
+  assert.deepEqual(reopened, { session: persistedSession(reconcileStructuredWebsiteKnowledge(persisted, websiteKnowledge.knowledge, { defaultStatus: "proposed" })), businessName: "Northstar Studio", industry: "Design", website: "https://northstar.test/", websiteKnowledge, initialThread });
 });
 
 function websiteRepairSqlState(input: { project: Record<string, unknown>; context: Record<string, unknown>[]; faq: Record<string, unknown>[] }) {

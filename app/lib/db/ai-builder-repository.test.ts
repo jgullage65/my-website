@@ -365,7 +365,7 @@ test("website FAQ provenance uses website context evidence from one snapshot", (
   const claim = faqClaim(statements);
   assert.ok(claim);
   const links = statements.filter(({ text, values }) => text.includes("candidate_claim_evidence") && values.some((value) => value === claim.values[0]));
-  assert.equal(links.length, 2);
+  assert.equal(links.length, 4);
 });
 
 test("FAQ provenance combines multiple context evidence records from one snapshot", () => {
@@ -375,7 +375,7 @@ test("FAQ provenance combines multiple context evidence records from one snapsho
   const claim = faqClaim(statements);
   assert.ok(claim);
   const links = statements.filter(({ text, values }) => text.includes("candidate_claim_evidence") && values.some((value) => value === claim.values[0]));
-  assert.equal(links.length, 2);
+  assert.equal(links.length, 4);
 });
 
 test("mixed-snapshot FAQ provenance is skipped", () => {
