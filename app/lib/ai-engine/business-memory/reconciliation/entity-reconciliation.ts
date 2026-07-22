@@ -9,13 +9,15 @@ export type IdentityKeyType = "source_item" | "canonical_name" | "alias" | "doma
 export type IdentityStrength = "strong" | "weak";
 export type SourceEntity = { id: string; projectId: string; type: string; name: string; logicalKey: string; assertionIds: string[] };
 export type ResolvedEntity = { id: string; projectId: string; type: string; active: boolean; sourceEntityIds: string[] };
-export type IdentityKey = { id: string; projectId: string; resolvedEntityId: string; sourceEntityId: string | null; type: IdentityKeyType; normalizedValue: string; displayValue: string | null; strength: IdentityStrength; authoritative: boolean; sourceIds: string[] };
+export type IdentityKey = { id: string; projectId: string; resolvedEntityId: string; sourceEntityId: string | null; type: IdentityKeyType; normalizedValue: string; displayValue: string | null; strength: IdentityStrength; authoritative: boolean; sourceIds: string[]; active?: boolean };
 export type EntityAlias = { id: string; projectId: string; resolvedEntityId: string; displayValue: string; normalizedValue: string; sourceIds: string[]; accepted: boolean };
 export type Redirect = { fromResolvedEntityId: string; toResolvedEntityId: string };
 export type CandidateEvidence = { type: IdentityKeyType; value: string; rule: string };
 export type DuplicateCandidate = { id: string; entityIds: string[]; evidence: CandidateEvidence[]; classification: "auto_merge" | "manual_review"; autoMergeEligible: boolean; manualReviewRequired: boolean; incompatibleTypeReason: string | null };
-const canon = (v: unknown): string => Array.isArray(v) ? `[${v.map(canon).join(",")}]` : v && typeof v === "object" ? `{${Object.keys(v as object).sort().map(k => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`).join(",")}}` : JSON.stringify(v);
-const hash = (v: unknown) => createHash("sha256").update(canon(v)).digest("hex");
+export const canonicalJson = (v: unknown): string => Array.isArray(v) ? `[${v.map(canonicalJson).join(",")}]` : v && typeof v === "object" ? `{${Object.keys(v as object).sort().map(k => `${JSON.stringify(k)}:${canonicalJson((v as Record<string, unknown>)[k])}`).join(",")}}` : JSON.stringify(v);
+export const stableHash = (v: unknown) => createHash("sha256").update(canonicalJson(v)).digest("hex");
+const canon = canonicalJson;
+const hash = stableHash;
 export const normalized = (value: string) => value.trim().normalize("NFKC").toLocaleLowerCase("en-US").replace(/\s+/g, " ");
 export const stableResolvedEntityId = (projectId: string, sourceLogicalKey: string) => `business_resolved_entity:${hash({ projectId, sourceLogicalKey })}`;
 export const stableIdentityKeyId = (projectId: string, type: IdentityKeyType, value: string, sourceEntityId: string | null) => `business_identity_key:${hash({ projectId, type, value, sourceEntityId })}`;
