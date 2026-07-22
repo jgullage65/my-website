@@ -8,8 +8,8 @@ import {
 } from "@/app/lib/db/ai-builder-repository";
 import { getSql } from "@/app/lib/db/client";
 import { isAuthenticationRequired, requireClerkUserId } from "@/app/lib/auth/clerk";
-import { commandsFromLegacyReviewSession } from "@/app/lib/ai-engine/business-memory/legacy-review-command-adapter";
-import { executePersistedReviewCommand, PersistedReviewCommandError } from "@/app/lib/ai-engine/business-memory/services/execute-persisted-review-command";
+import { commandsFromLegacyReviewSession, UnsupportedLegacyReviewMutationError } from "@/app/lib/ai-engine/business-memory/legacy-review-command-adapter";
+import { executePersistedReviewCommandsAtomically, PersistedReviewCommandError } from "@/app/lib/ai-engine/business-memory/services/execute-persisted-review-command";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -218,18 +218,12 @@ export async function PUT(request: Request, context: RouteContext) {
     const commands = commandsFromLegacyReviewSession(existing.session, session, {
       clerkUserId, displayName: null, email: null,
     });
-    let governanceRevision = Number(existing.session.governanceRevision ?? 0);
-    for (const command of commands) {
-      const persisted = await executePersistedReviewCommand({
-        projectId: normalizedProjectId,
-        clerkUserId,
-        request: command,
-      });
-      governanceRevision = persisted.governanceRevision;
-    }
+    const results = await executePersistedReviewCommandsAtomically({ projectId: normalizedProjectId, clerkUserId, requests: commands });
+    const governanceRevision = results.at(-1)?.governanceRevision ?? Number(existing.session.governanceRevision ?? 0);
     return NextResponse.json({ ok: true, projectId: normalizedProjectId, updatedAt: session.updatedAt, governanceRevision });
   } catch (error) {
     if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
+    if (error instanceof UnsupportedLegacyReviewMutationError) return errorResponse(400, "unsupported_legacy_review_mutation", "The submitted review snapshot contains an unsupported mutation.");
     if (error instanceof PersistedReviewCommandError) return errorResponse(error.status, error.code, error.message);
     const message = error instanceof Error ? error.message : "unknown_error";
     console.error("AI_BUILDER_PROJECT_SAVE_FAILED", {

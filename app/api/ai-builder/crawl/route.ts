@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import { BusinessWebsiteCrawlError, crawlBusinessWebsite } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
+import { BusinessWebsiteCrawlError, crawlBusinessWebsite, resolveCrawledBusinessName } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
 import { finishCrawlTelemetry, startCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 
@@ -235,8 +235,12 @@ export async function POST(request: Request) {
 
   const encoder = new TextEncoder();
   const attemptId = crypto.randomUUID();
+  const requestStarted = performance.now();
+  let persistenceMs = 0;
   let crawlStartedAt = new Date().toISOString();
+  const telemetryStart = performance.now();
   await startCrawlTelemetry(attemptId, website, crawlStartedAt);
+  persistenceMs += performance.now() - telemetryStart;
   const stream = new ReadableStream({
     async start(controller) {
       const send = (event: Record<string, unknown>) =>
@@ -253,7 +257,9 @@ export async function POST(request: Request) {
       });
     });
     const crawlCompletedAt = new Date().toISOString();
+    const telemetryFinish = performance.now();
     await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
+    persistenceMs += performance.now() - telemetryFinish;
     crawlRecorded = true;
     send({ type: "progress", percent: 70 });
     const client = new OpenAI({ apiKey });
@@ -277,6 +283,7 @@ export async function POST(request: Request) {
       .slice(0, 60_000);
 
     send({ type: "progress", percent: 75 });
+    const aiStarted = performance.now();
     const response = await client.responses.create({
       model,
       instructions: [
@@ -294,6 +301,7 @@ export async function POST(request: Request) {
         "Omit unsupported facts rather than guessing or inferring them.",
         "Set coverage scores according to how much clearly supported information is available for each topic, not according to the number of pages crawled.",
         "Put important information that is unclear or unsupported in unresolvedQuestions.",
+        "Determine businessName from the canonical homepage identity and business content, never from an internal page title such as Contact, About, or Services.",
       ].join(" "),
       input: source,
       text: {
@@ -319,15 +327,25 @@ export async function POST(request: Request) {
       normalizeText(page.text),
     ]));
     const knowledge = normalizeKnowledge(extracted.knowledge, crawledPages);
+    const aiKnowledgeExtractionMs = performance.now() - aiStarted;
+    const timings = {
+      ...crawl.diagnostics.timings,
+      aiKnowledgeExtractionMs,
+      persistenceMs,
+      totalDurationMs: performance.now() - requestStarted,
+    };
+    console.info("AI_BUILDER_CRAWL_TIMINGS", { attemptId, ...timings });
 
     send({ type: "progress", percent: 100 });
     send({
       type: "result",
       ok: true,
       import: {
-        businessName: normalizeText(extracted.businessName),
+        businessName: resolveCrawledBusinessName(extracted.businessName, crawl),
         industry: normalizeText(extracted.industry),
         website: crawl.resolvedUrl,
+        requestedUrl: crawl.requestedUrl,
+        resolvedUrl: crawl.resolvedUrl,
         productsServices: normalizeText(extracted.productsServices),
         idealCustomers: normalizeText(extracted.idealCustomers),
         additionalKnowledge: normalizeText(extracted.additionalKnowledge),
@@ -340,6 +358,7 @@ export async function POST(request: Request) {
       })),
       warnings: crawl.warnings,
       crawlAttemptId: attemptId,
+      timings,
     });
       } catch (error) {
         const message = error instanceof Error ? error.message : "The website could not be imported.";

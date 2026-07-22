@@ -13,6 +13,7 @@ import {
 
 function countProposedContext(
   entries: AiBuilderSession["contextEntries"],
+  faqEntries: AiBuilderSession["faqEntries"],
 ): BusinessContextCounts {
   const byCategory: BusinessContextCounts["byCategory"] = {};
 
@@ -22,9 +23,9 @@ function countProposedContext(
   });
 
   return {
-    total: entries.length,
+    total: entries.length + faqEntries.length,
     approved: 0,
-    proposed: entries.length,
+    proposed: entries.length + faqEntries.length,
     archived: 0,
     byCategory,
   };
@@ -121,7 +122,7 @@ export async function runEngine(
     faqEntries,
     conflicts: mapConflicts(result),
     missingInformation: mapMissingInformation(result),
-    contextCounts: countProposedContext(contextEntries),
+    contextCounts: countProposedContext(contextEntries, faqEntries),
     buildProgress: buildIntakeProgress(result),
     createdAt,
     updatedAt: createdAt,

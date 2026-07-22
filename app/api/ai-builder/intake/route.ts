@@ -3,7 +3,7 @@ import type { ConversationMemory } from "@/app/lib/ai-engine/contracts";
 import { runOpenAiIntakeModel } from "@/app/lib/ai-engine/providers";
 import type { OpenAiIntakeCallMetadata } from "@/app/lib/ai-engine/providers/openaiIntakeRunner";
 import { runEngine } from "@/app/lib/ai-engine/runtime";
-import { persistAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
+import { AI_BUILDER_PROJECT_LIMIT_ERROR, hasAiBuilderProjectCapacity, persistAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { finishGenerationTelemetry, linkCrawlTelemetry, startGenerationTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import {
@@ -28,6 +28,8 @@ type WebsiteKnowledgeRequest = {
   businessName?: unknown;
   industry?: unknown;
   website?: unknown;
+  requestedUrl?: unknown;
+  resolvedUrl?: unknown;
   productsServices?: unknown;
   idealCustomers?: unknown;
   additionalKnowledge?: unknown;
@@ -218,10 +220,15 @@ function addKnowledgeBlock(
 }
 
 export async function POST(request: Request) {
+  let clerkUserId: string;
   try {
-    await requireClerkUserId();
+    clerkUserId = await requireClerkUserId();
   } catch {
     return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
+  }
+
+  if (!await hasAiBuilderProjectCapacity(clerkUserId)) {
+    return errorResponse(409, "project_limit_reached", "You've reached your current project limit of 3 projects.");
   }
 
   let body: IntakeRequestBody;
@@ -254,7 +261,8 @@ export async function POST(request: Request) {
   const websiteKnowledge = body.websiteKnowledge ?? null;
   const websiteBusinessName = normalizeText(websiteKnowledge?.businessName);
   const websiteIndustry = normalizeText(websiteKnowledge?.industry);
-  const websiteSourceUrl = normalizeText(websiteKnowledge?.website);
+  const websiteRequestedUrl = normalizeText(websiteKnowledge?.requestedUrl) || website;
+  const websiteSourceUrl = normalizeText(websiteKnowledge?.resolvedUrl) || normalizeText(websiteKnowledge?.website);
   const websiteProductsServices = normalizeText(
     websiteKnowledge?.productsServices,
   );
@@ -276,7 +284,7 @@ export async function POST(request: Request) {
     knowledge: websiteKnowledge?.knowledge,
     crawlAttemptId,
     importedAt,
-    requestedUrl: website,
+    requestedUrl: websiteRequestedUrl,
     resolvedUrl: websiteSourceUrl,
     pages: websiteKnowledge?.pages,
     warnings: websiteKnowledge?.warnings,
@@ -507,6 +515,11 @@ export async function POST(request: Request) {
               message: "The AI builder is not configured yet.",
             },
           });
+          return;
+        }
+
+        if (message.includes(AI_BUILDER_PROJECT_LIMIT_ERROR)) {
+          send({ type: "error", error: { code: "project_limit_reached", message: "You've reached your current project limit of 3 projects." } });
           return;
         }
 

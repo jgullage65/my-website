@@ -208,11 +208,11 @@ export function reconcileStructuredWebsiteKnowledge(
     contextEntries,
     faqEntries,
     contextCounts: {
-      total: contextEntries.length,
+      total: contextEntries.length + faqEntries.length,
       approved: contextEntries.filter(
         (entry) => entry.status === "approved" || entry.status === "corrected",
-      ).length,
-      proposed: contextEntries.filter((entry) => entry.status === "proposed").length,
+      ).length + faqEntries.filter((entry) => entry.status === "approved" || entry.status === "corrected").length,
+      proposed: contextEntries.filter((entry) => entry.status === "proposed").length + faqEntries.filter((entry) => entry.status === "proposed").length,
       archived:
         contextEntries.filter((entry) => entry.status === "archived").length +
         faqEntries.filter((entry) => entry.status === "archived").length,

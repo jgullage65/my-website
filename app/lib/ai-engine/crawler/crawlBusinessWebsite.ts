@@ -23,6 +23,16 @@ export type BusinessWebsiteCrawlDiagnostics = {
   pagesFailed: number;
   finalUrls: string[];
   restrictions: CrawlRestriction[];
+  timings: BusinessWebsiteCrawlTimings;
+};
+
+export type BusinessWebsiteCrawlTimings = {
+  initialUrlResolutionMs: number;
+  homepageFetchMs: number;
+  pageDiscoveryMs: number;
+  pageCrawlingMs: number;
+  contentExtractionMs: number;
+  totalCrawlDurationMs: number;
 };
 
 export type CrawlRestriction = { type: "access_denied" | "rate_limited" | "redirect_blocked" | "unsupported_protocol" | "unsupported_content_type" | "unsafe_destination"; url: string; status?: number };
@@ -31,11 +41,27 @@ export class BusinessWebsiteCrawlError extends Error {
   constructor(message: string, public readonly diagnostics: BusinessWebsiteCrawlDiagnostics) { super(message); this.name = "BusinessWebsiteCrawlError"; }
 }
 
+export function resolveCrawledBusinessName(extractedName: unknown, crawl: Pick<BusinessWebsiteCrawlResult, "resolvedUrl" | "pages">): string {
+  const normalize = (value: unknown) => String(value ?? "").replace(/\s+/g, " ").trim();
+  const extracted = normalize(extractedName);
+  const home = crawl.pages.find((page) => page.pageType === "home") ?? crawl.pages[0];
+  const homepageTitle = normalize(home?.title);
+  const homepageCandidate = homepageTitle.split(/\s(?:\||[-–—]|::)\s/)[0]?.trim() ?? "";
+  const generic = new Set(["home", "homepage", "welcome", "official site", "website"]);
+  const internalLabels = /^(?:contact(?: us)?|about(?: us)?|services?|products?|pricing|faqs?|terms|privacy(?: policy)?)$/i;
+  const internalTitles = new Set(crawl.pages.filter((page) => page.pageType !== "home").map((page) => normalize(page.title).toLowerCase()).filter(Boolean));
+  if (extracted && !internalLabels.test(extracted) && !internalTitles.has(extracted.toLowerCase())) return extracted;
+  if (homepageCandidate && !generic.has(homepageCandidate.toLowerCase())) return homepageCandidate;
+  const label = new URL(crawl.resolvedUrl).hostname.replace(/^www\./i, "").split(".")[0] ?? "";
+  return label.replace(/[-_]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 const MAX_PAGES = 8;
 const MAX_HTML_BYTES = 750_000;
 const MAX_TEXT_PER_PAGE = 12_000;
 const FETCH_TIMEOUT_MS = 7_000;
 const MAX_REDIRECTS = 3;
+const MAX_CONCURRENT_FETCHES = 3;
 
 const PRIORITY_PATHS = [
   "/",
@@ -203,6 +229,7 @@ function isDocumentOrAsset(url: URL): boolean {
 async function fetchHtml(
   url: URL,
   restrictions: CrawlRestriction[],
+  initialDestinationValidated = false,
 ): Promise<{ html: string; resolvedUrl: URL } | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -219,7 +246,7 @@ async function fetchHtml(
         restrictions.push({type:"unsupported_protocol",url:current.toString()});
         return null;
       }
-      await assertSafeDestination(current);
+      if (redirectCount > 0 || !initialDestinationValidated) await assertSafeDestination(current);
 
       const response = await fetch(current.toString(), {
         redirect: "manual",
@@ -390,8 +417,18 @@ function discoverInternalLinks(
 export async function crawlBusinessWebsite(
   websiteUrl: string,
   onPage?: (completedPages: number, maximumPages: number) => void,
+  dependencies: {
+    fetchPage?: typeof fetchHtml;
+    assertSafe?: typeof assertSafeDestination;
+    now?: () => number;
+  } = {},
 ): Promise<BusinessWebsiteCrawlResult> {
-  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,finalUrls:[],restrictions});
+  const now = dependencies.now ?? (() => performance.now());
+  const fetchPage = dependencies.fetchPage ?? fetchHtml;
+  const assertSafe = dependencies.assertSafe ?? assertSafeDestination;
+  const totalStarted = now();
+  const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
   try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
@@ -399,52 +436,50 @@ export async function crawlBusinessWebsite(
     throw new BusinessWebsiteCrawlError(message,emptyDiagnostics(restrictions));
   }
   const restrictions: CrawlRestriction[] = [];
-  try { await assertSafeDestination(requested); } catch (error) {
+  const requestedRoot = new URL("/", requested.origin);
+  const resolutionStarted = now();
+  try { await assertSafe(requestedRoot); } catch (error) {
+    timings.initialUrlResolutionMs = Math.max(0, now() - resolutionStarted);
     restrictions.push({type:"unsafe_destination",url:requested.toString()});
     throw new BusinessWebsiteCrawlError(error instanceof Error?error.message:"Unsafe crawler destination.",emptyDiagnostics(restrictions));
   }
+  timings.initialUrlResolutionMs = Math.max(0, now() - resolutionStarted);
 
-  const baseHost = normalizeHost(requested.hostname);
   const warnings: string[] = [];
-  const queue = PRIORITY_PATHS.map((path) =>
-    dedupeUrl(new URL(path, requested.origin).toString()),
-  );
-  const queued = new Set(queue);
-  const visited = new Set<string>();
   const pages: CrawledBusinessPage[] = [];
   let pagesSkipped = 0;
   let pagesFailed = 0;
-  let resolvedUrl = requested.toString();
+  let homepageResolved = requestedRoot;
+  let homepageHtml = "";
+  const homepageStarted = now();
+  try {
+    const homepage = await fetchPage(requestedRoot, restrictions, true);
+    if (homepage) { homepageResolved = homepage.resolvedUrl; homepageHtml = homepage.html; }
+    else pagesFailed += 1;
+  } catch (error) {
+    pagesFailed += 1;
+    const message = error instanceof Error ? error.message : "Unknown crawl error";
+    if (!warnings.includes(message)) warnings.push(message);
+  }
+  timings.homepageFetchMs = Math.max(0, now() - homepageStarted);
 
-  while (queue.length > 0 && pages.length < MAX_PAGES) {
-    const nextUrl = queue.shift();
-    if (!nextUrl || visited.has(nextUrl)) continue;
-    visited.add(nextUrl);
-
-    let parsed: URL;
-    try {
-      parsed = new URL(nextUrl);
-    } catch {
-      pagesSkipped += 1;
-      continue;
-    }
-
-    if (
-      normalizeHost(parsed.hostname) !== baseHost ||
-      isDocumentOrAsset(parsed)
-    ) {
-      pagesSkipped += 1;
-      continue;
-    }
-
-    try {
-      const fetched = await fetchHtml(parsed, restrictions);
-      if (!fetched) { pagesFailed += 1; continue; }
-
-      resolvedUrl = fetched.resolvedUrl.toString();
+  const baseHost = normalizeHost(homepageResolved.hostname);
+  const queue: string[] = [];
+  const queued = new Set<string>();
+  const visited = new Set<string>();
+  const finalUrls = new Set<string>();
+  const enqueue = (value: string, front = false) => {
+    const normalized = dedupeUrl(value);
+    if (!visited.has(normalized) && !queued.has(normalized)) { queued.add(normalized); front ? queue.unshift(normalized) : queue.push(normalized); }
+  };
+  const processFetched = (fetched: { html: string; resolvedUrl: URL }) => {
+      const finalUrl = dedupeUrl(fetched.resolvedUrl.toString());
+      if (finalUrls.has(finalUrl)) { pagesSkipped += 1; return; }
+      finalUrls.add(finalUrl);
+      const extractionStarted = now();
       const text = stripHtmlToText(fetched.html);
-      if (text.length < 80) { pagesSkipped += 1; continue; }
-
+      timings.contentExtractionMs += Math.max(0, now() - extractionStarted);
+      if (text.length < 80) { pagesSkipped += 1; return; }
       const title = extractTitle(fetched.html);
       pages.push({
         url: fetched.resolvedUrl.toString(),
@@ -453,46 +488,72 @@ export async function crawlBusinessWebsite(
         text,
       });
       onPage?.(pages.length, MAX_PAGES);
-
+      const discoveryStarted = now();
       const discoveredLinks = discoverInternalLinks(
         fetched.html,
         fetched.resolvedUrl,
         baseHost,
       );
+      timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
+      for (const discovered of discoveredLinks.reverse()) enqueue(discovered, true);
+  };
 
-      for (const discovered of discoveredLinks) {
-        if (!visited.has(discovered) && !queued.has(discovered)) {
-          queued.add(discovered);
-          queue.unshift(discovered);
-        }
+  if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
+  for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
+
+  while (queue.length > 0 && pages.length < MAX_PAGES) {
+    const batch: URL[] = [];
+    while (queue.length && batch.length < Math.min(MAX_CONCURRENT_FETCHES, MAX_PAGES - pages.length)) {
+      const nextUrl = queue.shift()!;
+      queued.delete(nextUrl);
+      if (visited.has(nextUrl)) continue;
+      visited.add(nextUrl);
+      try {
+        const parsed = new URL(nextUrl);
+        if (normalizeHost(parsed.hostname) !== baseHost || isDocumentOrAsset(parsed)) { pagesSkipped += 1; continue; }
+        batch.push(parsed);
+      } catch { pagesSkipped += 1; }
+    }
+    if (!batch.length) continue;
+    const crawlStarted = now();
+    const fetchedBatch = await Promise.all(batch.map(async (parsed) => {
+      try { return { parsed, fetched: await fetchPage(parsed, restrictions), error: null }; }
+      catch (error) { return { parsed, fetched: null, error }; }
+    }));
+    timings.pageCrawlingMs += Math.max(0, now() - crawlStarted);
+    for (const { parsed, fetched, error } of fetchedBatch) {
+      if (!fetched) {
+        pagesFailed += 1;
+        const message = error instanceof Error ? error.message : error ? "Unknown crawl error" : "Page could not be read";
+        if (message === "Unsafe crawler destination.") restrictions.push({type:"unsafe_destination",url:parsed.toString()});
+        if (error && !warnings.includes(message)) warnings.push(message);
+        continue;
       }
-    } catch (error) {
-      pagesFailed += 1;
-      const message =
-        error instanceof Error ? error.message : "Unknown crawl error";
-      if (message === "Unsafe crawler destination.") restrictions.push({type:"unsafe_destination",url:parsed.toString()});
-      if (!warnings.includes(message)) warnings.push(message);
+      if (pages.length < MAX_PAGES) processFetched(fetched);
     }
   }
 
+  timings.totalCrawlDurationMs = Math.max(0, now() - totalStarted);
+
   if (pages.length === 0) {
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
-      pagesDiscovered: queued.size, pagesProcessed: 0, pagesSkipped, pagesFailed, finalUrls: [], restrictions,
+      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, finalUrls: [], restrictions, timings,
     });
   }
 
   return {
-    requestedUrl: requested.toString(),
-    resolvedUrl,
+    requestedUrl: requestedRoot.toString(),
+    resolvedUrl: homepageResolved.toString(),
     pages,
     warnings,
     diagnostics: {
-      pagesDiscovered: queued.size,
+      pagesDiscovered: visited.size + queued.size + 1,
       pagesProcessed: pages.length,
       pagesSkipped,
       pagesFailed,
       finalUrls: pages.map((page) => page.url),
       restrictions,
+      timings,
     },
   };
 }

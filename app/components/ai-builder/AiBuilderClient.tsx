@@ -28,6 +28,8 @@ export type WebsiteKnowledge = {
   businessName: string;
   industry: string;
   website: string;
+  requestedUrl: string;
+  resolvedUrl: string;
   productsServices: string;
   idealCustomers: string;
   additionalKnowledge: string;
@@ -257,6 +259,8 @@ export default function AiBuilderClient({
                   payload.websiteKnowledge.requested_url ??
                   payload.builder?.website ??
                   "",
+                requestedUrl: payload.websiteKnowledge.requested_url ?? payload.builder?.website ?? "",
+                resolvedUrl: payload.websiteKnowledge.resolved_url ?? payload.websiteKnowledge.requested_url ?? payload.builder?.website ?? "",
                 productsServices: "",
                 idealCustomers: "",
                 additionalKnowledge: "",

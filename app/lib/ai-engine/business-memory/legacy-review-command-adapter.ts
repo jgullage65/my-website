@@ -1,6 +1,12 @@
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ReviewCommand, ReviewCommandActor, ReviewCommandKind } from "./review-commands";
 
+export class UnsupportedLegacyReviewMutationError extends Error {
+  constructor(readonly itemKind: "context_entry" | "faq", readonly itemId: string) {
+    super(`unsupported_legacy_review_mutation:${itemKind}:${itemId}`);
+  }
+}
+
 /**
  * Compatibility-only translation for the pre-command review screen.  This is
  * deliberately a pure operation: it describes intents but never persists a
@@ -14,6 +20,18 @@ export function commandsFromLegacyReviewSession(
 ): ReviewCommand[] {
   const commands: ReviewCommand[] = [];
   const revision = Number(before.governanceRevision ?? 0);
+  const canonicalJson = (value: unknown): string => {
+    if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+    if (value && typeof value === "object") {
+      return `{${Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right)).map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(",")}}`;
+    }
+    return JSON.stringify(value) ?? "undefined";
+  };
+  const unchangedOutsideCommand = (current: Record<string, unknown>, next: Record<string, unknown>, allowed: readonly string[]) => {
+    const omit = new Set(["status", ...allowed]);
+    const remaining = (item: Record<string, unknown>) => Object.fromEntries(Object.entries(item).filter(([key]) => !omit.has(key)));
+    return canonicalJson(remaining(current)) === canonicalJson(remaining(next));
+  };
   const add = (
     itemKind: "context_entry" | "faq",
     previous: AiBuilderSession["contextEntries"][number] | AiBuilderSession["faqEntries"][number],
@@ -34,9 +52,20 @@ export function commandsFromLegacyReviewSession(
   };
   const translate = (itemKind: "context_entry" | "faq", prior: readonly any[], submitted: readonly any[]) => {
     const previous = new Map(prior.map((item) => [item.id, item]));
+    const submittedIds = new Set(submitted.map((item) => item.id));
+    for (const current of prior) {
+      if (!submittedIds.has(current.id)) throw new UnsupportedLegacyReviewMutationError(itemKind, current.id);
+    }
     for (const next of submitted) {
       const current = previous.get(next.id);
-      if (!current || (current.status === next.status && JSON.stringify(current) === JSON.stringify(next))) continue;
+      if (!current) throw new UnsupportedLegacyReviewMutationError(itemKind, next.id);
+      const contentChanged = itemKind === "context_entry"
+        ? current.category !== next.category || current.title !== next.title || current.content !== next.content
+        : current.question !== next.question || current.answer !== next.answer;
+      if (current.status === next.status && !contentChanged) {
+        if (!unchangedOutsideCommand(current, next, [])) throw new UnsupportedLegacyReviewMutationError(itemKind, next.id);
+        continue;
+      }
       const transition = `${current.status}:${next.status}`;
       const kind: ReviewCommandKind | undefined = transition === "proposed:approved" ? "approve"
         : transition === "proposed:corrected" ? "correct"
@@ -44,9 +73,11 @@ export function commandsFromLegacyReviewSession(
         : transition === "approved:archived" || transition === "corrected:archived" ? "archive"
         : transition === "approved:proposed" ? "unapprove"
         : transition === "archived:approved" ? "restore" : undefined;
-      // Unsupported legacy edits are intentionally not turned into implicit
-      // mutations. Validation/execution remains the sole governance boundary.
-      if (kind) add(itemKind, current, next, kind);
+      const correctableFields = itemKind === "context_entry" ? ["category", "title", "content"] : ["question", "answer"];
+      if (!kind || (kind !== "correct" && contentChanged) || !unchangedOutsideCommand(current, next, kind === "correct" ? correctableFields : [])) {
+        throw new UnsupportedLegacyReviewMutationError(itemKind, next.id);
+      }
+      add(itemKind, current, next, kind);
     }
   };
   translate("context_entry", before.contextEntries, after.contextEntries);

@@ -21,6 +21,9 @@ import { normalizeContextProvenance, normalizeFaqProvenance } from "@/app/lib/ai
 
 type DatabaseRow = Record<string, unknown>;
 
+export const AI_BUILDER_PROJECT_LIMIT = 3;
+export const AI_BUILDER_PROJECT_LIMIT_ERROR = "AI_BUILDER_PROJECT_LIMIT_REACHED";
+
 export type PersistAiBuilderProjectInput = {
   session: AiBuilderSession;
   businessName: string;
@@ -236,6 +239,14 @@ export function buildLegacyProjectPersistenceQueries(
   session = { ...session, contextEntries: normalizedContextEntries, faqEntries: normalizedFaqEntries };
   const clerkUserId = identity.userId;
   const queries: NeonQueryInTransaction[] = [];
+  // Serialize creation attempts per owner inside the same transaction as the
+  // insert. Archived rows deliberately count toward this lifetime limit.
+  queries.push(sql`SELECT pg_advisory_xact_lock(hashtextextended(${clerkUserId}, 741928))`);
+  queries.push(sql`SELECT CASE WHEN EXISTS (
+    SELECT 1 FROM ai_builder_projects WHERE id = ${session.id} AND clerk_user_id = ${clerkUserId}
+  ) OR (
+    SELECT COUNT(*) FROM ai_builder_projects WHERE clerk_user_id = ${clerkUserId}
+  ) < ${AI_BUILDER_PROJECT_LIMIT} THEN 1 ELSE CAST(${AI_BUILDER_PROJECT_LIMIT_ERROR} || ':' || pg_backend_pid() AS INTEGER) END AS project_capacity_verified`);
   queries.push(sql`
     INSERT INTO ai_builder_projects (
       id, status, business_name, industry, website, assistant_configuration,
@@ -326,6 +337,14 @@ export async function persistAiBuilderProject(
     sql: getSql(),
     buildCanonicalProvenanceShadowQueries,
   });
+}
+
+/** Fast preflight only; the transaction guard remains the final authority. */
+export async function hasAiBuilderProjectCapacity(clerkUserId: string): Promise<boolean> {
+  await ensureAiBuilderSchema();
+  const sql = getSql();
+  const rows = (await sql`SELECT COUNT(*)::integer AS total FROM ai_builder_projects WHERE clerk_user_id = ${clerkUserId}`) as DatabaseRow[];
+  return Number(rows[0]?.total ?? 0) < AI_BUILDER_PROJECT_LIMIT;
 }
 
 

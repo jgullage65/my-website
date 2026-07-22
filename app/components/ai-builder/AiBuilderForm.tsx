@@ -27,6 +27,8 @@ type WebsiteImportPayload = {
     businessName?: string;
     industry?: string;
     website?: string;
+    requestedUrl?: string;
+    resolvedUrl?: string;
     productsServices?: string;
     idealCustomers?: string;
     additionalKnowledge?: string;
@@ -143,6 +145,8 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         businessName: imported.businessName?.trim() || "",
         industry: imported.industry?.trim() || "",
         website: imported.website?.trim() || website,
+        requestedUrl: imported.requestedUrl?.trim() || website,
+        resolvedUrl: imported.resolvedUrl?.trim() || imported.website?.trim() || website,
         productsServices: imported.productsServices?.trim() || "",
         idealCustomers: imported.idealCustomers?.trim() || "",
         additionalKnowledge: imported.additionalKnowledge?.trim() || "",

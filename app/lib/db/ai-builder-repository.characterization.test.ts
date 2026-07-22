@@ -48,7 +48,13 @@ test("website restoration preserves saved entries and creates deterministically 
     { id: "archived-service", status: "archived", source: { intakeBlockId: "intake-1", excerpt: "Old", sourceType: "manual_intake", sourceUrl: null } },
     ...websiteFacts.map((fact) => ({ id: websiteFactIdentity(fact), status: "proposed", source: { intakeBlockId: "website_knowledge", excerpt: fact.evidence[0]!.excerpt, sourceType: "website", sourceUrl: fact.evidence[0]!.url } })),
   ]);
-  assert.equal(restored.contextCounts.total, 8);
+  assert.deepEqual(restored.contextCounts, {
+    total: 12,
+    approved: 3,
+    proposed: 7,
+    archived: 2,
+    byCategory: { policy: 2, service: 3, business_profile: 1, pricing: 1, faq: 1 },
+  });
 });
 
 test("website reconciliation never overwrites reviewed, archived, or removed records", () => {

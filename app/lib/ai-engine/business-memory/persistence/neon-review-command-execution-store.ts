@@ -2,6 +2,7 @@ import "server-only";
 
 import type { PoolClient } from "@neondatabase/serverless";
 import type { ReviewCommandExecutionLedgerEntry, ReviewCommandExecutionStore, ReviewCommandExecutionTransaction } from "../review-command-executor";
+import { reviewProjectStatus } from "../review-read-model";
 
 /** Transaction-bound Neon adapter for the canonical review command executor. */
 export class NeonReviewCommandExecutionStore implements ReviewCommandExecutionStore {
@@ -35,10 +36,9 @@ export class NeonReviewCommandExecutionStore implements ReviewCommandExecutionSt
       },
       appendReviewHistory: async (entry) => { await this.client.query("INSERT INTO ai_builder_review_command_history (id, command_id, project_id, item_id, item_kind, command_kind, actor, previous_state, new_state, project_revision, correction, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9,$10,$11::jsonb,$12)", [entry.id, entry.commandId, entry.projectId, entry.itemId, entry.itemKind, entry.commandKind, JSON.stringify(entry.actor), entry.previousState, entry.newState, entry.projectRevision, JSON.stringify(entry.correctedPayload), entry.createdAt]); },
       updateReviewReadModels: async () => {
-        const counts = (await this.client.query("SELECT COUNT(*) FILTER (WHERE status IN ('approved','corrected')) AS approved, COUNT(*) FILTER (WHERE status = 'proposed') AS proposed, COUNT(*) FILTER (WHERE status = 'archived') AS archived, COUNT(*) AS total FROM ai_builder_context_entries WHERE project_id = $1", [this.projectId])).rows[0];
-        const archivedFaq = (await this.client.query("SELECT COUNT(*) AS total FROM ai_builder_faq_entries WHERE project_id = $1 AND status = 'archived'", [this.projectId])).rows[0];
+        const counts = (await this.client.query("SELECT COUNT(*) FILTER (WHERE status IN ('approved','corrected')) AS approved, COUNT(*) FILTER (WHERE status = 'proposed') AS proposed, COUNT(*) FILTER (WHERE status = 'archived') AS archived, COUNT(*) FILTER (WHERE item_kind = 'context_entry' AND status IN ('approved','corrected')) AS approved_business_knowledge, COUNT(*) AS total FROM (SELECT status, 'context_entry' AS item_kind FROM ai_builder_context_entries WHERE project_id = $1 UNION ALL SELECT status, 'faq' AS item_kind FROM ai_builder_faq_entries WHERE project_id = $1) review_items", [this.projectId])).rows[0];
         const categories = (await this.client.query("SELECT category, COUNT(*) AS total FROM ai_builder_context_entries WHERE project_id = $1 GROUP BY category", [this.projectId])).rows;
-        await this.client.query("UPDATE ai_builder_projects SET context_counts = $2::jsonb, status = CASE WHEN $3::int > 0 THEN 'ready' ELSE 'review_required' END WHERE id = $1", [this.projectId, JSON.stringify({ total: Number(counts.total), approved: Number(counts.approved), proposed: Number(counts.proposed), archived: Number(counts.archived) + Number(archivedFaq.total), byCategory: Object.fromEntries(categories.map((row) => [row.category, Number(row.total)])) }), Number(counts.approved)]);
+        await this.client.query("UPDATE ai_builder_projects SET context_counts = $2::jsonb, status = $3 WHERE id = $1", [this.projectId, JSON.stringify({ total: Number(counts.total), approved: Number(counts.approved), proposed: Number(counts.proposed), archived: Number(counts.archived), byCategory: Object.fromEntries(categories.map((row) => [row.category, Number(row.total)])) }), reviewProjectStatus(Number(counts.approved_business_knowledge))]);
       },
       prepareTrustedKnowledge: async () => undefined,
       recordCommittedCommand: async (entry) => { await this.client.query("INSERT INTO ai_builder_review_command_ledger (command_id, project_id, item_id, resulting_revision, resulting_state, executed_at, result) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)", [entry.commandId, entry.projectId, entry.itemId, entry.resultingRevision, entry.resultingState, entry.executedAt, JSON.stringify(entry.result)]); },

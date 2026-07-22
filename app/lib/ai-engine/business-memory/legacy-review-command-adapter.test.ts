@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { commandsFromLegacyReviewSession } from "./legacy-review-command-adapter";
+import { commandsFromLegacyReviewSession, UnsupportedLegacyReviewMutationError } from "./legacy-review-command-adapter";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 
 const session = (status: "proposed" | "approved" | "corrected" | "archived", revision = 4): AiBuilderSession => ({
@@ -9,6 +9,18 @@ const session = (status: "proposed" | "approved" | "corrected" | "archived", rev
   contextEntries: [{ id: "context-1", sessionId: "project-1", category: "service", title: "Service", content: "Original", confidence: "high", confidenceScore: .9, status, source: { sourceType: "manual_intake", intakeBlockId: "intake-1", excerpt: "Original" }, metadata: { generated: true, userEdited: false, conflictingEntryIds: [], tags: [], provenanceClassification: "ai_generated" }, createdAt: "2026-07-22T00:00:00.000Z", updatedAt: "2026-07-22T00:00:00.000Z" }],
 });
 const actor = { clerkUserId: "user-1", displayName: null, email: null };
+
+const sessionWithFaq = (): AiBuilderSession => {
+  const value = session("proposed");
+  value.contextEntries = [];
+  value.faqEntries = [{
+    id: "faq-1", sessionId: value.id, question: "What do you offer?", answer: "Design.",
+    confidence: "high", confidenceScore: .9, sourceEntryIds: ["context-1"], status: "proposed",
+    metadata: { generated: true, userEdited: false, conflictingEntryIds: [], tags: [] },
+    createdAt: "2026-07-22T00:00:00.000Z", updatedAt: "2026-07-22T00:00:00.000Z",
+  }];
+  return value;
+};
 
 test("legacy compatibility adapter only constructs deterministic review commands", () => {
   const before = session("proposed");
@@ -40,7 +52,7 @@ test("legacy compatibility adapter emits every canonical state-machine transitio
   }
 });
 
-test("legacy compatibility adapter ignores non-canonical correction transitions", () => {
+test("legacy compatibility adapter rejects unsupported mutations instead of silently succeeding", () => {
   for (const [previousState, nextState, edited] of [
     ["approved", "corrected", false],
     ["archived", "corrected", false],
@@ -49,6 +61,54 @@ test("legacy compatibility adapter ignores non-canonical correction transitions"
     const before = session(previousState);
     const after = session(nextState);
     if (edited) after.contextEntries[0]!.content = "Edited without a canonical transition";
-    assert.deepEqual(commandsFromLegacyReviewSession(before, after, actor), [], `${previousState} → ${nextState}`);
+    assert.throws(() => commandsFromLegacyReviewSession(before, after, actor), UnsupportedLegacyReviewMutationError, `${previousState} → ${nextState}`);
+  }
+});
+
+test("legacy compatibility adapter rejects inserted and omitted review items", () => {
+  const before = session("proposed");
+  const inserted = session("proposed");
+  inserted.contextEntries.push({ ...inserted.contextEntries[0]!, id: "context-2" });
+  assert.throws(() => commandsFromLegacyReviewSession(before, inserted, actor), UnsupportedLegacyReviewMutationError);
+  const omitted = session("proposed");
+  omitted.contextEntries = [];
+  assert.throws(() => commandsFromLegacyReviewSession(before, omitted, actor), UnsupportedLegacyReviewMutationError);
+});
+
+test("legacy compatibility adapter rejects every non-command Context Entry field mutation", () => {
+  const mutations: Array<[string, (entry: AiBuilderSession["contextEntries"][number]) => void]> = [
+    ["sessionId", (entry) => { entry.sessionId = "different-project"; }],
+    ["confidence", (entry) => { entry.confidence = "low"; }],
+    ["confidenceScore", (entry) => { entry.confidenceScore = .1; }],
+    ["source", (entry) => { entry.source = { ...entry.source, excerpt: "Changed" }; }],
+    ["metadata", (entry) => { entry.metadata = { ...entry.metadata, tags: ["changed"] }; }],
+    ["createdAt", (entry) => { entry.createdAt = "2026-07-23T00:00:00.000Z"; }],
+    ["updatedAt", (entry) => { entry.updatedAt = "2026-07-23T00:00:00.000Z"; }],
+    ["unknown persisted field", (entry) => { Object.assign(entry, { persistedExtension: true }); }],
+  ];
+  for (const [field, mutate] of mutations) {
+    const before = session("proposed");
+    const after = structuredClone(before);
+    mutate(after.contextEntries[0]!);
+    assert.throws(() => commandsFromLegacyReviewSession(before, after, actor), UnsupportedLegacyReviewMutationError, field);
+  }
+});
+
+test("legacy compatibility adapter rejects every non-command FAQ field mutation", () => {
+  const mutations: Array<[string, (entry: AiBuilderSession["faqEntries"][number]) => void]> = [
+    ["sessionId", (entry) => { entry.sessionId = "different-project"; }],
+    ["confidence", (entry) => { entry.confidence = "low"; }],
+    ["confidenceScore", (entry) => { entry.confidenceScore = .1; }],
+    ["sourceEntryIds", (entry) => { entry.sourceEntryIds = ["different-source"]; }],
+    ["metadata", (entry) => { entry.metadata = { ...entry.metadata, tags: ["changed"] }; }],
+    ["createdAt", (entry) => { entry.createdAt = "2026-07-23T00:00:00.000Z"; }],
+    ["updatedAt", (entry) => { entry.updatedAt = "2026-07-23T00:00:00.000Z"; }],
+    ["unknown persisted field", (entry) => { Object.assign(entry, { persistedExtension: true }); }],
+  ];
+  for (const [field, mutate] of mutations) {
+    const before = sessionWithFaq();
+    const after = structuredClone(before);
+    mutate(after.faqEntries[0]!);
+    assert.throws(() => commandsFromLegacyReviewSession(before, after, actor), UnsupportedLegacyReviewMutationError, field);
   }
 });
