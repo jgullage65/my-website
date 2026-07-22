@@ -10,7 +10,8 @@
     "test:ai-builder-contracts": "npm run test:ai-builder-contracts:unit && npm run test:ai-builder-business-memory-mapper",
     "test:ai-builder-contracts:unit": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/ai-engine/business-memory/contracts.test.ts app/lib/ai-engine/provenance.test.ts app/lib/ai-engine/business-memory/review-command-validator.test.ts app/lib/ai-engine/business-memory/review-command-request-parser.test.ts app/lib/ai-engine/business-memory/review-command-executor.test.ts",
     "test:ai-builder-business-memory-mapper": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/ai-engine/business-memory/buildBusinessMemory.test.ts app/lib/ai-engine/knowledge/trustedKnowledgeProjection.test.ts app/lib/ai-engine/knowledge/trustedKnowledgeFreshness.test.ts",
-    "test:ai-builder-db": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/db/*.test.ts",
+    "test:ai-builder-db": "node --experimental-transform-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/db/*.test.ts",
+    "test:ai-builder-review-db": "node ./test/run-ai-builder-review-db.mjs",
     "reconcile:canonical-provenance": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs scripts/reconcile-canonical-provenance.ts",
     "reconcile:trusted-knowledge": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs scripts/reconcile-trusted-knowledge-projection.ts",
     "test:trusted-knowledge-db": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/db/trusted-knowledge-projection.test.ts"
