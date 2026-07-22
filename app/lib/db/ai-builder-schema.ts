@@ -17,6 +17,7 @@ async function createAiBuilderSchema() {
       assistant_configuration JSONB NOT NULL DEFAULT '{}'::jsonb,
       context_counts JSONB NOT NULL DEFAULT '{}'::jsonb,
       governance_revision INTEGER NOT NULL DEFAULT 0,
+      trusted_knowledge_revision INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL,
       expires_at TIMESTAMPTZ,
@@ -35,6 +36,7 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_status TEXT`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_fields JSONB NOT NULL DEFAULT '{}'::jsonb`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS governance_revision INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS trusted_knowledge_revision INTEGER NOT NULL DEFAULT 0`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_canonical_sources (
@@ -142,6 +144,27 @@ async function createAiBuilderSchema() {
       UNIQUE (project_id, legacy_kind, legacy_entry_id, revision)
     )
   `;
+  // The runtime projection is deliberately separate from the append-only
+  // provenance shadow above. One row is the current, assistant-ready view of
+  // one canonical review item; history remains on the reviewed source row.
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_trusted_knowledge_projection (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      source_item_id TEXT NOT NULL,
+      source_item_kind TEXT NOT NULL CHECK (source_item_kind IN ('context_entry', 'faq')),
+      review_state TEXT NOT NULL CHECK (review_state IN ('approved', 'corrected', 'proposed', 'archived')),
+      active BOOLEAN NOT NULL,
+      content JSONB NOT NULL,
+      provenance JSONB NOT NULL DEFAULT '{}'::jsonb,
+      source_entry_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+      governance_revision INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL,
+      UNIQUE (project_id, source_item_kind, source_item_id)
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_trusted_knowledge_projection_active_idx ON ai_builder_trusted_knowledge_projection(project_id, active)`;
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_intake_blocks (
       id TEXT PRIMARY KEY,

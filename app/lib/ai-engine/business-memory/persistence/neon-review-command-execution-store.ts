@@ -4,6 +4,7 @@ import type { PoolClient } from "@neondatabase/serverless";
 import type { ReviewCommandExecutionLedgerEntry, ReviewCommandExecutionStore, ReviewCommandExecutionTransaction } from "../review-command-executor";
 import { reviewProjectStatus } from "../review-read-model";
 import { classifyContextStructuralProvenance, classifyFaqStructuralProvenance, correctedProvenanceMetadata } from "@/app/lib/ai-engine/provenance";
+import { rebuildTrustedKnowledgeProjection } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
 
 /** Transaction-bound Neon adapter for the canonical review command executor. */
 export class NeonReviewCommandExecutionStore implements ReviewCommandExecutionStore {
@@ -61,7 +62,7 @@ export class NeonReviewCommandExecutionStore implements ReviewCommandExecutionSt
         const categories = (await this.client.query("SELECT category, COUNT(*) AS total FROM ai_builder_context_entries WHERE project_id = $1 GROUP BY category", [this.projectId])).rows;
         await this.client.query("UPDATE ai_builder_projects SET context_counts = $2::jsonb, status = $3 WHERE id = $1", [this.projectId, JSON.stringify({ total: Number(counts.total), approved: Number(counts.approved), proposed: Number(counts.proposed), archived: Number(counts.archived), byCategory: Object.fromEntries(categories.map((row) => [row.category, Number(row.total)])) }), reviewProjectStatus(Number(counts.approved_business_knowledge))]);
       },
-      prepareTrustedKnowledge: async () => undefined,
+      prepareTrustedKnowledge: async ({ projectRevision }) => rebuildTrustedKnowledgeProjection(this.client, this.projectId, projectRevision),
       recordCommittedCommand: async (entry) => { await this.client.query("INSERT INTO ai_builder_review_command_ledger (command_id, project_id, item_id, resulting_revision, resulting_state, executed_at, result) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)", [entry.commandId, entry.projectId, entry.itemId, entry.resultingRevision, entry.resultingState, entry.executedAt, JSON.stringify(entry.result)]); },
     });
   }

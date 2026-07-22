@@ -8,6 +8,17 @@ import type {
     BusinessContextCategory,
     ContextConfidence,
   } from "@/app/lib/ai-engine/contracts";
+import type { AiBuilderProvenanceClassification } from "@/app/lib/ai-engine/provenance";
+
+  export type KnowledgeProvenance = {
+    classification: AiBuilderProvenanceClassification | null;
+    predecessorClassification: AiBuilderProvenanceClassification | null;
+    originalClassification: AiBuilderProvenanceClassification | null;
+    correctedByClerkUserId: string | null;
+    correctedByDisplayName: string | null;
+    correctedByEmail: string | null;
+    correctedAt: string | null;
+  };
   
   export type KnowledgeFact = {
     id: string;
@@ -21,6 +32,9 @@ import type {
     sourceType: string;
     sourceUrl: string | null;
     tags: string[];
+    provenance: KnowledgeProvenance;
+    reviewState: "approved" | "corrected";
+    governanceRevision: number;
   };
   
   export type KnowledgeFaq = {
@@ -30,6 +44,9 @@ import type {
     confidence: ContextConfidence;
     confidenceScore: number;
     sourceEntryIds: string[];
+    provenance: KnowledgeProvenance;
+    reviewState: "approved" | "corrected";
+    governanceRevision: number;
   };
   
   export type KnowledgePack = {
