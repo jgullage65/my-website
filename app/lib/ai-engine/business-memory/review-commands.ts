@@ -1,5 +1,6 @@
 import type { BusinessContextCategory } from "@/app/lib/ai-engine/contracts";
 import type { ReviewState } from "./contracts";
+import type { ValidReviewCommand } from "./review-command-validator";
 
 /**
  * Server-owned contracts for the explicit review-command migration.
@@ -193,11 +194,11 @@ export type ReviewCommandRequest =
   | RejectReviewCommandRequest;
 
 /**
- * Boundary for the later execution phase. No implementation is introduced in
- * this slice, so legacy full-session PUT handling remains authoritative.
+ * Execution accepts only a successful authoritative validation result. The
+ * implementation remains separate from the legacy full-session PUT route.
  */
 export interface ReviewCommandExecutor {
-  execute(command: ReviewCommand): Promise<ReviewCommandExecutionResult>;
+  execute(validation: ValidReviewCommand): Promise<ReviewCommandExecutionResult>;
 }
 
 export type ReviewCommandExecutionResult = {
