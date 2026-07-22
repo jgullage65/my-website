@@ -8,5 +8,10 @@ export function detectAssertionConflicts(projectOrMemoryId: string, assertions: 
  const groups = new Map<string, ConflictAssertion[]>(); for (const a of assertions.filter(matters)) { const topic = assertionTopicKey(a); if (topic) groups.set(`${a.resolvedEntityId}:${topic}`, [...(groups.get(`${a.resolvedEntityId}:${topic}`) ?? []), a]); }
  const result: AssertionConflict[] = [];
  for (const [groupKey, group] of Array.from(groups.entries())) { const values = Array.from(new Set(group.map(a => normalized(a.value)))).sort(); if (values.length < 2) continue; const [resolvedEntityId, topicKey] = [group[0].resolvedEntityId, assertionTopicKey(group[0])!]; const assertionIds = group.map(a => a.id).sort(); const materialInputHash = stableHash({ assertionIds, values }); const id = `business_conflict:${stableHash({ projectOrMemoryId, resolvedEntityId, topicKey, assertionIds })}`; const prior = existing.find(x => x.id === id); result.push({ id, resolvedEntityId, topicKey, assertionIds, normalizedValues: values, detectionRule: "exact_structured_topic_incompatible_normalized_values", suggestedQuestion: `Which value is correct for ${group[0].title}?`, resolved: prior?.resolved === true && prior.materialInputHash === materialInputHash, active: true, materialInputHash }); }
+ // A conflict no longer supported by canonical assertions is retained as an
+ // inactive durable row.  This makes deactivation explicit and deterministic
+ // rather than silently losing a prior resolution record.
+ const current = new Set(result.map(x => x.id));
+ for (const prior of existing) if (prior.active !== false && !current.has(prior.id)) result.push({ ...prior, active: false });
  return result.sort((a,b) => a.id.localeCompare(b.id));
 }
