@@ -158,54 +158,66 @@ export default function AiBuilderClient({
   // revision locally or derives a transition.
   const authoritativeRevisionRef = useRef(0);
   const pendingReviewItemsRef = useRef(new Set<string>());
+  // This chain serializes network requests while keeping the UI interactive.
+  // Each item retains its own pending state until its queued command settles.
+  const reviewCommandQueueRef = useRef<Promise<void>>(Promise.resolve());
 
-  const submitReviewCommand = useCallback(async (command: ReviewCommandRequest) => {
+  const submitReviewCommand = useCallback((command: ReviewCommandRequest) => {
     const pendingKey = `${command.itemKind}:${command.itemId}`;
-    // The server serializes all commands, but prevent a double click from
-    // creating competing client commands for the same logical review item.
+    // Reject duplicate clicks while allowing commands for other items to queue.
     if (pendingReviewItemsRef.current.has(pendingKey)) {
-      throw new Error("A review command is already pending for this item.");
+      return Promise.reject(
+        new Error("A review command is already pending for this item."),
+      );
     }
     pendingReviewItemsRef.current.add(pendingKey);
     setPendingReviewItems(new Set(pendingReviewItemsRef.current));
     setSaveStatus("saving");
     setSaveError(null);
-    try {
-      const authoritativeCommand = {
-        ...command,
-        clientRevision: authoritativeRevisionRef.current || command.clientRevision,
-      };
-      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(command.projectId)}/review-commands`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(authoritativeCommand) });
-      const payload = await response.json() as { ok?: boolean; item?: Record<string, unknown>; governanceRevision?: number; contextCounts?: AiBuilderSession["contextCounts"]; status?: AiBuilderSession["status"]; error?: { message?: string } };
-      if (!response.ok || !payload.ok || !payload.item) throw new Error(payload.error?.message || "The review command could not be saved.");
-      authoritativeRevisionRef.current = payload.governanceRevision ?? authoritativeCommand.clientRevision;
-      setSession((current) => {
-        if (!current) return current;
-        const item = payload.item!;
-        const updated = { ...current, governanceRevision: payload.governanceRevision ?? current.governanceRevision, contextCounts: payload.contextCounts ?? current.contextCounts, status: payload.status ?? current.status };
-        if (command.itemKind === "context_entry") {
-          const canonicalEntry = { ...current.contextEntries.find((entry) => entry.id === command.itemId), id: command.itemId, category: String(item.category) as AiBuilderSession["contextEntries"][number]["category"], title: String(item.title), content: String(item.content), status: String(item.status) as AiBuilderSession["contextEntries"][number]["status"], updatedAt: new Date(String(item.updated_at)).toISOString() } as AiBuilderSession["contextEntries"][number];
-          const position = current.contextEntries.findIndex((entry) => entry.id === command.itemId);
-          updated.contextEntries = [...current.contextEntries.filter((entry) => entry.id !== command.itemId)];
-          updated.contextEntries.splice(position < 0 ? updated.contextEntries.length : position, 0, canonicalEntry);
-        } else {
-          const canonicalEntry = { ...current.faqEntries.find((entry) => entry.id === command.itemId), id: command.itemId, question: String(item.question), answer: String(item.answer), status: String(item.status) as AiBuilderSession["faqEntries"][number]["status"], updatedAt: new Date(String(item.updated_at)).toISOString() } as AiBuilderSession["faqEntries"][number];
-          const position = current.faqEntries.findIndex((entry) => entry.id === command.itemId);
-          updated.faqEntries = [...current.faqEntries.filter((entry) => entry.id !== command.itemId)];
-          updated.faqEntries.splice(position < 0 ? updated.faqEntries.length : position, 0, canonicalEntry);
-        }
-        return updated;
-      });
-      setSaveStatus("saved");
-      return;
-    } catch (commandError) {
-      setSaveStatus("error");
-      setSaveError(commandError instanceof Error ? commandError.message : "The review command could not be saved.");
-      throw commandError;
-    } finally {
+    const queuedCommand = reviewCommandQueueRef.current.then(async () => {
+      try {
+        setSaveStatus("saving");
+        setSaveError(null);
+        // Build the request at execution time, after every preceding command
+        // has applied its canonical governance revision.
+        const authoritativeCommand = {
+          ...command,
+          clientRevision: authoritativeRevisionRef.current,
+        };
+        const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(command.projectId)}/review-commands`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(authoritativeCommand) });
+        const payload = await response.json() as { ok?: boolean; item?: Record<string, unknown>; governanceRevision?: number; contextCounts?: AiBuilderSession["contextCounts"]; status?: AiBuilderSession["status"]; error?: { message?: string } };
+        if (!response.ok || !payload.ok || !payload.item) throw new Error(payload.error?.message || "The review command could not be saved.");
+        authoritativeRevisionRef.current = payload.governanceRevision ?? authoritativeCommand.clientRevision;
+        setSession((current) => {
+          if (!current) return current;
+          const item = payload.item!;
+          const updated = { ...current, governanceRevision: payload.governanceRevision ?? current.governanceRevision, contextCounts: payload.contextCounts ?? current.contextCounts, status: payload.status ?? current.status };
+          if (command.itemKind === "context_entry") {
+            const canonicalEntry = { ...current.contextEntries.find((entry) => entry.id === command.itemId), id: command.itemId, category: String(item.category) as AiBuilderSession["contextEntries"][number]["category"], title: String(item.title), content: String(item.content), status: String(item.status) as AiBuilderSession["contextEntries"][number]["status"], updatedAt: new Date(String(item.updated_at)).toISOString() } as AiBuilderSession["contextEntries"][number];
+            const position = current.contextEntries.findIndex((entry) => entry.id === command.itemId);
+            updated.contextEntries = [...current.contextEntries.filter((entry) => entry.id !== command.itemId)];
+            updated.contextEntries.splice(position < 0 ? updated.contextEntries.length : position, 0, canonicalEntry);
+          } else {
+            const canonicalEntry = { ...current.faqEntries.find((entry) => entry.id === command.itemId), id: command.itemId, question: String(item.question), answer: String(item.answer), status: String(item.status) as AiBuilderSession["faqEntries"][number]["status"], updatedAt: new Date(String(item.updated_at)).toISOString() } as AiBuilderSession["faqEntries"][number];
+            const position = current.faqEntries.findIndex((entry) => entry.id === command.itemId);
+            updated.faqEntries = [...current.faqEntries.filter((entry) => entry.id !== command.itemId)];
+            updated.faqEntries.splice(position < 0 ? updated.faqEntries.length : position, 0, canonicalEntry);
+          }
+          return updated;
+        });
+        setSaveStatus("saved");
+      } catch (commandError) {
+        setSaveStatus("error");
+        setSaveError(commandError instanceof Error ? commandError.message : "The review command could not be saved.");
+        throw commandError;
+      }
+    });
+    // Keep the queue live after failures so later actions still execute.
+    reviewCommandQueueRef.current = queuedCommand.catch(() => undefined);
+    return queuedCommand.finally(() => {
       pendingReviewItemsRef.current.delete(pendingKey);
       setPendingReviewItems(new Set(pendingReviewItemsRef.current));
-    }
+    });
   }, []);
 
   useEffect(() => {

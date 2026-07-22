@@ -71,7 +71,13 @@ export default function AiBuilderReview({
     >();
 
     contextEntries.forEach((entry) => {
-      if (filter === "all" ? entry.status !== "archived" : entry.status === filter) {
+      if (
+        filter === "all"
+          ? entry.status !== "archived"
+          : filter === "approved"
+            ? entry.status === "approved" || entry.status === "corrected"
+            : entry.status === filter
+      ) {
         const current = map.get(entry.category) ?? [];
         map.set(entry.category, current.concat({ entry }));
       }
@@ -83,7 +89,13 @@ export default function AiBuilderReview({
   const visibleFaqEntries = useMemo(
     () =>
       faqEntries.flatMap((faq) =>
-        (filter === "all" ? faq.status !== "archived" : faq.status === filter) ? [{ faq }] : [],
+        (filter === "all"
+          ? faq.status !== "archived"
+          : filter === "approved"
+            ? faq.status === "approved" || faq.status === "corrected"
+            : faq.status === filter)
+          ? [{ faq }]
+          : [],
       ),
     [faqEntries, filter],
   );
