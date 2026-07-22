@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
 import type {
   PersistedWebsiteKnowledge,
@@ -143,63 +144,45 @@ export default function AiBuilderClient({
   const [chatThread, setChatThread] =
     useState<ChatThread | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [reviewChangesPending, setReviewChangesPending] =
-    useState(false);
-  const [saveStatus, setSaveStatus] =
-    useState<SaveStatus>("idle");
-  const [saveError, setSaveError] = useState<string | null>(
-    null,
-  );
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [buildPercent, setBuildPercent] = useState(0);
-  // A request may commit after its browser fetch has been cancelled. Keep the
-  // save coordinator independent from effect cleanup and serialize requests.
-  const latestSessionRef = useRef<AiBuilderSession | null>(null);
-  const saveInFlightRef = useRef(false);
-  const saveTimerRef = useRef<number | null>(null);
+  // This is only a cache of the last server response; it never advances a
+  // revision locally or derives a transition.
+  const authoritativeRevisionRef = useRef(0);
 
-  const runGovernanceSave = useCallback(async () => {
-    if (saveInFlightRef.current) return;
-    const savedSession = latestSessionRef.current;
-    if (!savedSession) return;
-    saveInFlightRef.current = true;
+  const submitReviewCommand = useCallback(async (command: ReviewCommandRequest) => {
     setSaveStatus("saving");
     setSaveError(null);
-
     try {
-      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(savedSession.id)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ session: savedSession }),
+      const authoritativeCommand = {
+        ...command,
+        clientRevision: authoritativeRevisionRef.current || command.clientRevision,
+      };
+      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(command.projectId)}/review-commands`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(authoritativeCommand) });
+      const payload = await response.json() as { ok?: boolean; item?: Record<string, unknown>; governanceRevision?: number; contextCounts?: AiBuilderSession["contextCounts"]; status?: AiBuilderSession["status"]; error?: { message?: string } };
+      if (!response.ok || !payload.ok || !payload.item) throw new Error(payload.error?.message || "The review command could not be saved.");
+      authoritativeRevisionRef.current = payload.governanceRevision ?? authoritativeCommand.clientRevision;
+      setSession((current) => {
+        if (!current) return current;
+        const item = payload.item!;
+        const updated = { ...current, governanceRevision: payload.governanceRevision ?? current.governanceRevision, contextCounts: payload.contextCounts ?? current.contextCounts, status: payload.status ?? current.status };
+        if (command.itemKind === "context_entry") updated.contextEntries = current.contextEntries.map((entry) => entry.id === command.itemId ? { ...entry, category: String(item.category) as typeof entry.category, title: String(item.title), content: String(item.content), status: String(item.status) as typeof entry.status, updatedAt: new Date(String(item.updated_at)).toISOString() } : entry);
+        else updated.faqEntries = current.faqEntries.map((entry) => entry.id === command.itemId ? { ...entry, question: String(item.question), answer: String(item.answer), status: String(item.status) as typeof entry.status, updatedAt: new Date(String(item.updated_at)).toISOString() } : entry);
+        return updated;
       });
-      const payload = (await response.json()) as { ok?: boolean; governanceRevision?: number; error?: { code?: string; message?: string } };
-      if (!response.ok || !payload.ok) throw new Error(payload.error?.message || "The AI Builder project changes could not be saved.");
-
-      // Merge only the server token. Never replace newer local edits with the
-      // snapshot that was sent by this older request.
-      const current = latestSessionRef.current;
-      if (current) {
-        const withRevision = { ...current, governanceRevision: payload.governanceRevision ?? current.governanceRevision };
-        latestSessionRef.current = withRevision;
-        setSession((visible) => visible ? { ...visible, governanceRevision: withRevision.governanceRevision } : visible);
-      }
-      if (current === savedSession) {
-        setReviewChangesPending(false);
-        setSaveStatus("saved");
-      } else {
-        // Edits arrived while this request was in flight. Save the newer full
-        // session only after retaining the revision returned by this request.
-        setSaveStatus("idle");
-        saveTimerRef.current = window.setTimeout(() => void runGovernanceSave(), 800);
-      }
-    } catch (saveRequestError) {
-      // Keep the local edits pending for the user, but do not schedule an
-      // automatic stale-payload retry loop after a conflict or other failure.
+      setSaveStatus("saved");
+      return;
+    } catch (commandError) {
       setSaveStatus("error");
-      setSaveError(saveRequestError instanceof Error ? saveRequestError.message : "The AI Builder project changes could not be saved.");
-    } finally {
-      saveInFlightRef.current = false;
+      setSaveError(commandError instanceof Error ? commandError.message : "The review command could not be saved.");
+      throw commandError;
     }
   }, []);
+
+  useEffect(() => {
+    if (session) authoritativeRevisionRef.current = session.governanceRevision ?? 0;
+  }, [session]);
 
   const navigateToStep = useCallback((nextStep: BuilderStep) => {
     setStep(nextStep);
@@ -252,7 +235,6 @@ export default function AiBuilderClient({
       setError(null);
       setSaveError(null);
       setSaveStatus("idle");
-      setReviewChangesPending(false);
       setStep("loading");
 
       try {
@@ -322,34 +304,10 @@ export default function AiBuilderClient({
     };
   }, [initialProjectId]);
 
-  useEffect(() => {
-    latestSessionRef.current = session;
-  }, [session]);
-
-  useEffect(() => {
-    if (!session || !reviewChangesPending) return;
-    saveTimerRef.current = window.setTimeout(() => void runGovernanceSave(), 800);
-
-    return () => {
-      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
-    };
-  }, [session, reviewChangesPending, runGovernanceSave]);
-
-  const handleSessionChange = (
-    nextSession: AiBuilderSession,
-  ) => {
-    latestSessionRef.current = nextSession;
-    setSession(nextSession);
-    setReviewChangesPending(true);
-    setSaveStatus("idle");
-    setSaveError(null);
-  };
-
   const buildAi = async () => {
     setError(null);
     setSaveError(null);
     setSaveStatus("idle");
-    setReviewChangesPending(false);
     setSession(null);
     setChatThread(null);
     setBuildPercent(0);
@@ -532,7 +490,7 @@ export default function AiBuilderClient({
 
           <AiBuilderReview
             session={session}
-            onSessionChange={handleSessionChange}
+            onReviewCommand={submitReviewCommand}
             onBack={() => navigateToStep("results")}
             onLaunchChat={() => navigateToStep("chat")}
           />

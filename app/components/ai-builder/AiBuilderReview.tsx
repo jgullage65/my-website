@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type {
   AiBuilderSession,
   BusinessContextCategory,
@@ -13,7 +14,7 @@ import AiBuilderAuthCta from "./AiBuilderAuthCta";
 
 type Props = {
   session: AiBuilderSession;
-  onSessionChange: (session: AiBuilderSession) => void;
+  onReviewCommand: (request: ReviewCommandRequest) => Promise<void>;
   onBack: () => void;
   onLaunchChat: () => void;
 };
@@ -43,37 +44,17 @@ const itemActionClassName =
 const approveActionClassName =
   "rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#0b1830]";
 
-function calculateCounts(
-  entries: BusinessContextEntry[],
-  faqEntries: GeneratedFaqEntry[],
-): AiBuilderSession["contextCounts"] {
-  const byCategory: AiBuilderSession["contextCounts"]["byCategory"] = {};
-
-  entries.forEach((entry) => {
-    byCategory[entry.category] = (byCategory[entry.category] ?? 0) + 1;
-  });
-
-  return {
-    total: entries.length,
-    approved: entries.filter(
-      (entry) => entry.status === "approved" || entry.status === "corrected",
-    ).length,
-    proposed: entries.filter((entry) => entry.status === "proposed").length,
-    archived:
-      entries.filter((entry) => entry.status === "archived").length +
-      faqEntries.filter((entry) => entry.status === "archived").length,
-    byCategory,
-  };
-}
-
 export default function AiBuilderReview({
   session,
-  onSessionChange,
+  onReviewCommand,
   onBack,
   onLaunchChat,
 }: Props) {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editingFaq, setEditingFaq] = useState<string | null>(null);
+  const [entryDrafts, setEntryDrafts] = useState<Record<string, { title: string; content: string }>>({});
+  const [faqDrafts, setFaqDrafts] = useState<Record<string, { question: string; answer: string }>>({});
+  const [bulkFailureMessage, setBulkFailureMessage] = useState<string | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   const contextEntries = session.contextEntries;
@@ -103,105 +84,41 @@ export default function AiBuilderReview({
     [faqEntries],
   );
 
-  const updateSession = (updates: Partial<AiBuilderSession>) => {
-    onSessionChange({
-      ...session,
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    });
-  };
+  const commandId = () => crypto.randomUUID();
 
-  const updateEntry = (
-    sourceIndex: number,
-    updates: Partial<BusinessContextEntry>,
-  ) => {
-    const nextContextEntries = contextEntries.map((entry, index) =>
-      index === sourceIndex
-        ? { ...entry, ...updates, updatedAt: new Date().toISOString() }
-        : entry,
-    );
+  const submit = (request: Omit<ReviewCommandRequest, "commandId" | "projectId" | "clientRevision">) =>
+    onReviewCommand({
+      ...request,
+      commandId: commandId(),
+      projectId: session.id,
+      clientRevision: session.governanceRevision ?? 0,
+    } as ReviewCommandRequest);
 
-    updateSession({
-      status: "review_required",
-      contextEntries: nextContextEntries,
-      faqEntries,
-      contextCounts: calculateCounts(nextContextEntries, faqEntries),
-    });
-  };
-
-  const updateFaq = (
-    sourceIndex: number,
-    updates: Partial<GeneratedFaqEntry>,
-  ) => {
-    const nextFaqEntries = faqEntries.map((faq, index) =>
-      index === sourceIndex
-        ? { ...faq, ...updates, updatedAt: new Date().toISOString() }
-        : faq,
-    );
-
-    updateSession({
-      status: "review_required",
-      contextEntries,
-      faqEntries: nextFaqEntries,
-      contextCounts: calculateCounts(contextEntries, nextFaqEntries),
-    });
-  };
-
-  const removeEntry = async (
-    kind: "knowledge" | "faq",
-    sourceIndex: number,
-  ) => {
+  const removeEntry = async (kind: "knowledge" | "faq", entry: BusinessContextEntry | GeneratedFaqEntry) => {
     const confirmed = await showConfirm({
       title: "Remove information?",
-      message:
-        "This information will be removed from the review list and will not be used by your assistant.",
+      message: "This information will be removed from the review list and will not be used by your assistant.",
       confirmLabel: "Remove",
       cancelLabel: "Cancel",
     });
     if (!confirmed) return;
-
-    if (kind === "knowledge") {
-      updateEntry(sourceIndex, { status: "archived" });
-    } else {
-      updateFaq(sourceIndex, { status: "archived" });
-    }
+    await submit({ itemId: entry.id, itemKind: kind === "knowledge" ? "context_entry" : "faq", expectedCurrentState: entry.status, kind: entry.status === "proposed" ? "reject" : "archive" });
   };
 
-  const approveAll = () => {
-    const now = new Date().toISOString();
-
-    const nextContextEntries = contextEntries.map((entry) =>
-      entry.status === "archived"
-        ? entry
-        : {
-            ...entry,
-            status:
-              entry.status === "corrected"
-                ? ("corrected" as const)
-                : ("approved" as const),
-            updatedAt: now,
-          },
-    );
-
-    const nextFaqEntries = faqEntries.map((faq) =>
-      faq.status === "archived"
-        ? faq
-        : {
-            ...faq,
-            status:
-              faq.status === "corrected"
-                ? ("corrected" as const)
-                : ("approved" as const),
-            updatedAt: now,
-          },
-    );
-
-    updateSession({
-      status: "ready",
-      contextEntries: nextContextEntries,
-      faqEntries: nextFaqEntries,
-      contextCounts: calculateCounts(nextContextEntries, nextFaqEntries),
-    });
+  const approveAll = async () => {
+    // Commands remain item-scoped. This preserves the existing bulk UX while
+    // ensuring every persisted decision has its own auditable command.
+    setBulkFailureMessage(null);
+    const decisions = [...contextEntries, ...faqEntries].filter((entry) => entry.status === "proposed");
+    const outcomes: PromiseSettledResult<void>[] = [];
+    // Keep requests ordered so each request uses the latest authoritative
+    // revision cached by the command client. A failure does not block later
+    // decisions; successful commands stay committed independently.
+    for (const entry of decisions) {
+      outcomes.push(await Promise.resolve(submit({ itemId: entry.id, itemKind: "category" in entry ? "context_entry" : "faq", expectedCurrentState: entry.status, kind: "approve" })).then(() => ({ status: "fulfilled", value: undefined } as const), (reason) => ({ status: "rejected", reason } as const)));
+    }
+    const failed = outcomes.filter((outcome) => outcome.status === "rejected").length;
+    if (failed) setBulkFailureMessage(`${failed} item${failed === 1 ? "" : "s"} could not be approved. Review and retry those items.`);
   };
 
   const canLaunchChat =
@@ -210,6 +127,7 @@ export default function AiBuilderReview({
   return (
     <div className="mx-auto max-w-5xl space-y-10">
       {confirmDialogNode}
+      {bulkFailureMessage ? <p className="mx-auto max-w-5xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200" role="alert">{bulkFailureMessage}</p> : null}
       <section className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] px-5 py-8 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8 sm:py-10">
         <AiBuilderAuthCta />
         <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
@@ -291,33 +209,15 @@ export default function AiBuilderReview({
                     {editing ? (
                       <div className="w-full max-w-2xl space-y-3">
                         <input
-                          value={entry.title}
-                          onChange={(event) =>
-                            updateEntry(sourceIndex, {
-                              title: event.target.value,
-                              status: "corrected",
-                              metadata: {
-                                ...entry.metadata,
-                                userEdited: true,
-                              },
-                            })
-                          }
+                          value={entryDrafts[entryRenderKey]?.title ?? entry.title}
+                          onChange={(event) => setEntryDrafts((drafts) => ({ ...drafts, [entryRenderKey]: { ...(drafts[entryRenderKey] ?? { title: entry.title, content: entry.content }), title: event.target.value } }))}
                           className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                         />
 
                         <textarea
                           rows={4}
-                          value={entry.content}
-                          onChange={(event) =>
-                            updateEntry(sourceIndex, {
-                              content: event.target.value,
-                              status: "corrected",
-                              metadata: {
-                                ...entry.metadata,
-                                userEdited: true,
-                              },
-                            })
-                          }
+                          value={entryDrafts[entryRenderKey]?.content ?? entry.content}
+                          onChange={(event) => setEntryDrafts((drafts) => ({ ...drafts, [entryRenderKey]: { ...(drafts[entryRenderKey] ?? { title: entry.title, content: entry.content }), content: event.target.value } }))}
                           className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                         />
                       </div>
@@ -333,14 +233,7 @@ export default function AiBuilderReview({
                     <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
                       <button
                         type="button"
-                        onClick={() =>
-                          updateEntry(sourceIndex, {
-                            status:
-                              entry.status === "approved"
-                                ? "proposed"
-                                : "approved",
-                          })
-                        }
+                        onClick={() => void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: entry.status === "archived" ? "restore" : "approve" })}
                         className={approveActionClassName}
                       >
                         {entry.status === "approved" ? "Unapprove" : "Approve"}
@@ -348,9 +241,13 @@ export default function AiBuilderReview({
 
                       <button
                         type="button"
-                        onClick={() =>
-                          setEditingEntry(editing ? null : entryRenderKey)
-                        }
+                        onClick={() => {
+                          if (editing) {
+                            const draft = entryDrafts[entryRenderKey];
+                            if (!draft || (draft.title === entry.title && draft.content === entry.content)) { setEditingEntry(null); return; }
+                            void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: "correct", correction: { itemKind: "context_entry", title: draft.title, content: draft.content, category: entry.category } }).then(() => setEditingEntry(null)).catch(() => undefined);
+                          } else setEditingEntry(entryRenderKey);
+                        }}
                         className={itemActionClassName}
                       >
                         {editing ? "Done" : "Edit"}
@@ -359,7 +256,7 @@ export default function AiBuilderReview({
                       <button
                         type="button"
                         onClick={() =>
-                          void removeEntry("knowledge", sourceIndex)
+                          void removeEntry("knowledge", entry)
                         }
                         className={itemActionClassName}
                       >
@@ -400,25 +297,15 @@ export default function AiBuilderReview({
                 {editing ? (
                   <div className="w-full max-w-2xl space-y-3">
                     <input
-                      value={faq.question}
-                      onChange={(event) =>
-                        updateFaq(sourceIndex, {
-                          question: event.target.value,
-                          status: "corrected",
-                        })
-                      }
+                      value={faqDrafts[faqRenderKey]?.question ?? faq.question}
+                      onChange={(event) => setFaqDrafts((drafts) => ({ ...drafts, [faqRenderKey]: { ...(drafts[faqRenderKey] ?? { question: faq.question, answer: faq.answer }), question: event.target.value } }))}
                       className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                     />
 
                     <textarea
                       rows={4}
-                      value={faq.answer}
-                      onChange={(event) =>
-                        updateFaq(sourceIndex, {
-                          answer: event.target.value,
-                          status: "corrected",
-                        })
-                      }
+                      value={faqDrafts[faqRenderKey]?.answer ?? faq.answer}
+                      onChange={(event) => setFaqDrafts((drafts) => ({ ...drafts, [faqRenderKey]: { ...(drafts[faqRenderKey] ?? { question: faq.question, answer: faq.answer }), answer: event.target.value } }))}
                       className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
                     />
                   </div>
@@ -436,12 +323,7 @@ export default function AiBuilderReview({
                 <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
                   <button
                     type="button"
-                    onClick={() =>
-                      updateFaq(sourceIndex, {
-                        status:
-                          faq.status === "approved" ? "proposed" : "approved",
-                      })
-                    }
+                    onClick={() => void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: faq.status === "archived" ? "restore" : "approve" })}
                     className={approveActionClassName}
                   >
                     {faq.status === "approved" ? "Unapprove" : "Approve"}
@@ -449,9 +331,13 @@ export default function AiBuilderReview({
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setEditingFaq(editing ? null : faqRenderKey)
-                    }
+                    onClick={() => {
+                      if (editing) {
+                        const draft = faqDrafts[faqRenderKey];
+                        if (!draft || (draft.question === faq.question && draft.answer === faq.answer)) { setEditingFaq(null); return; }
+                        void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: "correct", correction: { itemKind: "faq", question: draft.question, answer: draft.answer } }).then(() => setEditingFaq(null)).catch(() => undefined);
+                      } else setEditingFaq(faqRenderKey);
+                    }}
                     className={itemActionClassName}
                   >
                     {editing ? "Done" : "Edit"}
@@ -459,7 +345,7 @@ export default function AiBuilderReview({
 
                   <button
                     type="button"
-                    onClick={() => void removeEntry("faq", sourceIndex)}
+                    onClick={() => void removeEntry("faq", faq)}
                     className={itemActionClassName}
                   >
                     Remove Information
