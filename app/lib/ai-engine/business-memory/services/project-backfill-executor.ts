@@ -13,6 +13,12 @@ export type ExecuteProjectBackfillInput = {
   migrationRunId: string;
   actorType: "system" | "admin";
   actorId: string | null;
+  /** Test-only lifecycle seam for exercising recovery around durable checkpoints. */
+  hooks?: {
+    afterCanonicalPersistence?: () => Promise<void> | void;
+    beforeBusinessMemoryRebuild?: () => Promise<void> | void;
+    afterBusinessMemoryPersistence?: () => Promise<void> | void;
+  };
 };
 
 export type ProjectBackfillResult = {
@@ -95,6 +101,7 @@ export async function executeProjectBackfill(input: ExecuteProjectBackfillInput)
 
   try {
     await verifyAndRepairCanonical(input);
+    await input.hooks?.afterCanonicalPersistence?.();
     if (state.migrationState === "legacy_only") {
       state = await transitionProjectMigrationState({ projectId: input.projectId, clerkUserId: input.clerkUserId, expectedRevision: state.migrationRevision, nextState: "canonical_shadow", migrationRunId: input.migrationRunId, actorType: input.actorType, actorId: input.actorId, reason: "Verified deterministic canonical shadow projection.", successfulStep: CANONICAL_STEP });
       completedSteps.push(CANONICAL_STEP);
@@ -109,7 +116,9 @@ export async function executeProjectBackfill(input: ExecuteProjectBackfillInput)
   // always uses the persisted revision as its checkpoint.
   state = await getProjectMigrationState({ projectId: input.projectId, clerkUserId: input.clerkUserId });
   try {
+    await input.hooks?.beforeBusinessMemoryRebuild?.();
     await rebuildAndVerifyBusinessMemory(input);
+    await input.hooks?.afterBusinessMemoryPersistence?.();
     state = await transitionProjectMigrationState({ projectId: input.projectId, clerkUserId: input.clerkUserId, expectedRevision: state.migrationRevision, nextState: "business_memory_backfilled", migrationRunId: input.migrationRunId, actorType: input.actorType, actorId: input.actorId, reason: "Rebuilt and verified Business Memory from Trusted Knowledge.", successfulStep: BUSINESS_MEMORY_STEP });
     completedSteps.push(BUSINESS_MEMORY_STEP);
   } catch (error) {
