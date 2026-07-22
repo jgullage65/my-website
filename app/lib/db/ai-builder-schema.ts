@@ -142,6 +142,27 @@ async function createAiBuilderSchema() {
       UNIQUE (project_id, legacy_kind, legacy_entry_id, revision)
     )
   `;
+  // The runtime projection is deliberately separate from the append-only
+  // provenance shadow above. One row is the current, assistant-ready view of
+  // one canonical review item; history remains on the reviewed source row.
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_trusted_knowledge_projection (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      source_item_id TEXT NOT NULL,
+      source_item_kind TEXT NOT NULL CHECK (source_item_kind IN ('context_entry', 'faq')),
+      review_state TEXT NOT NULL CHECK (review_state IN ('approved', 'corrected', 'proposed', 'archived')),
+      active BOOLEAN NOT NULL,
+      content JSONB NOT NULL,
+      provenance JSONB NOT NULL DEFAULT '{}'::jsonb,
+      source_entry_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+      governance_revision INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL,
+      UNIQUE (project_id, source_item_kind, source_item_id)
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_trusted_knowledge_projection_active_idx ON ai_builder_trusted_knowledge_projection(project_id, active)`;
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_intake_blocks (
       id TEXT PRIMARY KEY,

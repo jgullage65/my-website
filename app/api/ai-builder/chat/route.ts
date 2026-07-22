@@ -14,7 +14,7 @@ import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
 import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
-import { buildLegacyAssistantProjection } from "@/app/lib/ai-engine/knowledge/buildLegacyAssistantProjection";
+import { buildKnowledgePackFromTrustedRows } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -343,7 +343,22 @@ export async function POST(request: Request) {
       : null;
     if (!project) throw new Error("chat_thread_not_found");
 
-    const projection = buildLegacyAssistantProjection(project.session);
+    // The review rows are authoritative, but chat must read their persisted
+    // Trusted Knowledge projection rather than rebuilding from raw intake.
+    const trustedRows = await getSql()`
+      SELECT source_item_id, source_item_kind, content, source_entry_ids
+      FROM ai_builder_trusted_knowledge_projection
+      WHERE project_id = ${projectId} AND active = TRUE
+      ORDER BY source_item_kind, source_item_id
+    ` as DatabaseRow[];
+    const projection = {
+      source: "trusted_knowledge_projection" as const,
+      knowledge: buildKnowledgePackFromTrustedRows({
+        projectId,
+        assistantConfiguration: project.session.assistantConfiguration,
+        rows: trustedRows,
+      }),
+    };
     if (
       projection.knowledge.facts.length === 0 &&
       projection.knowledge.faq.length === 0
