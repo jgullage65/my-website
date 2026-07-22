@@ -386,7 +386,9 @@ button[class*="border-amber-300/15"]:not(:disabled) {
 a[href][class*="border-amber-300/15"]:not([role]):not([aria-label]),
 button[class*="border-amber-300/15"]:not(:disabled):not([role]):not([aria-label]),
 a[href].cta-raised,
-button.cta-raised:not(:disabled) {
+button.cta-raised:not(:disabled),
+span.cta-raised,
+div.cta-raised {
   border-width: 1px;
   border-color: rgba(245, 158, 11, 0.2);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(212, 175, 55, 0.72);

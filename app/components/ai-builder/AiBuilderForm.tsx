@@ -220,7 +220,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
             <span
               className={`absolute right-0 top-0 rounded-full border px-3 py-1 text-xs font-semibold ${
                 value.websiteKnowledge
-                  ? "border-amber-300/15 border-t-2 border-t-amber-300/70 bg-[#081226] text-white"
+                  ? "cta-raised border-amber-300/15 bg-[#030713] text-white"
                   : "border-white/10 bg-white/[0.04] text-slate-400"
               }`}
             >
@@ -571,7 +571,7 @@ function Status({
     <div
       className={`mx-auto mt-4 max-w-3xl rounded-xl border px-4 py-3 text-sm ${
         tone === "success"
-          ? "border-amber-300/15 border-t-2 border-t-amber-300/70 bg-[#081226] text-white"
+          ? "cta-raised border-amber-300/15 bg-[#030713] text-white"
           : "border-red-400/20 bg-red-400/[0.07] text-red-200"
       }`}
     >
