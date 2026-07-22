@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { PoolClient } from "@neondatabase/serverless";
-import { canonicalJson, stableResolvedEntityId, type GovernanceHistoryIssue, type ReconciliationState } from "../reconciliation/entity-reconciliation";
+import { canonicalJson, resolveRedirect, stableResolvedEntityId, type GovernanceHistoryIssue, type ReconciliationState } from "../reconciliation/entity-reconciliation";
 import { detectAssertionConflicts } from "../reconciliation/conflicting-assertions";
 import { extractBusinessMemoryProvenance, logicalKey, materialFingerprint, materialState, stableAssertionId, stableEntityId, stableRelationshipId } from "./rebuild-persisted-business-memory";
 
@@ -34,13 +34,15 @@ export class NeonBusinessMemoryReconciliationStateStore {
     // Querying each durable model separately avoids accidental cartesian-product
     // reconstruction while retaining the deliberately project-owned decisions.
     const dq=(sql:string, params:unknown[]=[])=>root.memory_id ? this.client.query(sql,[root.memory_id,...params]) : Promise.resolve({rows:[] as Row[]});
-    const [durableKeys,durableAliases,durableRedirects,durableConflicts]=await Promise.all([
-      dq("SELECT * FROM ai_builder_business_memory_identity_keys WHERE memory_id=$1 AND project_id=$2",[projectId]), dq("SELECT * FROM ai_builder_business_memory_entity_aliases WHERE memory_id=$1 AND project_id=$2 AND active=true",[projectId]), dq("SELECT * FROM ai_builder_business_memory_entity_redirects WHERE memory_id=$1"), dq("SELECT * FROM ai_builder_business_memory_conflicts WHERE memory_id=$1")
+    const [durableResolvedEntities,durableKeys,durableAliases,durableRedirects,durableConflicts]=await Promise.all([
+      dq("SELECT id, project_id, active FROM ai_builder_business_memory_resolved_entities WHERE memory_id=$1 AND project_id=$2",[projectId]), dq("SELECT * FROM ai_builder_business_memory_identity_keys WHERE memory_id=$1 AND project_id=$2",[projectId]), dq("SELECT * FROM ai_builder_business_memory_entity_aliases WHERE memory_id=$1 AND project_id=$2 AND active=true",[projectId]), dq("SELECT * FROM ai_builder_business_memory_entity_redirects WHERE memory_id=$1"), dq("SELECT * FROM ai_builder_business_memory_conflicts WHERE memory_id=$1")
     ]);
     const canonicalResolved = new Set(resolvedEntities.map(x=>x.id));
     const identityKeys=(durableKeys.rows as Row[]).filter(x=>canonicalResolved.has(String(x.resolved_entity_id))).map(x=>({id:String(x.id),projectId:String(x.project_id),resolvedEntityId:String(x.resolved_entity_id),sourceEntityId:x.source_entity_id??null,type:x.key_type,normalizedValue:x.normalized_value,displayValue:x.display_value??null,strength:x.strength,authoritative:Boolean(x.authoritative),sourceIds:json(x.source_ids),active:Boolean(x.active)}));
     const aliases=(durableAliases.rows as Row[]).filter(x=>canonicalResolved.has(String(x.resolved_entity_id))).map(x=>({id:String(x.id),projectId:String(x.project_id),resolvedEntityId:String(x.resolved_entity_id),displayValue:String(x.display_value),normalizedValue:String(x.normalized_value),sourceIds:json(x.source_ids),accepted:Boolean(x.accepted)}));
-    const redirects=(durableRedirects.rows as Row[]).filter(x=>canonicalResolved.has(String(x.from_resolved_entity_id))&&canonicalResolved.has(String(x.to_resolved_entity_id))).map(x=>({fromResolvedEntityId:String(x.from_resolved_entity_id),toResolvedEntityId:String(x.to_resolved_entity_id)}));
+    const durableResolvedIds=new Set((durableResolvedEntities.rows as Row[]).map(row=>String(row.id)));
+    const redirectCandidates=(durableRedirects.rows as Row[]).map(row=>({fromResolvedEntityId:String(row.from_resolved_entity_id),toResolvedEntityId:String(row.to_resolved_entity_id)})).filter(redirect=>redirect.fromResolvedEntityId.length>0&&redirect.toResolvedEntityId.length>0&&redirect.fromResolvedEntityId!==redirect.toResolvedEntityId&&durableResolvedIds.has(redirect.fromResolvedEntityId)&&canonicalResolved.has(redirect.toResolvedEntityId));
+    const redirects=redirectCandidates.filter(candidate=>{ try { resolveRedirect(candidate.fromResolvedEntityId,redirectCandidates); return true; } catch { return false; } });
     const assertionByLogical=new Map(rows.map(row=>[`${row.legacy_kind}:${row.legacy_entry_id}`, { row, assertionId:stableAssertionId(projectId,row as any), resolvedEntityId:stableResolvedEntityId(projectId,stableEntityId(projectId,row as any)) }]));
     const material = materialState(projectId, rows, byClaim);
     const relationships=material.relationships.flatMap(relationship=>{ const from=assertionByLogical.get(`${relationship.from.legacyKind}:${relationship.from.legacyEntryId}`),to=assertionByLogical.get(`${relationship.to.legacyKind}:${relationship.to.legacyEntryId}`); if(!from||!to) return []; return [{id:stableRelationshipId(relationship),relationshipType:relationship.relationshipType,fromResolvedEntityId:from.resolvedEntityId,toResolvedEntityId:to.resolvedEntityId,fromAssertionId:from.assertionId,toAssertionId:to.assertionId,sourceEntryIds:relationship.sourceEntryIds,provenance:[],reviewState:to.row.lifecycle==="archived"?"archived":to.row.review_action==="correction"?"corrected":"approved",createdAt:iso(to.row.trusted_created_at),updatedAt:iso(to.row.trusted_created_at)}]; });
