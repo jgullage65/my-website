@@ -136,13 +136,13 @@ export async function repairCanonicalProvenanceProject(projectId: string, clerkU
   await ensureAiBuilderSchema(); const project = await loadAuthorizedCanonicalProject(projectId, clerkUserId); if (!project) throw new Error("canonical_project_not_found_or_not_owned");
   const input = { projectId, session: project.session, website: project.website, websiteKnowledge: project.websiteKnowledge };
   const before = reconcileCanonicalProjection(buildExpectedCanonicalProjection(input), await loadActualCanonicalProvenance(projectId), projectId);
-  if (before.integrityFailures.length || before.mismatched.length || !before.missing.length) return before;
+  if (before.integrityFailures.length || (!before.missing.length && !before.mismatched.length)) return before;
   const sql = getSql();
   try {
     await sql.transaction((tx) => buildCanonicalProvenanceShadowQueries(tx, input));
     const after = reconcileCanonicalProjection(buildExpectedCanonicalProjection(input), await loadActualCanonicalProvenance(projectId), projectId);
-    if (after.missing.length || after.integrityFailures.length) throw new Error("canonical_repair_post_verification_failed");
-    return { ...after, repaired: before.missing.filter((item) => item.repairable).map((item) => item.identity) };
+    if (after.missing.length || after.mismatched.length || after.integrityFailures.length) throw new Error("canonical_repair_post_verification_failed");
+    return { ...after, repaired: [...before.missing, ...before.mismatched.map((item) => item.expected)].filter((item) => item.repairable).map((item) => item.identity) };
   } catch (error) { return { ...before, repairFailures: [error instanceof Error ? error.message : String(error)] }; }
 }
 
@@ -165,17 +165,17 @@ export type CanonicalReconciliationStore<Tx> = {
 export async function repairCanonicalProjection<Tx>(input: CanonicalProjectionInput, store: CanonicalReconciliationStore<Tx>, dryRun = false): Promise<ReconciliationReport> {
   const expected = buildExpectedCanonicalProjection(input);
   const before = reconcileCanonicalProjection(expected, await store.readActual(input.projectId), input.projectId);
-  if (dryRun || !before.missing.some((record) => record.repairable) || before.integrityFailures.length || before.mismatched.length) return before;
+  if (dryRun || (!before.missing.some((record) => record.repairable) && !before.mismatched.some((record) => record.expected.repairable)) || before.integrityFailures.length) return before;
   try {
     const repaired = await store.transaction(async (tx) => {
-      const writable = before.missing.filter((record) => record.repairable);
+      const writable = [...before.missing, ...before.mismatched.map((item) => item.expected)].filter((record) => record.repairable);
       for (const record of writable) await store.insertExpected(tx, record);
       return writable.map((record) => record.identity);
     });
     const after = reconcileCanonicalProjection(expected, await store.readActual(input.projectId), input.projectId);
     // A successful commit is not enough: identity-level verification is the
     // completion criterion for repair.
-    if (after.missing.length) throw new Error("canonical_repair_incomplete");
+    if (after.missing.length || after.mismatched.length) throw new Error("canonical_repair_incomplete");
     return { ...after, repaired };
   } catch (error) {
     return { ...before, repairFailures: [error instanceof Error ? error.message : String(error)] };
