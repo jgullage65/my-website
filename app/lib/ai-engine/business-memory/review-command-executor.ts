@@ -19,6 +19,9 @@ export type ReviewCommandExecutionResult = {
   executedAt: string;
 };
 
+/** Whether this response performed the mutation or replayed its committed result. */
+export type ReviewCommandExecutionDisposition = "executed" | "replayed";
+
 /** Immutable audit record written with each successful governance command. */
 export type CanonicalReviewHistoryEntry = {
   id: string;
@@ -46,25 +49,52 @@ export type TrustedKnowledgePreparation = {
 };
 
 /**
+ * The durable, command-ID-keyed record of a committed governance mutation.
+ * `result` deliberately retains the canonical response payload so retries can
+ * be answered without re-reading or re-running any mutation work.
+ */
+export type ReviewCommandExecutionLedgerEntry = {
+  commandId: string;
+  projectId: string;
+  itemId: string;
+  resultingRevision: number;
+  resultingState: ReviewState;
+  executedAt: string;
+  historyRecordId: string;
+  trustedKnowledgePrepared: boolean;
+  result: Omit<CanonicalReviewCommandExecutionResult, "disposition">;
+};
+
+/**
  * Transaction-local mutations required by the canonical governance boundary.
  * A persistence adapter must make all methods in one `transaction` callback
  * atomic; this module intentionally contains no database implementation.
  */
 export interface ReviewCommandExecutionTransaction {
+  /** Read a previously committed command from the transaction's authoritative ledger. */
+  findCommittedCommand(commandId: string): Promise<ReviewCommandExecutionLedgerEntry | null>;
   updateReviewItem(input: { projectId: string; itemId: string; itemKind: ReviewCommand["itemKind"]; from: ReviewState; to: ReviewState; correction: ReviewCorrectionPayload | null }): Promise<void>;
   appendReviewHistory(entry: CanonicalReviewHistoryEntry): Promise<void>;
   incrementGovernanceRevision(input: { projectId: string; expectedRevision: number }): Promise<number>;
   updateReviewReadModels(input: { projectId: string; itemKind: ReviewCommand["itemKind"]; previousState: ReviewState; newState: ReviewState }): Promise<void>;
   prepareTrustedKnowledge(input: TrustedKnowledgePreparation): Promise<void>;
+  /** Persist the ledger entry in this same transaction after all mutation work. */
+  recordCommittedCommand(entry: ReviewCommandExecutionLedgerEntry): Promise<void>;
 }
 
 export interface ReviewCommandExecutionStore {
-  transaction<T>(operation: (transaction: ReviewCommandExecutionTransaction) => Promise<T>): Promise<T>;
+  /**
+   * Runs an atomic transaction with command-ID serialization/uniqueness.
+   * Implementations must ensure concurrent calls for one commandId observe a
+   * committed ledger entry before a second callback can mutate governance.
+   */
+  transaction<T>(commandId: string, operation: (transaction: ReviewCommandExecutionTransaction) => Promise<T>): Promise<T>;
 }
 
 export type CanonicalReviewCommandExecutionResult = ReviewCommandExecutionResult & {
   history: CanonicalReviewHistoryEntry;
   trustedKnowledgePrepared: boolean;
+  disposition: ReviewCommandExecutionDisposition;
 };
 
 function correctionFor(command: ReviewCommand): ReviewCorrectionPayload | null {
@@ -75,7 +105,7 @@ function timestamp(now: () => Date): string {
   return now().toISOString();
 }
 
-/** Executes a previously validated command in exactly one store transaction. */
+/** Executes or replays a previously validated command in exactly one store transaction. */
 export class CanonicalReviewCommandExecutor implements ReviewCommandExecutor {
   private readonly store: ReviewCommandExecutionStore;
   private readonly now: () => Date;
@@ -94,8 +124,11 @@ export class CanonicalReviewCommandExecutor implements ReviewCommandExecutor {
   async execute(validation: ValidReviewCommand): Promise<CanonicalReviewCommandExecutionResult> {
     // Defend the runtime boundary as well as the TypeScript-only input contract.
     if (!validation.valid) throw new Error("review_command_validation_required");
-    return this.store.transaction(async (transaction) => {
+    return this.store.transaction(validation.command.commandId, async (transaction) => {
       const { command, project, item } = validation;
+      const committed = await transaction.findCommittedCommand(command.commandId);
+      if (committed) return { ...committed.result, disposition: "replayed" };
+
       const previousState = item.reviewState;
       const newState = command.requestedTransition.to;
       const correction = correctionFor(command);
@@ -113,7 +146,17 @@ export class CanonicalReviewCommandExecutor implements ReviewCommandExecutor {
       if (newState === "approved" || newState === "corrected") {
         await transaction.prepareTrustedKnowledge({ commandId: command.commandId, projectId: command.projectId, itemId: command.itemId, itemKind: command.itemKind, reviewState: newState, projectRevision: resultingRevision });
       }
-      return { commandId: command.commandId, projectId: command.projectId, itemId: command.itemId, resultingRevision, resultingState: newState, executedAt: history.createdAt, history, trustedKnowledgePrepared: newState === "approved" || newState === "corrected" };
+      const result: Omit<CanonicalReviewCommandExecutionResult, "disposition"> = {
+        commandId: command.commandId, projectId: command.projectId, itemId: command.itemId,
+        resultingRevision, resultingState: newState, executedAt: history.createdAt, history,
+        trustedKnowledgePrepared: newState === "approved" || newState === "corrected",
+      };
+      await transaction.recordCommittedCommand({
+        commandId: command.commandId, projectId: command.projectId, itemId: command.itemId,
+        resultingRevision, resultingState: newState, executedAt: history.createdAt,
+        historyRecordId: history.id, trustedKnowledgePrepared: result.trustedKnowledgePrepared, result,
+      });
+      return { ...result, disposition: "executed" };
     });
   }
 }
