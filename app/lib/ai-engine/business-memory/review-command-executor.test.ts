@@ -71,6 +71,7 @@ test("unapprove returns approved knowledge to proposed through the canonical pip
   assert.equal(state.reviewState, "proposed");
   assert.equal(state.revision, 5);
   assert.deepEqual(state.readModels, ["approved:proposed"]);
+  assert.equal(state.trusted[0]?.reviewState, "proposed");
   assert.equal(state.history[0]?.commandKind, "unapprove");
   assert.equal(state.ledger.get("command-1")?.resultingState, "proposed");
   assert.equal(result.disposition, "executed");

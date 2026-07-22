@@ -48,13 +48,13 @@ export type CanonicalReviewHistoryEntry = {
   createdAt: string;
 };
 
-/** Outbox-shaped integration point; Trusted Knowledge persistence is deferred. */
+/** Transaction-local request to reconcile the persisted Trusted Knowledge projection. */
 export type TrustedKnowledgePreparation = {
   commandId: string;
   projectId: string;
   itemId: string;
   itemKind: ReviewCommand["itemKind"];
-  reviewState: "approved" | "corrected";
+  reviewState: ReviewState;
   projectRevision: number;
 };
 
@@ -181,13 +181,13 @@ export class CanonicalReviewCommandExecutor implements ReviewCommandExecutor {
       };
       await transaction.appendReviewHistory(history);
       await transaction.updateReviewReadModels({ projectId: command.projectId, itemKind: command.itemKind, previousState, newState });
-      if (newState === "approved" || newState === "corrected") {
-        await transaction.prepareTrustedKnowledge({ commandId: command.commandId, projectId: command.projectId, itemId: command.itemId, itemKind: command.itemKind, reviewState: newState, projectRevision: resultingRevision });
-      }
+      // Reconcile after every state mutation. Archive, unapprove, and restore
+      // are projection mutations too, not merely review-read-model changes.
+      await transaction.prepareTrustedKnowledge({ commandId: command.commandId, projectId: command.projectId, itemId: command.itemId, itemKind: command.itemKind, reviewState: newState, projectRevision: resultingRevision });
       const result: Omit<CanonicalReviewCommandExecutionResult, "disposition"> = {
         commandId: command.commandId, projectId: command.projectId, itemId: command.itemId,
         resultingRevision, resultingState: newState, executedAt: history.createdAt, history,
-        trustedKnowledgePrepared: newState === "approved" || newState === "corrected",
+        trustedKnowledgePrepared: true,
       };
       await transaction.recordCommittedCommand({
         commandId: command.commandId, projectId: command.projectId, itemId: command.itemId,
