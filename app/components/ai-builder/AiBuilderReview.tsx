@@ -273,14 +273,23 @@ export default function AiBuilderReview({
                     )}
 
                     <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
-                      <button
+                      {entry.status === "proposed" ? <button
                         type="button"
-                        onClick={() => void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: entry.status === "approved" ? "unapprove" : entry.status === "archived" ? "restore" : "approve" })}
+                        onClick={() => void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: "approve" })}
                         className={approveActionClassName}
                         disabled={pending}
                       >
-                        {entry.status === "approved" ? "Unapprove" : entry.status === "archived" ? "Restore" : "Approve"}
-                      </button>
+                        Approve
+                      </button> : null}
+
+                      {entry.status === "archived" ? <button
+                        type="button"
+                        onClick={() => void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: "restore" })}
+                        className={approveActionClassName}
+                        disabled={pending}
+                      >
+                        Restore
+                      </button> : null}
 
                       {entry.status !== "archived" ? <button
                         type="button"
@@ -368,14 +377,23 @@ export default function AiBuilderReview({
                 )}
 
                 <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
-                  <button
+                  {faq.status === "proposed" ? <button
                     type="button"
-                    onClick={() => void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: faq.status === "approved" ? "unapprove" : faq.status === "archived" ? "restore" : "approve" })}
+                    onClick={() => void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: "approve" })}
                     className={approveActionClassName}
                     disabled={pending}
                   >
-                    {faq.status === "approved" ? "Unapprove" : faq.status === "archived" ? "Restore" : "Approve"}
-                  </button>
+                    Approve
+                  </button> : null}
+
+                  {faq.status === "archived" ? <button
+                    type="button"
+                    onClick={() => void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: "restore" })}
+                    className={approveActionClassName}
+                    disabled={pending}
+                  >
+                    Restore
+                  </button> : null}
 
                   {faq.status !== "archived" ? <button
                     type="button"

@@ -65,7 +65,7 @@ const CONTEXT_CATEGORIES = new Set<BusinessContextCategory>([
 
 const ALLOWED_TRANSITIONS: Record<ReviewCommand["kind"], ReadonlySet<string>> = {
   approve: new Set(["proposed:approved"]),
-  correct: new Set(["proposed:corrected"]),
+  correct: new Set(["proposed:corrected", "approved:corrected", "corrected:corrected"]),
   reject: new Set(["proposed:archived"]),
   archive: new Set(["approved:archived", "corrected:archived"]),
   restore: new Set(["archived:approved"]),
