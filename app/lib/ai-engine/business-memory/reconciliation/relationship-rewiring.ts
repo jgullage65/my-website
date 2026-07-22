@@ -13,18 +13,24 @@ export const groupDuplicateRelationships = (relationships: BusinessRelationship[
   return Array.from(groups.values()).map(group => group.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))).sort((a, b) => a[0].id.localeCompare(b[0].id));
 };
 export const chooseRelationshipSurvivor = (relationships: BusinessRelationship[]) => [...relationships].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))[0];
-export function rewireRelationships(relationships: BusinessRelationship[], redirects: { fromResolvedEntityId: string; toResolvedEntityId: string }[]): { relationships: BusinessRelationship[]; removedIds: string[]; changedIds: string[] } {
+/** Rewire only material changes.  `now` is injected so callers can make a merge
+ * deterministic (and so this module never makes tests depend on the wall clock). */
+export function rewireRelationships(relationships: BusinessRelationship[], redirects: { fromResolvedEntityId: string; toResolvedEntityId: string }[], now: () => Date = () => new Date()): { relationships: BusinessRelationship[]; removedIds: string[]; changedIds: string[] } {
+  const removedIds: string[] = [];
   const rewired = relationships.flatMap((relationship) => {
     const fromResolvedEntityId = substituteResolvedEndpoint(relationship.fromResolvedEntityId, redirects);
     const toResolvedEntityId = substituteResolvedEndpoint(relationship.toResolvedEntityId, redirects);
-    if (fromResolvedEntityId === toResolvedEntityId && !isRelationshipSelfLinkAllowed(relationship)) return [];
+    if (fromResolvedEntityId === toResolvedEntityId && !isRelationshipSelfLinkAllowed(relationship)) { removedIds.push(relationship.id); return []; }
     return [{ ...relationship, fromResolvedEntityId, toResolvedEntityId }];
   });
-  const output: BusinessRelationship[] = [], removedIds: string[] = [], changedIds = new Set<string>();
+  const output: BusinessRelationship[] = [], changedIds = new Set<string>();
   for (const group of groupDuplicateRelationships(rewired)) {
     const survivor = chooseRelationshipSurvivor(group);
-    const merged = { ...survivor, sourceEntryIds: unionSourceEntryIds(group), provenance: Array.from(new Set(group.flatMap(x => x.provenance))).sort(), createdAt: group[0].createdAt };
-    if (canonicalJson(merged) !== canonicalJson(survivor)) changedIds.add(survivor.id);
+    const candidate = { ...survivor, sourceEntryIds: unionSourceEntryIds(group), provenance: Array.from(new Set(group.flatMap(x => x.provenance))).sort(), createdAt: group[0].createdAt };
+    // Compare excluding updatedAt: it is metadata caused by, rather than part of,
+    // a material mutation.
+    const materialChanged = canonicalJson({ ...candidate, updatedAt: "" }) !== canonicalJson({ ...survivor, updatedAt: "" });
+    const merged = materialChanged ? { ...candidate, updatedAt: now().toISOString() } : candidate;
     for (const item of group.slice(1)) removedIds.push(item.id);
     if (canonicalJson(merged) !== canonicalJson(relationships.find(x => x.id === survivor.id))) changedIds.add(survivor.id);
     output.push(merged);
