@@ -48,8 +48,8 @@ export async function executePersistedReviewCommandsAtomically({ projectId, cler
     await client.query("COMMIT");
     return results;
   } catch (cause) {
-    if (cause instanceof TrustedKnowledgeProjectionError) throw new PersistedReviewCommandError(cause.code, "Trusted Knowledge could not be reconciled from the canonical review state.", cause.code === "invalid_trusted_projection_source_state" || cause.code === "trusted_knowledge_projection_invalid_source" ? 409 : 500);
     await client.query("ROLLBACK").catch(() => undefined);
+    if (cause instanceof TrustedKnowledgeProjectionError) throw new PersistedReviewCommandError(cause.code, "Trusted Knowledge could not be reconciled from the canonical review state.", cause.code === "invalid_trusted_projection_source_state" || cause.code === "trusted_knowledge_projection_invalid_source" ? 409 : 500);
     throw cause;
   } finally { client.release(); }
 }
