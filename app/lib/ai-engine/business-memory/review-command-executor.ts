@@ -1,6 +1,23 @@
 import type { ReviewState } from "./contracts";
-import type { ReviewCommand, ReviewCommandExecutionResult, ReviewCommandExecutor, ReviewCorrectionPayload } from "./review-commands";
+import type { ReviewCommand, ReviewCorrectionPayload } from "./review-commands";
 import type { ValidReviewCommand } from "./review-command-validator";
+
+/**
+ * Execution accepts only a successful authoritative validation result. The
+ * implementation remains separate from the legacy full-session PUT route.
+ */
+export interface ReviewCommandExecutor {
+  execute(validation: ValidReviewCommand): Promise<ReviewCommandExecutionResult>;
+}
+
+export type ReviewCommandExecutionResult = {
+  commandId: string;
+  projectId: string;
+  itemId: string;
+  resultingRevision: number;
+  resultingState: ReviewState;
+  executedAt: string;
+};
 
 /** Immutable audit record written with each successful governance command. */
 export type CanonicalReviewHistoryEntry = {
