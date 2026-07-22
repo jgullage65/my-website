@@ -8,11 +8,11 @@ import {
 } from "./contracts";
 import type {
   ReviewCommand,
-  ReviewCommandExecutor,
   ReviewCommandRequest,
   CorrectReviewCommand,
   CorrectReviewCommandRequest,
 } from "./review-commands";
+import type { ReviewCommandExecutor } from "./review-command-executor";
 
 const timestamp = "2026-07-20T00:00:00.000Z";
 
