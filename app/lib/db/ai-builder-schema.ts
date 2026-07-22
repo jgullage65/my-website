@@ -358,6 +358,8 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_candidate_claims_snapshot_idx ON ai_builder_canonical_candidate_claims(source_snapshot_id, created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_candidate_claim_evidence_evidence_idx ON ai_builder_canonical_candidate_claim_evidence(evidence_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_intake_blocks_project_idx ON ai_builder_intake_blocks(project_id)`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_review_command_history (id TEXT PRIMARY KEY, command_id TEXT NOT NULL UNIQUE, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, item_id TEXT NOT NULL, item_kind TEXT NOT NULL, command_kind TEXT NOT NULL, actor JSONB NOT NULL, previous_state TEXT NOT NULL, new_state TEXT NOT NULL, project_revision INTEGER NOT NULL, correction JSONB, created_at TIMESTAMPTZ NOT NULL)`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_review_command_ledger (command_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, item_id TEXT NOT NULL, resulting_revision INTEGER NOT NULL, resulting_state TEXT NOT NULL, executed_at TIMESTAMPTZ NOT NULL, result JSONB NOT NULL)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_faq_entries_project_idx ON ai_builder_faq_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_conflicts_project_idx ON ai_builder_conflicts(project_id)`;
