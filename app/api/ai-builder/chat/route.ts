@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { Pool } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import {
   buildSystemPrompt,
@@ -14,13 +15,15 @@ import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
 import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
-import { buildKnowledgePackFromTrustedRows } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
+import { buildKnowledgePackFromTrustedRows, reconcileTrustedKnowledgeProjectionForProject, TrustedKnowledgeProjectionError, type TrustedKnowledgeProjectionRow } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const PROJECT_USER_MESSAGE_LIMIT = 20;
+let projectionPool: Pool | null = null;
+const getProjectionPool = () => (projectionPool ??= new Pool({ connectionString: process.env.DATABASE_URL }));
 
 type PersistentChatRequest = Omit<ChatRequest, "knowledge"> & {
   // Retained only for request compatibility. It is never used by the runtime.
@@ -30,6 +33,20 @@ type PersistentChatRequest = Omit<ChatRequest, "knowledge"> & {
 };
 
 type DatabaseRow = Record<string, unknown>;
+
+type ProjectionFreshness = { governanceRevision: number; trustedKnowledgeRevision: number; activeCanonicalCount: number; activeProjectionCount: number; mixedActiveRevisions: boolean; rows: TrustedKnowledgeProjectionRow[] };
+
+async function loadProjectionFreshness(projectId: string): Promise<ProjectionFreshness> {
+  const sql = getSql();
+  const projects = await sql`SELECT governance_revision, trusted_knowledge_revision, (SELECT COUNT(*)::integer FROM ai_builder_context_entries WHERE project_id=${projectId} AND status IN ('approved','corrected')) + (SELECT COUNT(*)::integer FROM ai_builder_faq_entries WHERE project_id=${projectId} AND status IN ('approved','corrected')) AS active_canonical_count FROM ai_builder_projects WHERE id=${projectId} LIMIT 1` as DatabaseRow[];
+  const project = projects[0]; if (!project) throw new Error("chat_thread_not_found");
+  const rows = await sql`SELECT source_item_id, source_item_kind, review_state, content, provenance, source_entry_ids, governance_revision FROM ai_builder_trusted_knowledge_projection WHERE project_id=${projectId} AND active=TRUE ORDER BY source_item_kind,source_item_id` as TrustedKnowledgeProjectionRow[];
+  const governanceRevision = Number(project.governance_revision); const trustedKnowledgeRevision = Number(project.trusted_knowledge_revision);
+  return { governanceRevision, trustedKnowledgeRevision, activeCanonicalCount: Number(project.active_canonical_count), activeProjectionCount: rows.length, mixedActiveRevisions: rows.some((row) => Number(row.governance_revision) !== governanceRevision), rows };
+}
+
+function projectionFresh(freshness: ProjectionFreshness) { return freshness.governanceRevision === freshness.trustedKnowledgeRevision && freshness.trustedKnowledgeRevision > 0 && !(freshness.activeCanonicalCount > 0 && freshness.activeProjectionCount === 0) && !freshness.mixedActiveRevisions; }
+async function repairProjection(projectId: string): Promise<void> { const client = await getProjectionPool().connect(); try { await client.query("BEGIN"); const project = (await client.query("SELECT id, governance_revision FROM ai_builder_projects WHERE id = $1 FOR UPDATE", [projectId])).rows[0]; if (!project) throw new Error("chat_thread_not_found"); await reconcileTrustedKnowledgeProjectionForProject(client, projectId, Number(project.governance_revision)); await client.query("COMMIT"); } catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; } finally { client.release(); } }
 
 type PersistentThread = {
   projectId: string;
@@ -272,6 +289,8 @@ function getErrorDetails(error: unknown): {
     };
   }
 
+  if (code === "trusted_knowledge_projection_stale" || code === "trusted_knowledge_projection_reconciliation_failed" || code === "invalid_trusted_projection_source_state" || code === "trusted_knowledge_projection_invalid_source") return { status: 503, code, message: "Trusted Knowledge is temporarily unavailable. Please try again." };
+
   if (code === "openai_api_key_missing") {
     return {
       status: 500,
@@ -345,12 +364,13 @@ export async function POST(request: Request) {
 
     // The review rows are authoritative, but chat must read their persisted
     // Trusted Knowledge projection rather than rebuilding from raw intake.
-    const trustedRows = await getSql()`
-      SELECT source_item_id, source_item_kind, content, source_entry_ids
-      FROM ai_builder_trusted_knowledge_projection
-      WHERE project_id = ${projectId} AND active = TRUE
-      ORDER BY source_item_kind, source_item_id
-    ` as DatabaseRow[];
+    let freshness = await loadProjectionFreshness(projectId);
+    if (!projectionFresh(freshness)) {
+      try { await repairProjection(projectId); } catch (cause) { if (cause instanceof TrustedKnowledgeProjectionError) throw cause; throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_reconciliation_failed", "Trusted Knowledge repair failed."); }
+      freshness = await loadProjectionFreshness(projectId);
+    }
+    if (!projectionFresh(freshness)) throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_stale", "Trusted Knowledge remains stale after repair.");
+    const trustedRows = freshness.rows;
     const projection = {
       source: "trusted_knowledge_projection" as const,
       knowledge: buildKnowledgePackFromTrustedRows({

@@ -63,7 +63,7 @@ import type {
     }
   }
   
-  function mapFact(entry: BusinessContextEntry): KnowledgeFact {
+  function mapFact(entry: BusinessContextEntry, governanceRevision: number): KnowledgeFact {
     return {
       id: `knowledge_${entry.id}`,
       category: entry.category,
@@ -76,10 +76,13 @@ import type {
       sourceType: entry.source.sourceType,
       sourceUrl: normalizeSourceUrl(entry.source.sourceUrl),
       tags: normalizeStringArray(entry.metadata.tags),
+      provenance: { classification: entry.metadata.provenanceClassification ?? null, predecessorClassification: entry.metadata.predecessorProvenanceClassification ?? null, originalClassification: entry.metadata.originalProvenanceClassification ?? null, correctedByClerkUserId: null, correctedByDisplayName: null, correctedByEmail: null, correctedAt: null },
+      reviewState: entry.status as "approved" | "corrected",
+      governanceRevision,
     };
   }
   
-  function mapFaq(entry: GeneratedFaqEntry): KnowledgeFaq {
+  function mapFaq(entry: GeneratedFaqEntry, governanceRevision: number): KnowledgeFaq {
     return {
       id: `knowledge_${entry.id}`,
       question: normalizeText(entry.question),
@@ -90,6 +93,9 @@ import type {
         entry.sourceEntryIds,
         20,
       ),
+      provenance: { classification: entry.metadata?.provenanceClassification ?? null, predecessorClassification: entry.metadata?.predecessorProvenanceClassification ?? null, originalClassification: entry.metadata?.originalProvenanceClassification ?? null, correctedByClerkUserId: null, correctedByDisplayName: null, correctedByEmail: null, correctedAt: null },
+      reviewState: entry.status as "approved" | "corrected",
+      governanceRevision,
     };
   }
   
@@ -113,10 +119,10 @@ import type {
     session: AiBuilderSession,
   ): KnowledgePack {
     const approvedFacts = filterApprovedContextEntries(session)
-      .map(mapFact);
+      .map((entry) => mapFact(entry, session.governanceRevision ?? 0));
   
     const approvedFaq = filterApprovedFaqEntries(session)
-      .map(mapFaq);
+      .map((entry) => mapFaq(entry, session.governanceRevision ?? 0));
   
     const behaviorRules = approvedFacts.filter(
       (fact) => fact.category === "behavior_rule",
