@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import test from "node:test";
 import { Pool } from "@neondatabase/serverless";
 import { PROJECT_MIGRATION_TRANSITIONS, isValidProjectMigrationTransition, parseProjectMigrationState } from "../ai-engine/business-memory/migration/project-migration-state";
+import { NeonProjectMigrationStore } from "../ai-engine/business-memory/persistence/neon-project-migration-store";
 
 test("project migration state parser accepts only persisted states", () => {
   assert.equal(parseProjectMigrationState("legacy_only"), "legacy_only");
@@ -16,6 +17,15 @@ test("project migration rejects skipped, backward, and terminal transitions", ()
   assert.equal(isValidProjectMigrationTransition("legacy_only", "business_memory_backfilled"), false);
   assert.equal(isValidProjectMigrationTransition("canonical_shadow", "legacy_only"), false);
   assert.equal(isValidProjectMigrationTransition("legacy_retired", "canonical_runtime"), false);
+});
+test("project migration rejects invalid persisted numeric and timestamp fields", async () => {
+  const row: Record<string, unknown> = { id: "project", clerk_user_id: "user", migration_state: "legacy_only", migration_state_version: 1, migration_revision: 0, migration_started_at: null, migration_last_transition_at: null, migration_completed_at: null, migration_last_successful_step: null, migration_last_attempted_step: null, migration_last_error_code: null, migration_last_error_message: null, migration_last_error_at: null, migration_attempt_count: 0, migration_run_id: null };
+  const get = async (invalid: Record<string, unknown>) => {
+    const store = new NeonProjectMigrationStore({ query: async () => ({ rows: [{ ...row, ...invalid }] }) } as any);
+    await store.getProjectMigrationState({ projectId: "project", clerkUserId: "user" });
+  };
+  await assert.rejects(() => get({ migration_revision: -1 }), (error: any) => error.code === "AI_BUILDER_INVALID_PERSISTED_MIGRATION_RECORD");
+  await assert.rejects(() => get({ migration_last_error_at: "not-a-date" }), (error: any) => error.code === "AI_BUILDER_INVALID_PERSISTED_MIGRATION_RECORD");
 });
 
 const databaseUrl = process.env.DATABASE_URL_TEST;
@@ -43,13 +53,17 @@ db("migration defaults, transitions, history, retry, ownership, and failures are
     assert.deepEqual(history.rows, [{ previous_state: "legacy_only", next_state: "canonical_shadow" }]);
     const retry = await s.transition(1, "canonical_shadow"); assert.equal(retry.migrationRevision, 1);
     assert.equal((await s.client.query("SELECT count(*)::int AS count FROM ai_builder_project_migration_history WHERE project_id=$1", [s.projectId])).rows[0].count, 1);
+    await assert.rejects(() => s.service.transitionProjectMigrationState({ projectId: s.projectId, clerkUserId: s.clerkUserId, expectedRevision: 1, nextState: "canonical_shadow", migrationRunId: "different-run", actorType: "system", actorId: null, reason: "test", successfulStep: "step-canonical_shadow" }), (error: any) => error.code === "AI_BUILDER_MIGRATION_REPLAY_MISMATCH");
+    await assert.rejects(() => s.service.transitionProjectMigrationState({ projectId: s.projectId, clerkUserId: s.clerkUserId, expectedRevision: 1, nextState: "canonical_shadow", migrationRunId: "run-1", actorType: "system", actorId: null, reason: "test", successfulStep: "different-step" }), (error: any) => error.code === "AI_BUILDER_MIGRATION_REPLAY_MISMATCH");
     await assert.rejects(() => s.transition(1, "assistant_projection_ready"), (error: any) => error.code === "AI_BUILDER_INVALID_MIGRATION_TRANSITION");
     assert.equal((await s.service.getProjectMigrationState({ projectId: s.projectId, clerkUserId: s.clerkUserId })).migrationRevision, 1);
     await assert.rejects(() => s.transition(0, "business_memory_backfilled"), (error: any) => error.code === "AI_BUILDER_MIGRATION_REVISION_CONFLICT");
     await assert.rejects(() => s.service.getProjectMigrationState({ projectId: s.projectId, clerkUserId: "different-user" }), (error: any) => error.code === "AI_BUILDER_PROJECT_NOT_FOUND");
     const failed = await s.service.recordProjectMigrationFailure({ projectId: s.projectId, clerkUserId: s.clerkUserId, expectedRevision: 1, migrationRunId: "run-2", attemptedStep: "backfill", errorCode: "failed", errorMessage: "bad\u0000 error\n    at secret stack" });
-    assert.deepEqual([failed.migrationState, failed.migrationRevision, failed.migrationAttemptCount, failed.migrationLastErrorMessage], ["canonical_shadow", 1, 1, "bad error"]);
-    const second = await s.transition(1, "business_memory_backfilled"); assert.equal(second.migrationLastErrorCode, null); assert.equal(second.migrationStartedAt, first.migrationStartedAt);
+    assert.deepEqual([failed.migrationState, failed.migrationRevision, failed.migrationAttemptCount, failed.migrationLastErrorMessage], ["canonical_shadow", 2, 1, "bad error"]);
+    assert.equal((await s.client.query("SELECT count(*)::int AS count FROM ai_builder_project_migration_history WHERE project_id=$1", [s.projectId])).rows[0].count, 1);
+    await assert.rejects(() => s.transition(1, "business_memory_backfilled"), (error: any) => error.code === "AI_BUILDER_MIGRATION_REVISION_CONFLICT");
+    const second = await s.transition(2, "business_memory_backfilled"); assert.equal(second.migrationLastErrorCode, null); assert.equal(second.migrationStartedAt, first.migrationStartedAt);
   } finally { await cleanup(s); }
 });
 

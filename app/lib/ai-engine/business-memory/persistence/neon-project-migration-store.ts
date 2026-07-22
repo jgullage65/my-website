@@ -9,7 +9,7 @@ import {
 } from "../migration/project-migration-state";
 
 export class ProjectMigrationStoreError extends Error {
-  constructor(readonly code: "AI_BUILDER_PROJECT_NOT_FOUND" | "AI_BUILDER_MIGRATION_REVISION_CONFLICT" | "AI_BUILDER_INVALID_MIGRATION_TRANSITION") {
+  constructor(readonly code: "AI_BUILDER_PROJECT_NOT_FOUND" | "AI_BUILDER_MIGRATION_REVISION_CONFLICT" | "AI_BUILDER_INVALID_MIGRATION_TRANSITION" | "AI_BUILDER_MIGRATION_REPLAY_MISMATCH" | "AI_BUILDER_INVALID_PERSISTED_MIGRATION_RECORD") {
     super(code);
   }
 }
@@ -33,9 +33,24 @@ export type RecordProjectMigrationFailureInput = GetProjectMigrationStateInput &
 };
 
 const columns = "id, clerk_user_id, migration_state, migration_state_version, migration_revision, migration_started_at, migration_last_transition_at, migration_completed_at, migration_last_successful_step, migration_last_attempted_step, migration_last_error_code, migration_last_error_message, migration_last_error_at, migration_attempt_count, migration_run_id";
-const date = (value: unknown) => value == null ? null : new Date(String(value)).toISOString();
+function persistedInteger(value: unknown): number {
+  const parsed = typeof value === "number" ? value : typeof value === "string" && /^\d+$/.test(value) ? Number(value) : NaN;
+  if (!Number.isSafeInteger(parsed) || parsed < 0) throw new ProjectMigrationStoreError("AI_BUILDER_INVALID_PERSISTED_MIGRATION_RECORD");
+  return parsed;
+}
+function persistedDate(value: unknown): string | null {
+  if (value == null) return null;
+  const parsed = new Date(String(value));
+  if (Number.isNaN(parsed.getTime())) throw new ProjectMigrationStoreError("AI_BUILDER_INVALID_PERSISTED_MIGRATION_RECORD");
+  return parsed.toISOString();
+}
 function record(row: Record<string, unknown>): ProjectMigrationRecord {
-  return { projectId: String(row.id), clerkUserId: String(row.clerk_user_id), migrationState: parseProjectMigrationState(row.migration_state), migrationStateVersion: Number(row.migration_state_version), migrationRevision: Number(row.migration_revision), migrationStartedAt: date(row.migration_started_at), migrationLastTransitionAt: date(row.migration_last_transition_at), migrationCompletedAt: date(row.migration_completed_at), migrationLastSuccessfulStep: row.migration_last_successful_step == null ? null : String(row.migration_last_successful_step), migrationLastAttemptedStep: row.migration_last_attempted_step == null ? null : String(row.migration_last_attempted_step), migrationLastErrorCode: row.migration_last_error_code == null ? null : String(row.migration_last_error_code), migrationLastErrorMessage: row.migration_last_error_message == null ? null : String(row.migration_last_error_message), migrationLastErrorAt: date(row.migration_last_error_at), migrationAttemptCount: Number(row.migration_attempt_count), migrationRunId: row.migration_run_id == null ? null : String(row.migration_run_id) };
+  try {
+    return { projectId: String(row.id), clerkUserId: String(row.clerk_user_id), migrationState: parseProjectMigrationState(row.migration_state), migrationStateVersion: persistedInteger(row.migration_state_version), migrationRevision: persistedInteger(row.migration_revision), migrationStartedAt: persistedDate(row.migration_started_at), migrationLastTransitionAt: persistedDate(row.migration_last_transition_at), migrationCompletedAt: persistedDate(row.migration_completed_at), migrationLastSuccessfulStep: row.migration_last_successful_step == null ? null : String(row.migration_last_successful_step), migrationLastAttemptedStep: row.migration_last_attempted_step == null ? null : String(row.migration_last_attempted_step), migrationLastErrorCode: row.migration_last_error_code == null ? null : String(row.migration_last_error_code), migrationLastErrorMessage: row.migration_last_error_message == null ? null : String(row.migration_last_error_message), migrationLastErrorAt: persistedDate(row.migration_last_error_at), migrationAttemptCount: persistedInteger(row.migration_attempt_count), migrationRunId: row.migration_run_id == null ? null : String(row.migration_run_id) };
+  } catch (error) {
+    if (error instanceof ProjectMigrationStoreError) throw error;
+    throw new ProjectMigrationStoreError("AI_BUILDER_INVALID_PERSISTED_MIGRATION_RECORD");
+  }
 }
 
 function persistedErrorMessage(value: string): string {
@@ -62,7 +77,7 @@ export class NeonProjectMigrationStore {
     return this.transaction(async (client) => {
       const current = await this.lockOwned(client, input);
       if (current.migrationRevision !== input.expectedRevision) throw new ProjectMigrationStoreError("AI_BUILDER_MIGRATION_REVISION_CONFLICT");
-      const result = await client.query(`UPDATE ai_builder_projects SET migration_attempt_count = migration_attempt_count + 1, migration_last_attempted_step = $3, migration_run_id = $4, migration_last_error_code = $5, migration_last_error_message = $6, migration_last_error_at = NOW() WHERE id = $1 AND clerk_user_id = $2 RETURNING ${columns}`, [input.projectId, input.clerkUserId, input.attemptedStep, input.migrationRunId, persistedErrorMessage(input.errorCode), persistedErrorMessage(input.errorMessage)]);
+      const result = await client.query(`UPDATE ai_builder_projects SET migration_revision = migration_revision + 1, migration_attempt_count = migration_attempt_count + 1, migration_last_attempted_step = $3, migration_run_id = $4, migration_last_error_code = $5, migration_last_error_message = $6, migration_last_error_at = NOW() WHERE id = $1 AND clerk_user_id = $2 RETURNING ${columns}`, [input.projectId, input.clerkUserId, input.attemptedStep, input.migrationRunId, persistedErrorMessage(input.errorCode), persistedErrorMessage(input.errorMessage)]);
       return record(result.rows[0]);
     });
   }
@@ -70,7 +85,10 @@ export class NeonProjectMigrationStore {
   private async transition(client: PoolClient, input: TransitionProjectMigrationStateInput): Promise<ProjectMigrationRecord> {
     const current = await this.lockOwned(client, input);
     if (current.migrationRevision !== input.expectedRevision) throw new ProjectMigrationStoreError("AI_BUILDER_MIGRATION_REVISION_CONFLICT");
-    if (input.nextState === current.migrationState) return current;
+    if (input.nextState === current.migrationState) {
+      if (input.migrationRunId !== current.migrationRunId || input.successfulStep !== current.migrationLastSuccessfulStep) throw new ProjectMigrationStoreError("AI_BUILDER_MIGRATION_REPLAY_MISMATCH");
+      return current;
+    }
     if (!isValidProjectMigrationTransition(current.migrationState, input.nextState)) throw new ProjectMigrationStoreError("AI_BUILDER_INVALID_MIGRATION_TRANSITION");
     const result = await client.query(`UPDATE ai_builder_projects SET migration_state = $3, migration_state_version = $4, migration_revision = migration_revision + 1, migration_started_at = CASE WHEN migration_state = 'legacy_only' AND migration_started_at IS NULL THEN NOW() ELSE migration_started_at END, migration_last_transition_at = NOW(), migration_completed_at = CASE WHEN $3 = 'legacy_retired' THEN NOW() ELSE migration_completed_at END, migration_last_successful_step = $5, migration_last_attempted_step = $5, migration_run_id = $6, migration_last_error_code = NULL, migration_last_error_message = NULL, migration_last_error_at = NULL WHERE id = $1 AND clerk_user_id = $2 RETURNING ${columns}`, [input.projectId, input.clerkUserId, input.nextState, PROJECT_MIGRATION_STATE_VERSION, input.successfulStep, input.migrationRunId]);
     const updated = record(result.rows[0]);
