@@ -105,6 +105,12 @@ export type BusinessEntity = {
   updatedAt: string;
 };
 
+/**
+ * Persisted entity identity is `legacy_kind:legacy_entry_id`: the stable
+ * canonical Trusted Knowledge item key.  It intentionally does not merge
+ * separate claims with similar names; semantic reconciliation is a later phase.
+ */
+
 export type BusinessRelationship = {
   id: string;
   type: BusinessRelationshipType;
