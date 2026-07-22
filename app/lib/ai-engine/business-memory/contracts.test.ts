@@ -6,6 +6,13 @@ import {
   type KnowledgeSourceOrigin,
   type ReviewState,
 } from "./contracts";
+import type {
+  ReviewCommand,
+  ReviewCommandExecutor,
+  ReviewCommandRequest,
+  CorrectReviewCommand,
+  CorrectReviewCommandRequest,
+} from "./review-commands";
 
 const timestamp = "2026-07-20T00:00:00.000Z";
 
@@ -68,4 +75,105 @@ test("legacy review states and required source origins remain accepted", () => {
 
   assert.deepEqual(reviewStates, ["proposed", "approved", "corrected", "archived"]);
   assert.deepEqual(sourceOrigins, ["website", "manual_intake", "generated_qa", "generated", "user_edit", "imported_data", "system"]);
+});
+
+test("review command requests keep transition and actor ownership on the server", () => {
+  const request: ReviewCommandRequest = {
+    commandId: "command-1",
+    projectId: "project-1",
+    itemId: "faq-1",
+    itemKind: "faq",
+    clientRevision: 4,
+    expectedCurrentState: "proposed",
+    kind: "reject",
+  };
+
+  const command: ReviewCommand = {
+    commandId: "command-1",
+    projectId: "project-1",
+    itemId: "faq-1",
+    itemKind: "faq",
+    clientRevision: 4,
+    expectedCurrentState: "proposed",
+    kind: "reject",
+    actor: { clerkUserId: "user-1", displayName: null, email: null },
+    requestedTransition: { from: "proposed", to: "archived" },
+    createdAt: timestamp,
+  };
+
+  const executor: Pick<ReviewCommandExecutor, "execute"> | null = null;
+  assert.equal(command.requestedTransition.to, "archived");
+  assert.equal(command.actor.clerkUserId, "user-1");
+  assert.equal(executor, null);
+});
+
+test("correct review command contracts align item and correction kinds", () => {
+  const correctFaqRequest: CorrectReviewCommandRequest = {
+    commandId: "command-2",
+    projectId: "project-1",
+    itemId: "faq-1",
+    itemKind: "faq",
+    clientRevision: 4,
+    expectedCurrentState: "proposed",
+    kind: "correct",
+    correction: { itemKind: "faq", question: "What?", answer: "This." },
+  };
+
+  const correctFaqCommand: CorrectReviewCommand = {
+    commandId: "command-2",
+    projectId: "project-1",
+    itemId: "faq-1",
+    itemKind: "faq",
+    clientRevision: 4,
+    expectedCurrentState: "proposed",
+    kind: "correct",
+    correction: { itemKind: "faq", question: "What?", answer: "This." },
+    actor: { clerkUserId: "user-1", displayName: null, email: null },
+    requestedTransition: { from: "proposed", to: "corrected" },
+    createdAt: timestamp,
+  };
+
+  const mismatchedRequest: CorrectReviewCommandRequest = {
+    commandId: "command-3",
+    projectId: "project-1",
+    itemId: "faq-1",
+    itemKind: "faq",
+    clientRevision: 4,
+    expectedCurrentState: "proposed",
+    kind: "correct",
+    // @ts-expect-error FAQ items cannot use context-entry corrections.
+    correction: { itemKind: "context_entry", content: "This." },
+  };
+
+  const mismatchedCommand: CorrectReviewCommand = {
+    commandId: "command-4",
+    projectId: "project-1",
+    itemId: "faq-1",
+    itemKind: "faq",
+    clientRevision: 4,
+    expectedCurrentState: "proposed",
+    kind: "correct",
+    actor: { clerkUserId: "user-1", displayName: null, email: null },
+    requestedTransition: { from: "proposed", to: "corrected" },
+    createdAt: timestamp,
+    // @ts-expect-error Canonical FAQ commands cannot use context-entry corrections.
+    correction: { itemKind: "context_entry", content: "This." },
+  };
+
+  // @ts-expect-error A canonical command's transition must start at its expected state.
+  const conflictingStateCommand: CorrectReviewCommand = {
+    commandId: "command-5",
+    projectId: "project-1",
+    itemId: "faq-1",
+    itemKind: "faq",
+    clientRevision: 4,
+    expectedCurrentState: "proposed",
+    kind: "correct",
+    correction: { itemKind: "faq", question: "What?", answer: "This." },
+    actor: { clerkUserId: "user-1", displayName: null, email: null },
+    requestedTransition: { from: "approved", to: "corrected" },
+    createdAt: timestamp,
+  };
+
+  assert.equal(correctFaqCommand.kind, "correct");
 });
