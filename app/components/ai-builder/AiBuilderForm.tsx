@@ -3,6 +3,7 @@
 import Link from "next/link";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import { useEffect, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type {
   BuilderState,
   UserKnowledge,
@@ -587,13 +588,38 @@ function WebsiteKnowledgeModal({
   knowledge: WebsiteKnowledge;
   onClose: () => void;
 }) {
-  return (
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const html = document.documentElement;
+    const { overflow: htmlOverflow, height: htmlHeight } = html.style;
+    const { overflow: bodyOverflow, height: bodyHeight } = document.body.style;
+
+    const updateScrollLock = () => {
+      const shouldLock = mediaQuery.matches;
+      html.style.overflow = shouldLock ? "hidden" : htmlOverflow;
+      html.style.height = shouldLock ? "100%" : htmlHeight;
+      document.body.style.overflow = shouldLock ? "hidden" : bodyOverflow;
+      document.body.style.height = shouldLock ? "100%" : bodyHeight;
+    };
+
+    updateScrollLock();
+    mediaQuery.addEventListener("change", updateScrollLock);
+    return () => {
+      mediaQuery.removeEventListener("change", updateScrollLock);
+      html.style.overflow = htmlOverflow;
+      html.style.height = htmlHeight;
+      document.body.style.overflow = bodyOverflow;
+      document.body.style.height = bodyHeight;
+    };
+  }, []);
+
+  const node = (
     <div
-      className="fixed inset-0 z-[240] flex h-[100dvh] w-screen items-stretch justify-center bg-[#030713] p-0 sm:h-auto sm:w-auto sm:items-center sm:bg-transparent sm:p-6"
+      className="fixed inset-0 z-[240] flex h-[100dvh] w-screen touch-none items-stretch justify-center overflow-hidden overscroll-none bg-[#030713] p-0 sm:h-auto sm:w-auto sm:touch-auto sm:items-center sm:bg-transparent sm:p-6"
       onMouseDown={onClose}
     >
       <div
-        className="h-[100dvh] w-full overflow-y-auto border-0 bg-[#030713] shadow-2xl sm:h-auto sm:max-h-[92vh] sm:max-w-4xl sm:rounded-[30px] sm:border sm:border-white/10"
+        className="h-[100dvh] w-full touch-pan-y overflow-y-auto overscroll-contain border-0 bg-[#030713] shadow-2xl sm:h-auto sm:max-h-[92vh] sm:max-w-4xl sm:touch-auto sm:rounded-[30px] sm:border sm:border-white/10"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#030713]/95 px-16 py-5 text-center backdrop-blur sm:px-20">
@@ -645,6 +671,9 @@ function WebsiteKnowledgeModal({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return null;
+  return createPortal(node, document.body);
 }
 
 function ReadOnlyBlock({
