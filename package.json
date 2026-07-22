@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:ai-builder-contracts": "npm run test:ai-builder-contracts:unit && npm run test:ai-builder-business-memory-mapper",
-    "test:ai-builder-contracts:unit": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/ai-engine/business-memory/contracts.test.ts app/lib/ai-engine/business-memory/review-command-validator.test.ts app/lib/ai-engine/business-memory/review-command-executor.test.ts",
+    "test:ai-builder-contracts:unit": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/ai-engine/business-memory/contracts.test.ts app/lib/ai-engine/business-memory/review-command-validator.test.ts app/lib/ai-engine/business-memory/review-command-request-parser.test.ts app/lib/ai-engine/business-memory/review-command-executor.test.ts",
     "test:ai-builder-business-memory-mapper": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/ai-engine/business-memory/buildBusinessMemory.test.ts",
     "test:ai-builder-db": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/db/*.test.ts",
     "reconcile:canonical-provenance": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs scripts/reconcile-canonical-provenance.ts"

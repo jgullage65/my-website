@@ -79,6 +79,9 @@ async function executeInTransaction(client: PoolClient, { projectId, clerkUserId
     if (cause instanceof Error && cause.message === "review_command_id_conflict") {
       throw new PersistedReviewCommandError("review_command_id_conflict", "This command ID belongs to a different review command.", 409);
     }
+    if (cause instanceof Error && (cause.message === "review_correction_provenance_invalid" || cause.message === "review_correction_support_invalid")) {
+      throw new PersistedReviewCommandError(cause.message, "The correction cannot be applied because its stored provenance or support is invalid.", 409);
+    }
     throw cause;
   }
   return loadAuthoritativeResponse(client, projectId, command.itemKind, command.itemId, result);
