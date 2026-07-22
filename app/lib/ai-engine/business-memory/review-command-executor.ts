@@ -83,7 +83,7 @@ export type ReviewCommandExecutionLedgerEntry = {
 export interface ReviewCommandExecutionTransaction {
   /** Read a previously committed command from the transaction's authoritative ledger. */
   findCommittedCommand(commandId: string): Promise<ReviewCommandExecutionLedgerEntry | null>;
-  updateReviewItem(input: { projectId: string; itemId: string; itemKind: ReviewCommand["itemKind"]; from: ReviewState; to: ReviewState; correction: ReviewCorrectionPayload | null }): Promise<void>;
+  updateReviewItem(input: { projectId: string; itemId: string; itemKind: ReviewCommand["itemKind"]; from: ReviewState; to: ReviewState; correction: ReviewCorrectionPayload | null; correctionActor: ReviewCommand["actor"] | null; correctionAt: string | null }): Promise<void>;
   appendReviewHistory(entry: CanonicalReviewHistoryEntry): Promise<void>;
   incrementGovernanceRevision(input: { projectId: string; expectedRevision: number }): Promise<number>;
   updateReviewReadModels(input: { projectId: string; itemKind: ReviewCommand["itemKind"]; previousState: ReviewState; newState: ReviewState }): Promise<void>;
@@ -170,13 +170,14 @@ export class CanonicalReviewCommandExecutor implements ReviewCommandExecutor {
       const newState = command.requestedTransition.to;
       const correction = correctionFor(command);
 
-      await transaction.updateReviewItem({ projectId: command.projectId, itemId: command.itemId, itemKind: command.itemKind, from: previousState, to: newState, correction });
+      const createdAt = timestamp(this.now);
+      await transaction.updateReviewItem({ projectId: command.projectId, itemId: command.itemId, itemKind: command.itemKind, from: previousState, to: newState, correction, correctionActor: correction ? command.actor : null, correctionAt: correction ? createdAt : null });
       const resultingRevision = await transaction.incrementGovernanceRevision({ projectId: command.projectId, expectedRevision: project.governanceRevision });
       const history: CanonicalReviewHistoryEntry = {
         id: this.createHistoryId(), commandId: command.commandId, projectId: command.projectId,
         itemId: command.itemId, itemKind: command.itemKind, commandKind: command.kind,
         actor: command.actor, previousState, newState, projectRevision: resultingRevision,
-        correctedPayload: correction, createdAt: timestamp(this.now),
+        correctedPayload: correction, createdAt,
       };
       await transaction.appendReviewHistory(history);
       await transaction.updateReviewReadModels({ projectId: command.projectId, itemKind: command.itemKind, previousState, newState });

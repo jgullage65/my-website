@@ -30,13 +30,23 @@ function metadata(value: unknown): ProvenanceMetadata {
  * structure, never a UI label or a non-empty URL. A website source must be the
  * durable website-review shape produced from a crawl snapshot.
  */
+export function classifyContextStructuralProvenance(entry: Pick<BusinessContextEntry, "source" | "metadata">): Exclude<AiBuilderProvenanceClassification, "user_corrected"> {
+  if (entry.source?.sourceType === "website" && entry.source.intakeBlockId === "website_knowledge" && Boolean(entry.source.sourceUrl) && Boolean(entry.source.excerpt)) return "website";
+  if (metadata(entry.metadata).generated || entry.source?.sourceType === "generated_qa") return "ai_generated";
+  if (entry.source?.sourceType === "manual_intake" && !metadata(entry.metadata).generated) return "manual";
+  return "ai_generated";
+}
+
 export function classifyContextProvenance(entry: Pick<BusinessContextEntry, "source" | "metadata" | "status">): AiBuilderProvenanceClassification {
   const saved = metadata(entry.metadata).provenanceClassification;
   if (isAiBuilderProvenanceClassification(saved)) return saved;
   if (entry.status === "corrected" || entry.source?.sourceType === "user_edit" || metadata(entry.metadata).userEdited) return "user_corrected";
-  if (entry.source?.sourceType === "website" && entry.source.intakeBlockId === "website_knowledge" && Boolean(entry.source.sourceUrl) && Boolean(entry.source.excerpt)) return "website";
-  if (metadata(entry.metadata).generated || entry.source?.sourceType === "generated_qa") return "ai_generated";
-  if (entry.source?.sourceType === "manual_intake" && !metadata(entry.metadata).generated) return "manual";
+  return classifyContextStructuralProvenance(entry);
+}
+
+export function classifyFaqStructuralProvenance(entry: Pick<GeneratedFaqEntry, "sourceEntryIds" | "question" | "answer">, contextEntries: readonly BusinessContextEntry[]): Exclude<AiBuilderProvenanceClassification, "user_corrected"> {
+  const sources = entry.sourceEntryIds.map((id) => contextEntries.find((item) => item.id === id)).filter((item): item is BusinessContextEntry => Boolean(item));
+  if (sources.length === 1 && entry.sourceEntryIds.length === 1 && classifyContextStructuralProvenance(sources[0]) === "website" && sources[0].title === entry.question && sources[0].content === entry.answer) return "website";
   return "ai_generated";
 }
 
@@ -44,11 +54,9 @@ export function classifyFaqProvenance(entry: Pick<GeneratedFaqEntry, "sourceEntr
   const saved = metadata(entry.metadata).provenanceClassification;
   if (isAiBuilderProvenanceClassification(saved)) return saved;
   if (entry.status === "corrected" || metadata(entry.metadata).userEdited) return "user_corrected";
-  const sources = entry.sourceEntryIds.map((id) => contextEntries.find((item) => item.id === id)).filter((item): item is BusinessContextEntry => Boolean(item));
   // A FAQ is website only for the one-claim direct extraction shape. All other
   // FAQ authoring is synthesis, including mixed website/manual inputs.
-  if (sources.length === 1 && entry.sourceEntryIds.length === 1 && classifyContextProvenance(sources[0]) === "website" && sources[0].title === entry.question && sources[0].content === entry.answer) return "website";
-  return "ai_generated";
+  return classifyFaqStructuralProvenance(entry, contextEntries);
 }
 
 function normalizedMetadata(existing: unknown, classification: AiBuilderProvenanceClassification, upstreamSourceEntryIds?: string[]): ProvenanceMetadata {
@@ -71,6 +79,13 @@ export function normalizeFaqProvenance(entry: GeneratedFaqEntry, contextEntries:
 
 export function correctedProvenanceMetadata(previous: unknown, derivedPredecessor: AiBuilderProvenanceClassification): ProvenanceMetadata {
   const prior = metadata(previous);
-  const predecessor = isAiBuilderProvenanceClassification(prior.provenanceClassification) ? prior.provenanceClassification : derivedPredecessor;
-  return { ...prior, provenanceClassification: "user_corrected", predecessorProvenanceClassification: predecessor, originalProvenanceClassification: isAiBuilderProvenanceClassification(prior.originalProvenanceClassification) ? prior.originalProvenanceClassification : predecessor };
+  // The current classification can already be user_corrected (or stale); only
+  // the structural classifier describes the provenance immediately before this edit.
+  const predecessor = derivedPredecessor === "user_corrected" ? "ai_generated" : derivedPredecessor;
+  const original = isAiBuilderProvenanceClassification(prior.originalProvenanceClassification) && prior.originalProvenanceClassification !== "user_corrected"
+    ? prior.originalProvenanceClassification
+    : isAiBuilderProvenanceClassification(prior.predecessorProvenanceClassification) && prior.predecessorProvenanceClassification !== "user_corrected"
+      ? prior.predecessorProvenanceClassification
+      : predecessor;
+  return { ...prior, provenanceClassification: "user_corrected", predecessorProvenanceClassification: predecessor, originalProvenanceClassification: original };
 }
