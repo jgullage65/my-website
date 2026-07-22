@@ -6,6 +6,7 @@ import { CanonicalReviewCommandExecutor, ReviewCommandValidationError, type Cano
 import { validateReviewCommand, type AuthoritativeReviewProject } from "../review-command-validator";
 import type { ReviewCommand, ReviewCommandRequest } from "../review-commands";
 import { NeonReviewCommandExecutionStore } from "../persistence/neon-review-command-execution-store";
+import { TrustedKnowledgeProjectionError } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
 
 let pool: Pool | null = null;
 const transactionPool = () => (pool ??= new Pool({ connectionString: process.env.DATABASE_URL }));
@@ -47,6 +48,7 @@ export async function executePersistedReviewCommandsAtomically({ projectId, cler
     await client.query("COMMIT");
     return results;
   } catch (cause) {
+    if (cause instanceof TrustedKnowledgeProjectionError) throw new PersistedReviewCommandError(cause.code, "Trusted Knowledge could not be reconciled from the canonical review state.", cause.code === "invalid_trusted_projection_source_state" || cause.code === "trusted_knowledge_projection_invalid_source" ? 409 : 500);
     await client.query("ROLLBACK").catch(() => undefined);
     throw cause;
   } finally { client.release(); }
