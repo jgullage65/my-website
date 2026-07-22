@@ -42,6 +42,7 @@ export function commandsFromLegacyReviewSession(
         : transition === "proposed:corrected" ? "correct"
         : transition === "proposed:archived" ? "reject"
         : transition === "approved:archived" || transition === "corrected:archived" ? "archive"
+        : transition === "approved:proposed" ? "unapprove"
         : transition === "archived:approved" ? "restore" : undefined;
       // Unsupported legacy edits are intentionally not turned into implicit
       // mutations. Validation/execution remains the sole governance boundary.

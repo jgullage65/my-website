@@ -23,7 +23,7 @@ export type PersistedReviewCommandResult = {
 };
 
 function transition(kind: ReviewCommandRequest["kind"], from: ReviewCommandRequest["expectedCurrentState"]) {
-  return { from, to: kind === "approve" || kind === "restore" ? "approved" : kind === "correct" ? "corrected" : "archived" };
+  return { from, to: kind === "approve" || kind === "restore" ? "approved" : kind === "unapprove" ? "proposed" : kind === "correct" ? "corrected" : "archived" };
 }
 
 /** The server-side application boundary for a persisted review command. */
@@ -31,7 +31,11 @@ export async function executePersistedReviewCommand({ projectId, clerkUserId, re
   await ensureAiBuilderSchema();
   const client = await transactionPool().connect();
   try {
-    await client.query("BEGIN ISOLATION LEVEL SERIALIZABLE");
+    // The project row lock is the serialization point. READ COMMITTED makes a
+    // waiter observe the winner's ledger row after the lock is released, so an
+    // identical concurrent request replays instead of failing with SQLSTATE
+    // 40001 from a stale SERIALIZABLE snapshot.
+    await client.query("BEGIN ISOLATION LEVEL READ COMMITTED");
     const projectRow = (await client.query("SELECT id, clerk_user_id, status, archived_at, governance_revision FROM ai_builder_projects WHERE id = $1 FOR UPDATE", [projectId])).rows[0];
     if (!projectRow) throw new PersistedReviewCommandError("project_not_found", "This AI Builder project could not be found.", 404);
 
@@ -54,6 +58,9 @@ export async function executePersistedReviewCommand({ projectId, clerkUserId, re
     catch (cause) {
       if (cause instanceof ReviewCommandValidationError) {
         throw new PersistedReviewCommandError(cause.validation.issues[0]?.code ?? "invalid_review_command", cause.validation.issues[0]?.message ?? "The review command is invalid.", 409);
+      }
+      if (cause instanceof Error && cause.message === "review_command_id_conflict") {
+        throw new PersistedReviewCommandError("review_command_id_conflict", "This command ID belongs to a different review command.", 409);
       }
       throw cause;
     }

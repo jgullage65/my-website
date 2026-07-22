@@ -16,6 +16,7 @@ export type ReviewCommandKind =
   | "correct"
   | "archive"
   | "restore"
+  | "unapprove"
   | "reject";
 
 /** The legacy review collections currently contain both of these item kinds. */
@@ -123,6 +124,8 @@ export type ArchiveReviewCommand = ReviewCommandForTransition<"archive", "archiv
 
 export type RestoreReviewCommand = ReviewCommandForTransition<"restore", "approved">;
 
+export type UnapproveReviewCommand = ReviewCommandForTransition<"unapprove", "proposed">;
+
 /** Reject remains explicit because proposed-to-archived rejection exists today. */
 export type RejectReviewCommand = ReviewCommandForTransition<"reject", "archived">;
 
@@ -132,6 +135,7 @@ export type ReviewCommand =
   | CorrectReviewCommand
   | ArchiveReviewCommand
   | RestoreReviewCommand
+  | UnapproveReviewCommand
   | RejectReviewCommand;
 
 /**
@@ -180,6 +184,11 @@ export type RestoreReviewCommandRequest = ReviewCommandRequestEnvelope & {
   correction?: never;
 };
 
+export type UnapproveReviewCommandRequest = ReviewCommandRequestEnvelope & {
+  kind: "unapprove";
+  correction?: never;
+};
+
 export type RejectReviewCommandRequest = ReviewCommandRequestEnvelope & {
   kind: "reject";
   correction?: never;
@@ -190,4 +199,5 @@ export type ReviewCommandRequest =
   | CorrectReviewCommandRequest
   | ArchiveReviewCommandRequest
   | RestoreReviewCommandRequest
+  | UnapproveReviewCommandRequest
   | RejectReviewCommandRequest;

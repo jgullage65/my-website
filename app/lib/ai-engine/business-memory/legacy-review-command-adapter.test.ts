@@ -30,6 +30,7 @@ test("legacy compatibility adapter emits every canonical state-machine transitio
     ["approved", "archived", "archive"],
     ["corrected", "archived", "archive"],
     ["archived", "approved", "restore"],
+    ["approved", "proposed", "unapprove"],
   ];
 
   for (const [previousState, nextState, kind] of cases) {

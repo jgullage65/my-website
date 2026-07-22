@@ -64,6 +64,18 @@ test("records correction payloads and prepares corrected knowledge", async () =>
   assert.equal(state.trusted[0]?.reviewState, "corrected");
 });
 
+test("unapprove returns approved knowledge to proposed through the canonical pipeline", async () => {
+  const state: State = { revision: 4, reviewState: "approved", history: [], readModels: [], trusted: [], ledger: new Map() };
+  const reviewCommand = command({ kind: "unapprove", expectedCurrentState: "approved", requestedTransition: { from: "approved", to: "proposed" } });
+  const result = await new CanonicalReviewCommandExecutor(store(state), () => new Date("2026-07-22T01:00:00.000Z"), () => "history-unapprove").execute(validated(reviewCommand));
+  assert.equal(state.reviewState, "proposed");
+  assert.equal(state.revision, 5);
+  assert.deepEqual(state.readModels, ["approved:proposed"]);
+  assert.equal(state.history[0]?.commandKind, "unapprove");
+  assert.equal(state.ledger.get("command-1")?.resultingState, "proposed");
+  assert.equal(result.disposition, "executed");
+});
+
 test("rejects invalid validation results before opening a transaction", async () => {
   const state: State = { revision: 4, reviewState: "proposed", history: [], readModels: [], trusted: [], ledger: new Map() };
   const invalid = { valid: false, command: command(), issues: [] } as never;
@@ -85,6 +97,18 @@ test("replays a committed command without any additional governance mutation", a
   assert.equal(first.disposition, "executed"); assert.equal(replay.disposition, "replayed");
   assert.deepEqual({ ...replay, disposition: "executed" }, first);
   assert.equal(state.revision, 5); assert.equal(state.history.length, 1); assert.equal(state.readModels.length, 1); assert.equal(state.trusted.length, 1);
+});
+
+test("rejects reuse of a command ID for a different command", async () => {
+  const state: State = { revision: 4, reviewState: "proposed", history: [], readModels: [], trusted: [], ledger: new Map() };
+  const executor = new CanonicalReviewCommandExecutor(store(state), () => new Date("2026-07-22T01:00:00.000Z"), () => "history-1");
+  await executor.execute(validated());
+  const conflicting = command({ itemId: "faq-2" });
+  const invalid = { valid: false, command: conflicting, issues: [{ code: "stale_revision", message: "stale" }] } as never;
+  await assert.rejects(() => executor.execute(invalid), /review_command_id_conflict/);
+  assert.equal(state.revision, 5);
+  assert.equal(state.history.length, 1);
+  assert.equal(state.ledger.size, 1);
 });
 
 test("concurrent retries produce one execution and canonical replays", async () => {

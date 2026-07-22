@@ -150,6 +150,7 @@ export type AiBuilderProjectSummary = {
   messageCount: number;
   createdAt: string;
   updatedAt: string;
+  archivedAt: string | null;
 };
 
 type TransactionSql = NeonQueryFunctionInTransaction<boolean, boolean>;
@@ -195,7 +196,7 @@ function childOwnershipCollisionGuardQuery(
   }
 }
 
-type AuthoritativeChildTable = "ai_builder_intake_blocks" | "ai_builder_context_entries" | "ai_builder_faq_entries" | "ai_builder_conflicts" | "ai_builder_missing_information";
+type AuthoritativeChildTable = "ai_builder_intake_blocks" | "ai_builder_conflicts" | "ai_builder_missing_information";
 
 /**
  * Legacy child collections are an exact projection of the persisted session.
@@ -210,8 +211,6 @@ function staleChildCleanupQuery(
   if (!submittedIds.length) {
     switch (table) {
       case "ai_builder_intake_blocks": return sql`DELETE FROM ai_builder_intake_blocks WHERE project_id = ${projectId}`;
-      case "ai_builder_context_entries": return sql`DELETE FROM ai_builder_context_entries WHERE project_id = ${projectId}`;
-      case "ai_builder_faq_entries": return sql`DELETE FROM ai_builder_faq_entries WHERE project_id = ${projectId}`;
       case "ai_builder_conflicts": return sql`DELETE FROM ai_builder_conflicts WHERE project_id = ${projectId}`;
       case "ai_builder_missing_information": return sql`DELETE FROM ai_builder_missing_information WHERE project_id = ${projectId}`;
     }
@@ -219,8 +218,6 @@ function staleChildCleanupQuery(
 
   switch (table) {
     case "ai_builder_intake_blocks": return sql`DELETE FROM ai_builder_intake_blocks WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
-    case "ai_builder_context_entries": return sql`DELETE FROM ai_builder_context_entries WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
-    case "ai_builder_faq_entries": return sql`DELETE FROM ai_builder_faq_entries WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
     case "ai_builder_conflicts": return sql`DELETE FROM ai_builder_conflicts WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
     case "ai_builder_missing_information": return sql`DELETE FROM ai_builder_missing_information WHERE project_id = ${projectId} AND id <> ALL(${submittedIds})`;
   }
@@ -253,10 +250,9 @@ export function buildLegacyProjectPersistenceQueries(
       ${session.expiresAt}::timestamptz, ${clerkUserId}, ${identity.displayName}, ${identity.email}
     )
     ON CONFLICT (id) DO UPDATE SET
-      status = EXCLUDED.status, business_name = EXCLUDED.business_name,
+      business_name = EXCLUDED.business_name,
       industry = EXCLUDED.industry, website = EXCLUDED.website,
       assistant_configuration = EXCLUDED.assistant_configuration,
-      context_counts = EXCLUDED.context_counts,
       internal_fields = CASE WHEN EXCLUDED.internal_fields ? 'website_knowledge' THEN jsonb_set(COALESCE(ai_builder_projects.internal_fields, '{}'::jsonb), '{website_knowledge}', EXCLUDED.internal_fields -> 'website_knowledge', TRUE) ELSE ai_builder_projects.internal_fields END,
       updated_at = EXCLUDED.updated_at, expires_at = EXCLUDED.expires_at,
       clerk_user_id = COALESCE(ai_builder_projects.clerk_user_id, EXCLUDED.clerk_user_id),
@@ -268,14 +264,17 @@ export function buildLegacyProjectPersistenceQueries(
   queries.push(ownershipCollisionGuardQuery(sql, session.id, clerkUserId));
 
   for (const block of session.intakeBlocks) { queries.push(sql`INSERT INTO ai_builder_intake_blocks (id, project_id, label, content, created_at, updated_at) VALUES (${block.id}, ${session.id}, ${block.label}, ${block.content}, ${block.createdAt}::timestamptz, ${block.updatedAt}::timestamptz) ON CONFLICT (id) DO UPDATE SET label = EXCLUDED.label, content = EXCLUDED.content, updated_at = EXCLUDED.updated_at WHERE ai_builder_intake_blocks.project_id = EXCLUDED.project_id`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_intake_blocks", block.id, session.id)); }
-  for (const entry of session.contextEntries) { queries.push(sql`INSERT INTO ai_builder_context_entries (id, project_id, category, title, content, confidence, confidence_score, status, source, metadata, created_at, updated_at) VALUES (${entry.id}, ${session.id}, ${entry.category}, ${entry.title}, ${entry.content}, ${entry.confidence}, ${entry.confidenceScore}, ${entry.status}, ${JSON.stringify(entry.source)}::jsonb, ${JSON.stringify(entry.metadata)}::jsonb, ${entry.createdAt}::timestamptz, ${entry.updatedAt}::timestamptz) ON CONFLICT (id) DO UPDATE SET category = EXCLUDED.category, title = EXCLUDED.title, content = EXCLUDED.content, confidence = EXCLUDED.confidence, confidence_score = EXCLUDED.confidence_score, status = EXCLUDED.status, source = EXCLUDED.source, metadata = EXCLUDED.metadata, updated_at = EXCLUDED.updated_at WHERE ai_builder_context_entries.project_id = EXCLUDED.project_id`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_context_entries", entry.id, session.id)); }
-  for (const entry of session.faqEntries) { queries.push(sql`INSERT INTO ai_builder_faq_entries (id, project_id, question, answer, confidence, confidence_score, source_entry_ids, status, created_at, updated_at, metadata) VALUES (${entry.id}, ${session.id}, ${entry.question}, ${entry.answer}, ${entry.confidence}, ${entry.confidenceScore}, ${JSON.stringify(entry.sourceEntryIds)}::jsonb, ${entry.status}, ${entry.createdAt}::timestamptz, ${entry.updatedAt}::timestamptz, ${JSON.stringify(entry.metadata ?? {})}::jsonb) ON CONFLICT (id) DO UPDATE SET question = EXCLUDED.question, answer = EXCLUDED.answer, confidence = EXCLUDED.confidence, confidence_score = EXCLUDED.confidence_score, source_entry_ids = EXCLUDED.source_entry_ids, status = EXCLUDED.status, metadata = EXCLUDED.metadata, updated_at = EXCLUDED.updated_at WHERE ai_builder_faq_entries.project_id = EXCLUDED.project_id`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_faq_entries", entry.id, session.id)); }
+  // Repository persistence is ingestion-only for review rows. Existing review
+  // items are immutable here; every later state/content mutation must be a
+  // canonical Review Command.
+  for (const entry of session.contextEntries) { queries.push(sql`INSERT INTO ai_builder_context_entries (id, project_id, category, title, content, confidence, confidence_score, status, source, metadata, created_at, updated_at) VALUES (${entry.id}, ${session.id}, ${entry.category}, ${entry.title}, ${entry.content}, ${entry.confidence}, ${entry.confidenceScore}, ${entry.status}, ${JSON.stringify(entry.source)}::jsonb, ${JSON.stringify(entry.metadata)}::jsonb, ${entry.createdAt}::timestamptz, ${entry.updatedAt}::timestamptz) ON CONFLICT (id) DO NOTHING`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_context_entries", entry.id, session.id)); }
+  for (const entry of session.faqEntries) { queries.push(sql`INSERT INTO ai_builder_faq_entries (id, project_id, question, answer, confidence, confidence_score, source_entry_ids, status, created_at, updated_at, metadata) VALUES (${entry.id}, ${session.id}, ${entry.question}, ${entry.answer}, ${entry.confidence}, ${entry.confidenceScore}, ${JSON.stringify(entry.sourceEntryIds)}::jsonb, ${entry.status}, ${entry.createdAt}::timestamptz, ${entry.updatedAt}::timestamptz, ${JSON.stringify(entry.metadata ?? {})}::jsonb) ON CONFLICT (id) DO NOTHING`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_faq_entries", entry.id, session.id)); }
   for (const conflict of session.conflicts) { queries.push(sql`INSERT INTO ai_builder_conflicts (id, project_id, topic, first_statement, second_statement, source_excerpts, suggested_question, resolved, resolution) VALUES (${conflict.id}, ${session.id}, ${conflict.topic}, ${conflict.firstStatement}, ${conflict.secondStatement}, ${JSON.stringify(conflict.sourceExcerpts)}::jsonb, ${conflict.suggestedQuestion}, ${conflict.resolved}, ${conflict.resolution ?? null}) ON CONFLICT (id) DO UPDATE SET topic = EXCLUDED.topic, first_statement = EXCLUDED.first_statement, second_statement = EXCLUDED.second_statement, source_excerpts = EXCLUDED.source_excerpts, suggested_question = EXCLUDED.suggested_question, resolved = EXCLUDED.resolved, resolution = EXCLUDED.resolution WHERE ai_builder_conflicts.project_id = EXCLUDED.project_id`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_conflicts", conflict.id, session.id)); }
   for (const item of session.missingInformation) { queries.push(sql`INSERT INTO ai_builder_missing_information (id, project_id, topic, reason, suggested_question, resolved) VALUES (${item.id}, ${session.id}, ${item.topic}, ${item.reason}, ${item.suggestedQuestion}, ${item.resolved}) ON CONFLICT (id) DO UPDATE SET topic = EXCLUDED.topic, reason = EXCLUDED.reason, suggested_question = EXCLUDED.suggested_question, resolved = EXCLUDED.resolved WHERE ai_builder_missing_information.project_id = EXCLUDED.project_id`); queries.push(childOwnershipCollisionGuardQuery(sql, "ai_builder_missing_information", item.id, session.id)); }
   // Delete dependents before their logical sources, after every submitted child
   // has passed its project-ownership guard.
-  queries.push(staleChildCleanupQuery(sql, "ai_builder_faq_entries", session.id, session.faqEntries.map((entry) => entry.id)));
-  queries.push(staleChildCleanupQuery(sql, "ai_builder_context_entries", session.id, session.contextEntries.map((entry) => entry.id)));
+  // Review collections are append-only at this ingestion boundary. Missing
+  // submitted rows cannot delete persisted review authority.
   queries.push(staleChildCleanupQuery(sql, "ai_builder_intake_blocks", session.id, session.intakeBlocks.map((block) => block.id)));
   queries.push(staleChildCleanupQuery(sql, "ai_builder_conflicts", session.id, session.conflicts.map((conflict) => conflict.id)));
   queries.push(staleChildCleanupQuery(sql, "ai_builder_missing_information", session.id, session.missingInformation.map((item) => item.id)));
@@ -591,12 +590,12 @@ export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]
       projects.status,
       projects.created_at,
       projects.updated_at,
+      projects.archived_at,
       COUNT(messages.id)::integer AS message_count
     FROM ai_builder_projects projects
     LEFT JOIN ai_builder_chat_threads threads ON threads.project_id = projects.id
     LEFT JOIN ai_builder_chat_messages messages ON messages.thread_id = threads.id
-    WHERE projects.archived_at IS NULL
-      AND projects.clerk_user_id = ${clerkUserId}
+    WHERE projects.clerk_user_id = ${clerkUserId}
     GROUP BY projects.id
     ORDER BY projects.updated_at DESC
   `) as DatabaseRow[];
@@ -610,6 +609,7 @@ export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]
     messageCount: Number(row.message_count ?? 0),
     createdAt: toIsoString(row.created_at),
     updatedAt: toIsoString(row.updated_at),
+    archivedAt: row.archived_at == null ? null : toIsoString(row.archived_at),
   }));
 }
 
@@ -641,6 +641,21 @@ export async function archiveAiBuilderProject(projectId: string): Promise<boolea
     WHERE id = ${projectId}
       AND clerk_user_id = ${clerkUserId}
       AND archived_at IS NULL
+    RETURNING id
+  `) as DatabaseRow[];
+  return Boolean(rows[0]);
+}
+
+export async function restoreAiBuilderProject(projectId: string): Promise<boolean> {
+  const clerkUserId = await requireClerkUserId();
+  await ensureAiBuilderSchema();
+  const sql = getSql();
+  const rows = (await sql`
+    UPDATE ai_builder_projects
+    SET archived_at = NULL, updated_at = NOW()
+    WHERE id = ${projectId}
+      AND clerk_user_id = ${clerkUserId}
+      AND archived_at IS NOT NULL
     RETURNING id
   `) as DatabaseRow[];
   return Boolean(rows[0]);

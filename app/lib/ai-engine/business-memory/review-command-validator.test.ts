@@ -38,6 +38,7 @@ test("validates every canonical allowed review transition", () => {
     [command({ kind: "archive", expectedCurrentState: "approved", requestedTransition: { from: "approved", to: "archived" } }), project({ items: [{ id: "faq-1", projectId: "project-1", kind: "faq", reviewState: "approved" }] })],
     [command({ kind: "archive", expectedCurrentState: "corrected", requestedTransition: { from: "corrected", to: "archived" } }), project({ items: [{ id: "faq-1", projectId: "project-1", kind: "faq", reviewState: "corrected" }] })],
     [command({ kind: "restore", expectedCurrentState: "archived", requestedTransition: { from: "archived", to: "approved" } }), project({ items: [{ id: "faq-1", projectId: "project-1", kind: "faq", reviewState: "archived" }] })],
+    [command({ kind: "unapprove", expectedCurrentState: "approved", requestedTransition: { from: "approved", to: "proposed" } }), project({ items: [{ id: "faq-1", projectId: "project-1", kind: "faq", reviewState: "approved" }] })],
   ];
   for (const [reviewCommand, authoritativeProject] of cases) assert.equal(validateReviewCommand(reviewCommand, authoritativeProject).valid, true);
 });

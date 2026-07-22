@@ -69,6 +69,7 @@ const ALLOWED_TRANSITIONS: Record<ReviewCommand["kind"], ReadonlySet<string>> = 
   reject: new Set(["proposed:archived"]),
   archive: new Set(["approved:archived", "corrected:archived"]),
   restore: new Set(["archived:approved"]),
+  unapprove: new Set(["approved:proposed"]),
 };
 
 function hasText(value: unknown): value is string {

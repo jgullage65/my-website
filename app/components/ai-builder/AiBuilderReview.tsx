@@ -233,7 +233,7 @@ export default function AiBuilderReview({
                     <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
                       <button
                         type="button"
-                        onClick={() => void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: entry.status === "archived" ? "restore" : "approve" })}
+                        onClick={() => void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: entry.status === "approved" ? "unapprove" : entry.status === "archived" ? "restore" : "approve" })}
                         className={approveActionClassName}
                       >
                         {entry.status === "approved" ? "Unapprove" : "Approve"}
@@ -323,7 +323,7 @@ export default function AiBuilderReview({
                 <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
                   <button
                     type="button"
-                    onClick={() => void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: faq.status === "archived" ? "restore" : "approve" })}
+                    onClick={() => void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: faq.status === "approved" ? "unapprove" : faq.status === "archived" ? "restore" : "approve" })}
                     className={approveActionClassName}
                   >
                     {faq.status === "approved" ? "Unapprove" : "Approve"}

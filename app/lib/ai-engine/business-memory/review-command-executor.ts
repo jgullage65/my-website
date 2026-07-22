@@ -115,6 +115,23 @@ function timestamp(now: () => Date): string {
   return now().toISOString();
 }
 
+function isReplayOf(command: ReviewCommand, committed: ReviewCommandExecutionLedgerEntry): boolean {
+  const history = committed.result.history;
+  return committed.projectId === command.projectId
+    && committed.itemId === command.itemId
+    && history.itemKind === command.itemKind
+    && history.commandKind === command.kind
+    && history.previousState === command.expectedCurrentState
+    && history.newState === command.requestedTransition.to
+    && history.actor.clerkUserId === command.actor.clerkUserId
+    && JSON.stringify(history.correctedPayload) === JSON.stringify(correctionFor(command));
+}
+
+function replay(command: ReviewCommand, committed: ReviewCommandExecutionLedgerEntry): CanonicalReviewCommandExecutionResult {
+  if (!isReplayOf(command, committed)) throw new Error("review_command_id_conflict");
+  return { ...committed.result, disposition: "replayed" };
+}
+
 /** Executes or replays a previously validated command in exactly one store transaction. */
 export class CanonicalReviewCommandExecutor implements ReviewCommandExecutor {
   private readonly store: ReviewCommandExecutionStore;
@@ -140,14 +157,14 @@ export class CanonicalReviewCommandExecutor implements ReviewCommandExecutor {
       if (!mayBeReplay) throw new ReviewCommandValidationError(validation);
       return this.store.transaction(validation.command.commandId, async (transaction) => {
         const committed = await transaction.findCommittedCommand(validation.command.commandId);
-        if (committed) return { ...committed.result, disposition: "replayed" };
+        if (committed) return replay(validation.command, committed);
         throw new ReviewCommandValidationError(validation);
       });
     }
     return this.store.transaction(validation.command.commandId, async (transaction) => {
       const { command, project, item } = validation;
       const committed = await transaction.findCommittedCommand(command.commandId);
-      if (committed) return { ...committed.result, disposition: "replayed" };
+      if (committed) return replay(command, committed);
 
       const previousState = item.reviewState;
       const newState = command.requestedTransition.to;
