@@ -55,6 +55,9 @@ export type TrustedKnowledgePreparation = {
   itemId: string;
   itemKind: ReviewCommand["itemKind"];
   reviewState: ReviewState;
+  previousReviewState: ReviewState;
+  commandKind: ReviewCommand["kind"];
+  actor: ReviewCommand["actor"];
   projectRevision: number;
 };
 
@@ -183,7 +186,7 @@ export class CanonicalReviewCommandExecutor implements ReviewCommandExecutor {
       await transaction.updateReviewReadModels({ projectId: command.projectId, itemKind: command.itemKind, previousState, newState });
       // Reconcile after every state mutation. Archive, unapprove, and restore
       // are projection mutations too, not merely review-read-model changes.
-      await transaction.prepareTrustedKnowledge({ commandId: command.commandId, projectId: command.projectId, itemId: command.itemId, itemKind: command.itemKind, reviewState: newState, projectRevision: resultingRevision });
+      await transaction.prepareTrustedKnowledge({ commandId: command.commandId, projectId: command.projectId, itemId: command.itemId, itemKind: command.itemKind, reviewState: newState, previousReviewState: previousState, commandKind: command.kind, actor: command.actor, projectRevision: resultingRevision });
       const result: Omit<CanonicalReviewCommandExecutionResult, "disposition"> = {
         commandId: command.commandId, projectId: command.projectId, itemId: command.itemId,
         resultingRevision, resultingState: newState, executedAt: history.createdAt, history,
