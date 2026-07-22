@@ -60,6 +60,8 @@ type BuilderStep =
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+export type ReviewCommandPending = ReadonlySet<string>;
+
 type StoredChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -148,38 +150,74 @@ export default function AiBuilderClient({
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [pendingReviewItems, setPendingReviewItems] = useState<ReviewCommandPending>(
+    new Set(),
+  );
   const [buildPercent, setBuildPercent] = useState(0);
   // This is only a cache of the last server response; it never advances a
   // revision locally or derives a transition.
   const authoritativeRevisionRef = useRef(0);
+  const pendingReviewItemsRef = useRef(new Set<string>());
+  // This chain serializes network requests while keeping the UI interactive.
+  // Each item retains its own pending state until its queued command settles.
+  const reviewCommandQueueRef = useRef<Promise<void>>(Promise.resolve());
 
-  const submitReviewCommand = useCallback(async (command: ReviewCommandRequest) => {
+  const submitReviewCommand = useCallback((command: ReviewCommandRequest) => {
+    const pendingKey = `${command.itemKind}:${command.itemId}`;
+    // Reject duplicate clicks while allowing commands for other items to queue.
+    if (pendingReviewItemsRef.current.has(pendingKey)) {
+      return Promise.reject(
+        new Error("A review command is already pending for this item."),
+      );
+    }
+    pendingReviewItemsRef.current.add(pendingKey);
+    setPendingReviewItems(new Set(pendingReviewItemsRef.current));
     setSaveStatus("saving");
     setSaveError(null);
-    try {
-      const authoritativeCommand = {
-        ...command,
-        clientRevision: authoritativeRevisionRef.current || command.clientRevision,
-      };
-      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(command.projectId)}/review-commands`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(authoritativeCommand) });
-      const payload = await response.json() as { ok?: boolean; item?: Record<string, unknown>; governanceRevision?: number; contextCounts?: AiBuilderSession["contextCounts"]; status?: AiBuilderSession["status"]; error?: { message?: string } };
-      if (!response.ok || !payload.ok || !payload.item) throw new Error(payload.error?.message || "The review command could not be saved.");
-      authoritativeRevisionRef.current = payload.governanceRevision ?? authoritativeCommand.clientRevision;
-      setSession((current) => {
-        if (!current) return current;
-        const item = payload.item!;
-        const updated = { ...current, governanceRevision: payload.governanceRevision ?? current.governanceRevision, contextCounts: payload.contextCounts ?? current.contextCounts, status: payload.status ?? current.status };
-        if (command.itemKind === "context_entry") updated.contextEntries = current.contextEntries.map((entry) => entry.id === command.itemId ? { ...entry, category: String(item.category) as typeof entry.category, title: String(item.title), content: String(item.content), status: String(item.status) as typeof entry.status, updatedAt: new Date(String(item.updated_at)).toISOString() } : entry);
-        else updated.faqEntries = current.faqEntries.map((entry) => entry.id === command.itemId ? { ...entry, question: String(item.question), answer: String(item.answer), status: String(item.status) as typeof entry.status, updatedAt: new Date(String(item.updated_at)).toISOString() } : entry);
-        return updated;
-      });
-      setSaveStatus("saved");
-      return;
-    } catch (commandError) {
-      setSaveStatus("error");
-      setSaveError(commandError instanceof Error ? commandError.message : "The review command could not be saved.");
-      throw commandError;
-    }
+    const queuedCommand = reviewCommandQueueRef.current.then(async () => {
+      try {
+        setSaveStatus("saving");
+        setSaveError(null);
+        // Build the request at execution time, after every preceding command
+        // has applied its canonical governance revision.
+        const authoritativeCommand = {
+          ...command,
+          clientRevision: authoritativeRevisionRef.current,
+        };
+        const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(command.projectId)}/review-commands`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(authoritativeCommand) });
+        const payload = await response.json() as { ok?: boolean; item?: Record<string, unknown>; governanceRevision?: number; contextCounts?: AiBuilderSession["contextCounts"]; status?: AiBuilderSession["status"]; error?: { message?: string } };
+        if (!response.ok || !payload.ok || !payload.item) throw new Error(payload.error?.message || "The review command could not be saved.");
+        authoritativeRevisionRef.current = payload.governanceRevision ?? authoritativeCommand.clientRevision;
+        setSession((current) => {
+          if (!current) return current;
+          const item = payload.item!;
+          const updated = { ...current, governanceRevision: payload.governanceRevision ?? current.governanceRevision, contextCounts: payload.contextCounts ?? current.contextCounts, status: payload.status ?? current.status };
+          if (command.itemKind === "context_entry") {
+            const canonicalEntry = { ...current.contextEntries.find((entry) => entry.id === command.itemId), id: command.itemId, category: String(item.category) as AiBuilderSession["contextEntries"][number]["category"], title: String(item.title), content: String(item.content), status: String(item.status) as AiBuilderSession["contextEntries"][number]["status"], updatedAt: new Date(String(item.updated_at)).toISOString() } as AiBuilderSession["contextEntries"][number];
+            const position = current.contextEntries.findIndex((entry) => entry.id === command.itemId);
+            updated.contextEntries = [...current.contextEntries.filter((entry) => entry.id !== command.itemId)];
+            updated.contextEntries.splice(position < 0 ? updated.contextEntries.length : position, 0, canonicalEntry);
+          } else {
+            const canonicalEntry = { ...current.faqEntries.find((entry) => entry.id === command.itemId), id: command.itemId, question: String(item.question), answer: String(item.answer), status: String(item.status) as AiBuilderSession["faqEntries"][number]["status"], updatedAt: new Date(String(item.updated_at)).toISOString() } as AiBuilderSession["faqEntries"][number];
+            const position = current.faqEntries.findIndex((entry) => entry.id === command.itemId);
+            updated.faqEntries = [...current.faqEntries.filter((entry) => entry.id !== command.itemId)];
+            updated.faqEntries.splice(position < 0 ? updated.faqEntries.length : position, 0, canonicalEntry);
+          }
+          return updated;
+        });
+        setSaveStatus("saved");
+      } catch (commandError) {
+        setSaveStatus("error");
+        setSaveError(commandError instanceof Error ? commandError.message : "The review command could not be saved.");
+        throw commandError;
+      }
+    });
+    // Keep the queue live after failures so later actions still execute.
+    reviewCommandQueueRef.current = queuedCommand.catch(() => undefined);
+    return queuedCommand.finally(() => {
+      pendingReviewItemsRef.current.delete(pendingKey);
+      setPendingReviewItems(new Set(pendingReviewItemsRef.current));
+    });
   }, []);
 
   useEffect(() => {
@@ -226,6 +264,11 @@ export default function AiBuilderClient({
         : null,
     [session],
   );
+  const reviewSaveStatus: SaveStatus = saveError
+    ? "error"
+    : pendingReviewItems.size > 0
+      ? "saving"
+      : saveStatus;
 
   useEffect(() => {
     if (!initialProjectId) return;
@@ -472,22 +515,22 @@ export default function AiBuilderClient({
 
       {step === "review" && session ? (
         <>
-          {saveStatus !== "idle" || saveError ? (
+          {reviewSaveStatus !== "idle" || saveError ? (
             <div
               className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${
-                saveStatus === "error"
+                reviewSaveStatus === "error"
                   ? "border-red-500/30 bg-red-500/10 text-red-200"
                   : "border-amber-300/20 bg-[#030713] text-slate-400"
               }`}
               role={
-                saveStatus === "error" ? "alert" : "status"
+                reviewSaveStatus === "error" ? "alert" : "status"
               }
               aria-live="polite"
             >
-              {saveStatus === "saving"
-                ? "Saving changes..."
-                : saveStatus === "saved"
-                  ? "Changes saved."
+              {reviewSaveStatus === "saving"
+                ? "Applying review command..."
+                : reviewSaveStatus === "saved"
+                  ? "Review command applied."
                   : saveError}
             </div>
           ) : null}
@@ -495,6 +538,7 @@ export default function AiBuilderClient({
           <AiBuilderReview
             session={session}
             onReviewCommand={submitReviewCommand}
+            pendingReviewItems={pendingReviewItems}
             onBack={() => navigateToStep("results")}
             onLaunchChat={() => navigateToStep("chat")}
           />

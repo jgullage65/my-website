@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type {
@@ -15,6 +15,7 @@ import AiBuilderAuthCta from "./AiBuilderAuthCta";
 type Props = {
   session: AiBuilderSession;
   onReviewCommand: (request: ReviewCommandRequest) => Promise<void>;
+  pendingReviewItems: ReadonlySet<string>;
   onBack: () => void;
   onLaunchChat: () => void;
 };
@@ -47,6 +48,7 @@ const approveActionClassName =
 export default function AiBuilderReview({
   session,
   onReviewCommand,
+  pendingReviewItems,
   onBack,
   onLaunchChat,
 }: Props) {
@@ -55,6 +57,8 @@ export default function AiBuilderReview({
   const [entryDrafts, setEntryDrafts] = useState<Record<string, { title: string; content: string }>>({});
   const [faqDrafts, setFaqDrafts] = useState<Record<string, { question: string; answer: string }>>({});
   const [bulkFailureMessage, setBulkFailureMessage] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "proposed" | "approved" | "archived">("all");
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   const contextEntries = session.contextEntries;
@@ -63,26 +67,52 @@ export default function AiBuilderReview({
   const grouped = useMemo(() => {
     const map = new Map<
       BusinessContextCategory,
-      Array<{ entry: BusinessContextEntry; sourceIndex: number }>
+      Array<{ entry: BusinessContextEntry }>
     >();
 
-    contextEntries.forEach((entry, sourceIndex) => {
-      if (entry.status !== "archived") {
+    contextEntries.forEach((entry) => {
+      if (
+        filter === "all"
+          ? entry.status !== "archived"
+          : filter === "approved"
+            ? entry.status === "approved" || entry.status === "corrected"
+            : entry.status === filter
+      ) {
         const current = map.get(entry.category) ?? [];
-        map.set(entry.category, current.concat({ entry, sourceIndex }));
+        map.set(entry.category, current.concat({ entry }));
       }
     });
 
     return Array.from(map.entries());
-  }, [contextEntries]);
+  }, [contextEntries, filter]);
 
   const visibleFaqEntries = useMemo(
     () =>
-      faqEntries.flatMap((faq, sourceIndex) =>
-        faq.status === "archived" ? [] : [{ faq, sourceIndex }],
+      faqEntries.flatMap((faq) =>
+        (filter === "all"
+          ? faq.status !== "archived"
+          : filter === "approved"
+            ? faq.status === "approved" || faq.status === "corrected"
+            : faq.status === filter)
+          ? [{ faq }]
+          : [],
       ),
-    [faqEntries],
+    [faqEntries, filter],
   );
+
+  const visibleItemKeys = useMemo(
+    () => [
+      ...grouped.flatMap(([, entries]) => entries.map(({ entry }) => `context_entry:${entry.id}`)),
+      ...visibleFaqEntries.map(({ faq }) => `faq:${faq.id}`),
+    ],
+    [grouped, visibleFaqEntries],
+  );
+
+  useEffect(() => {
+    if (selectedItem && !visibleItemKeys.includes(selectedItem)) {
+      setSelectedItem(visibleItemKeys[0] ?? null);
+    }
+  }, [selectedItem, visibleItemKeys]);
 
   const commandId = () => crypto.randomUUID();
 
@@ -93,6 +123,9 @@ export default function AiBuilderReview({
       projectId: session.id,
       clientRevision: session.governanceRevision ?? 0,
     } as ReviewCommandRequest);
+
+  const isPending = (itemKind: "context_entry" | "faq", itemId: string) =>
+    pendingReviewItems.has(`${itemKind}:${itemId}`);
 
   const removeEntry = async (kind: "knowledge" | "faq", entry: BusinessContextEntry | GeneratedFaqEntry) => {
     const confirmed = await showConfirm({
@@ -174,6 +207,13 @@ export default function AiBuilderReview({
             <Stat label="Pending" value={session.contextCounts.proposed} />
             <Stat label="Removed" value={session.contextCounts.archived} />
           </div>
+          <div className="mx-auto mt-5 flex flex-wrap justify-center gap-2" aria-label="Review filter">
+            {(["all", "proposed", "approved", "archived"] as const).map((nextFilter) => (
+              <button key={nextFilter} type="button" onClick={() => setFilter(nextFilter)} className={secondaryButtonClassName} aria-pressed={filter === nextFilter}>
+                {nextFilter === "all" ? "All" : nextFilter === "archived" ? "Removed" : nextFilter === "proposed" ? "Pending" : "Approved"}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -187,9 +227,10 @@ export default function AiBuilderReview({
         {grouped.map(([category, categoryEntries]) => (
           <section key={category} className="mx-auto max-w-4xl">
             <div className="mx-auto grid max-w-3xl gap-3 md:grid-cols-2">
-              {categoryEntries.map(({ entry, sourceIndex }, index) => {
-                const entryRenderKey = `${entry.id}:${sourceIndex}`;
+              {categoryEntries.map(({ entry }, index) => {
+                const entryRenderKey = `context_entry:${entry.id}`;
                 const editing = editingEntry === entryRenderKey;
+                const pending = isPending("context_entry", entry.id);
                 const shouldSpanFull =
                   categoryEntries.length === 1 ||
                   (categoryEntries.length % 2 === 1 &&
@@ -198,6 +239,7 @@ export default function AiBuilderReview({
                 return (
                   <article
                     key={entryRenderKey}
+                    onClick={() => setSelectedItem(entryRenderKey)}
                     className={`flex min-h-[190px] flex-col items-center justify-center rounded-[20px] border border-amber-300/25 bg-black/15 px-4 py-5 text-center ${
                       shouldSpanFull ? "md:col-span-2" : ""
                     }`}
@@ -235,11 +277,12 @@ export default function AiBuilderReview({
                         type="button"
                         onClick={() => void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: entry.status === "approved" ? "unapprove" : entry.status === "archived" ? "restore" : "approve" })}
                         className={approveActionClassName}
+                        disabled={pending}
                       >
-                        {entry.status === "approved" ? "Unapprove" : "Approve"}
+                        {entry.status === "approved" ? "Unapprove" : entry.status === "archived" ? "Restore" : "Approve"}
                       </button>
 
-                      <button
+                      {entry.status !== "archived" ? <button
                         type="button"
                         onClick={() => {
                           if (editing) {
@@ -249,19 +292,21 @@ export default function AiBuilderReview({
                           } else setEditingEntry(entryRenderKey);
                         }}
                         className={itemActionClassName}
+                        disabled={pending}
                       >
                         {editing ? "Done" : "Edit"}
-                      </button>
+                      </button> : null}
 
-                      <button
+                      {entry.status !== "archived" ? <button
                         type="button"
                         onClick={() =>
                           void removeEntry("knowledge", entry)
                         }
                         className={itemActionClassName}
+                        disabled={pending}
                       >
                         Remove Information
-                      </button>
+                      </button> : null}
                     </div>
                   </article>
                 );
@@ -279,9 +324,10 @@ export default function AiBuilderReview({
         />
 
         <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-2">
-          {visibleFaqEntries.map(({ faq, sourceIndex }, index) => {
-            const faqRenderKey = `${faq.id}:${sourceIndex}`;
+          {visibleFaqEntries.map(({ faq }, index) => {
+            const faqRenderKey = `faq:${faq.id}`;
             const editing = editingFaq === faqRenderKey;
+            const pending = isPending("faq", faq.id);
             const shouldSpanFull =
               visibleFaqEntries.length === 1 ||
               (visibleFaqEntries.length % 2 === 1 &&
@@ -290,6 +336,7 @@ export default function AiBuilderReview({
             return (
               <article
                 key={faqRenderKey}
+                onClick={() => setSelectedItem(faqRenderKey)}
                 className={`flex min-h-[210px] flex-col items-center justify-center rounded-[22px] border border-amber-300/25 bg-[#030713] px-5 py-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.18)] ${
                   shouldSpanFull ? "md:col-span-2" : ""
                 }`}
@@ -325,11 +372,12 @@ export default function AiBuilderReview({
                     type="button"
                     onClick={() => void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: faq.status === "approved" ? "unapprove" : faq.status === "archived" ? "restore" : "approve" })}
                     className={approveActionClassName}
+                    disabled={pending}
                   >
-                    {faq.status === "approved" ? "Unapprove" : "Approve"}
+                    {faq.status === "approved" ? "Unapprove" : faq.status === "archived" ? "Restore" : "Approve"}
                   </button>
 
-                  <button
+                  {faq.status !== "archived" ? <button
                     type="button"
                     onClick={() => {
                       if (editing) {
@@ -339,17 +387,19 @@ export default function AiBuilderReview({
                       } else setEditingFaq(faqRenderKey);
                     }}
                     className={itemActionClassName}
+                    disabled={pending}
                   >
                     {editing ? "Done" : "Edit"}
-                  </button>
+                  </button> : null}
 
-                  <button
+                  {faq.status !== "archived" ? <button
                     type="button"
                     onClick={() => void removeEntry("faq", faq)}
                     className={itemActionClassName}
+                    disabled={pending}
                   >
                     Remove Information
-                  </button>
+                  </button> : null}
                 </div>
               </article>
             );
