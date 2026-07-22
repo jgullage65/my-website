@@ -16,6 +16,7 @@ import { getSql } from "@/app/lib/db/client";
 import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import { buildKnowledgePackFromTrustedRows, reconcileTrustedKnowledgeProjectionForProject, TrustedKnowledgeProjectionError, type TrustedKnowledgeProjectionRow } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
+import { projectionFresh, type ProjectionFreshness as ProjectionFreshnessState } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeFreshness";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ type PersistentChatRequest = Omit<ChatRequest, "knowledge"> & {
 
 type DatabaseRow = Record<string, unknown>;
 
-type ProjectionFreshness = { governanceRevision: number; trustedKnowledgeRevision: number; activeCanonicalCount: number; activeProjectionCount: number; mixedActiveRevisions: boolean; rows: TrustedKnowledgeProjectionRow[] };
+type ProjectionFreshness = ProjectionFreshnessState & { rows: TrustedKnowledgeProjectionRow[] };
 
 async function loadProjectionFreshness(projectId: string): Promise<ProjectionFreshness> {
   const sql = getSql();
@@ -45,7 +46,6 @@ async function loadProjectionFreshness(projectId: string): Promise<ProjectionFre
   return { governanceRevision, trustedKnowledgeRevision, activeCanonicalCount: Number(project.active_canonical_count), activeProjectionCount: rows.length, mixedActiveRevisions: rows.some((row) => Number(row.governance_revision) !== governanceRevision), rows };
 }
 
-function projectionFresh(freshness: ProjectionFreshness) { return freshness.governanceRevision === freshness.trustedKnowledgeRevision && freshness.trustedKnowledgeRevision > 0 && !(freshness.activeCanonicalCount > 0 && freshness.activeProjectionCount === 0) && !freshness.mixedActiveRevisions; }
 async function repairProjection(projectId: string): Promise<void> { const client = await getProjectionPool().connect(); try { await client.query("BEGIN"); const project = (await client.query("SELECT id, governance_revision FROM ai_builder_projects WHERE id = $1 FOR UPDATE", [projectId])).rows[0]; if (!project) throw new Error("chat_thread_not_found"); await reconcileTrustedKnowledgeProjectionForProject(client, projectId, Number(project.governance_revision)); await client.query("COMMIT"); } catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; } finally { client.release(); } }
 
 type PersistentThread = {
