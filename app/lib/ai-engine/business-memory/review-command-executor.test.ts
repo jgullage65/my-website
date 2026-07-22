@@ -102,3 +102,18 @@ test("a rollback leaves no ledger entry and allows a later retry", async () => {
   const result = await new CanonicalReviewCommandExecutor(store(state), () => new Date("2026-07-22T01:00:00.000Z"), () => "history-retry").execute(validated());
   assert.equal(result.disposition, "executed"); assert.equal(state.revision, 5); assert.equal(state.history.length, 1); assert.equal(state.ledger.size, 1);
 });
+
+test("replays a duplicate through the executor after authoritative state becomes stale", async () => {
+  const state: State = { revision: 4, reviewState: "proposed", history: [], readModels: [], trusted: [], ledger: new Map() };
+  const executor = new CanonicalReviewCommandExecutor(store(state), () => new Date("2026-07-22T01:00:00.000Z"), () => "history-1");
+  const first = await executor.execute(validated());
+  const retryValidation = validateReviewCommand(command(), {
+    id: "project-1", ownerClerkUserId: "user-1", status: "ready", archivedAt: null, governanceRevision: state.revision,
+    items: [{ id: "faq-1", projectId: "project-1", kind: "faq", reviewState: state.reviewState }],
+  });
+  assert.equal(retryValidation.valid, false);
+  const replay = await executor.execute(retryValidation);
+  assert.equal(replay.disposition, "replayed");
+  assert.deepEqual({ ...replay, disposition: "executed" }, first);
+  assert.equal(state.revision, 5); assert.equal(state.history.length, 1); assert.equal(state.ledger.size, 1);
+});

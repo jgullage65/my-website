@@ -1,13 +1,23 @@
 import type { ReviewState } from "./contracts";
 import type { ReviewCommand, ReviewCorrectionPayload } from "./review-commands";
-import type { ValidReviewCommand } from "./review-command-validator";
+import type { ReviewCommandValidationResult, ValidReviewCommand } from "./review-command-validator";
 
 /**
  * Execution accepts only a successful authoritative validation result. The
  * implementation remains separate from the legacy full-session PUT route.
  */
 export interface ReviewCommandExecutor {
-  execute(validation: ValidReviewCommand): Promise<ReviewCommandExecutionResult>;
+  execute(validation: ReviewCommandValidationResult): Promise<ReviewCommandExecutionResult>;
+}
+
+/** Validation failure retained at the canonical execution boundary for HTTP mapping. */
+export class ReviewCommandValidationError extends Error {
+  readonly validation: Exclude<ReviewCommandValidationResult, ValidReviewCommand>;
+
+  constructor(validation: Exclude<ReviewCommandValidationResult, ValidReviewCommand>) {
+    super(validation.issues[0]?.code ?? "review_command_validation_required");
+    this.validation = validation;
+  }
 }
 
 export type ReviewCommandExecutionResult = {
@@ -121,9 +131,19 @@ export class CanonicalReviewCommandExecutor implements ReviewCommandExecutor {
     this.createHistoryId = createHistoryId;
   }
 
-  async execute(validation: ValidReviewCommand): Promise<CanonicalReviewCommandExecutionResult> {
-    // Defend the runtime boundary as well as the TypeScript-only input contract.
-    if (!validation.valid) throw new Error("review_command_validation_required");
+  async execute(validation: ReviewCommandValidationResult): Promise<CanonicalReviewCommandExecutionResult> {
+    // Retry requests naturally have stale state/revision after their first commit.
+    // Check the durable ledger here, at the exactly-once execution boundary, before
+    // surfacing those validation failures to the application layer.
+    if (!validation.valid) {
+      const mayBeReplay = validation.issues.some((issue) => issue.code === "stale_revision" || issue.code === "stale_review_state" || issue.code === "duplicate_command");
+      if (!mayBeReplay) throw new ReviewCommandValidationError(validation);
+      return this.store.transaction(validation.command.commandId, async (transaction) => {
+        const committed = await transaction.findCommittedCommand(validation.command.commandId);
+        if (committed) return { ...committed.result, disposition: "replayed" };
+        throw new ReviewCommandValidationError(validation);
+      });
+    }
     return this.store.transaction(validation.command.commandId, async (transaction) => {
       const { command, project, item } = validation;
       const committed = await transaction.findCommittedCommand(command.commandId);
