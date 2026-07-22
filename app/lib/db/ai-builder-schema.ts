@@ -38,6 +38,48 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS governance_revision INTEGER NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS trusted_knowledge_revision INTEGER NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS business_memory_revision INTEGER NOT NULL DEFAULT 0`;
+  // These are deliberately relational columns rather than JSONB: migration
+  // transitions are a durable, lockable state machine for each project.
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_state TEXT NOT NULL DEFAULT 'legacy_only'`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_state_version INTEGER NOT NULL DEFAULT 1`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_revision INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_started_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_last_transition_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_completed_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_last_successful_step TEXT`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_last_attempted_step TEXT`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_last_error_code TEXT`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_last_error_message TEXT`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_last_error_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_attempt_count INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS migration_run_id TEXT`;
+  await sql`
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ai_builder_projects_migration_state_check') THEN
+        ALTER TABLE ai_builder_projects ADD CONSTRAINT ai_builder_projects_migration_state_check
+          CHECK (migration_state IN ('legacy_only', 'canonical_shadow', 'business_memory_backfilled', 'business_memory_verified', 'assistant_projection_ready', 'canonical_runtime', 'legacy_retired'));
+      END IF;
+    END $$
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_project_migration_history (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      clerk_user_id TEXT NOT NULL,
+      previous_state TEXT NOT NULL,
+      next_state TEXT NOT NULL,
+      previous_revision INTEGER NOT NULL,
+      resulting_revision INTEGER NOT NULL,
+      state_version INTEGER NOT NULL,
+      migration_run_id TEXT,
+      actor_type TEXT NOT NULL,
+      actor_id TEXT,
+      reason TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (project_id, resulting_revision)
+    )
+  `;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_canonical_sources (
@@ -375,6 +417,8 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_owner_email_idx ON ai_builder_projects(owner_email)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_clerk_user_id_idx ON ai_builder_projects(clerk_user_id, updated_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_archived_at_idx ON ai_builder_projects(archived_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_projects_migration_state_version_idx ON ai_builder_projects(migration_state, migration_state_version)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_project_migration_history_project_created_idx ON ai_builder_project_migration_history(project_id, created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_sources_project_idx ON ai_builder_canonical_sources(project_id, created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_source_snapshots_source_idx ON ai_builder_canonical_source_snapshots(source_id, captured_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_canonical_evidence_snapshot_idx ON ai_builder_canonical_evidence(source_snapshot_id, captured_at)`;
