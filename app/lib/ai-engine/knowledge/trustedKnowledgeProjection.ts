@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { PoolClient } from "@neondatabase/serverless";
-import type { AiBuilderProvenanceClassification } from "@/app/lib/ai-engine/provenance";
+import { isAiBuilderProvenanceClassification, type AiBuilderProvenanceClassification } from "@/app/lib/ai-engine/provenance";
 import type { KnowledgeFact, KnowledgeFaq, KnowledgePack, KnowledgeProvenance } from "./contracts";
 import { BUSINESS_CONTEXT_CATEGORIES, type BusinessContextCategory, type ContextConfidence } from "@/app/lib/ai-engine/contracts/business";
 
@@ -17,6 +17,16 @@ export class TrustedKnowledgeProjectionError extends Error {
 }
 
 type ContextSource = { intakeBlockId: string; excerpt: string; sourceType: string; sourceUrl?: string | null };
+type ParsedContextProjectionSource = {
+  id: string; category: BusinessContextCategory; title: string; content: string;
+  confidence: ContextConfidence; confidenceScore: number; status: ReviewState;
+  source: ContextSource; metadata: Record<string, unknown>; createdAt: string; updatedAt: string;
+};
+type ParsedFaqProjectionSource = {
+  id: string; question: string; answer: string; confidence: ContextConfidence;
+  confidenceScore: number; sourceEntryIds: string[]; status: ReviewState;
+  metadata: Record<string, unknown>; createdAt: string; updatedAt: string;
+};
 type ContextRow = { id: unknown; category: unknown; title: unknown; content: unknown; confidence: unknown; confidence_score: unknown; status: unknown; source: unknown; metadata: unknown; created_at: unknown; updated_at: unknown };
 type FaqRow = { id: unknown; question: unknown; answer: unknown; confidence: unknown; confidence_score: unknown; source_entry_ids: unknown; status: unknown; metadata: unknown; created_at: unknown; updated_at: unknown };
 export type TrustedKnowledgeProjectionRow = { source_item_id: unknown; source_item_kind: unknown; review_state: unknown; content: unknown; provenance: unknown; source_entry_ids: unknown; governance_revision: unknown };
@@ -40,30 +50,50 @@ async function loadCanonicalProjectionSources(client: QueryClient, projectId: st
   return { contexts: contexts.rows as ContextRow[], faqs: faqs.rows as FaqRow[] };
 }
 
-async function upsertContextProjectionRow(client: QueryClient, projectId: string, row: ContextRow, governanceRevision: number): Promise<string> {
-  const id = parseId(row.id, "context_entry"); const state = parseReviewState(row.status, "context_entry", id);
-  const metadata = object(row.metadata, "metadata", "context_entry", id, true); const source = parseSource(row.source, id);
-  await client.query(`INSERT INTO ai_builder_trusted_knowledge_projection (project_id, source_item_id, source_item_kind, review_state, active, content, provenance, source_entry_ids, governance_revision, created_at, updated_at) VALUES ($1,$2,'context_entry',$3,$4,$5::jsonb,$6::jsonb,'[]'::jsonb,$7,$8::timestamptz,$9::timestamptz) ON CONFLICT (project_id, source_item_kind, source_item_id) DO UPDATE SET review_state=EXCLUDED.review_state,active=EXCLUDED.active,content=EXCLUDED.content,provenance=EXCLUDED.provenance,governance_revision=EXCLUDED.governance_revision,updated_at=EXCLUDED.updated_at`, [projectId, id, state, active(state), JSON.stringify({ category: row.category, title: row.title, content: row.content, confidence: row.confidence, confidenceScore: number(row.confidence_score, "confidenceScore", "context_entry", id), source, metadata }), JSON.stringify(metadata), governanceRevision, iso(row.created_at, "createdAt", "context_entry", id), iso(row.updated_at, "updatedAt", "context_entry", id)]);
-  return `context_entry:${id}`;
+function parseContextProjectionSource(row: ContextRow): ParsedContextProjectionSource {
+  const id = parseId(row.id, "context_entry");
+  return { id, category: category(row.category, id), title: text(row.title, "title", "context_entry", id), content: text(row.content, "content", "context_entry", id), confidence: confidence(row.confidence, "context_entry", id), confidenceScore: number(row.confidence_score, "confidenceScore", "context_entry", id), status: parseReviewState(row.status, "context_entry", id), source: parseSource(row.source, id), metadata: object(row.metadata, "metadata", "context_entry", id, true), createdAt: iso(row.created_at, "createdAt", "context_entry", id), updatedAt: iso(row.updated_at, "updatedAt", "context_entry", id) };
 }
-
-async function upsertFaqProjectionRow(client: QueryClient, projectId: string, row: FaqRow, governanceRevision: number): Promise<string> {
-  const id = parseId(row.id, "faq"); const state = parseReviewState(row.status, "faq", id); const sourceEntryIds = stringArray(row.source_entry_ids, "sourceEntryIds", "faq", id); const metadata = object(row.metadata, "metadata", "faq", id, true);
-  await client.query(`INSERT INTO ai_builder_trusted_knowledge_projection (project_id, source_item_id, source_item_kind, review_state, active, content, provenance, source_entry_ids, governance_revision, created_at, updated_at) VALUES ($1,$2,'faq',$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8,$9::timestamptz,$10::timestamptz) ON CONFLICT (project_id, source_item_kind, source_item_id) DO UPDATE SET review_state=EXCLUDED.review_state,active=EXCLUDED.active,content=EXCLUDED.content,provenance=EXCLUDED.provenance,source_entry_ids=EXCLUDED.source_entry_ids,governance_revision=EXCLUDED.governance_revision,updated_at=EXCLUDED.updated_at`, [projectId, id, state, active(state), JSON.stringify({ question: row.question, answer: row.answer, confidence: row.confidence, confidenceScore: number(row.confidence_score, "confidenceScore", "faq", id), metadata }), JSON.stringify(metadata), JSON.stringify(sourceEntryIds), governanceRevision, iso(row.created_at, "createdAt", "faq", id), iso(row.updated_at, "updatedAt", "faq", id)]);
-  return `faq:${id}`;
+function parseFaqProjectionSource(row: FaqRow): ParsedFaqProjectionSource {
+  const id = parseId(row.id, "faq");
+  return { id, question: text(row.question, "question", "faq", id), answer: text(row.answer, "answer", "faq", id), confidence: confidence(row.confidence, "faq", id), confidenceScore: number(row.confidence_score, "confidenceScore", "faq", id), sourceEntryIds: stringArray(row.source_entry_ids, "sourceEntryIds", "faq", id), status: parseReviewState(row.status, "faq", id), metadata: object(row.metadata, "metadata", "faq", id, true), createdAt: iso(row.created_at, "createdAt", "faq", id), updatedAt: iso(row.updated_at, "updatedAt", "faq", id) };
 }
+async function upsertContextProjectionRow(client: QueryClient, projectId: string, source: ParsedContextProjectionSource, governanceRevision: number): Promise<string> {
+  await client.query(`INSERT INTO ai_builder_trusted_knowledge_projection (project_id, source_item_id, source_item_kind, review_state, active, content, provenance, source_entry_ids, governance_revision, created_at, updated_at) VALUES ($1,$2,'context_entry',$3,$4,$5::jsonb,$6::jsonb,'[]'::jsonb,$7,$8::timestamptz,$9::timestamptz) ON CONFLICT (project_id, source_item_kind, source_item_id) DO UPDATE SET review_state=EXCLUDED.review_state,active=EXCLUDED.active,content=EXCLUDED.content,provenance=EXCLUDED.provenance,governance_revision=EXCLUDED.governance_revision,updated_at=EXCLUDED.updated_at`, [projectId, source.id, source.status, active(source.status), JSON.stringify({ category: source.category, title: source.title, content: source.content, confidence: source.confidence, confidenceScore: source.confidenceScore, source: source.source, metadata: source.metadata }), JSON.stringify(source.metadata), governanceRevision, source.createdAt, source.updatedAt]);
+  return `context_entry:${source.id}`;
+}
+async function upsertFaqProjectionRow(client: QueryClient, projectId: string, source: ParsedFaqProjectionSource, governanceRevision: number): Promise<string> {
+  await client.query(`INSERT INTO ai_builder_trusted_knowledge_projection (project_id, source_item_id, source_item_kind, review_state, active, content, provenance, source_entry_ids, governance_revision, created_at, updated_at) VALUES ($1,$2,'faq',$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8,$9::timestamptz,$10::timestamptz) ON CONFLICT (project_id, source_item_kind, source_item_id) DO UPDATE SET review_state=EXCLUDED.review_state,active=EXCLUDED.active,content=EXCLUDED.content,provenance=EXCLUDED.provenance,source_entry_ids=EXCLUDED.source_entry_ids,governance_revision=EXCLUDED.governance_revision,updated_at=EXCLUDED.updated_at`, [projectId, source.id, source.status, active(source.status), JSON.stringify({ question: source.question, answer: source.answer, confidence: source.confidence, confidenceScore: source.confidenceScore, metadata: source.metadata }), JSON.stringify(source.metadata), JSON.stringify(source.sourceEntryIds), governanceRevision, source.createdAt, source.updatedAt]);
+  return `faq:${source.id}`;
+}
+async function upsertContextProjectionRows(client: QueryClient, projectId: string, sources: ParsedContextProjectionSource[], governanceRevision: number): Promise<string[]> { return Promise.all(sources.map((source) => upsertContextProjectionRow(client, projectId, source, governanceRevision))); }
+async function upsertFaqProjectionRows(client: QueryClient, projectId: string, sources: ParsedFaqProjectionSource[], governanceRevision: number): Promise<string[]> { return Promise.all(sources.map((source) => upsertFaqProjectionRow(client, projectId, source, governanceRevision))); }
 
 async function deactivateMissingProjectionRows(client: QueryClient, projectId: string, sourceKeys: string[], governanceRevision: number): Promise<void> { if (sourceKeys.length) await client.query("UPDATE ai_builder_trusted_knowledge_projection SET active=FALSE, governance_revision=$2, updated_at=NOW() WHERE project_id=$1 AND (source_item_kind || ':' || source_item_id) <> ALL($3::text[])", [projectId, governanceRevision, sourceKeys]); else await client.query("UPDATE ai_builder_trusted_knowledge_projection SET active=FALSE, governance_revision=$2, updated_at=NOW() WHERE project_id=$1", [projectId, governanceRevision]); }
 async function updateProjectionRevision(client: QueryClient, projectId: string, governanceRevision: number): Promise<void> { await client.query("UPDATE ai_builder_projects SET trusted_knowledge_revision=$2 WHERE id=$1", [projectId, governanceRevision]); }
 
 /** Reconciles derived Trusted Knowledge without mutating canonical review authority. Caller owns the transaction. */
-export async function reconcileTrustedKnowledgeProjectionForProject(client: QueryClient, projectId: string, governanceRevision: number): Promise<void> {
-  try { const sources = await loadCanonicalProjectionSources(client, projectId); for (const row of sources.contexts) { const id = parseId(row.id, "context_entry"); parseReviewState(row.status, "context_entry", id); category(row.category, id); text(row.title, "title", "context_entry", id); text(row.content, "content", "context_entry", id); confidence(row.confidence, "context_entry", id); number(row.confidence_score, "confidenceScore", "context_entry", id); parseSource(row.source, id); object(row.metadata, "metadata", "context_entry", id, true); iso(row.created_at, "createdAt", "context_entry", id); iso(row.updated_at, "updatedAt", "context_entry", id); } for (const row of sources.faqs) { const id = parseId(row.id, "faq"); parseReviewState(row.status, "faq", id); text(row.question, "question", "faq", id); text(row.answer, "answer", "faq", id); confidence(row.confidence, "faq", id); stringArray(row.source_entry_ids, "sourceEntryIds", "faq", id); number(row.confidence_score, "confidenceScore", "faq", id); object(row.metadata, "metadata", "faq", id, true); iso(row.created_at, "createdAt", "faq", id); iso(row.updated_at, "updatedAt", "faq", id); } const keys = [...await Promise.all(sources.contexts.map((row) => upsertContextProjectionRow(client, projectId, row, governanceRevision))), ...await Promise.all(sources.faqs.map((row) => upsertFaqProjectionRow(client, projectId, row, governanceRevision)))]; await deactivateMissingProjectionRows(client, projectId, keys, governanceRevision); await updateProjectionRevision(client, projectId, governanceRevision); }
-  catch (error) { if (error instanceof TrustedKnowledgeProjectionError) throw error; throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_reconciliation_failed", "Trusted Knowledge reconciliation failed.", { projectId }); }
+export async function reconcileTrustedKnowledgeProjectionForProject(
+  client: QueryClient,
+  projectId: string,
+  governanceRevision: number,
+): Promise<void> {
+  try {
+    const sources = await loadCanonicalProjectionSources(client, projectId);
+    const contexts = sources.contexts.map(parseContextProjectionSource);
+    const faqs = sources.faqs.map(parseFaqProjectionSource);
+    const contextKeys = await upsertContextProjectionRows(client, projectId, contexts, governanceRevision);
+    const faqKeys = await upsertFaqProjectionRows(client, projectId, faqs, governanceRevision);
+    await deactivateMissingProjectionRows(client, projectId, [...contextKeys, ...faqKeys], governanceRevision);
+    await updateProjectionRevision(client, projectId, governanceRevision);
+  } catch (error) {
+    if (error instanceof TrustedKnowledgeProjectionError) throw error;
+    throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_reconciliation_failed", "Trusted Knowledge reconciliation failed.", { projectId });
+  }
 }
 export const rebuildTrustedKnowledgeProjection = reconcileTrustedKnowledgeProjectionForProject;
 
-function nullableClassification(value: unknown): AiBuilderProvenanceClassification | null { return typeof value === "string" ? value as AiBuilderProvenanceClassification : null; }
+function nullableClassification(value: unknown): AiBuilderProvenanceClassification | null { return isAiBuilderProvenanceClassification(value) ? value : null; }
 function nullableString(value: unknown): string | null { return typeof value === "string" && value ? value : null; }
 function provenance(value: unknown): KnowledgeProvenance { const metadata = optionalObject(value); const correction = optionalObject(metadata.correction); const actor = optionalObject(correction.actor); return { classification: nullableClassification(metadata.provenanceClassification), predecessorClassification: nullableClassification(metadata.predecessorProvenanceClassification), originalClassification: nullableClassification(metadata.originalProvenanceClassification), correctedByClerkUserId: nullableString(actor.clerkUserId), correctedByDisplayName: nullableString(actor.displayName), correctedByEmail: nullableString(actor.email), correctedAt: nullableString(correction.correctedAt) }; }
 function runtimeState(value: unknown): "approved" | "corrected" { const state = parseReviewState(value, "context_entry", "runtime"); if (!active(state)) return fail("trusted_knowledge_projection_invalid_source", "Inactive Trusted Knowledge was supplied to runtime mapping.", { reviewState: state }); return state; }

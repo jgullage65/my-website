@@ -12,7 +12,8 @@
     "test:ai-builder-business-memory-mapper": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/ai-engine/business-memory/buildBusinessMemory.test.ts app/lib/ai-engine/knowledge/trustedKnowledgeProjection.test.ts app/lib/ai-engine/knowledge/trustedKnowledgeFreshness.test.ts",
     "test:ai-builder-db": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/db/*.test.ts",
     "reconcile:canonical-provenance": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs scripts/reconcile-canonical-provenance.ts",
-    "reconcile:trusted-knowledge": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs scripts/reconcile-trusted-knowledge-projection.ts"
+    "reconcile:trusted-knowledge": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs scripts/reconcile-trusted-knowledge-projection.ts",
+    "test:trusted-knowledge-db": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/db/trusted-knowledge-projection.test.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.6",
