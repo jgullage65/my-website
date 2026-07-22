@@ -50,7 +50,7 @@ test("executes a validated command atomically with history, revision, read model
   const result = await executor.execute(validated());
   assert.equal(state.reviewState, "approved"); assert.equal(state.revision, 5); assert.deepEqual(state.readModels, ["proposed:approved"]);
   assert.equal(state.history.length, 1); assert.equal(state.history[0]?.commandId, "command-1"); assert.equal(state.history[0]?.projectRevision, 5);
-  assert.deepEqual(state.trusted, [{ commandId: "command-1", projectId: "project-1", itemId: "faq-1", itemKind: "faq", reviewState: "approved", projectRevision: 5 }]);
+  assert.deepEqual(state.trusted, [{ commandId: "command-1", projectId: "project-1", itemId: "faq-1", itemKind: "faq", reviewState: "approved", previousReviewState: "proposed", commandKind: "approve", actor: { clerkUserId: "user-1", displayName: null, email: null }, projectRevision: 5 }]);
   assert.equal(result.resultingRevision, 5); assert.equal(result.history.createdAt, "2026-07-22T01:00:00.000Z");
   assert.equal(result.disposition, "executed");
   assert.equal(state.ledger.get("command-1")?.historyRecordId, "history-1");

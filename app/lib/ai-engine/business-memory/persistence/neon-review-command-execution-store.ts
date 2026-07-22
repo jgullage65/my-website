@@ -5,6 +5,8 @@ import type { ReviewCommandExecutionLedgerEntry, ReviewCommandExecutionStore, Re
 import { reviewProjectStatus } from "../review-read-model";
 import { classifyContextStructuralProvenance, classifyFaqStructuralProvenance, correctedProvenanceMetadata } from "@/app/lib/ai-engine/provenance";
 import { rebuildTrustedKnowledgeProjection } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
+import { writeCanonicalGovernanceShadow } from "@/app/lib/db/canonical-provenance-shadow";
+import { rebuildPersistedBusinessMemoryFromTrustedKnowledge } from "./rebuild-persisted-business-memory";
 
 /** Transaction-bound Neon adapter for the canonical review command executor. */
 export class NeonReviewCommandExecutionStore implements ReviewCommandExecutionStore {
@@ -62,7 +64,22 @@ export class NeonReviewCommandExecutionStore implements ReviewCommandExecutionSt
         const categories = (await this.client.query("SELECT category, COUNT(*) AS total FROM ai_builder_context_entries WHERE project_id = $1 GROUP BY category", [this.projectId])).rows;
         await this.client.query("UPDATE ai_builder_projects SET context_counts = $2::jsonb, status = $3 WHERE id = $1", [this.projectId, JSON.stringify({ total: Number(counts.total), approved: Number(counts.approved), proposed: Number(counts.proposed), archived: Number(counts.archived), byCategory: Object.fromEntries(categories.map((row) => [row.category, Number(row.total)])) }), reviewProjectStatus(Number(counts.approved_business_knowledge))]);
       },
-      prepareTrustedKnowledge: async ({ projectRevision }) => rebuildTrustedKnowledgeProjection(this.client, this.projectId, projectRevision),
+      prepareTrustedKnowledge: async ({ itemId, itemKind, commandKind, previousReviewState, actor, projectRevision }) => {
+        // First append the authoritative Trusted Knowledge revision.  Business
+        // Memory cannot observe the legacy row directly; it is rebuilt only
+        // after that revision has been written in this same transaction.
+        const row = (await this.client.query(itemKind === "context_entry"
+          ? "SELECT id, content, status, updated_at, metadata FROM ai_builder_context_entries WHERE id=$1 AND project_id=$2"
+          : "SELECT id, question, answer, status, updated_at, metadata FROM ai_builder_faq_entries WHERE id=$1 AND project_id=$2", [itemId, this.projectId])).rows[0];
+        if (!row) throw new Error("canonical_governance_review_item_missing");
+        const action = commandKind === "correct" ? "correction" : commandKind;
+        await writeCanonicalGovernanceShadow({ projectId: this.projectId, actor, transitions: [{
+          action, previousStatus: previousReviewState,
+          entry: { kind: itemKind, id: String(row.id), content: itemKind === "context_entry" ? String(row.content) : `${row.question}\n${row.answer}`, status: String(row.status), updatedAt: new Date(row.updated_at).toISOString(), provenance: undefined },
+        }] as never }, this.client);
+        await rebuildTrustedKnowledgeProjection(this.client, this.projectId, projectRevision);
+        await rebuildPersistedBusinessMemoryFromTrustedKnowledge(this.client, this.projectId, projectRevision);
+      },
       recordCommittedCommand: async (entry) => { await this.client.query("INSERT INTO ai_builder_review_command_ledger (command_id, project_id, item_id, resulting_revision, resulting_state, executed_at, result) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)", [entry.commandId, entry.projectId, entry.itemId, entry.resultingRevision, entry.resultingState, entry.executedAt, JSON.stringify(entry.result)]); },
     });
   }
