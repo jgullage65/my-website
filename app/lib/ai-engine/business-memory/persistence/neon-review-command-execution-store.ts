@@ -3,6 +3,7 @@ import "server-only";
 import type { PoolClient } from "@neondatabase/serverless";
 import type { ReviewCommandExecutionLedgerEntry, ReviewCommandExecutionStore, ReviewCommandExecutionTransaction } from "../review-command-executor";
 import { reviewProjectStatus } from "../review-read-model";
+import { classifyContextProvenance, classifyFaqProvenance, correctedProvenanceMetadata } from "@/app/lib/ai-engine/provenance";
 
 /** Transaction-bound Neon adapter for the canonical review command executor. */
 export class NeonReviewCommandExecutionStore implements ReviewCommandExecutionStore {
@@ -20,12 +21,32 @@ export class NeonReviewCommandExecutionStore implements ReviewCommandExecutionSt
           trustedKnowledgePrepared: Boolean(row.result.trustedKnowledgePrepared), result: row.result,
         } as ReviewCommandExecutionLedgerEntry;
       },
-      updateReviewItem: async ({ itemKind, itemId, from, to, correction }) => {
+      updateReviewItem: async ({ itemKind, itemId, from, to, correction, correctionActor, correctionAt }) => {
         const table = itemKind === "context_entry" ? "ai_builder_context_entries" : "ai_builder_faq_entries";
         const contextCorrection = itemKind === "context_entry" && correction?.itemKind === "context_entry" ? correction : null;
         const faqCorrection = itemKind === "faq" && correction?.itemKind === "faq" ? correction : null;
-        const set = contextCorrection ? ", category = COALESCE($5, category), title = COALESCE($6, title), content = $7" : faqCorrection ? ", question = $5, answer = $6" : "";
-        const values = contextCorrection ? [itemId, this.projectId, from, to, contextCorrection.category ?? null, contextCorrection.title ?? null, contextCorrection.content] : faqCorrection ? [itemId, this.projectId, from, to, faqCorrection.question, faqCorrection.answer] : [itemId, this.projectId, from, to];
+        let correctionMetadata: Record<string, unknown> | null = null;
+        if (correction) {
+          const item = (await this.client.query(itemKind === "context_entry"
+            ? "SELECT source, metadata, status FROM ai_builder_context_entries WHERE id = $1 AND project_id = $2 FOR UPDATE"
+            : "SELECT source_entry_ids, metadata, status FROM ai_builder_faq_entries WHERE id = $1 AND project_id = $2 FOR UPDATE", [itemId, this.projectId])).rows[0];
+          if (!item) throw new Error("review_correction_provenance_invalid");
+          if (itemKind === "context_entry") {
+            const source = item.source;
+            if (!source || typeof source !== "object" || typeof source.intakeBlockId !== "string" || !source.intakeBlockId || typeof source.excerpt !== "string" || !source.excerpt || !["manual_intake", "generated_qa", "website", "user_edit"].includes(source.sourceType)) throw new Error("review_correction_provenance_invalid");
+            correctionMetadata = { ...correctedProvenanceMetadata(item.metadata, classifyContextProvenance({ source, metadata: item.metadata, status: item.status })), userEdited: true, correction: { actor: correctionActor, correctedAt: correctionAt } };
+          } else {
+            const sourceEntryIds = item.source_entry_ids;
+            if (!Array.isArray(sourceEntryIds) || sourceEntryIds.some((id) => typeof id !== "string" || !id)) throw new Error("review_correction_support_invalid");
+            if (sourceEntryIds.length) {
+              const supported = await this.client.query("SELECT id, project_id, category, title, content, confidence, confidence_score, status, source, metadata, created_at, updated_at FROM ai_builder_context_entries WHERE project_id = $1 AND id = ANY($2::text[])", [this.projectId, sourceEntryIds]);
+              if (supported.rowCount !== sourceEntryIds.length) throw new Error("review_correction_support_invalid");
+              correctionMetadata = { ...correctedProvenanceMetadata(item.metadata, classifyFaqProvenance({ sourceEntryIds, metadata: item.metadata, status: item.status, question: "", answer: "" }, supported.rows.map((row) => ({ ...row, sessionId: row.project_id, createdAt: new Date(row.created_at).toISOString(), updatedAt: new Date(row.updated_at).toISOString() })))), userEdited: true, correction: { actor: correctionActor, correctedAt: correctionAt } };
+            } else correctionMetadata = { ...correctedProvenanceMetadata(item.metadata, "ai_generated"), userEdited: true, correction: { actor: correctionActor, correctedAt: correctionAt } };
+          }
+        }
+        const set = contextCorrection ? ", category = COALESCE($5, category), title = COALESCE($6, title), content = $7, metadata = $8::jsonb" : faqCorrection ? ", question = $5, answer = $6, metadata = $7::jsonb" : "";
+        const values = contextCorrection ? [itemId, this.projectId, from, to, contextCorrection.category ?? null, contextCorrection.title ?? null, contextCorrection.content, JSON.stringify(correctionMetadata)] : faqCorrection ? [itemId, this.projectId, from, to, faqCorrection.question, faqCorrection.answer, JSON.stringify(correctionMetadata)] : [itemId, this.projectId, from, to];
         const result = await this.client.query(`UPDATE ${table} SET status = $4, updated_at = NOW()${set} WHERE id = $1 AND project_id = $2 AND status = $3`, values);
         if (result.rowCount !== 1) throw new Error("review_command_update_failed");
       },
