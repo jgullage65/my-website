@@ -2,7 +2,8 @@ import "server-only";
 
 import type { PoolClient } from "@neondatabase/serverless";
 import { canonicalJson, stableResolvedEntityId, type GovernanceHistoryIssue, type ReconciliationState } from "../reconciliation/entity-reconciliation";
-import { extractBusinessMemoryProvenance, logicalKey, materialFingerprint, materialState, stableAssertionId, stableEntityId } from "./rebuild-persisted-business-memory";
+import { detectAssertionConflicts } from "../reconciliation/conflicting-assertions";
+import { extractBusinessMemoryProvenance, logicalKey, materialFingerprint, materialState, stableAssertionId, stableEntityId, stableRelationshipId } from "./rebuild-persisted-business-memory";
 
 type Row = Record<string, any>;
 const sort = <T>(rows: T[]) => rows.sort((a, b) => canonicalJson(a).localeCompare(canonicalJson(b)));
@@ -16,7 +17,7 @@ export class NeonBusinessMemoryReconciliationStateStore {
   async loadCanonicalState(projectId: string): Promise<ReconciliationState> {
     const trusted = await this.client.query(`SELECT DISTINCT ON (t.legacy_kind,t.legacy_entry_id) t.id trusted_id,t.project_id,t.candidate_claim_id,t.claim_review_id,t.previous_trusted_knowledge_id,t.legacy_kind,t.legacy_entry_id,t.revision,t.lifecycle,t.created_at trusted_created_at,c.id claim_id,c.claim_type,c.category,c.title,c.normalized_content,c.confidence,c.confidence_score,c.metadata claim_metadata,r.id review_id,r.project_id review_project_id,r.candidate_claim_id review_claim_id,r.action review_action FROM ai_builder_canonical_trusted_knowledge t JOIN ai_builder_canonical_candidate_claims c ON c.id=t.candidate_claim_id JOIN ai_builder_canonical_claim_reviews r ON r.id=t.claim_review_id WHERE t.project_id=$1 ORDER BY t.legacy_kind,t.legacy_entry_id,t.revision DESC`, [projectId]);
     const evidence = await this.client.query(`SELECT l.candidate_claim_id,e.id evidence_id,e.content,e.url evidence_url,e.captured_at,e.metadata evidence_metadata,s.id canonical_source_id,s.kind source_kind,s.url source_url,s.metadata source_metadata,ss.metadata snapshot_metadata,ss.payload snapshot_payload FROM ai_builder_canonical_candidate_claim_evidence l JOIN ai_builder_canonical_evidence e ON e.id=l.evidence_id JOIN ai_builder_canonical_sources s ON s.id=e.source_id JOIN ai_builder_canonical_source_snapshots ss ON ss.id=e.source_snapshot_id WHERE s.project_id=$1 ORDER BY l.candidate_claim_id,e.id`, [projectId]);
-    const allHistory = await this.client.query(`SELECT t.id,t.project_id,t.candidate_claim_id,t.claim_review_id,t.previous_trusted_knowledge_id,t.legacy_kind,t.legacy_entry_id,t.revision,t.lifecycle,r.id review_id,r.project_id review_project_id,r.candidate_claim_id review_claim_id,r.action FROM ai_builder_canonical_trusted_knowledge t LEFT JOIN ai_builder_canonical_claim_reviews r ON r.id=t.claim_review_id WHERE t.project_id=$1 ORDER BY t.legacy_kind,t.legacy_entry_id,t.revision`, [projectId]);
+    const allHistory = await this.client.query(`SELECT t.id,t.project_id,t.candidate_claim_id,t.claim_review_id,t.previous_trusted_knowledge_id,t.legacy_kind,t.legacy_entry_id,t.revision,t.lifecycle,r.id review_id,r.project_id review_project_id,r.candidate_claim_id review_claim_id,r.action FROM ai_builder_canonical_trusted_knowledge t LEFT JOIN ai_builder_canonical_claim_reviews r ON r.id=t.claim_review_id WHERE t.project_id=$1 OR t.id IN (SELECT previous_trusted_knowledge_id FROM ai_builder_canonical_trusted_knowledge WHERE project_id=$1 AND previous_trusted_knowledge_id IS NOT NULL) ORDER BY t.legacy_kind,t.legacy_entry_id,t.revision`, [projectId]);
     const byClaim = new Map<string, Row[]>(); for (const item of evidence.rows as Row[]) byClaim.set(String(item.candidate_claim_id), [...(byClaim.get(String(item.candidate_claim_id)) ?? []), item]);
     for (const row of trusted.rows as Row[]) for (const item of byClaim.get(String(row.claim_id)) ?? []) item.claim_metadata = row.claim_metadata;
     const rows = trusted.rows as Row[], issues = governanceIssues(projectId, allHistory.rows as Row[]);
@@ -26,10 +27,27 @@ export class NeonBusinessMemoryReconciliationStateStore {
     const sourceEntityOwnership = sourceEntities.map(source => ({ id:`ownership:${source.id}`,sourceEntityId:source.id,resolvedEntityId:stableResolvedEntityId(projectId,source.id) }));
     const assertionOwnership = rows.map(row => { const source=stableEntityId(projectId,row as any); return { id:`assertion_ownership:${stableAssertionId(projectId,row as any)}`, assertionId:stableAssertionId(projectId,row as any), resolvedEntityId:stableResolvedEntityId(projectId,source) }; });
     for (const row of rows) for (const item of byClaim.get(String(row.claim_id)) ?? []) { const p=extractBusinessMemoryProvenance(item), aid=stableAssertionId(projectId,row as any), sid=`business_memory_source:${item.canonical_source_id}`, eid=`business_memory_evidence:${item.evidence_id}`; sources.push({id:sid,canonicalSourceId:String(item.canonical_source_id),origin:p.origin,sourceEntryId:p.sourceEntryId,intakeBlockId:p.intakeBlockId,url:p.url,label:p.label,capturedAt:p.capturedAt,crawlAttemptId:p.crawlAttemptId}); evidenceRows.push({id:eid,sourceId:sid,canonicalEvidenceId:String(item.evidence_id),excerpt:String(item.content),url:item.evidence_url ?? null,capturedAt:iso(item.captured_at)}); sourceLinks.push({id:`assertion_source:${aid}:${sid}`,assertionId:aid,sourceId:sid}); evidenceLinks.push({id:`assertion_evidence:${aid}:${eid}`,assertionId:aid,evidenceId:eid}); }
-    const root = (await this.client.query("SELECT trusted_knowledge_revision,business_memory_revision FROM ai_builder_projects WHERE id=$1",[projectId])).rows[0];
+    const root = (await this.client.query("SELECT p.trusted_knowledge_revision,p.business_memory_revision,m.id memory_id FROM ai_builder_projects p LEFT JOIN ai_builder_business_memory m ON m.project_id=p.id WHERE p.id=$1",[projectId])).rows[0];
     if (!root) throw new Error("business_memory_project_not_found");
+    // These records are operator/governance owned.  They are carried forward only
+    // after project ownership and endpoint checks; they are never inferred from text.
+    // Querying each durable model separately avoids accidental cartesian-product
+    // reconstruction while retaining the deliberately project-owned decisions.
+    const dq=(sql:string, params:unknown[]=[])=>root.memory_id ? this.client.query(sql,[root.memory_id,...params]) : Promise.resolve({rows:[] as Row[]});
+    const [durableKeys,durableAliases,durableRedirects,durableConflicts]=await Promise.all([
+      dq("SELECT * FROM ai_builder_business_memory_identity_keys WHERE memory_id=$1 AND project_id=$2",[projectId]), dq("SELECT * FROM ai_builder_business_memory_entity_aliases WHERE memory_id=$1 AND project_id=$2 AND active=true",[projectId]), dq("SELECT * FROM ai_builder_business_memory_entity_redirects WHERE memory_id=$1"), dq("SELECT * FROM ai_builder_business_memory_conflicts WHERE memory_id=$1")
+    ]);
+    const canonicalResolved = new Set(resolvedEntities.map(x=>x.id));
+    const identityKeys=(durableKeys.rows as Row[]).filter(x=>canonicalResolved.has(String(x.resolved_entity_id))).map(x=>({id:String(x.id),projectId:String(x.project_id),resolvedEntityId:String(x.resolved_entity_id),sourceEntityId:x.source_entity_id??null,type:x.key_type,normalizedValue:x.normalized_value,displayValue:x.display_value??null,strength:x.strength,authoritative:Boolean(x.authoritative),sourceIds:json(x.source_ids),active:Boolean(x.active)}));
+    const aliases=(durableAliases.rows as Row[]).filter(x=>canonicalResolved.has(String(x.resolved_entity_id))).map(x=>({id:String(x.id),projectId:String(x.project_id),resolvedEntityId:String(x.resolved_entity_id),displayValue:String(x.display_value),normalizedValue:String(x.normalized_value),sourceIds:json(x.source_ids),accepted:Boolean(x.accepted)}));
+    const redirects=(durableRedirects.rows as Row[]).filter(x=>canonicalResolved.has(String(x.from_resolved_entity_id))&&canonicalResolved.has(String(x.to_resolved_entity_id))).map(x=>({fromResolvedEntityId:String(x.from_resolved_entity_id),toResolvedEntityId:String(x.to_resolved_entity_id)}));
+    const assertionByLogical=new Map(rows.map(row=>[`${row.legacy_kind}:${row.legacy_entry_id}`, { row, assertionId:stableAssertionId(projectId,row as any), resolvedEntityId:stableResolvedEntityId(projectId,stableEntityId(projectId,row as any)) }]));
     const material = materialState(projectId, rows, byClaim);
-    return this.state({ sourceEntities, resolvedEntities, identityKeys:[], aliases:[], redirects:[], sourceEntityOwnership, assertionOwnership, relationships:[], conflicts:[], conflictAssertionLinks:[], sources, evidence:evidenceRows, assertionSourceLinks:sourceLinks, assertionEvidenceLinks:evidenceLinks, trustedKnowledgeRevision:Number(root.trusted_knowledge_revision), fingerprint:materialFingerprint(material), revision:Number(root.business_memory_revision), governanceHistoryIssues:issues });
+    const relationships=material.relationships.flatMap(relationship=>{ const from=assertionByLogical.get(`${relationship.from.legacyKind}:${relationship.from.legacyEntryId}`),to=assertionByLogical.get(`${relationship.to.legacyKind}:${relationship.to.legacyEntryId}`); if(!from||!to) return []; return [{id:stableRelationshipId(relationship),relationshipType:relationship.relationshipType,fromResolvedEntityId:from.resolvedEntityId,toResolvedEntityId:to.resolvedEntityId,fromAssertionId:from.assertionId,toAssertionId:to.assertionId,sourceEntryIds:relationship.sourceEntryIds,provenance:[],reviewState:to.row.lifecycle==="archived"?"archived":to.row.review_action==="correction"?"corrected":"approved",createdAt:iso(to.row.trusted_created_at),updatedAt:iso(to.row.trusted_created_at)}]; });
+    const existingConflicts=(durableConflicts.rows as Row[]).map(x=>({id:String(x.id),resolvedEntityId:String(x.resolved_entity_id),topicKey:String(x.topic),assertionIds:[],normalizedValues:json(x.conflicting_statements),detectionRule:String(x.detection_rule),suggestedQuestion:String(x.suggested_question),resolved:Boolean(x.resolved),active:Boolean(x.active),materialInputHash:String(x.material_input_hash)}));
+    const conflicts=detectAssertionConflicts(String(root.memory_id ?? `business_memory:${projectId}`),rows.map(row=>({id:stableAssertionId(projectId,row as any),resolvedEntityId:stableResolvedEntityId(projectId,stableEntityId(projectId,row as any)),claimType:String(row.claim_type),category:row.category,title:row.title,value:String(row.normalized_content),reviewState:row.lifecycle==="archived"?"archived":row.review_action==="correction"?"corrected":"approved",authority:row.review_action==="correction"?"corrected":row.claim_metadata?.provenanceClassification==="website"?"observed":"confirmed"})),existingConflicts);
+    const conflictAssertionLinks=conflicts.flatMap(conflict=>conflict.assertionIds.map(assertionId=>({id:`conflict_assertion:${conflict.id}:${assertionId}`,conflictId:conflict.id,assertionId})));
+    return this.state({ sourceEntities, resolvedEntities, identityKeys, aliases, redirects, sourceEntityOwnership, assertionOwnership, relationships, conflicts, conflictAssertionLinks, sources, evidence:evidenceRows, assertionSourceLinks:sourceLinks, assertionEvidenceLinks:evidenceLinks, trustedKnowledgeRevision:Number(root.trusted_knowledge_revision), fingerprint:materialFingerprint(material), revision:Number(root.business_memory_revision), governanceHistoryIssues:issues });
   }
 
   async loadPersistedState(projectId: string): Promise<ReconciliationState> {
@@ -45,4 +63,32 @@ export class NeonBusinessMemoryReconciliationStateStore {
   private state(state: ReconciliationState): ReconciliationState { for (const [key,value] of Object.entries(state)) if(Array.isArray(value)) (state as any)[key]=sort(value as any[]); return state; }
 }
 
-function governanceIssues(projectId:string, rows:Row[]): GovernanceHistoryIssue[] { const issues:GovernanceHistoryIssue[]=[]; const byId=new Map(rows.map(x=>[String(x.id),x])); for(const row of rows) { const logical=`${row.legacy_kind}:${row.legacy_entry_id}`; const bad=(reason:string,category:GovernanceHistoryIssue["category"]="governance_history_integrity_failure")=>issues.push({id:`governance:${row.id}:${reason}`,category,trustedKnowledgeId:String(row.id),reviewId:row.review_id??null,logicalEntry:logical,reason}); if(row.project_id!==projectId||row.review_project_id!==projectId||row.review_claim_id!==row.candidate_claim_id) bad("cross_project_or_claim_review"); const expected=row.lifecycle==="archived"?"archive":row.action==="correction"?"correction":row.action==="restore"?"restore":"approve"; if(row.action!==expected) bad("missing_required_review","governance_history_gap"); if(row.action==="restore") { const prior=byId.get(String(row.previous_trusted_knowledge_id)); if(!prior||prior.project_id!==projectId||prior.legacy_kind!==row.legacy_kind||prior.legacy_entry_id!==row.legacy_entry_id||prior.lifecycle!=="archived") bad("restore_predecessor_invalid"); } } return sort(issues); }
+function governanceIssues(projectId:string, rows:Row[]): GovernanceHistoryIssue[] {
+  const issues:GovernanceHistoryIssue[]=[];
+  const groups=new Map<string,Row[]>();
+  for(const row of rows) { const key=`${row.legacy_kind}:${row.legacy_entry_id}`; groups.set(key,[...(groups.get(key)??[]),row]); }
+  for(const [logical,history] of Array.from(groups.entries())) {
+    const ordered=[...history].sort((a,b)=>Number(a.revision)-Number(b.revision)||String(a.id).localeCompare(String(b.id)));
+    const byId=new Map<string,Row>(history.map((x:Row):[string,Row]=>[String(x.id),x])); let previous:Row|undefined;
+    for(const row of ordered) {
+      const bad=(reason:string,category:GovernanceHistoryIssue["category"]="governance_history_integrity_failure")=>issues.push({id:`governance:${row.id}:${reason}`,category,trustedKnowledgeId:String(row.id),reviewId:row.review_id??null,logicalEntry:logical,reason});
+      const revision=Number(row.revision);
+      if(!Number.isInteger(revision)||revision<1) bad("invalid_revision");
+      if(previous && revision<=Number(previous.revision)) bad("duplicate_or_unordered_revision");
+      if(row.project_id!==projectId) bad("cross_project_trusted_knowledge");
+      if(!row.review_id || row.review_project_id!==projectId || row.review_claim_id!==row.candidate_claim_id) bad("cross_project_or_claim_review");
+      const action=String(row.action);
+      if(!["approve","correction","archive","restore"].includes(action)) bad("unsupported_or_missing_review_action","governance_history_gap");
+      if(row.lifecycle==="archived" ? action!=="archive" : action==="archive") bad("lifecycle_review_action_mismatch","governance_history_gap");
+      if(row.lifecycle!=="archived" && action!=="approve" && action!=="correction" && action!=="restore") bad("missing_compatible_review","governance_history_gap");
+      const predecessor=row.previous_trusted_knowledge_id ? byId.get(String(row.previous_trusted_knowledge_id)) : undefined;
+      if(previous) {
+        if(!predecessor || predecessor.id!==previous.id) bad("broken_predecessor_chain","governance_history_gap");
+        else if(predecessor.project_id!==projectId || predecessor.legacy_kind!==row.legacy_kind || predecessor.legacy_entry_id!==row.legacy_entry_id) bad("cross_project_or_logical_predecessor");
+      } else if(row.previous_trusted_knowledge_id) bad("unexpected_first_predecessor","governance_history_gap");
+      if(action==="restore" && (!predecessor || predecessor.lifecycle!=="archived")) bad("restore_predecessor_invalid","governance_history_gap");
+      previous=row;
+    }
+  }
+  return sort(issues);
+}
