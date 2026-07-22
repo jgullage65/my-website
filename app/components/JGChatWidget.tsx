@@ -179,7 +179,7 @@ export default function JGChatWidget() {
                         "whitespace-pre-wrap text-sm leading-6",
                         incoming
                           ? "jg-assistant-unified-card jg-assistant-answer-card text-slate-100"
-                          : "rounded-2xl rounded-br-md bg-[linear-gradient(180deg,#d7b43c,#aa7f18)] px-4 py-3 font-semibold text-[#07101f] shadow-[0_10px_24px_rgba(212,175,55,0.14)]",
+                          : "rounded-2xl rounded-br-md border border-[rgba(245,158,11,0.18)] px-4 py-3 font-semibold text-slate-200",
                       ].join(" ")}
                     >
                       {incoming ? (
