@@ -41,8 +41,10 @@ export class AssistantProjectionPersistenceError extends Error {
 export type UpsertPersistedAssistantProjectionInput = {
   projectId: string;
   businessMemoryFingerprint: string;
-  projectionVersion: typeof ASSISTANT_PROJECTION_VERSION;
-  schemaVersion: typeof ASSISTANT_PROJECTION_SCHEMA_VERSION;
+  // Runtime writes validate these against the current constants below. Keeping
+  // the input numeric lets the generated DTO retain its historical-read type.
+  projectionVersion: number;
+  schemaVersion: number;
   projection: AssistantProjection;
   /** The persistence operation supplies this when a caller does not. */
   generatedAt?: string;

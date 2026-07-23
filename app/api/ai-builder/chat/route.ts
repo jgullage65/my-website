@@ -444,7 +444,7 @@ export async function POST(request: Request) {
     const response: ChatResponse = {
       answer,
       // Existing response shape is retained; citations are derived from the one canonical retrieval pass.
-      citations: retrieved.items.map((item) => "instruction" in item.item ? item.item.instruction : "title" in item.item ? `${item.item.title}: ${item.item.value}` : item.category === "identity" ? item.item.businessName ?? "Business identity" : item.item.topic),
+      citations: retrieved.items.map((item) => "instruction" in item.item ? item.item.instruction : "title" in item.item ? `${item.item.title}: ${item.item.value}` : "businessName" in item.item ? item.item.businessName ?? "Business identity" : item.item.topic),
       diagnostics: {
         retrievedFacts: retrieved.items.filter((item) => item.category !== "faq").length,
         retrievedFaq: retrieved.items.filter((item) => item.category === "faq").length,
