@@ -39,7 +39,12 @@ export function validateAssistantProjectionRuntime(projection: AssistantProjecti
   const sourceIds = new Set(projection.sources.map((source) => source.id));
   const evidenceIds = new Set(projection.evidence.map((evidence) => evidence.id));
   if (projection.evidence.some((evidence) => !sourceIds.has(evidence.canonicalSourceId))) fail("assistant_projection_runtime_invalid_evidence_source");
-  for (const collection of textCollections) for (const item of projection[collection]) validateItem(item, collection, sourceIds, evidenceIds);
+  for (const collection of textCollections) for (const item of projection[collection]) {
+    validateItem(item, collection, sourceIds, evidenceIds);
+    // v2 artifacts must carry the field, including an explicit null. v1 is
+    // retained only for historical parsing and is rejected by cutover/version checks.
+    if (projection.projectionVersion >= 2 && !Object.prototype.hasOwnProperty.call(item, "predecessorAssertionId")) fail("assistant_projection_runtime_missing_predecessor_assertion_id");
+  }
   const authoritativeAssertions = new Set(textCollections.flatMap(collection => projection[collection].map(item => item.assertionId)));
   const projectedEntities = new Set(textCollections.flatMap(collection => projection[collection].map(item => item.entityId)));
   for (const relationship of projection.relationships) {
