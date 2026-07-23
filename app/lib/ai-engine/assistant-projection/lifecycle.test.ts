@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test from "node:test";
+import { Pool } from "@neondatabase/serverless";
 import type { BusinessMemory } from "../business-memory/contracts";
 import { buildAssistantProjection } from "./buildAssistantProjection";
-import { evaluateAssistantProjectionFreshnessForRecord } from "./lifecycle";
+import { evaluateAssistantProjectionFreshnessForRecord, invalidateAssistantProjectionIfStale, rebuildAssistantProjectionInTransaction } from "./lifecycle";
+import { getPersistedAssistantProjection, updateAssistantProjectionInvalidationState, upsertPersistedAssistantProjection } from "./persistence";
 import type { PersistedAssistantProjectionRecord } from "./contracts";
 
 const time = "2025-01-01T00:00:00.000Z";
@@ -32,4 +35,42 @@ test("operational Business Memory timestamps do not make a projection stale", ()
   const second = buildAssistantProjection(changed);
   assert.equal(first.businessMemoryFingerprint, second.businessMemoryFingerprint);
   assert.equal(evaluateAssistantProjectionFreshnessForRecord(record(), second).status, "current");
+});
+
+const databaseUrl = process.env.DATABASE_URL_TEST;
+function db(name: string, fn: () => Promise<void>) { test(name, { skip: databaseUrl ? false : "DATABASE_URL_TEST is not configured" }, fn); }
+
+db("transaction-bound rebuild locks before generation and never rewinds a failed state", async () => {
+  process.env.DATABASE_URL = databaseUrl;
+  const { ensureAiBuilderSchema } = await import("@/app/lib/db/ai-builder-schema");
+  await ensureAiBuilderSchema();
+  const pool = new Pool({ connectionString: databaseUrl });
+  const client = await pool.connect();
+  const projectId = `assistant-lifecycle-${randomUUID()}`;
+  try {
+    await client.query("INSERT INTO ai_builder_projects (id,status,business_name,industry,assistant_configuration,context_counts,created_at,updated_at) VALUES ($1,'review_required','Test','test','{}'::jsonb,'{}'::jsonb,NOW(),NOW())", [projectId]);
+    const currentMemory = { ...memory(), projectId };
+    const current = buildAssistantProjection(currentMemory);
+    await upsertPersistedAssistantProjection(client, { ...current, projection: current });
+
+    await client.query("BEGIN");
+    const replacementMemory = { ...currentMemory, assistant: { ...currentMemory.assistant, name: "Replacement" } };
+    const replacement = buildAssistantProjection(replacementMemory);
+    const rebuilt = await rebuildAssistantProjectionInTransaction({ client, businessMemory: replacementMemory });
+    await client.query("COMMIT");
+    assert.equal(rebuilt.rebuilt, true);
+    assert.equal((await getPersistedAssistantProjection(client, projectId))?.businessMemoryFingerprint, replacement.businessMemoryFingerprint);
+
+    await updateAssistantProjectionInvalidationState(client, projectId, "failed");
+    assert.equal((await getPersistedAssistantProjection(client, projectId))?.invalidationState, "failed");
+
+    const freshness = await invalidateAssistantProjectionIfStale({ client, projection: current });
+    assert.equal(freshness.status, "stale");
+    assert.equal((await getPersistedAssistantProjection(client, projectId))?.invalidationState, "failed");
+  } finally {
+    await client.query("ROLLBACK").catch(() => undefined);
+    await client.query("DELETE FROM ai_builder_projects WHERE id=$1", [projectId]);
+    client.release();
+    await pool.end();
+  }
 });

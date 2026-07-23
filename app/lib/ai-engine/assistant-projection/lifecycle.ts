@@ -4,7 +4,7 @@ import type { PoolClient } from "@neondatabase/serverless";
 import type { BusinessMemory } from "../business-memory/contracts";
 import { buildAssistantProjection } from "./buildAssistantProjection";
 import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION, type AssistantProjection, type AssistantProjectionInvalidationState, type PersistedAssistantProjectionRecord } from "./contracts";
-import { getPersistedAssistantProjection, getPersistedAssistantProjectionForUpdate, updateAssistantProjectionInvalidationState, upsertPersistedAssistantProjection } from "./persistence";
+import { getPersistedAssistantProjection, getPersistedAssistantProjectionForUpdate, invalidateAssistantProjectionForBusinessMemoryChange, updateAssistantProjectionInvalidationState, upsertPersistedAssistantProjection } from "./persistence";
 
 type QueryClient = Pick<PoolClient, "query">;
 export type AssistantProjectionStaleReason = "fingerprint_mismatch" | "projection_version_mismatch" | "schema_version_mismatch" | "invalidation_state";
@@ -13,7 +13,6 @@ export type AssistantProjectionFreshness =
   | { status: "current"; record: PersistedAssistantProjectionRecord }
   | { status: "stale"; reasons: AssistantProjectionStaleReason[]; record: PersistedAssistantProjectionRecord };
 export type RebuildAssistantProjectionResult = { record: PersistedAssistantProjectionRecord; rebuilt: boolean; previousState: AssistantProjectionInvalidationState | "missing" };
-export type AssistantProjectionTransaction = <T>(work: (client: QueryClient) => Promise<T>) => Promise<T>;
 
 export function evaluateAssistantProjectionFreshnessForRecord(record: PersistedAssistantProjectionRecord | null, projection: AssistantProjection): AssistantProjectionFreshness {
   if (!record) return { status: "missing" };
@@ -38,12 +37,25 @@ export async function invalidateAssistantProjectionIfStale(input: { client: Quer
   if (result.status !== "stale" || result.record.invalidationState === "invalidated") return result;
   // rebuilding is owned by its active rebuild; it must not be moved backwards.
   if (result.record.invalidationState === "rebuilding") return result;
-  const record = await updateAssistantProjectionInvalidationState(input.client, projection.projectId, "invalidated");
-  return { status: "stale", reasons: result.reasons, record: record! };
+  const record = await invalidateAssistantProjectionForBusinessMemoryChange(input.client, projection.projectId);
+  // A concurrent rebuild or failure won the lifecycle transition.  Preserve
+  // that state instead of moving it backwards to invalidated.
+  return record
+    ? { status: "stale", reasons: result.reasons, record }
+    : result;
 }
 
-async function rebuildLocked(client: QueryClient, projection: AssistantProjection): Promise<RebuildAssistantProjectionResult> {
-  const existing = await getPersistedAssistantProjectionForUpdate(client, projection.projectId);
+/** Marks a previously current artifact stale after a material Business Memory commit. */
+export async function invalidateAssistantProjectionForCommittedBusinessMemory(client: QueryClient, projectId: string): Promise<void> {
+  await invalidateAssistantProjectionForBusinessMemoryChange(client, projectId);
+}
+
+async function rebuildLocked(client: QueryClient, businessMemory: BusinessMemory): Promise<RebuildAssistantProjectionResult> {
+  // This lock deliberately precedes generation: a waiting rebuild must derive
+  // from the canonical state visible after the preceding transaction commits.
+  const projectId = businessMemory.projectId;
+  const existing = await getPersistedAssistantProjectionForUpdate(client, projectId);
+  const projection = buildAssistantProjection(businessMemory);
   const state = evaluateAssistantProjectionFreshnessForRecord(existing, projection);
   if (state.status === "current") return { record: state.record, rebuilt: false, previousState: "valid" };
   const previousState = existing?.invalidationState ?? "missing";
@@ -51,12 +63,17 @@ async function rebuildLocked(client: QueryClient, projection: AssistantProjectio
     // Guarded transitions: valid|invalidated|failed -> rebuilding only.
     if (existing.invalidationState !== "rebuilding") await updateAssistantProjectionInvalidationState(client, projection.projectId, "rebuilding");
   }
+  await client.query("SAVEPOINT assistant_projection_rebuild");
   try {
     const record = await upsertPersistedAssistantProjection(client, { ...projection, projection });
+    await client.query("RELEASE SAVEPOINT assistant_projection_rebuild");
     return { record, rebuilt: true, previousState };
   } catch (error) {
-    // The upsert is atomic.  A failed rebuild therefore leaves the old payload,
-    // fingerprint, and generatedAt in place before this metadata transition.
+    // PostgreSQL marks a transaction aborted after a failed write.  Roll back
+    // only the rebuild attempt, then make the failed lifecycle state durable
+    // in the caller's transaction before returning the original error.
+    await client.query("ROLLBACK TO SAVEPOINT assistant_projection_rebuild");
+    await client.query("RELEASE SAVEPOINT assistant_projection_rebuild");
     if (existing) {
       try { await updateAssistantProjectionInvalidationState(client, projection.projectId, "failed"); } catch { /* preserve original failure */ }
     }
@@ -68,12 +85,11 @@ async function rebuildLocked(client: QueryClient, projection: AssistantProjectio
  * Rebuilds inside a caller-supplied transaction. The project FOR UPDATE lock
  * serializes same-project attempts and forces the second waiter to re-check.
  */
-export async function rebuildAssistantProjection(input: { client: QueryClient; businessMemory?: BusinessMemory; projection?: AssistantProjection; transaction?: AssistantProjectionTransaction }): Promise<RebuildAssistantProjectionResult> {
-  const projection = input.projection ?? buildAssistantProjection(input.businessMemory!);
-  return input.transaction ? input.transaction((client) => rebuildLocked(client, projection)) : rebuildLocked(input.client, projection);
+export async function rebuildAssistantProjectionInTransaction(input: { client: QueryClient; businessMemory: BusinessMemory }): Promise<RebuildAssistantProjectionResult> {
+  return rebuildLocked(input.client, input.businessMemory);
 }
 
 /** Explicit orchestration entry point for mutations/migrations that require a current artifact. */
-export async function ensureAssistantProjectionCurrent(input: { client: QueryClient; businessMemory?: BusinessMemory; projection?: AssistantProjection; transaction?: AssistantProjectionTransaction }): Promise<RebuildAssistantProjectionResult> {
-  return rebuildAssistantProjection(input);
+export async function ensureAssistantProjectionCurrentInTransaction(input: { client: QueryClient; businessMemory: BusinessMemory }): Promise<RebuildAssistantProjectionResult> {
+  return rebuildAssistantProjectionInTransaction(input);
 }

@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { PoolClient } from "@neondatabase/serverless";
 import { BUSINESS_MEMORY_SCHEMA_VERSION, type KnowledgeSourceOrigin } from "../contracts";
+import { invalidateAssistantProjectionForCommittedBusinessMemory } from "../../assistant-projection/lifecycle";
 
 type Row = Record<string, any>;
 type QueryClient = Pick<PoolClient, "query">;
@@ -97,4 +98,7 @@ export async function rebuildPersistedBusinessMemoryFromTrustedKnowledge(client:
   await cleanupAssertionLinks(client, "ai_builder_business_memory_assertion_sources", rootId, assertions); await cleanupAssertionLinks(client, "ai_builder_business_memory_assertion_evidence", rootId, assertions);
   await cleanup(client, "ai_builder_business_memory_assertions", rootId, assertions); await cleanup(client, "ai_builder_business_memory_entities", rootId, entities); await cleanup(client, "ai_builder_business_memory_evidence", rootId, Array.from(evidences)); await cleanup(client, "ai_builder_business_memory_sources", rootId, Array.from(sources));
   await client.query("UPDATE ai_builder_projects SET business_memory_revision=(SELECT revision FROM ai_builder_business_memory WHERE project_id=$1) WHERE id=$1", [projectId]);
+  // This runs in the same transaction as the canonical Business Memory write.
+  // No-op source-revision refreshes above intentionally do not invalidate.
+  await invalidateAssistantProjectionForCommittedBusinessMemory(client, projectId);
 }
