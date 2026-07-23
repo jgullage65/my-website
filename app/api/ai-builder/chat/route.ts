@@ -28,6 +28,11 @@ const PROJECT_USER_MESSAGE_LIMIT = 20;
 let projectionPool: Pool | null = null;
 const getProjectionPool = () => (projectionPool ??= new Pool({ connectionString: process.env.DATABASE_URL }));
 
+/** A canonical projection is usable whenever it has any runtime knowledge. */
+function hasAnswerableAssistantProjection(projection: import("@/app/lib/ai-engine/assistant-projection/contracts").AssistantProjection): boolean {
+  return projection.services.length + projection.pricing.length + projection.policies.length + projection.faqs.length + projection.restrictions.length > 0;
+}
+
 type PersistentChatRequest = Omit<ChatRequest, "knowledge"> & {
   // Retained only for request compatibility. It is never used by the runtime.
   knowledge?: unknown;
@@ -415,10 +420,7 @@ export async function POST(request: Request) {
     // input cannot select a source or re-enable the removed legacy path.
     const canonicalProjection = await loadCanonicalRuntimeKnowledge(projectId);
     const projection = { source: "assistant_projection" as const, canonicalProjection };
-    if (
-      projection.canonicalProjection.services.length === 0 &&
-      projection.canonicalProjection.faqs.length === 0
-    ) {
+    if (!hasAnswerableAssistantProjection(projection.canonicalProjection)) {
       throw new Error("assistant_projection_runtime_unavailable_empty");
     }
 
@@ -442,13 +444,13 @@ export async function POST(request: Request) {
     const response: ChatResponse = {
       answer,
       // Existing response shape is retained; citations are derived from the one canonical retrieval pass.
-      citations: retrieved.items.map((item) => "instruction" in item.item ? item.item.instruction : `${item.item.title}: ${item.item.value}`),
+      citations: retrieved.items.map((item) => "instruction" in item.item ? item.item.instruction : "title" in item.item ? `${item.item.title}: ${item.item.value}` : item.category === "identity" ? item.item.businessName ?? "Business identity" : item.item.topic),
       diagnostics: {
         retrievedFacts: retrieved.items.filter((item) => item.category !== "faq").length,
         retrievedFaq: retrieved.items.filter((item) => item.category === "faq").length,
         retrievalMs: Date.now() - startedAt,
         runtimeSource: projection.source,
-        structuredRetrieval: { engineVersion: retrieved.engineVersion, intent: retrieved.query.intent, directCandidateCount: retrieved.diagnostics.directCandidateCount, relationshipExpansionCount: retrieved.diagnostics.relationshipExpansionCount, selectedResultCount: retrieved.items.length, selectedCategoryCounts: retrieved.diagnostics.selectedCategoryCounts, topScoreBands: retrieved.diagnostics.topScoreBands },
+        structuredRetrieval: { engineVersion: retrieved.engineVersion, intent: retrieved.query.intent, directCandidateCount: retrieved.diagnostics.directCandidateCount, relationshipExpansionCount: retrieved.diagnostics.relationshipExpansionCount, relationshipCandidateCount: retrieved.diagnostics.relationshipCandidateCount, totalCandidateCount: retrieved.diagnostics.totalCandidateCount, evidenceSelectedCount: retrieved.diagnostics.evidenceSelectedCount, sourceSelectedCount: retrieved.diagnostics.sourceSelectedCount, selectedDirectCount: retrieved.diagnostics.selectedDirectCount, selectedRelatedCount: retrieved.diagnostics.selectedRelatedCount, retrievalDurationMs: retrieved.diagnostics.retrievalDurationMs, selectedResultCount: retrieved.items.length, selectedCategoryCounts: retrieved.diagnostics.selectedCategoryCounts, topScoreBands: retrieved.diagnostics.topScoreBands },
       },
     };
 
