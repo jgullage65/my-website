@@ -1,0 +1,61 @@
+import "server-only";
+
+import { createHash } from "node:crypto";
+import { Pool, type PoolClient } from "@neondatabase/serverless";
+import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
+import { rebuildPersistedBusinessMemoryFromTrustedKnowledge } from "@/app/lib/ai-engine/business-memory/persistence/rebuild-persisted-business-memory";
+import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION } from "@/app/lib/ai-engine/assistant-projection/contracts";
+import { getPersistedAssistantProjection, loadPersistedBusinessMemory } from "@/app/lib/ai-engine/assistant-projection/persistence";
+import { rebuildAssistantProjectionInTransaction } from "@/app/lib/ai-engine/assistant-projection/lifecycle";
+import { buildAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/buildAssistantProjection";
+
+type Mode = "incremental" | "full_rebuild";
+type Status = "pending" | "running" | "succeeded" | "failed";
+export type DownstreamSynchronizationJob = { id: string; projectId: string; mode: Mode; status: Status; requestedTrustedKnowledgeRevision: number; requestedBusinessMemoryRevision: number | null; completedTrustedKnowledgeRevision: number | null; completedBusinessMemoryRevision: number | null; completedAssistantProjectionFingerprint: string | null; currentStep: string; createdAt: string; startedAt: string | null; completedAt: string | null; updatedAt: string; lastErrorCode: string | null; lastErrorMessage: string | null };
+
+let pool: Pool | null = null;
+const database = () => (pool ??= new Pool({ connectionString: process.env.DATABASE_URL }));
+const jobId = (projectId: string, mode: Mode, revision: number) => `downstream_sync:${createHash("sha256").update(`${projectId}\u0000${mode}\u0000${revision}`).digest("hex")}`;
+const text = (error: unknown) => (error instanceof Error ? error.message : "downstream synchronization failed").replace(/\u0000/g, "").split(/\r?\n/)[0]!.slice(0, 500) || "downstream synchronization failed";
+const code = (error: unknown) => { const value = error instanceof Error ? error.message : ""; return /^[a-zA-Z0-9_:-]{1,120}$/.test(value) ? value : "downstream_synchronization_failed"; };
+const parse = (row: Record<string, unknown>): DownstreamSynchronizationJob => ({ id: String(row.id), projectId: String(row.project_id), mode: row.mode as Mode, status: row.status as Status, requestedTrustedKnowledgeRevision: Number(row.requested_trusted_knowledge_revision), requestedBusinessMemoryRevision: row.requested_business_memory_revision == null ? null : Number(row.requested_business_memory_revision), completedTrustedKnowledgeRevision: row.completed_trusted_knowledge_revision == null ? null : Number(row.completed_trusted_knowledge_revision), completedBusinessMemoryRevision: row.completed_business_memory_revision == null ? null : Number(row.completed_business_memory_revision), completedAssistantProjectionFingerprint: row.completed_assistant_projection_fingerprint == null ? null : String(row.completed_assistant_projection_fingerprint), currentStep: String(row.current_step), createdAt: new Date(row.created_at as string).toISOString(), startedAt: row.started_at == null ? null : new Date(row.started_at as string).toISOString(), completedAt: row.completed_at == null ? null : new Date(row.completed_at as string).toISOString(), updatedAt: new Date(row.updated_at as string).toISOString(), lastErrorCode: row.last_error_code == null ? null : String(row.last_error_code), lastErrorMessage: row.last_error_message == null ? null : String(row.last_error_message) });
+
+/** Used only after Trusted Knowledge is committed by the review transaction. */
+export async function enqueueIncrementalSynchronizationForCommittedRevision(client: Pick<PoolClient, "query">, projectId: string, trustedKnowledgeRevision: number): Promise<DownstreamSynchronizationJob> {
+  const id = jobId(projectId, "incremental", trustedKnowledgeRevision);
+  const result = await client.query(`INSERT INTO ai_builder_downstream_synchronization_jobs (id,project_id,mode,status,requested_trusted_knowledge_revision,current_step) VALUES ($1,$2,'incremental','pending',$3,'pending') ON CONFLICT (project_id,mode,requested_trusted_knowledge_revision) DO UPDATE SET updated_at=ai_builder_downstream_synchronization_jobs.updated_at RETURNING *`, [id, projectId, trustedKnowledgeRevision]);
+  return parse(result.rows[0]);
+}
+
+/** Server boundary which resolves the revision from the authoritative project row. */
+export async function enqueueIncrementalSynchronizationForProject(projectId: string): Promise<DownstreamSynchronizationJob> {
+  await ensureAiBuilderSchema(); const client = await database().connect();
+  try { await client.query("BEGIN"); const project = (await client.query("SELECT trusted_knowledge_revision FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [projectId])).rows[0]; if (!project) throw new Error("downstream_synchronization_project_not_found"); const result = await enqueueIncrementalSynchronizationForCommittedRevision(client, projectId, Number(project.trusted_knowledge_revision)); await client.query("COMMIT"); return result; }
+  catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; } finally { client.release(); }
+}
+
+/** Owned/manual entry point.  The target revision is never accepted from a caller. */
+export async function enqueueFullDownstreamRebuildForOwnedProject(input: { projectId: string; clerkUserId: string; commandId: string }): Promise<DownstreamSynchronizationJob> {
+  await ensureAiBuilderSchema(); const client = await database().connect();
+  try { await client.query("BEGIN"); const project = (await client.query("SELECT trusted_knowledge_revision FROM ai_builder_projects WHERE id=$1 AND clerk_user_id=$2 AND archived_at IS NULL FOR UPDATE", [input.projectId, input.clerkUserId])).rows[0]; if (!project) throw new Error("downstream_synchronization_project_not_found_or_archived"); const revision = Number(project.trusted_knowledge_revision), id = jobId(input.projectId, "full_rebuild", revision); const result = await client.query(`INSERT INTO ai_builder_downstream_synchronization_jobs (id,project_id,mode,status,requested_trusted_knowledge_revision,current_step) VALUES ($1,$2,'full_rebuild','pending',$3,'pending') ON CONFLICT (project_id,mode,requested_trusted_knowledge_revision) DO UPDATE SET updated_at=ai_builder_downstream_synchronization_jobs.updated_at RETURNING *`, [id, input.projectId, revision]); await client.query("COMMIT"); return parse(result.rows[0]); }
+  catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; } finally { client.release(); }
+}
+
+export async function getDownstreamSynchronizationJob(jobIdValue: string): Promise<DownstreamSynchronizationJob | null> { await ensureAiBuilderSchema(); const row = (await database().query("SELECT * FROM ai_builder_downstream_synchronization_jobs WHERE id=$1", [jobIdValue])).rows[0]; return row ? parse(row) : null; }
+
+async function checkpointBusinessMemory(job: DownstreamSynchronizationJob, revision: number) { const client = await database().connect(); try { await client.query("BEGIN"); await client.query("UPDATE ai_builder_downstream_synchronization_jobs SET requested_business_memory_revision=$2, completed_trusted_knowledge_revision=$3, completed_business_memory_revision=$2, current_step='assistant_projection', updated_at=NOW() WHERE id=$1", [job.id, revision, job.requestedTrustedKnowledgeRevision]); await client.query("COMMIT"); } catch (e) { await client.query("ROLLBACK").catch(() => undefined); throw e; } finally { client.release(); } }
+async function checkpointProjection(job: DownstreamSynchronizationJob, fingerprint: string) { const client = await database().connect(); try { await client.query("BEGIN"); await client.query("UPDATE ai_builder_downstream_synchronization_jobs SET completed_assistant_projection_fingerprint=$2, status='succeeded', current_step='completed', completed_at=NOW(), updated_at=NOW(), last_error_code=NULL, last_error_message=NULL WHERE id=$1", [job.id, fingerprint]); await client.query("COMMIT"); } catch (e) { await client.query("ROLLBACK").catch(() => undefined); throw e; } finally { client.release(); } }
+
+/** Executes from durable state only; completed downstream writes intentionally survive later-step failures. */
+export async function executeDownstreamSynchronizationJob(jobIdValue: string): Promise<DownstreamSynchronizationJob> {
+  await ensureAiBuilderSchema(); let client = await database().connect(); let open = true; let job: DownstreamSynchronizationJob;
+  try { await client.query("BEGIN"); const row = (await client.query("SELECT * FROM ai_builder_downstream_synchronization_jobs WHERE id=$1 FOR UPDATE", [jobIdValue])).rows[0]; if (!row) throw new Error("downstream_synchronization_job_not_found"); job = parse(row); if (job.status === "succeeded") { await client.query("COMMIT"); return job; } const project = (await client.query("SELECT id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [job.projectId])).rows[0]; if (!project) throw new Error("downstream_synchronization_project_not_found"); await client.query("UPDATE ai_builder_downstream_synchronization_jobs SET status='running', started_at=COALESCE(started_at,NOW()), updated_at=NOW(), last_error_code=NULL, last_error_message=NULL WHERE id=$1", [job.id]); await client.query("COMMIT"); }
+  catch (error) { await client.query("ROLLBACK").catch(() => undefined); client.release(); throw error; }
+  open = false; client.release();
+  try {
+    // Re-read under the project lock and verify persisted memory even if a prior
+    // executor stopped after its write but before its checkpoint.
+    client = await database().connect(); open = true; await client.query("BEGIN"); const project = (await client.query("SELECT trusted_knowledge_revision FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [job!.projectId])).rows[0]; if (!project) throw new Error("downstream_synchronization_project_not_found"); await rebuildPersistedBusinessMemoryFromTrustedKnowledge(client, job!.projectId, job!.requestedTrustedKnowledgeRevision); const verified = (await client.query("SELECT memory.revision,memory.trusted_knowledge_revision,project.business_memory_revision FROM ai_builder_projects project LEFT JOIN ai_builder_business_memory memory ON memory.project_id=project.id WHERE project.id=$1", [job!.projectId])).rows[0]; if (!verified || verified.revision == null || Number(verified.trusted_knowledge_revision) < job!.requestedTrustedKnowledgeRevision || Number(verified.business_memory_revision) !== Number(verified.revision)) throw new Error("business_memory_synchronization_verification_failed"); const memoryRevision = Number(verified.revision); await client.query("COMMIT"); open = false; client.release(); await checkpointBusinessMemory(job!, memoryRevision);
+    client = await database().connect(); open = true; await client.query("BEGIN"); await rebuildAssistantProjectionInTransaction({ client, projectId: job!.projectId }); const memory = await loadPersistedBusinessMemory(client, job!.projectId); const projection = await getPersistedAssistantProjection(client, job!.projectId); const expectedFingerprint = memory ? buildAssistantProjection(memory).businessMemoryFingerprint : null; if (!memory || !projection || projection.projectId !== job!.projectId || projection.businessMemoryFingerprint !== expectedFingerprint || projection.projectionVersion !== ASSISTANT_PROJECTION_VERSION || projection.schemaVersion !== ASSISTANT_PROJECTION_SCHEMA_VERSION || projection.invalidationState !== "valid") throw new Error("assistant_projection_synchronization_verification_failed"); const fingerprint = projection.businessMemoryFingerprint; await client.query("COMMIT"); open = false; client.release(); await checkpointProjection(job!, fingerprint); return (await getDownstreamSynchronizationJob(job!.id))!;
+  } catch (error) { if (open) { await client.query("ROLLBACK").catch(() => undefined); client.release(); open = false; } const failure = await database().connect(); try { await failure.query("UPDATE ai_builder_downstream_synchronization_jobs SET status='failed', last_error_code=$2, last_error_message=$3, updated_at=NOW() WHERE id=$1", [job!.id, code(error), text(error)]); } finally { failure.release(); } throw error; }
+}
