@@ -93,6 +93,8 @@ export type AssistantProjectionMissingInformation = {
 };
 
 export type AssistantProjectionIdentity = {
+  /** Whether canonical business identity resolution produced one, zero, or multiple candidates. */
+  status: "resolved" | "missing" | "ambiguous";
   canonicalEntityId: string | null;
   businessName: string | null;
   aliases: string[];
@@ -112,7 +114,7 @@ export type AssistantProjectionAssistantConfiguration = {
 
 export type AssistantProjection = {
   projectId: string;
-  /** SHA-256 fingerprint of stable canonical content, excluding timestamps. */
+  /** SHA-256 fingerprint of stable canonical content, excluding operational mutation timestamps. */
   businessMemoryFingerprint: string;
   projectionVersion: typeof ASSISTANT_PROJECTION_VERSION;
   schemaVersion: typeof ASSISTANT_PROJECTION_SCHEMA_VERSION;

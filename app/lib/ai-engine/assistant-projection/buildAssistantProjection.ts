@@ -22,20 +22,33 @@ type SupportedAssertion = BusinessAssertion & { reviewState: "approved" | "corre
 const supportedAssertion = (assertion: BusinessAssertion): assertion is SupportedAssertion => assertion.reviewState === "approved" || assertion.reviewState === "corrected";
 const supportedRelationship = (relationship: BusinessRelationship) => relationship.reviewState === "approved" || relationship.reviewState === "corrected";
 
-/** Stable serialization deliberately excludes operational timestamps. */
+const setLikeArrayFields = new Set([
+  "aliases", "tags", "assertionIds", "sourceIds", "evidenceIds", "escalationInstructions", "behaviorRules", "prohibitedClaims",
+  "relatedEntityIds", "relatedAssertionIds", "relatedEntityTypes", "sourceEntryIds", "mergedEntityIds", "approvedAliases", "conflictingStatements",
+  "entities", "assertions", "relationships", "sources", "evidence", "conflicts", "missingInformation", "entityMerges",
+]);
+const operationalTimestampFields = new Set(["createdAt", "updatedAt", "importedAt", "mergedAt"]);
+
+/** Canonical JSON for Business Memory fingerprints; only named operational timestamps are omitted. */
+function canonicalize(value: unknown, fieldName?: string): unknown {
+  if (Array.isArray(value)) {
+    const items = value.map((item) => canonicalize(item));
+    return fieldName && setLikeArrayFields.has(fieldName)
+      ? Array.from(new Map(items.map((item) => [JSON.stringify(item), item])).entries()).sort(([left], [right]) => compare(left, right)).map(([, item]) => item)
+      : items;
+  }
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => !operationalTimestampFields.has(key))
+      .sort(([left], [right]) => compare(left, right))
+      .map(([key, item]) => [key, canonicalize(item, key)]));
+  }
+  return value;
+}
+
+/** Stable serialization sorts all object keys and known set-like arrays recursively. */
 function businessMemoryFingerprint(memory: BusinessMemory): string {
-  const stable = {
-    id: memory.id, schemaVersion: memory.schemaVersion, projectId: memory.projectId, assistant: memory.assistant,
-    entities: byId(memory.entities).map(({ createdAt: _createdAt, updatedAt: _updatedAt, ...item }) => item),
-    assertions: byId(memory.assertions).map(({ createdAt: _createdAt, updatedAt: _updatedAt, ...item }) => item),
-    relationships: byId(memory.relationships).map(({ createdAt: _createdAt, updatedAt: _updatedAt, ...item }) => item),
-    sources: byId(memory.sources).map(({ capturedAt: _capturedAt, importedAt: _importedAt, ...item }) => item),
-    evidence: byId(memory.evidence).map(({ capturedAt: _capturedAt, ...item }) => item),
-    conflicts: byId(memory.conflicts).map(({ createdAt: _createdAt, updatedAt: _updatedAt, ...item }) => item),
-    missingInformation: byId(memory.missingInformation).map(({ createdAt: _createdAt, updatedAt: _updatedAt, ...item }) => item),
-    entityMerges: (memory.entityMerges ?? []).map(({ mergedAt: _mergedAt, ...item }) => item).sort((a, b) => compare(a.canonicalEntityId, b.canonicalEntityId)),
-  };
-  return stableId("business_memory", JSON.stringify(stable));
+  return stableId("business_memory", JSON.stringify(canonicalize(memory)));
 }
 
 /** Maps canonical Business Memory into the stable runtime DTO without persistence I/O. */
@@ -60,13 +73,19 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
       aliases: sortedUnique(entity.aliases), tags: sortedUnique(assertion.tags), confidence: { ...assertion.confidence }, authority: assertion.authority, reviewState: assertion.reviewState,
       evidenceIds: sortedUnique(assertion.evidenceIds.filter((id) => evidence.has(id))), sourceIds: sortedUnique(assertion.sourceIds.filter((id) => sources.has(id))) };
   };
+  // Business Memory intentionally preserves independently addressable duplicate assertions, including after entity redirects; 8A projects each approved/corrected assertion rather than inventing reconciliation.
   const items = memory.assertions.map(itemFor).filter((item): item is AssistantProjectionTextKnowledgeItem => item !== null);
   const ofType = (type: BusinessEntity["type"]) => byId(items.filter((item) => item.entityType === type));
   const relationships = byId(memory.relationships.filter((relationship) => {
     const from = assertions.get(relationship.fromAssertionId), to = assertions.get(relationship.toAssertionId);
     return supportedRelationship(relationship) && !!from && !!to && supportedAssertion(from) && supportedAssertion(to) && canonicalEntityId(relationship.fromEntityId) !== null && canonicalEntityId(relationship.toEntityId) !== null;
   }).map((relationship) => ({ id: relationship.id, type: relationship.type, sourceEntityId: canonicalEntityId(relationship.fromEntityId)!, targetEntityId: canonicalEntityId(relationship.toEntityId)!, sourceAssertionId: relationship.fromAssertionId, targetAssertionId: relationship.toAssertionId, sourceEntryIds: sortedUnique(relationship.sourceEntryIds) })));
-  const ruleRestrictions = (type: "prohibited_claim" | "behavior_rule", values: readonly string[]): AssistantProjectionRestriction[] => Array.from(new Map(values.map((instruction) => [normalizedRule(instruction), { id: stableId(`assistant_${type}`, normalizedRule(instruction)), type, instruction: normalize(instruction), relatedEntityIds: [] as string[], relatedAssertionIds: [] as string[], evidenceIds: [] as string[] }] as const)).values());
+  const ruleRestrictions = (type: "prohibited_claim" | "behavior_rule", values: readonly string[]): AssistantProjectionRestriction[] => Array.from(values.reduce((rules, value) => {
+    const key = normalizedRule(value), display = normalize(value), existing = rules.get(key);
+    if (!existing || compare(display, existing) < 0) rules.set(key, display);
+    return rules;
+  }, new Map<string, string>())).map(([key, instruction]) => ({ id: stableId(`assistant_${type}`, key), type, instruction, relatedEntityIds: [], relatedAssertionIds: [], evidenceIds: [] }));
+  // Conflicting assertions remain available for provenance; runtime routing must include the related conflict restriction whenever selecting those assertion IDs. Actual runtime routing is outside 8A.
   const conflictRestrictions = memory.conflicts.filter((conflict) => !conflict.resolved).map((conflict) => ({
     id: conflict.id, type: "conflict_suppression" as const, instruction: conflict.suggestedClarificationQuestion,
     relatedEntityIds: sortedUnique(conflict.relatedEntityIds.map(canonicalEntityId).filter((id): id is string => id !== null)),
@@ -81,7 +100,7 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
     return [];
   })) : [];
   return { projectId: memory.projectId, businessMemoryFingerprint: businessMemoryFingerprint(memory), projectionVersion: ASSISTANT_PROJECTION_VERSION, schemaVersion: ASSISTANT_PROJECTION_SCHEMA_VERSION,
-    identity: { canonicalEntityId: identityEntity?.id ?? null, businessName: identityEntity?.name ?? null, aliases: sortedUnique([...(identityEntity?.aliases ?? []), ...associatedMerges.flatMap((merge) => merge.approvedAliases)]), mergedEntityIds: sortedUnique(associatedMerges.flatMap((merge) => merge.mergedEntityIds)), redirectedEntityIds: sortedUnique(associatedMerges.flatMap((merge) => merge.mergedEntityIds)), contactEntityIds },
+    identity: { status: identityEntity ? "resolved" : canonicalBusinessIds.length === 0 ? "missing" : "ambiguous", canonicalEntityId: identityEntity?.id ?? null, businessName: identityEntity?.name ?? null, aliases: sortedUnique([...(identityEntity?.aliases ?? []), ...associatedMerges.flatMap((merge) => merge.approvedAliases)]), mergedEntityIds: sortedUnique(associatedMerges.flatMap((merge) => merge.mergedEntityIds)), redirectedEntityIds: sortedUnique(associatedMerges.flatMap((merge) => merge.mergedEntityIds)), contactEntityIds },
     assistant: { name: memory.assistant.name, purpose: memory.assistant.purpose, tone: memory.assistant.tone, responseStyle: memory.assistant.responseStyle, primaryAudience: memory.assistant.primaryAudience, escalationInstructions: sortedUnique(memory.assistant.escalationInstructions) },
     services: ofType("service") as AssistantProjectionService[], pricing: ofType("pricing_concept") as AssistantProjectionPricing[], policies: ofType("policy") as AssistantProjectionPolicy[], faqs: byId(ofType("faq").map((item) => ({ ...item, question: item.title, answer: item.value }))) as AssistantProjectionFaq[], restrictions, relationships,
     sources: byId(memory.sources.map((source) => ({ id: source.id, origin: source.origin, url: source.url, label: source.label, capturedAt: source.capturedAt, crawlAttemptId: source.crawlAttemptId }))),
