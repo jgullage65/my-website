@@ -130,3 +130,26 @@ export type AssistantProjection = {
   evidence: AssistantProjectionEvidence[];
   missingInformation: AssistantProjectionMissingInformation[];
 };
+
+/** Durable metadata surrounding a deterministic AssistantProjection payload. */
+export type AssistantProjectionInvalidationState =
+  | "valid"
+  | "invalidated"
+  | "rebuilding"
+  | "failed";
+
+/**
+ * Persistence boundary for the current projection artifact. These timestamps
+ * and state deliberately do not belong to AssistantProjection itself.
+ */
+export type PersistedAssistantProjectionRecord = {
+  projectId: string;
+  businessMemoryFingerprint: string;
+  projectionVersion: typeof ASSISTANT_PROJECTION_VERSION;
+  schemaVersion: typeof ASSISTANT_PROJECTION_SCHEMA_VERSION;
+  generatedAt: string;
+  invalidationState: AssistantProjectionInvalidationState;
+  projection: AssistantProjection;
+  createdAt: string;
+  updatedAt: string;
+};

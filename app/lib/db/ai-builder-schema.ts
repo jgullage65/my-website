@@ -431,6 +431,22 @@ async function createAiBuilderSchema() {
   // A deterministic fingerprint makes retries of the same Trusted Knowledge
   // state idempotent. Nullable keeps this additive change compatible with #89.
   await sql`ALTER TABLE ai_builder_business_memory ADD COLUMN IF NOT EXISTS state_fingerprint TEXT`;
+  // The Assistant Projection is a replaceable runtime artifact.  Its source
+  // Business Memory remains relational above; this row holds only one current
+  // serialized projection per project, with invalidation queryable as metadata.
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_assistant_projections (
+      project_id TEXT PRIMARY KEY REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      business_memory_fingerprint TEXT NOT NULL,
+      projection_version INTEGER NOT NULL,
+      schema_version INTEGER NOT NULL,
+      generated_at TIMESTAMPTZ NOT NULL,
+      invalidation_state TEXT NOT NULL CHECK (invalidation_state IN ('valid', 'invalidated', 'rebuilding', 'failed')),
+      projection_json JSONB NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL
+    )
+  `;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_business_memory_entities (id TEXT PRIMARY KEY, memory_id TEXT NOT NULL REFERENCES ai_builder_business_memory(id) ON DELETE CASCADE, entity_type TEXT NOT NULL, name TEXT NOT NULL, aliases JSONB NOT NULL DEFAULT '[]'::jsonb, tags JSONB NOT NULL DEFAULT '[]'::jsonb, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL)`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_business_memory_assertions (id TEXT PRIMARY KEY, memory_id TEXT NOT NULL REFERENCES ai_builder_business_memory(id) ON DELETE CASCADE, entity_id TEXT NOT NULL REFERENCES ai_builder_business_memory_entities(id) ON DELETE CASCADE, trusted_knowledge_id TEXT NOT NULL REFERENCES ai_builder_canonical_trusted_knowledge(id) ON DELETE RESTRICT, candidate_claim_id TEXT NOT NULL REFERENCES ai_builder_canonical_candidate_claims(id) ON DELETE RESTRICT, value TEXT NOT NULL, confidence TEXT NOT NULL, confidence_score DOUBLE PRECISION NOT NULL, review_state TEXT NOT NULL, authority TEXT NOT NULL, tags JSONB NOT NULL DEFAULT '[]'::jsonb, legacy_entry_id TEXT, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL, UNIQUE(memory_id, trusted_knowledge_id))`;
   // Lifecycle makes restore distinguishable from an ordinary approval without
