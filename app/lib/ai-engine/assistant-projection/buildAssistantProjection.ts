@@ -124,7 +124,7 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
   const restrictions = byId(memory.assertions.filter(supportedAssertion).flatMap((assertion): AssistantProjectionRestriction[] => {
     const type = assertion.tags.includes("behavior_rule") ? "behavior_rule" : assertion.tags.includes("prohibited_claim") ? "prohibited_claim" : null;
     if (!type || !entities.has(assertion.entityId)) return [];
-    return [{ id: assertion.id, type, instruction: assertion.value, relatedEntityIds: [canonicalEntityId(assertion.entityId)].filter((id): id is string => id !== null), relatedAssertionIds: [assertion.id], evidenceIds: sortedUnique(assertion.evidenceIds.filter((id) => evidence.has(id))), sourceIds: sortedUnique(assertion.sourceIds.filter((id) => sources.has(id))), reviewState: assertion.reviewState }];
+    return [{ id: assertion.id, type, instruction: assertion.value, relatedEntityIds: [canonicalEntityId(assertion.entityId)].filter((id): id is string => id !== null), relatedAssertionIds: [assertion.id], evidenceIds: sortedUnique(assertion.evidenceIds.filter((id) => evidence.has(id))), sourceIds: sortedUnique(assertion.sourceIds.filter((id) => sources.has(id))), reviewState: assertion.reviewState, authority: assertion.authority, ...(assertion.provenance ? { provenance: { ...assertion.provenance } } : {}), predecessorAssertionId: assertion.predecessorAssertionId ?? null }];
   }));
   const associatedMerges = identityEntity ? (memory.entityMerges ?? []).filter((merge) => canonicalEntityId(merge.canonicalEntityId) === identityEntity.id && merge.mergedEntityIds.every((id) => entities.get(id)?.type === "business")) : [];
   const contactEntityIds = identityEntity ? sortedUnique(relationships.flatMap((relationship) => {
