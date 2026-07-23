@@ -5,6 +5,7 @@ import type {
   Confidence,
   KnowledgeSourceOrigin,
   ReviewState,
+  AssertionCorrectionProvenance,
 } from "../business-memory/contracts";
 
 /** Wire schema for the durable, runtime-facing Assistant Projection boundary. */
@@ -43,6 +44,8 @@ export type AssistantProjectionTextKnowledgeItem = {
   reviewState: Extract<ReviewState, "approved" | "corrected">;
   evidenceIds: string[];
   sourceIds: string[];
+  /** Optional for schema-v1 reads; generated projections preserve canonical provenance. */
+  provenance?: AssertionCorrectionProvenance;
 };
 
 /** Business Memory currently represents services as reviewed text claims. */
@@ -69,6 +72,8 @@ export type AssistantProjectionRestriction = {
   relatedEntityIds: string[];
   relatedAssertionIds: string[];
   evidenceIds: string[];
+  sourceIds: string[];
+  reviewState: Extract<ReviewState, "approved" | "corrected">;
 };
 
 export type AssistantProjectionRelationship = {
@@ -79,6 +84,9 @@ export type AssistantProjectionRelationship = {
   sourceAssertionId: string;
   targetAssertionId: string;
   sourceEntryIds: string[];
+  sourceIds: string[];
+  evidenceIds: string[];
+  reviewState: Extract<ReviewState, "approved" | "corrected">;
 };
 
 export type AssistantProjectionMissingInformation = {
