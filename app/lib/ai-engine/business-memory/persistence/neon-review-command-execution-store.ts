@@ -75,7 +75,7 @@ export class NeonReviewCommandExecutionStore implements ReviewCommandExecutionSt
         const action = commandKind === "correct" ? "correction" : commandKind;
         await writeCanonicalGovernanceShadow({ projectId: this.projectId, actor, transitions: [{
           action, previousStatus: previousReviewState,
-          entry: { kind: itemKind, id: String(row.id), content: itemKind === "context_entry" ? String(row.content) : `${row.question}\n${row.answer}`, status: String(row.status), updatedAt: new Date(row.updated_at).toISOString(), provenance: undefined },
+          entry: { kind: itemKind, id: String(row.id), content: itemKind === "context_entry" ? String(row.content) : `${row.question}\n${row.answer}`, status: String(row.status), updatedAt: new Date(row.updated_at).toISOString(), provenance: undefined, conversationCandidateIdentity: itemKind === "context_entry" && typeof row.metadata?.conversationCandidateIdentity === "string" ? row.metadata.conversationCandidateIdentity : undefined },
         }] as never }, this.client);
         await rebuildTrustedKnowledgeProjection(this.client, this.projectId, projectRevision);
         await rebuildPersistedBusinessMemoryFromTrustedKnowledge(this.client, this.projectId, projectRevision);
