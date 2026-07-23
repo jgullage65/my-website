@@ -80,6 +80,10 @@ export type AssistantProjectionRestriction = {
   evidenceIds: string[];
   sourceIds: string[];
   reviewState: Extract<ReviewState, "approved" | "corrected">;
+  /** Retained from the canonical assertion so restriction revisions can be resolved at runtime. */
+  authority?: AssertionAuthority;
+  provenance?: AssertionCorrectionProvenance;
+  predecessorAssertionId?: string | null;
 };
 
 export type AssistantProjectionRelationship = {
