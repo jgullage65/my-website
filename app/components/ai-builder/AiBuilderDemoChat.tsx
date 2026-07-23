@@ -135,6 +135,7 @@ export default function AiBuilderDemoChat({
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [promotingMessageId, setPromotingMessageId] = useState<string | null>(null);
   const [purchaseInterestSubmitted, setPurchaseInterestSubmitted] =
     useState(false);
   const [purchaseInterestSubmitting, setPurchaseInterestSubmitting] =
@@ -356,6 +357,19 @@ export default function AiBuilderDemoChat({
     }
   };
 
+  const promoteForReview = async (item: ChatMessage) => {
+    if (!chatThread || item.role !== "user" || promotingMessageId) return;
+    const statement = item.content.trim();
+    if (!statement) return;
+    setPromotingMessageId(item.id); setError(null);
+    try {
+      const response = await fetch("/api/ai-builder/conversation-promotions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ projectId, threadId: chatThread.id, messageId: item.id, statement, claimType: "fact", category: "business", title: statement.slice(0, 120), confidence: "medium", confidenceScore: 0.5, commandId: `conversation_promotion_${crypto.randomUUID()}` }) });
+      const payload = await response.json() as { ok?: boolean; error?: { message?: string } };
+      if (!response.ok || !payload.ok) throw new Error(payload.error?.message || "The statement could not be queued for review.");
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "The statement could not be queued for review."); }
+    finally { setPromotingMessageId(null); }
+  };
+
   const sendMessage = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -528,6 +542,9 @@ export default function AiBuilderDemoChat({
               <p className="whitespace-pre-wrap">
                 {item.content}
               </p>
+              {item.role === "user" && chatThread ? <button type="button" onClick={() => void promoteForReview(item)} disabled={Boolean(promotingMessageId)} className="mt-2 text-xs font-semibold text-amber-200 underline decoration-amber-300/40 underline-offset-4 disabled:opacity-50">
+                {promotingMessageId === item.id ? "Queuing for review…" : "Promote for review"}
+              </button> : null}
             </div>
           ))}
 
