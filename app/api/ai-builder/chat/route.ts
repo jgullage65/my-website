@@ -446,8 +446,8 @@ export async function POST(request: Request) {
 
     const response: ChatResponse = {
       answer: conflict.unresolvedConflictGroups.length ? `I found conflicting approved information regarding this topic. ${answer}` : answer,
-      // Existing response shape is retained; citations are derived from the one canonical retrieval pass.
-      citations: conflict.answerItems.map((item) => "instruction" in item.item ? item.item.instruction : "title" in item.item ? `${item.item.title}: ${item.item.value}` : "businessName" in item.item ? item.item.businessName ?? "Business identity" : item.item.topic),
+      // Public labels derive only from server-owned canonical citation chains; IDs remain internal.
+      citations: conflict.citationChains.map((chain) => chain.sources[0]?.label ?? chain.sources[0]?.url ?? ("instruction" in chain.projectionItem.item ? chain.projectionItem.item.instruction : "title" in chain.projectionItem.item ? `${chain.projectionItem.item.title}: ${chain.projectionItem.item.value}` : "business information")),
       diagnostics: {
         retrievedFacts: retrieved.items.filter((item) => item.category !== "faq").length,
         retrievedFaq: retrieved.items.filter((item) => item.category === "faq").length,
