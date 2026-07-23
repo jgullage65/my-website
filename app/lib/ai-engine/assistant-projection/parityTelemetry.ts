@@ -34,3 +34,35 @@ export async function recordAssistantProjectionParity(
     try { if (client) await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: null, assistantProjectionSchemaVersion: null, status: "COMPARISON_FAILURE", mismatchSummary: { total: 0, major: 0, minor: 0 }, categoryBreakdown: {}, failureDetails: { error: error instanceof Error ? error.message : "unknown_error" }, activeRuntimeAuthority }); } catch { /* telemetry persistence failure must not affect chat */ }
   } finally { client?.release(); }
 }
+
+/** Records a legacy comparison-load failure without affecting runtime serving. */
+export async function recordAssistantProjectionParityComparisonFailure(
+  projectId: string,
+  dependencies: AssistantProjectionParityDependencies,
+  activeRuntimeAuthority: ProjectRuntimeAuthority,
+  failureCode: "legacy_comparison_load_failed",
+): Promise<void> {
+  let client: PoolClient | null = null;
+  try {
+    client = await dependencies.connect();
+    const persisted = await dependencies.getPersisted(client, projectId);
+    await dependencies.upsert(client, {
+      projectId,
+      comparedAt: new Date().toISOString(),
+      // No legacy pack was loaded. Zero is the explicit non-version sentinel
+      // required by the established NOT NULL legacy_runtime_version column.
+      runtimeVersion: 0,
+      assistantProjectionVersion: persisted?.projectionVersion ?? null,
+      assistantProjectionSchemaVersion: persisted?.schemaVersion ?? null,
+      status: "COMPARISON_FAILURE",
+      mismatchSummary: { total: 0, major: 0, minor: 0 },
+      categoryBreakdown: {},
+      failureDetails: { code: failureCode },
+      activeRuntimeAuthority,
+    });
+  } catch {
+    // Durable parity telemetry must not control chat success.
+  } finally {
+    client?.release();
+  }
+}

@@ -75,3 +75,14 @@ test("parity telemetry records canonical as active without changing comparison i
   await recordAssistantProjectionParity("project-1", legacy, injected, "canonical");
   assert.equal(writes[0].activeRuntimeAuthority, "canonical");
 });
+
+test("canonical legacy comparison-load failure persists a safe durable outcome", async () => {
+  const writes: Array<Record<string, unknown>> = [];
+  const { dependencies: injected } = dependencies({ upsert: async (_client: unknown, report: Record<string, unknown>) => { writes.push(report); } });
+  const { recordAssistantProjectionParityComparisonFailure } = await import("@/app/lib/ai-engine/assistant-projection/parityTelemetry");
+  await recordAssistantProjectionParityComparisonFailure("project-1", injected, "canonical", "legacy_comparison_load_failed");
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].status, "COMPARISON_FAILURE");
+  assert.equal(writes[0].activeRuntimeAuthority, "canonical");
+  assert.deepEqual(writes[0].failureDetails, { code: "legacy_comparison_load_failed" });
+});

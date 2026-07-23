@@ -19,7 +19,7 @@ import { buildKnowledgePackFromTrustedRows, reconcileTrustedKnowledgeProjectionF
 import { projectionFresh, type ProjectionFreshness as ProjectionFreshnessState } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeFreshness";
 import { getPersistedAssistantProjection, upsertAssistantProjectionParityReport } from "@/app/lib/ai-engine/assistant-projection/persistence";
 import { compareAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parity";
-import { recordAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parityTelemetry";
+import { recordAssistantProjectionParity, recordAssistantProjectionParityComparisonFailure } from "@/app/lib/ai-engine/assistant-projection/parityTelemetry";
 import { buildLegacyKnowledgePackFromAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/legacy-compatibility";
 import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION } from "@/app/lib/ai-engine/assistant-projection/contracts";
 import { getProjectRuntimeAuthority, type ProjectRuntimeAuthority } from "@/app/lib/ai-engine/runtime-authority/projectRuntimeAuthority";
@@ -406,7 +406,16 @@ export async function POST(request: Request) {
         throw new Error("assistant_projection_runtime_unavailable");
       } finally { canonicalClient.release(); }
       // Legacy comparison failure is telemetry-only and never changes canonical serving.
-      parityPromise = (async () => { try { const legacy = await loadLegacyRuntimeKnowledge(projectId, project.session.assistantConfiguration); await recordAssistantProjectionParity(projectId, legacy, { connect: () => getProjectionPool().connect(), getPersisted: getPersistedAssistantProjection, compare: compareAssistantProjectionParity, upsert: upsertAssistantProjectionParityReport }, authority); } catch { /* comparison loading cannot alter canonical serving */ } })();
+      parityPromise = (async () => {
+        const dependencies = { connect: () => getProjectionPool().connect(), getPersisted: getPersistedAssistantProjection, compare: compareAssistantProjectionParity, upsert: upsertAssistantProjectionParityReport };
+        try {
+          const legacy = await loadLegacyRuntimeKnowledge(projectId, project.session.assistantConfiguration);
+          await recordAssistantProjectionParity(projectId, legacy, dependencies, authority);
+        } catch {
+          // A failed comparison is a durable outcome, not an omitted attempt.
+          await recordAssistantProjectionParityComparisonFailure(projectId, dependencies, authority, "legacy_comparison_load_failed");
+        }
+      })();
     } else {
       const legacy = await loadLegacyRuntimeKnowledge(projectId, project.session.assistantConfiguration);
       projection = { source: "trusted_knowledge_projection", knowledge: legacy };
@@ -416,7 +425,7 @@ export async function POST(request: Request) {
       projection.knowledge.facts.length === 0 &&
       projection.knowledge.faq.length === 0
     ) {
-      throw new Error("approved_knowledge_unavailable");
+      throw new Error(authority === "canonical" ? "assistant_projection_runtime_unavailable" : "approved_knowledge_unavailable");
     }
 
     const message = body.message.trim().slice(0, 4000);

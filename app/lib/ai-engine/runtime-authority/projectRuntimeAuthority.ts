@@ -31,6 +31,10 @@ export async function getProjectRuntimeAuthority(client: QueryClient, projectId:
 /** Owner-scoped server boundary. This changes only authority and updated_at. */
 let pool: Pool | null = null;
 const authorityPool = () => (pool ??= new Pool({ connectionString: process.env.DATABASE_URL }));
+/** Test seam for the connection boundary; production always uses DATABASE_URL. */
+export function setProjectRuntimeAuthorityPoolForTests(nextPool: Pick<Pool, "connect"> | null): void {
+  pool = nextPool as Pool | null;
+}
 export async function setProjectRuntimeAuthority(input: { projectId: string; clerkUserId: string; authority: ProjectRuntimeAuthority }): Promise<ProjectRuntimeAuthority> {
   const authority = parseProjectRuntimeAuthority(input.authority);
   const client = await authorityPool().connect();
