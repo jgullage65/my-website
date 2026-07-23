@@ -29,6 +29,11 @@ test("assistant projection freshness explicitly identifies every stale condition
   }
 });
 
+test("project ID mismatch is a lifecycle integrity error", () => {
+  const projection = buildAssistantProjection(memory());
+  assert.throws(() => evaluateAssistantProjectionFreshnessForRecord(record({ projectId: "other" }), projection), /assistant_projection_project_id_mismatch/);
+});
+
 test("operational Business Memory timestamps do not make a projection stale", () => {
   const first = buildAssistantProjection(memory());
   const changed = memory(); changed.updatedAt = "2026-01-01T00:00:00.000Z";
@@ -54,12 +59,9 @@ db("transaction-bound rebuild locks before generation and never rewinds a failed
     await upsertPersistedAssistantProjection(client, { ...current, projection: current });
 
     await client.query("BEGIN");
-    const replacementMemory = { ...currentMemory, assistant: { ...currentMemory.assistant, name: "Replacement" } };
-    const replacement = buildAssistantProjection(replacementMemory);
-    const rebuilt = await rebuildAssistantProjectionInTransaction({ client, businessMemory: replacementMemory });
+    await assert.rejects(rebuildAssistantProjectionInTransaction({ client, projectId }), /assistant_projection_business_memory_missing/);
     await client.query("COMMIT");
-    assert.equal(rebuilt.rebuilt, true);
-    assert.equal((await getPersistedAssistantProjection(client, projectId))?.businessMemoryFingerprint, replacement.businessMemoryFingerprint);
+    assert.equal((await getPersistedAssistantProjection(client, projectId))?.businessMemoryFingerprint, current.businessMemoryFingerprint);
 
     await updateAssistantProjectionInvalidationState(client, projectId, "failed");
     assert.equal((await getPersistedAssistantProjection(client, projectId))?.invalidationState, "failed");
