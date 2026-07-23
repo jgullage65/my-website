@@ -513,6 +513,29 @@ async function createAiBuilderSchema() {
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_conversation_promotion_command_ledger (command_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, request_fingerprint TEXT NOT NULL, result JSONB NOT NULL, executed_at TIMESTAMPTZ NOT NULL)`;
 
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_review_command_ledger (command_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, item_id TEXT NOT NULL, resulting_revision INTEGER NOT NULL, resulting_state TEXT NOT NULL, executed_at TIMESTAMPTZ NOT NULL, result JSONB NOT NULL)`;
+  // Durable operational work is deliberately independent from the migration
+  // state machine. A unique target makes enqueue idempotent under concurrent
+  // review command commits without trusting a caller-supplied checkpoint.
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_downstream_synchronization_jobs (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+    mode TEXT NOT NULL CHECK (mode IN ('incremental', 'full_rebuild')),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'succeeded', 'failed')),
+    requested_trusted_knowledge_revision INTEGER NOT NULL,
+    requested_business_memory_revision INTEGER,
+    completed_trusted_knowledge_revision INTEGER,
+    completed_business_memory_revision INTEGER,
+    completed_assistant_projection_fingerprint TEXT,
+    current_step TEXT NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_error_code TEXT,
+    last_error_message TEXT,
+    UNIQUE (project_id, mode, requested_trusted_knowledge_revision)
+  )`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_downstream_synchronization_jobs_project_status_idx ON ai_builder_downstream_synchronization_jobs(project_id, status, updated_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_faq_entries_project_idx ON ai_builder_faq_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_conflicts_project_idx ON ai_builder_conflicts(project_id)`;
