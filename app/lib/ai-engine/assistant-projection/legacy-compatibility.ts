@@ -10,6 +10,7 @@
 
 import type { KnowledgeFact, KnowledgeFaq, KnowledgePack, KnowledgeProvenance } from "../knowledge/contracts";
 import type { AssistantProjection, AssistantProjectionEvidence, AssistantProjectionRestriction, AssistantProjectionSource, AssistantProjectionTextKnowledgeItem } from "./contracts";
+import { validateAssistantProjectionRuntime } from "./validation";
 
 export const ASSISTANT_PROJECTION_LEGACY_ADAPTER_TEMPORARY = true as const;
 
@@ -79,6 +80,7 @@ export function buildLegacyKnowledgePackFromAssistantProjection(projection: Assi
   if (!projection || typeof projection.projectId !== "string" || !projection.projectId.trim()) {
     return fail("assistant_projection_legacy_adapter_invalid_project_id", "Assistant Projection project ID is invalid.");
   }
+  validateAssistantProjectionRuntime(projection);
   const sourcesById = new Map([...projection.sources].sort((a, b) => a.id.localeCompare(b.id)).map((source) => [source.id, source]));
   const evidenceById = new Map([...projection.evidence].sort((a, b) => a.id.localeCompare(b.id)).map((evidence) => [evidence.id, evidence]));
   const facts = [

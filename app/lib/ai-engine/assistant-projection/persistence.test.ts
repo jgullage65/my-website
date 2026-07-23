@@ -67,6 +67,12 @@ test("write validation accepts generator-format fingerprints and rejects malform
   assert.throws(() => validatePersistedAssistantProjectionWrite({ ...value, projection: value, generatedAt: "bad" }), /assistant_projection_invalid_generated_at/);
 });
 
+test("runtime validation rejects persisted non-authoritative knowledge rather than filtering it", () => {
+  const value = projection("project-1");
+  const invalid = { ...value, services: [{ id: "proposed", entityId: "entity", assertionId: "assertion", entityType: "service", title: "Proposed", value: "Never serve", aliases: [], tags: [], confidence: { level: "high", score: .9 }, authority: "observed", reviewState: "proposed", evidenceIds: [], sourceIds: [] }] } as unknown as AssistantProjection;
+  assert.throws(() => validatePersistedAssistantProjectionWrite({ ...value, projection: invalid }), /assistant_projection_runtime_non_authoritative_knowledge/);
+});
+
 test("persisted rows reject malformed payloads, metadata, state, and timestamps", () => {
   const value = projection("project-1");
   for (const [changed, code] of [[{ business_memory_fingerprint: "fingerprint-1" }, "row_fingerprint"], [{ projection_json: { ...value, businessMemoryFingerprint: "fingerprint-1" } }, "invalid_projection_json"], [{ projection_json: { ...value, projectId: "project-2" } }, "row_project_id_mismatch"], [{ projection_json: { ...value, businessMemoryFingerprint: "business_memory_abcdef0123456789abcdef01" } }, "row_fingerprint_mismatch"], [{ projection_json: { ...value, projectionVersion: 2 } }, "invalid_projection_json"], [{ projection_json: { ...value, schemaVersion: 2 } }, "invalid_projection_json"], [{ invalidation_state: "unknown" }, "row_invalidation_state"], [{ generated_at: "bad" }, "row_generated_at"], [{ created_at: "bad" }, "row_created_at"], [{ updated_at: "bad" }, "row_updated_at"], [{ projection_json: { ...value, services: "not-array" } }, "invalid_projection_json"], [{ projection_json: { ...value, identity: null } }, "invalid_projection_json"], [{ projection_json: { ...value, identity: { status: "unknown" } } }, "invalid_projection_json"], [{ projection_json: { ...value, assistant: [] } }, "invalid_projection_json"], [{ projection_json: { ...value, missingInformation: undefined } }, "invalid_projection_json"]] as const) {

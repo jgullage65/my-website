@@ -11,6 +11,7 @@ import {
   type AssistantProjectionService,
   type AssistantProjectionTextKnowledgeItem,
 } from "./contracts";
+import { validateAssistantProjectionRuntime } from "./validation";
 
 const compare = (left: string, right: string) => left < right ? -1 : left > right ? 1 : 0;
 const normalize = (value: string) => value.replace(/\s+/g, " ").trim();
@@ -21,6 +22,11 @@ const stableId = (prefix: string, content: string) => `${prefix}_${createHash("s
 type SupportedAssertion = BusinessAssertion & { reviewState: "approved" | "corrected" };
 const supportedAssertion = (assertion: BusinessAssertion): assertion is SupportedAssertion => assertion.reviewState === "approved" || assertion.reviewState === "corrected";
 const supportedRelationship = (relationship: BusinessRelationship) => relationship.reviewState === "approved" || relationship.reviewState === "corrected";
+
+export class AssistantProjectionGenerationError extends Error {
+  readonly code: "assistant_projection_unresolved_conflict";
+  constructor(code: "assistant_projection_unresolved_conflict") { super(code); this.name = "AssistantProjectionGenerationError"; this.code = code; }
+}
 
 const setLikeArrayFields = new Set([
   "aliases", "tags", "assertionIds", "sourceIds", "evidenceIds", "escalationInstructions", "behaviorRules", "prohibitedClaims",
@@ -53,6 +59,7 @@ function businessMemoryFingerprint(memory: BusinessMemory): string {
 
 /** Maps canonical Business Memory into the stable runtime DTO without persistence I/O. */
 export function buildAssistantProjection(memory: BusinessMemory): AssistantProjection {
+  if (memory.conflicts.some((conflict) => !conflict.resolved)) throw new AssistantProjectionGenerationError("assistant_projection_unresolved_conflict");
   const entities = new Map(memory.entities.map((entity) => [entity.id, entity]));
   const assertions = new Map(memory.assertions.map((assertion) => [assertion.id, assertion]));
   const sources = new Map(memory.sources.map((source) => [source.id, source]));
@@ -85,13 +92,7 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
     if (!existing || compare(display, existing) < 0) rules.set(key, display);
     return rules;
   }, new Map<string, string>())).map(([key, instruction]) => ({ id: stableId(`assistant_${type}`, key), type, instruction, relatedEntityIds: [], relatedAssertionIds: [], evidenceIds: [] }));
-  // Conflicting assertions remain available for provenance; runtime routing must include the related conflict restriction whenever selecting those assertion IDs. Actual runtime routing is outside 8A.
-  const conflictRestrictions = memory.conflicts.filter((conflict) => !conflict.resolved).map((conflict) => ({
-    id: conflict.id, type: "conflict_suppression" as const, instruction: conflict.suggestedClarificationQuestion,
-    relatedEntityIds: sortedUnique(conflict.relatedEntityIds.map(canonicalEntityId).filter((id): id is string => id !== null)),
-    relatedAssertionIds: sortedUnique(conflict.relatedAssertionIds.filter((id) => assertions.has(id))), evidenceIds: sortedUnique(conflict.evidenceIds.filter((id) => evidence.has(id))),
-  }));
-  const restrictions = byId([...ruleRestrictions("prohibited_claim", memory.assistant.prohibitedClaims ?? []), ...ruleRestrictions("behavior_rule", memory.assistant.behaviorRules ?? []), ...conflictRestrictions]);
+  const restrictions = byId([...ruleRestrictions("prohibited_claim", memory.assistant.prohibitedClaims ?? []), ...ruleRestrictions("behavior_rule", memory.assistant.behaviorRules ?? [])]);
   const associatedMerges = identityEntity ? (memory.entityMerges ?? []).filter((merge) => canonicalEntityId(merge.canonicalEntityId) === identityEntity.id && merge.mergedEntityIds.every((id) => entities.get(id)?.type === "business")) : [];
   const contactEntityIds = identityEntity ? sortedUnique(relationships.flatMap((relationship) => {
     const source = entities.get(relationship.sourceEntityId), target = entities.get(relationship.targetEntityId);
@@ -99,7 +100,7 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
     if (relationship.targetEntityId === identityEntity.id && source?.type === "contact_method") return [relationship.sourceEntityId];
     return [];
   })) : [];
-  return { projectId: memory.projectId, businessMemoryFingerprint: businessMemoryFingerprint(memory), projectionVersion: ASSISTANT_PROJECTION_VERSION, schemaVersion: ASSISTANT_PROJECTION_SCHEMA_VERSION,
+  const projection: AssistantProjection = { projectId: memory.projectId, businessMemoryFingerprint: businessMemoryFingerprint(memory), projectionVersion: ASSISTANT_PROJECTION_VERSION, schemaVersion: ASSISTANT_PROJECTION_SCHEMA_VERSION,
     identity: { status: identityEntity ? "resolved" : canonicalBusinessIds.length === 0 ? "missing" : "ambiguous", canonicalEntityId: identityEntity?.id ?? null, businessName: identityEntity?.name ?? null, aliases: sortedUnique([...(identityEntity?.aliases ?? []), ...associatedMerges.flatMap((merge) => merge.approvedAliases)]), mergedEntityIds: sortedUnique(associatedMerges.flatMap((merge) => merge.mergedEntityIds)), redirectedEntityIds: sortedUnique(associatedMerges.flatMap((merge) => merge.mergedEntityIds)), contactEntityIds },
     assistant: { name: memory.assistant.name, purpose: memory.assistant.purpose, tone: memory.assistant.tone, responseStyle: memory.assistant.responseStyle, primaryAudience: memory.assistant.primaryAudience, escalationInstructions: sortedUnique(memory.assistant.escalationInstructions) },
     services: ofType("service") as AssistantProjectionService[], pricing: ofType("pricing_concept") as AssistantProjectionPricing[], policies: ofType("policy") as AssistantProjectionPolicy[], faqs: byId(ofType("faq").map((item) => ({ ...item, question: item.title, answer: item.value }))) as AssistantProjectionFaq[], restrictions, relationships,
@@ -107,4 +108,6 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
     evidence: byId(Array.from(evidence.values()).map((item) => ({ id: item.id, canonicalSourceId: item.sourceId, sourceUrl: item.url, excerpt: item.excerpt, capturedAt: item.capturedAt }))),
     missingInformation: byId(memory.missingInformation.map((item) => ({ id: item.id, topic: item.topic, reason: item.reason, suggestedFollowUpQuestion: item.suggestedQuestion, relatedEntityTypes: [...item.relatedEntityTypes].sort(compare), relatedEntityIds: sortedUnique(item.relatedEntityIds.map(canonicalEntityId).filter((id): id is string => id !== null)), relatedAssertionIds: sortedUnique(item.relatedAssertionIds.filter((id) => assertions.has(id))), resolved: item.resolved }))),
   };
+  validateAssistantProjectionRuntime(projection);
+  return projection;
 }
