@@ -30,18 +30,18 @@ export async function invalidateAssistantProjectionIfStale(input: { client: Quer
 export async function invalidateAssistantProjectionForCommittedBusinessMemory(client: QueryClient, projectId: string): Promise<void> { await invalidateAssistantProjectionForBusinessMemoryChange(client, projectId); }
 
 /** Caller owns the transaction.  The project lock is acquired before every read of Business Memory. */
-export async function rebuildAssistantProjectionInTransaction(input: { client: QueryClient; projectId: string }): Promise<RebuildAssistantProjectionResult> {
+export async function rebuildAssistantProjectionInTransaction(input: { client: QueryClient; projectId: string; forceRebuild?: boolean }): Promise<RebuildAssistantProjectionResult> {
   await input.client.query("SELECT id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [input.projectId]);
   return rebuildAssistantProjectionAfterProjectLock(input);
 }
 
-async function rebuildAssistantProjectionAfterProjectLock(input: { client: QueryClient; projectId: string }): Promise<RebuildAssistantProjectionResult> {
+async function rebuildAssistantProjectionAfterProjectLock(input: { client: QueryClient; projectId: string; forceRebuild?: boolean }): Promise<RebuildAssistantProjectionResult> {
   const businessMemory = await loadPersistedBusinessMemory(input.client, input.projectId);
   if (!businessMemory) throw new AssistantProjectionLifecycleError("assistant_projection_business_memory_missing");
   const projection = buildAssistantProjection(businessMemory);
   const existing = await getPersistedAssistantProjection(input.client, input.projectId);
   const freshness = evaluateAssistantProjectionFreshnessForRecord(existing, projection);
-  if (freshness.status === "current") return { record: freshness.record, rebuilt: false, previousState: "valid" };
+  if (freshness.status === "current" && !input.forceRebuild) return { record: freshness.record, rebuilt: false, previousState: "valid" };
   const previousState = existing?.invalidationState ?? "missing";
   if (existing && existing.invalidationState !== "rebuilding") await updateAssistantProjectionInvalidationState(input.client, input.projectId, "rebuilding");
   await input.client.query("SAVEPOINT assistant_projection_rebuild");
