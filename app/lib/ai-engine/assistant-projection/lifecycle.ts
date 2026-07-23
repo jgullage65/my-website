@@ -1,95 +1,59 @@
 import "server-only";
 
-import type { PoolClient } from "@neondatabase/serverless";
-import type { BusinessMemory } from "../business-memory/contracts";
+import { Pool, type PoolClient } from "@neondatabase/serverless";
 import { buildAssistantProjection } from "./buildAssistantProjection";
 import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION, type AssistantProjection, type AssistantProjectionInvalidationState, type PersistedAssistantProjectionRecord } from "./contracts";
-import { getPersistedAssistantProjection, getPersistedAssistantProjectionForUpdate, invalidateAssistantProjectionForBusinessMemoryChange, updateAssistantProjectionInvalidationState, upsertPersistedAssistantProjection } from "./persistence";
+import { getPersistedAssistantProjection, invalidateAssistantProjectionForBusinessMemoryChange, loadPersistedBusinessMemory, markAssistantProjectionFailedIfUnchanged, updateAssistantProjectionInvalidationState, upsertPersistedAssistantProjection } from "./persistence";
 
 type QueryClient = Pick<PoolClient, "query">;
+let pool: Pool | null = null;
+const transactionPool = () => (pool ??= new Pool({ connectionString: process.env.DATABASE_URL }));
 export type AssistantProjectionStaleReason = "fingerprint_mismatch" | "projection_version_mismatch" | "schema_version_mismatch" | "invalidation_state";
-export type AssistantProjectionFreshness =
-  | { status: "missing" }
-  | { status: "current"; record: PersistedAssistantProjectionRecord }
-  | { status: "stale"; reasons: AssistantProjectionStaleReason[]; record: PersistedAssistantProjectionRecord };
+export type AssistantProjectionFreshness = { status: "missing" } | { status: "current"; record: PersistedAssistantProjectionRecord } | { status: "stale"; reasons: AssistantProjectionStaleReason[]; record: PersistedAssistantProjectionRecord };
 export type RebuildAssistantProjectionResult = { record: PersistedAssistantProjectionRecord; rebuilt: boolean; previousState: AssistantProjectionInvalidationState | "missing" };
+export type AssistantProjectionRebuildFailureContext = { projectId: string; previousFingerprint: string; previousGeneratedAt: string; previousUpdatedAt: string; previousState: AssistantProjectionInvalidationState };
+export class AssistantProjectionLifecycleError extends Error { constructor(readonly code: string) { super(code); this.name = "AssistantProjectionLifecycleError"; } }
+export class AssistantProjectionRebuildError extends Error { constructor(readonly cause: unknown, readonly failureContext?: AssistantProjectionRebuildFailureContext) { super("assistant_projection_rebuild_failed"); this.name = "AssistantProjectionRebuildError"; } }
 
 export function evaluateAssistantProjectionFreshnessForRecord(record: PersistedAssistantProjectionRecord | null, projection: AssistantProjection): AssistantProjectionFreshness {
   if (!record) return { status: "missing" };
+  if (record.projectId !== projection.projectId) throw new AssistantProjectionLifecycleError("assistant_projection_project_id_mismatch");
   const reasons: AssistantProjectionStaleReason[] = [];
-  if (record.projectId !== projection.projectId || record.businessMemoryFingerprint !== projection.businessMemoryFingerprint) reasons.push("fingerprint_mismatch");
+  if (record.businessMemoryFingerprint !== projection.businessMemoryFingerprint) reasons.push("fingerprint_mismatch");
   if (record.projectionVersion !== ASSISTANT_PROJECTION_VERSION) reasons.push("projection_version_mismatch");
   if (record.schemaVersion !== ASSISTANT_PROJECTION_SCHEMA_VERSION) reasons.push("schema_version_mismatch");
   if (record.invalidationState !== "valid") reasons.push("invalidation_state");
   return reasons.length ? { status: "stale", reasons, record } : { status: "current", record };
 }
+export async function evaluateAssistantProjectionFreshness(input: { client: QueryClient; projection: AssistantProjection }): Promise<AssistantProjectionFreshness> { return evaluateAssistantProjectionFreshnessForRecord(await getPersistedAssistantProjection(input.client, input.projection.projectId), input.projection); }
+export async function invalidateAssistantProjectionIfStale(input: { client: QueryClient; projection: AssistantProjection }): Promise<AssistantProjectionFreshness> { const result = await evaluateAssistantProjectionFreshness(input); if (result.status !== "stale" || result.record.invalidationState === "invalidated" || result.record.invalidationState === "rebuilding") return result; const record = await invalidateAssistantProjectionForBusinessMemoryChange(input.client, input.projection.projectId); return record ? { status: "stale", reasons: result.reasons, record } : result; }
+export async function invalidateAssistantProjectionForCommittedBusinessMemory(client: QueryClient, projectId: string): Promise<void> { await invalidateAssistantProjectionForBusinessMemoryChange(client, projectId); }
 
-/** Evaluates deterministic content and durable lifecycle metadata; timestamps are intentionally irrelevant. */
-export async function evaluateAssistantProjectionFreshness(input: { client: QueryClient; businessMemory?: BusinessMemory; projection?: AssistantProjection }): Promise<AssistantProjectionFreshness> {
-  const projection = input.projection ?? buildAssistantProjection(input.businessMemory!);
-  return evaluateAssistantProjectionFreshnessForRecord(await getPersistedAssistantProjection(input.client, projection.projectId), projection);
+/** Caller owns the transaction.  The project lock is acquired before every read of Business Memory. */
+export async function rebuildAssistantProjectionInTransaction(input: { client: QueryClient; projectId: string }): Promise<RebuildAssistantProjectionResult> {
+  await input.client.query("SELECT id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [input.projectId]);
+  return rebuildAssistantProjectionAfterProjectLock(input);
 }
 
-/** Marks only stale artifacts invalidated and never rewrites their payload or generatedAt. */
-export async function invalidateAssistantProjectionIfStale(input: { client: QueryClient; businessMemory?: BusinessMemory; projection?: AssistantProjection }): Promise<AssistantProjectionFreshness> {
-  const projection = input.projection ?? buildAssistantProjection(input.businessMemory!);
-  const result = await evaluateAssistantProjectionFreshness({ client: input.client, projection });
-  if (result.status !== "stale" || result.record.invalidationState === "invalidated") return result;
-  // rebuilding is owned by its active rebuild; it must not be moved backwards.
-  if (result.record.invalidationState === "rebuilding") return result;
-  const record = await invalidateAssistantProjectionForBusinessMemoryChange(input.client, projection.projectId);
-  // A concurrent rebuild or failure won the lifecycle transition.  Preserve
-  // that state instead of moving it backwards to invalidated.
-  return record
-    ? { status: "stale", reasons: result.reasons, record }
-    : result;
-}
-
-/** Marks a previously current artifact stale after a material Business Memory commit. */
-export async function invalidateAssistantProjectionForCommittedBusinessMemory(client: QueryClient, projectId: string): Promise<void> {
-  await invalidateAssistantProjectionForBusinessMemoryChange(client, projectId);
-}
-
-async function rebuildLocked(client: QueryClient, businessMemory: BusinessMemory): Promise<RebuildAssistantProjectionResult> {
-  // This lock deliberately precedes generation: a waiting rebuild must derive
-  // from the canonical state visible after the preceding transaction commits.
-  const projectId = businessMemory.projectId;
-  const existing = await getPersistedAssistantProjectionForUpdate(client, projectId);
+async function rebuildAssistantProjectionAfterProjectLock(input: { client: QueryClient; projectId: string }): Promise<RebuildAssistantProjectionResult> {
+  const businessMemory = await loadPersistedBusinessMemory(input.client, input.projectId);
+  if (!businessMemory) throw new AssistantProjectionLifecycleError("assistant_projection_business_memory_missing");
   const projection = buildAssistantProjection(businessMemory);
-  const state = evaluateAssistantProjectionFreshnessForRecord(existing, projection);
-  if (state.status === "current") return { record: state.record, rebuilt: false, previousState: "valid" };
+  const existing = await getPersistedAssistantProjection(input.client, input.projectId);
+  const freshness = evaluateAssistantProjectionFreshnessForRecord(existing, projection);
+  if (freshness.status === "current") return { record: freshness.record, rebuilt: false, previousState: "valid" };
   const previousState = existing?.invalidationState ?? "missing";
-  if (existing) {
-    // Guarded transitions: valid|invalidated|failed -> rebuilding only.
-    if (existing.invalidationState !== "rebuilding") await updateAssistantProjectionInvalidationState(client, projection.projectId, "rebuilding");
-  }
-  await client.query("SAVEPOINT assistant_projection_rebuild");
-  try {
-    const record = await upsertPersistedAssistantProjection(client, { ...projection, projection });
-    await client.query("RELEASE SAVEPOINT assistant_projection_rebuild");
-    return { record, rebuilt: true, previousState };
-  } catch (error) {
-    // PostgreSQL marks a transaction aborted after a failed write.  Roll back
-    // only the rebuild attempt, then make the failed lifecycle state durable
-    // in the caller's transaction before returning the original error.
-    await client.query("ROLLBACK TO SAVEPOINT assistant_projection_rebuild");
-    await client.query("RELEASE SAVEPOINT assistant_projection_rebuild");
-    if (existing) {
-      try { await updateAssistantProjectionInvalidationState(client, projection.projectId, "failed"); } catch { /* preserve original failure */ }
-    }
-    throw error;
-  }
+  if (existing && existing.invalidationState !== "rebuilding") await updateAssistantProjectionInvalidationState(input.client, input.projectId, "rebuilding");
+  await input.client.query("SAVEPOINT assistant_projection_rebuild");
+  try { const record = await upsertPersistedAssistantProjection(input.client, { ...projection, projection }); await input.client.query("RELEASE SAVEPOINT assistant_projection_rebuild"); return { record, rebuilt: true, previousState }; }
+  catch (cause) { await input.client.query("ROLLBACK TO SAVEPOINT assistant_projection_rebuild"); await input.client.query("RELEASE SAVEPOINT assistant_projection_rebuild"); throw new AssistantProjectionRebuildError(cause, existing ? { projectId: input.projectId, previousFingerprint: existing.businessMemoryFingerprint, previousGeneratedAt: existing.generatedAt, previousUpdatedAt: existing.updatedAt, previousState: existing.invalidationState } : undefined); }
 }
+export async function ensureAssistantProjectionCurrentInTransaction(input: { client: QueryClient; projectId: string }): Promise<RebuildAssistantProjectionResult> { return rebuildAssistantProjectionInTransaction(input); }
 
-/**
- * Rebuilds inside a caller-supplied transaction. The project FOR UPDATE lock
- * serializes same-project attempts and forces the second waiter to re-check.
- */
-export async function rebuildAssistantProjectionInTransaction(input: { client: QueryClient; businessMemory: BusinessMemory }): Promise<RebuildAssistantProjectionResult> {
-  return rebuildLocked(input.client, input.businessMemory);
-}
-
-/** Explicit orchestration entry point for mutations/migrations that require a current artifact. */
-export async function ensureAssistantProjectionCurrentInTransaction(input: { client: QueryClient; businessMemory: BusinessMemory }): Promise<RebuildAssistantProjectionResult> {
-  return rebuildAssistantProjectionInTransaction(input);
+/** Public server boundary: its second transaction durably records only the unchanged old artifact's failure. */
+export async function rebuildAssistantProjectionForProject(input: { projectId: string; clerkUserId: string }): Promise<RebuildAssistantProjectionResult> {
+  const client = await transactionPool().connect(); let failure: AssistantProjectionRebuildError | null = null;
+  try { await client.query("BEGIN"); const owner = (await client.query("SELECT clerk_user_id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [input.projectId])).rows[0] as { clerk_user_id?: string } | undefined; if (!owner || owner.clerk_user_id !== input.clerkUserId) throw new AssistantProjectionLifecycleError("assistant_projection_project_not_found"); const result = await rebuildAssistantProjectionAfterProjectLock({ client, projectId: input.projectId }); await client.query("COMMIT"); return result; }
+  catch (cause) { failure = cause instanceof AssistantProjectionRebuildError ? cause : null; await client.query("ROLLBACK").catch(() => undefined); if (!failure?.failureContext) throw cause; try { await client.query("BEGIN"); const owner = (await client.query("SELECT clerk_user_id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [input.projectId])).rows[0] as { clerk_user_id?: string } | undefined; if (owner?.clerk_user_id === input.clerkUserId) await markAssistantProjectionFailedIfUnchanged(client, { projectId: input.projectId, expectedFingerprint: failure.failureContext.previousFingerprint, expectedGeneratedAt: failure.failureContext.previousGeneratedAt, expectedUpdatedAt: failure.failureContext.previousUpdatedAt, allowedStates: [failure.failureContext.previousState, "rebuilding"] }); await client.query("COMMIT"); } catch (secondary) { await client.query("ROLLBACK").catch(() => undefined); (cause as Error & { failureRecordingError?: unknown }).failureRecordingError = secondary; } throw cause; }
+  finally { client.release(); }
 }

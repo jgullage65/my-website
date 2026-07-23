@@ -28,7 +28,7 @@ if (!/(^|[-_])test($|[-_])|_test$/i.test(databaseName)) {
 const result = spawnSync(process.execPath, [
   "--experimental-transform-types",
   "--experimental-loader", "./test/node-alias-loader.mjs",
-  "--test", "app/lib/db/review-command-concurrency.integration.test.ts", "app/lib/ai-engine/assistant-projection/lifecycle.test.ts",
+  "--test", "app/lib/db/review-command-concurrency.integration.test.ts", "app/lib/ai-engine/assistant-projection/persistence.test.ts", "app/lib/ai-engine/assistant-projection/lifecycle.test.ts", "app/lib/ai-engine/business-memory/persistence/rebuild-persisted-business-memory.test.ts", "app/lib/db/project-backfill-executor.test.ts",
 ], {
   stdio: "inherit",
   env: { ...process.env, DATABASE_URL: databaseUrl },

@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { PoolClient } from "@neondatabase/serverless";
+import type { BusinessMemory } from "../business-memory/contracts";
 import {
   ASSISTANT_PROJECTION_SCHEMA_VERSION,
   ASSISTANT_PROJECTION_VERSION,
@@ -188,4 +189,37 @@ export async function invalidateAssistantProjectionForBusinessMemoryChange(clien
   );
   const row = (result.rows as DatabaseRow[])[0];
   return row ? parsePersistedAssistantProjectionRecord(row) : null;
+}
+
+
+/** Reads the complete persisted Business Memory document using the caller transaction. */
+export async function loadPersistedBusinessMemory(client: QueryClient, projectId: string): Promise<BusinessMemory | null> {
+  const rootResult = await client.query("SELECT m.*, p.assistant_configuration FROM ai_builder_business_memory m JOIN ai_builder_projects p ON p.id=m.project_id WHERE m.project_id=$1", [projectId]);
+  const root = (rootResult.rows as DatabaseRow[])[0];
+  if (!root) return null;
+  const memoryId = requiredText(root.id, "business_memory_invalid_row_id");
+  const q = (sql: string) => client.query(sql, [memoryId]);
+  const [entities, assertions, relationships, sources, evidence, assertionSources, assertionEvidence, conflicts, missing] = await Promise.all([
+    q("SELECT * FROM ai_builder_business_memory_entities WHERE memory_id=$1 ORDER BY id"), q("SELECT * FROM ai_builder_business_memory_assertions WHERE memory_id=$1 ORDER BY id"), q("SELECT * FROM ai_builder_business_memory_relationships WHERE memory_id=$1 ORDER BY id"), q("SELECT * FROM ai_builder_business_memory_sources WHERE memory_id=$1 ORDER BY id"), q("SELECT * FROM ai_builder_business_memory_evidence WHERE memory_id=$1 ORDER BY id"), q("SELECT l.assertion_id,l.source_id FROM ai_builder_business_memory_assertion_sources l JOIN ai_builder_business_memory_assertions a ON a.id=l.assertion_id WHERE a.memory_id=$1"), q("SELECT l.assertion_id,l.evidence_id FROM ai_builder_business_memory_assertion_evidence l JOIN ai_builder_business_memory_assertions a ON a.id=l.assertion_id WHERE a.memory_id=$1"), q("SELECT * FROM ai_builder_business_memory_conflicts WHERE memory_id=$1 ORDER BY id"), q("SELECT * FROM ai_builder_business_memory_missing_information WHERE memory_id=$1 ORDER BY id"),
+  ]);
+  const rows = <T>(result: { rows: unknown[] }) => result.rows as DatabaseRow[];
+  const list = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  const sourceIds = new Map<string, string[]>(), evidenceIds = new Map<string, string[]>();
+  for (const row of rows(assertionSources)) sourceIds.set(String(row.assertion_id), [...(sourceIds.get(String(row.assertion_id)) ?? []), String(row.source_id)]);
+  for (const row of rows(assertionEvidence)) evidenceIds.set(String(row.assertion_id), [...(evidenceIds.get(String(row.assertion_id)) ?? []), String(row.evidence_id)]);
+  const assertionRows = rows(assertions);
+  const config = (root.assistant_configuration && typeof root.assistant_configuration === "object" ? root.assistant_configuration : {}) as DatabaseRow;
+  const assistant = { name: typeof config.name === "string" ? config.name : "", purpose: typeof config.purpose === "string" ? config.purpose : "", tone: typeof config.tone === "string" ? config.tone : "", responseStyle: typeof config.responseStyle === "string" ? config.responseStyle : "", primaryAudience: typeof config.primaryAudience === "string" ? config.primaryAudience : null, escalationInstructions: list(config.escalationInstructions), behaviorRules: list(config.behaviorRules), prohibitedClaims: list(config.prohibitedClaims) };
+  return { id: memoryId, schemaVersion: 1, projectId, assistant,
+    entities: rows(entities).map(row => ({ id: String(row.id), type: String(row.entity_type) as BusinessMemory["entities"][number]["type"], name: String(row.name), aliases: list(row.aliases), tags: list(row.tags), assertionIds: assertionRows.filter(a => a.entity_id === row.id).map(a => String(a.id)), sourceIds: [], evidenceIds: [], createdAt: timestamp(row.created_at, "business_memory_invalid_entity_created_at"), updatedAt: timestamp(row.updated_at, "business_memory_invalid_entity_updated_at") })),
+    assertions: assertionRows.map(row => ({ id: String(row.id), entityId: String(row.entity_id), value: String(row.value), confidence: { level: String(row.confidence) as BusinessMemory["assertions"][number]["confidence"]["level"], score: Number(row.confidence_score) }, reviewState: String(row.review_state) as BusinessMemory["assertions"][number]["reviewState"], authority: String(row.authority) as BusinessMemory["assertions"][number]["authority"], sourceIds: sourceIds.get(String(row.id)) ?? [], evidenceIds: evidenceIds.get(String(row.id)) ?? [], tags: list(row.tags), legacyEntryId: row.legacy_entry_id == null ? null : String(row.legacy_entry_id), createdAt: timestamp(row.created_at, "business_memory_invalid_assertion_created_at"), updatedAt: timestamp(row.updated_at, "business_memory_invalid_assertion_updated_at") })),
+    relationships: rows(relationships).map(row => ({ id: String(row.id), type: String(row.relationship_type), fromEntityId: String(row.from_entity_id), toEntityId: String(row.to_entity_id), fromAssertionId: String(row.from_assertion_id), toAssertionId: String(row.to_assertion_id), sourceEntryIds: list(row.source_entry_ids), reviewState: String(row.review_state) as BusinessMemory["relationships"][number]["reviewState"], createdAt: timestamp(row.created_at, "business_memory_invalid_relationship_created_at"), updatedAt: timestamp(row.updated_at, "business_memory_invalid_relationship_updated_at") })),
+    sources: rows(sources).map(row => ({ id: String(row.id), origin: String(row.origin), sourceEntryId: row.source_entry_id == null ? null : String(row.source_entry_id), intakeBlockId: row.intake_block_id == null ? null : String(row.intake_block_id), url: row.url == null ? null : String(row.url), label: row.label == null ? null : String(row.label), capturedAt: timestamp(row.captured_at, "business_memory_invalid_source_captured_at"), crawlAttemptId: row.crawl_attempt_id == null ? null : String(row.crawl_attempt_id) })), evidence: rows(evidence).map(row => ({ id: String(row.id), sourceId: String(row.source_id), excerpt: String(row.excerpt), url: row.url == null ? null : String(row.url), capturedAt: timestamp(row.captured_at, "business_memory_invalid_evidence_captured_at") })),
+    conflicts: rows(conflicts).map(row => ({ id: String(row.id), projectId, topic: String(row.topic), conflictingStatements: list(row.conflicting_statements), relatedEntityIds: [], relatedAssertionIds: [], sourceIds: [], evidenceIds: [], suggestedClarificationQuestion: String(row.suggested_question), resolved: Boolean(row.resolved), resolution: row.resolution == null ? null : String(row.resolution), createdAt: timestamp(row.created_at, "business_memory_invalid_conflict_created_at"), updatedAt: timestamp(row.updated_at, "business_memory_invalid_conflict_updated_at") })), missingInformation: rows(missing).map(row => ({ id: String(row.id), projectId, topic: String(row.topic), reason: String(row.reason), suggestedQuestion: String(row.suggested_question), relatedEntityTypes: [], relatedEntityIds: [], relatedAssertionIds: [], resolved: Boolean(row.resolved), createdAt: timestamp(row.created_at, "business_memory_invalid_missing_created_at"), updatedAt: timestamp(row.updated_at, "business_memory_invalid_missing_updated_at") })), createdAt: timestamp(root.created_at, "business_memory_invalid_created_at"), updatedAt: timestamp(root.updated_at, "business_memory_invalid_updated_at") };
+}
+
+/** Guarded post-rollback transition: never marks a replacement artifact failed. */
+export async function markAssistantProjectionFailedIfUnchanged(client: QueryClient, input: { projectId: string; expectedFingerprint: string; expectedGeneratedAt: string; expectedUpdatedAt: string; allowedStates: AssistantProjectionInvalidationState[] }): Promise<PersistedAssistantProjectionRecord | null> {
+  const result = await client.query("UPDATE ai_builder_assistant_projections SET invalidation_state='failed',updated_at=NOW() WHERE project_id=$1 AND business_memory_fingerprint=$2 AND generated_at=$3::timestamptz AND updated_at=$4::timestamptz AND invalidation_state = ANY($5::text[]) RETURNING project_id,business_memory_fingerprint,projection_version,schema_version,generated_at,invalidation_state,projection_json,created_at,updated_at", [input.projectId, input.expectedFingerprint, input.expectedGeneratedAt, input.expectedUpdatedAt, input.allowedStates]);
+  const row = (result.rows as DatabaseRow[])[0]; return row ? parsePersistedAssistantProjectionRecord(row) : null;
 }
