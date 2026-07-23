@@ -232,7 +232,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
         <div className="relative z-10 min-h-screen overflow-x-hidden">
           <header className="sticky top-0 z-50 border-b border-[rgba(212,175,55,0.16)] bg-[rgba(3,7,19,0.78)] backdrop-blur-xl">
-            <div className="relative mx-auto my-2 flex min-h-14 w-[calc(100%-1.5rem)] max-w-[90rem] items-center justify-between gap-5 rounded-2xl border border-[rgba(212,175,55,0.22)] bg-[rgba(5,12,27,0.88)] px-4 py-2 shadow-[0_18px_60px_rgba(0,0,0,0.38),inset_0_1px_0_rgba(255,255,255,0.05)] sm:w-[calc(100%-3rem)] sm:px-5 lg:px-6">
+            <div className="relative mx-auto flex min-h-14 w-[calc(100%-1.5rem)] max-w-[90rem] items-center justify-between gap-5 px-4 py-2 sm:w-[calc(100%-3rem)] sm:px-5 lg:px-6">
               <Link href="/" className="group flex min-w-0 items-center gap-3">
                 <Image
                   src="/apple-touch-icon.png"
