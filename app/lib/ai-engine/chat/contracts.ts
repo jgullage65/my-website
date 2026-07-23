@@ -37,4 +37,5 @@ export type ChatDiagnostics={
     selectedCategoryCounts: Record<string, number>;
     topScoreBands: number[];
   };
+  conflictAnalysis?: { conflictGroupCount: number; authoritativeResolutionCount: number; unresolvedConflictCount: number; correctedAssertionCount: number; predecessorSuppressedCount: number; citationCount: number; evidenceCount: number; sourceCount: number; };
 };

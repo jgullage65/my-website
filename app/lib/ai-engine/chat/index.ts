@@ -6,3 +6,4 @@ export * from "./answerQuestion";
 export * from "./chatDiagnostics";
 export * from "./structuredCanonicalRetrieval";
 export * from "./buildStructuredSystemPrompt";
+export * from "./conflictAnalysis";

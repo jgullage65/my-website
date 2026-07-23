@@ -5,6 +5,7 @@ import {
   classifyResponseDepth,
   retrieveStructuredCanonicalKnowledge,
   buildStructuredSystemPrompt,
+  analyzeCanonicalConflicts,
 } from "@/app/lib/ai-engine/chat";
 import type {
   ChatRequest,
@@ -428,12 +429,14 @@ export async function POST(request: Request) {
     const startedAt = Date.now();
 
     const retrieved = retrieveStructuredCanonicalKnowledge(projection.canonicalProjection, message);
+    const conflict = analyzeCanonicalConflicts(projection.canonicalProjection, retrieved, message);
     const responseDepthDecision = classifyResponseDepth(message);
 
     const systemPrompt = buildStructuredSystemPrompt(
       projection.canonicalProjection,
       retrieved,
       responseDepthDecision,
+      conflict,
     );
 
     const answer = await runOpenAiChat({
@@ -442,14 +445,15 @@ export async function POST(request: Request) {
     });
 
     const response: ChatResponse = {
-      answer,
+      answer: conflict.unresolvedConflictGroups.length ? `I found conflicting approved information regarding this topic. ${answer}` : answer,
       // Existing response shape is retained; citations are derived from the one canonical retrieval pass.
-      citations: retrieved.items.map((item) => "instruction" in item.item ? item.item.instruction : "title" in item.item ? `${item.item.title}: ${item.item.value}` : "businessName" in item.item ? item.item.businessName ?? "Business identity" : item.item.topic),
+      citations: conflict.answerItems.map((item) => "instruction" in item.item ? item.item.instruction : "title" in item.item ? `${item.item.title}: ${item.item.value}` : "businessName" in item.item ? item.item.businessName ?? "Business identity" : item.item.topic),
       diagnostics: {
         retrievedFacts: retrieved.items.filter((item) => item.category !== "faq").length,
         retrievedFaq: retrieved.items.filter((item) => item.category === "faq").length,
         retrievalMs: Date.now() - startedAt,
         runtimeSource: projection.source,
+        conflictAnalysis: conflict.diagnostics,
         structuredRetrieval: { engineVersion: retrieved.engineVersion, intent: retrieved.query.intent, directCandidateCount: retrieved.diagnostics.directCandidateCount, relationshipExpansionCount: retrieved.diagnostics.relationshipExpansionCount, relationshipCandidateCount: retrieved.diagnostics.relationshipCandidateCount, totalCandidateCount: retrieved.diagnostics.totalCandidateCount, evidenceSelectedCount: retrieved.diagnostics.evidenceSelectedCount, sourceSelectedCount: retrieved.diagnostics.sourceSelectedCount, selectedDirectCount: retrieved.diagnostics.selectedDirectCount, selectedRelatedCount: retrieved.diagnostics.selectedRelatedCount, retrievalDurationMs: retrieved.diagnostics.retrievalDurationMs, selectedResultCount: retrieved.items.length, selectedCategoryCounts: retrieved.diagnostics.selectedCategoryCounts, topScoreBands: retrieved.diagnostics.topScoreBands },
       },
     };
