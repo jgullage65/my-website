@@ -536,6 +536,24 @@ async function createAiBuilderSchema() {
     UNIQUE (project_id, mode, requested_trusted_knowledge_revision)
   )`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_downstream_synchronization_jobs_project_status_idx ON ai_builder_downstream_synchronization_jobs(project_id, status, updated_at)`;
+  // 12B is deliberately additive: old jobs retain their checkpoints and are
+  // immediately eligible for the recovery protocol.
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS attempt_count INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS max_attempts INTEGER NOT NULL DEFAULT 5`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS last_failure_class TEXT`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS dead_lettered_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS recovery_revision INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS last_recovery_command_id TEXT`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS execution_token TEXT`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD COLUMN IF NOT EXISTS claim_expires_at TIMESTAMPTZ`;
+  await sql`DO $$ DECLARE c record; BEGIN FOR c IN SELECT conname FROM pg_constraint WHERE conrelid='ai_builder_downstream_synchronization_jobs'::regclass AND contype='c' AND pg_get_constraintdef(oid) LIKE '%status%' LOOP EXECUTE format('ALTER TABLE ai_builder_downstream_synchronization_jobs DROP CONSTRAINT %I', c.conname); END LOOP; END $$`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_jobs ADD CONSTRAINT ai_builder_downstream_synchronization_jobs_status_check CHECK (status IN ('pending','running','retry_scheduled','succeeded','failed','dead_letter'))`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_downstream_synchronization_jobs_retry_idx ON ai_builder_downstream_synchronization_jobs(status, next_attempt_at)`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_downstream_synchronization_attempts (id TEXT PRIMARY KEY, job_id TEXT NOT NULL REFERENCES ai_builder_downstream_synchronization_jobs(id) ON DELETE CASCADE, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, attempt_number INTEGER NOT NULL, trigger_type TEXT NOT NULL, starting_status TEXT NOT NULL, starting_step TEXT NOT NULL, execution_token TEXT, started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), finished_at TIMESTAMPTZ, result TEXT, failure_class TEXT, error_code TEXT, error_message TEXT, completed_trusted_knowledge_revision INTEGER, completed_business_memory_revision INTEGER, completed_assistant_projection_fingerprint TEXT, actor_type TEXT NOT NULL DEFAULT 'system', actor_id TEXT, recovery_command_id TEXT)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_downstream_synchronization_attempts_job_idx ON ai_builder_downstream_synchronization_attempts(job_id, attempt_number)`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_downstream_synchronization_commands (command_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, job_id TEXT NOT NULL REFERENCES ai_builder_downstream_synchronization_jobs(id) ON DELETE CASCADE, command_type TEXT NOT NULL, request_fingerprint TEXT NOT NULL, result JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_faq_entries_project_idx ON ai_builder_faq_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_conflicts_project_idx ON ai_builder_conflicts(project_id)`;
