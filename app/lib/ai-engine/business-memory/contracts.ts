@@ -9,7 +9,7 @@ import type { ContextConfidence } from "@/app/lib/ai-engine/contracts";
 /** Version for the canonical Business Memory document; mapping and persistence remain deferred. */
 export const BUSINESS_MEMORY_SCHEMA_VERSION = 1 as const;
 
-export type ReviewState = "proposed" | "approved" | "corrected" | "archived";
+export type ReviewState = "proposed" | "approved" | "corrected" | "archived" | "rejected" | "superseded";
 
 export type Confidence = {
   level: ContextConfidence;
@@ -76,6 +76,16 @@ export type EvidenceRecord = {
 };
 
 /** One independently sourced legacy claim about a canonical entity. */
+export type AssertionCorrectionProvenance = {
+  classification: import("../provenance").AiBuilderProvenanceClassification | null;
+  predecessorClassification: import("../provenance").AiBuilderProvenanceClassification | null;
+  originalClassification: import("../provenance").AiBuilderProvenanceClassification | null;
+  correctedByClerkUserId: string | null;
+  correctedByDisplayName: string | null;
+  correctedByEmail: string | null;
+  correctedAt: string | null;
+};
+
 export type BusinessAssertion = {
   id: string;
   entityId: string;
@@ -87,6 +97,10 @@ export type BusinessAssertion = {
   evidenceIds: string[];
   tags: string[];
   legacyEntryId: string | null;
+  /** Explicit revision link. A corrected assertion may replace this predecessor. */
+  predecessorAssertionId?: string | null;
+  /** Provenance supplied by canonical Trusted Knowledge; never synthesized by projection. */
+  provenance?: AssertionCorrectionProvenance;
   createdAt: string;
   updatedAt: string;
 };
