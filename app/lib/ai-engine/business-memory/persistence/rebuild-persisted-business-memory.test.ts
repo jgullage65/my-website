@@ -43,6 +43,15 @@ test("semantic no-op synchronizes trusted knowledge revision without changing bu
   assert.ok(fake.calls.some((call) => call.sql.startsWith("UPDATE ai_builder_business_memory SET trusted_knowledge_revision"))); assert.equal(fake.calls.filter((call) => call.sql.includes("INSERT INTO ai_builder_business_memory (")).length, 0);
   assert.ok(!fake.calls.some((call) => call.sql.includes("ai_builder_assistant_projections")));
 });
+test("forced reconstruction rewrites deterministic rows without increasing an unchanged material revision", async () => {
+  const state = materialState(project, [trusted()], new Map([["claim-1", [evidence()]]])), fake = new FakeClient({ revision: 7, trusted_knowledge_revision: 6, state_fingerprint: materialFingerprint(state) });
+  await rebuildPersistedBusinessMemoryFromTrustedKnowledge(fake as any, project, 7, { forceReconstruction: true });
+  assert.ok(fake.calls.some((call) => call.sql.includes("INSERT INTO ai_builder_business_memory_entities") && call.params[0] === stableEntityId(project, trusted())));
+  assert.ok(fake.calls.some((call) => call.sql.includes("INSERT INTO ai_builder_business_memory_assertions") && call.params[0] === stableAssertionId(project, trusted())));
+  assert.equal(fake.calls.filter((call) => call.sql.includes("INSERT INTO ai_builder_business_memory (")).length, 0);
+  assert.ok(fake.calls.some((call) => call.sql.startsWith("UPDATE ai_builder_business_memory SET trusted_knowledge_revision")));
+  assert.ok(fake.calls.some((call) => call.sql.includes("ai_builder_assistant_projections")), "full reconstruction invalidates the projection for forced evaluation");
+});
 test("empty projection cleanup uses delete-all branches and preserves durable tables", async () => {
   const fake = new FakeClient(); (fake as any).query = async function(sql: string, params: unknown[] = []) { this.calls.push({ sql, params }); if (sql.includes("canonical_trusted_knowledge")) return { rows: [] }; if (sql.includes("candidate_claim_evidence")) return { rows: [] }; if (sql.includes("business_memory WHERE")) return { rows: [] }; return { rows: [] }; }; await rebuildPersistedBusinessMemoryFromTrustedKnowledge(fake as any, project, 1);
   const deletes = fake.calls.filter((call) => call.sql.startsWith("DELETE")).map((call) => call.sql); assert.ok(deletes.some((sql) => sql === "DELETE FROM ai_builder_business_memory_assertions WHERE memory_id=$1")); assert.ok(deletes.some((sql) => sql === "DELETE FROM ai_builder_business_memory_entities WHERE memory_id=$1")); assert.ok(deletes.some((sql) => sql === "DELETE FROM ai_builder_business_memory_evidence WHERE memory_id=$1")); assert.ok(deletes.some((sql) => sql === "DELETE FROM ai_builder_business_memory_sources WHERE memory_id=$1")); assert.ok(!fake.calls.some((call) => /business_memory_(conflicts|missing_information)/.test(call.sql))); assert.ok(fake.calls.some((call) => call.sql.includes("ai_builder_assistant_projections") && call.params[0] === project));
