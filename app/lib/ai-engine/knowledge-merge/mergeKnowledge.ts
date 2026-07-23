@@ -5,7 +5,7 @@ const compare = (a: string, b: string) => a < b ? -1 : a > b ? 1 : 0;
 const uniqueSorted = (values: string[]) => Array.from(new Set(values)).sort(compare);
 export const normalizeMergeValue = (value: string): string => value.replace(/\s+/g, " ").trim().toLowerCase();
 /** Reviewed workflow state is intentionally ranked separately from authority. */
-export const reviewStateRank: Record<ReviewState, number> = { proposed: 0, archived: 1, approved: 3, corrected: 4 };
+export const reviewStateRank: Record<ReviewState, number> = { proposed: 0, rejected: 0, archived: 1, superseded: 1, approved: 3, corrected: 4 };
 export const authorityRank: Record<AssertionAuthority, number> = { generated: 0, observed: 1, provided: 2, confirmed: 3, corrected: 4 };
 export const confidenceRank: Record<Confidence["level"], number> = { low: 0, medium: 1, high: 2 };
 const state = (candidate: KnowledgeMergeCandidate): ReviewState => candidate.reviewState ?? "proposed";
