@@ -64,6 +64,11 @@ function version(value: unknown, expected: number, code: string): number {
   return value;
 }
 
+function persistedVersion(value: unknown, code: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) throw new AssistantProjectionPersistenceError(code);
+  return value;
+}
+
 function validFingerprint(value: unknown, code: string): string {
   const text = requiredText(value, code);
   if (!businessMemoryFingerprintPattern.test(text)) throw new AssistantProjectionPersistenceError(code);
@@ -77,15 +82,20 @@ function object(value: unknown, code: string): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-function projectionObject(value: unknown, code: string): AssistantProjection {
+function projectionObject(value: unknown, code: string, allowHistoricalVersion = false): AssistantProjection {
   const projection = object(value, code);
   if (!requiredProjectionFields.every((field) => Object.prototype.hasOwnProperty.call(projection, field))) {
     throw new AssistantProjectionPersistenceError(code);
   }
   requiredText(projection.projectId, code);
   validFingerprint(projection.businessMemoryFingerprint, code);
-  version(projection.projectionVersion, ASSISTANT_PROJECTION_VERSION, code);
-  version(projection.schemaVersion, ASSISTANT_PROJECTION_SCHEMA_VERSION, code);
+  if (allowHistoricalVersion) {
+    persistedVersion(projection.projectionVersion, code);
+    persistedVersion(projection.schemaVersion, code);
+  } else {
+    version(projection.projectionVersion, ASSISTANT_PROJECTION_VERSION, code);
+    version(projection.schemaVersion, ASSISTANT_PROJECTION_SCHEMA_VERSION, code);
+  }
   const identity = object(projection.identity, code);
   if (typeof identity.status !== "string" || !identityStatuses.has(identity.status as AssistantProjection["identity"]["status"])) {
     throw new AssistantProjectionPersistenceError(code);
@@ -111,15 +121,15 @@ export function validatePersistedAssistantProjectionWrite(input: UpsertPersisted
 export function parsePersistedAssistantProjectionRecord(row: DatabaseRow): PersistedAssistantProjectionRecord {
   const projectId = requiredText(row.project_id, "assistant_projection_invalid_row_project_id");
   const fingerprint = validFingerprint(row.business_memory_fingerprint, "assistant_projection_invalid_row_fingerprint");
-  const projectionVersion = version(row.projection_version, ASSISTANT_PROJECTION_VERSION, "assistant_projection_invalid_row_projection_version") as typeof ASSISTANT_PROJECTION_VERSION;
-  const schemaVersion = version(row.schema_version, ASSISTANT_PROJECTION_SCHEMA_VERSION, "assistant_projection_invalid_row_schema_version") as typeof ASSISTANT_PROJECTION_SCHEMA_VERSION;
+  const projectionVersion = persistedVersion(row.projection_version, "assistant_projection_invalid_row_projection_version");
+  const schemaVersion = persistedVersion(row.schema_version, "assistant_projection_invalid_row_schema_version");
   const invalidationState = requiredText(row.invalidation_state, "assistant_projection_invalid_row_invalidation_state") as AssistantProjectionInvalidationState;
   if (!invalidationStates.has(invalidationState)) throw new AssistantProjectionPersistenceError("assistant_projection_invalid_row_invalidation_state");
-  const projection = projectionObject(row.projection_json, "assistant_projection_invalid_projection_json");
+  const projection = projectionObject(row.projection_json, "assistant_projection_invalid_projection_json", projectionVersion !== ASSISTANT_PROJECTION_VERSION || schemaVersion !== ASSISTANT_PROJECTION_SCHEMA_VERSION);
   if (requiredText(projection.projectId, "assistant_projection_invalid_payload_project_id") !== projectId) throw new AssistantProjectionPersistenceError("assistant_projection_row_project_id_mismatch");
   if (validFingerprint(projection.businessMemoryFingerprint, "assistant_projection_invalid_payload_fingerprint") !== fingerprint) throw new AssistantProjectionPersistenceError("assistant_projection_row_fingerprint_mismatch");
-  if (version(projection.projectionVersion, ASSISTANT_PROJECTION_VERSION, "assistant_projection_invalid_payload_projection_version") !== projectionVersion) throw new AssistantProjectionPersistenceError("assistant_projection_row_projection_version_mismatch");
-  if (version(projection.schemaVersion, ASSISTANT_PROJECTION_SCHEMA_VERSION, "assistant_projection_invalid_payload_schema_version") !== schemaVersion) throw new AssistantProjectionPersistenceError("assistant_projection_row_schema_version_mismatch");
+  if (persistedVersion(projection.projectionVersion, "assistant_projection_invalid_payload_projection_version") !== projectionVersion) throw new AssistantProjectionPersistenceError("assistant_projection_row_projection_version_mismatch");
+  if (persistedVersion(projection.schemaVersion, "assistant_projection_invalid_payload_schema_version") !== schemaVersion) throw new AssistantProjectionPersistenceError("assistant_projection_row_schema_version_mismatch");
   return { projectId, businessMemoryFingerprint: fingerprint, projectionVersion, schemaVersion, generatedAt: timestamp(row.generated_at, "assistant_projection_invalid_row_generated_at"), invalidationState, projection, createdAt: timestamp(row.created_at, "assistant_projection_invalid_row_created_at"), updatedAt: timestamp(row.updated_at, "assistant_projection_invalid_row_updated_at") };
 }
 
@@ -132,6 +142,16 @@ export async function getPersistedAssistantProjection(client: QueryClient, proje
   const result = await client.query("SELECT project_id,business_memory_fingerprint,projection_version,schema_version,generated_at,invalidation_state,projection_json,created_at,updated_at FROM ai_builder_assistant_projections WHERE project_id=$1", [projectId]);
   const row = (result.rows as DatabaseRow[])[0];
   return row ? parsePersistedAssistantProjectionRecord(row) : null;
+}
+
+/**
+ * Locks the owning project before reading the artifact.  Locking the project,
+ * rather than only an existing artifact row, also serializes first creation.
+ * Call this inside the caller's database transaction.
+ */
+export async function getPersistedAssistantProjectionForUpdate(client: QueryClient, projectId: string): Promise<PersistedAssistantProjectionRecord | null> {
+  await client.query("SELECT id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [projectId]);
+  return getPersistedAssistantProjection(client, projectId);
 }
 
 /** Internal server-only primitive that atomically replaces a project's valid current artifact. */

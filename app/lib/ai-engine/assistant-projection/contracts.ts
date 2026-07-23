@@ -145,8 +145,9 @@ export type AssistantProjectionInvalidationState =
 export type PersistedAssistantProjectionRecord = {
   projectId: string;
   businessMemoryFingerprint: string;
-  projectionVersion: typeof ASSISTANT_PROJECTION_VERSION;
-  schemaVersion: typeof ASSISTANT_PROJECTION_SCHEMA_VERSION;
+  /** Historical durable rows may be read as stale during a version upgrade. */
+  projectionVersion: number;
+  schemaVersion: number;
   generatedAt: string;
   invalidationState: AssistantProjectionInvalidationState;
   projection: AssistantProjection;
