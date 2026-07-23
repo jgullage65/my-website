@@ -40,6 +40,13 @@ type DatabaseRow = Record<string, unknown>;
 
 type ProjectionFreshness = ProjectionFreshnessState & { rows: TrustedKnowledgeProjectionRow[] };
 
+type AssistantProjectionParityDependencies = {
+  connect: () => Promise<PoolClient>;
+  getPersisted: typeof getPersistedAssistantProjection;
+  compare: typeof compareAssistantProjectionParity;
+  upsert: typeof upsertAssistantProjectionParityReport;
+};
+
 async function loadProjectionFreshness(projectId: string): Promise<ProjectionFreshness> {
   const sql = getSql();
   const projects = await sql`SELECT governance_revision, trusted_knowledge_revision, (SELECT COUNT(*)::integer FROM ai_builder_context_entries WHERE project_id=${projectId} AND status IN ('approved','corrected')) + (SELECT COUNT(*)::integer FROM ai_builder_faq_entries WHERE project_id=${projectId} AND status IN ('approved','corrected')) AS active_canonical_count FROM ai_builder_projects WHERE id=${projectId} LIMIT 1` as DatabaseRow[];
