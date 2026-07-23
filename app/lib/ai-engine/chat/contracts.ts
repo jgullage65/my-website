@@ -20,5 +20,5 @@ export type ChatDiagnostics={
   retrievedFacts:number;
   retrievedFaq:number;
   retrievalMs:number;
-  runtimeSource?: "server_legacy_projection" | "trusted_knowledge_projection";
+  runtimeSource?: "server_legacy_projection" | "trusted_knowledge_projection" | "assistant_projection";
 };

@@ -39,6 +39,7 @@ test("successful parity comparison persists the latest report and releases its c
   assert.equal(writes.length, 1);
   assert.equal((writes[0] as { projectId: string; status: string }).projectId, "project-1");
   assert.equal((writes[0] as { status: string }).status, "MAJOR_DIFFERENCE");
+  assert.equal((writes[0] as { activeRuntimeAuthority: string }).activeRuntimeAuthority, "legacy");
   assert.equal(client.releaseCalls, 1);
 });
 
@@ -65,4 +66,12 @@ test("legacy Trusted Knowledge alone supplies retrieval, prompt, and citations",
   assert.match(prompt, /Trusted Knowledge only/);
   assert.doesNotMatch(prompt, /CANONICAL_SECRET/);
   assert.deepEqual(retrieved.facts.concat(retrieved.faq), ["Trusted planning: Trusted Knowledge only"]);
+});
+
+
+test("parity telemetry records canonical as active without changing comparison inputs", async () => {
+  const writes: Array<{ activeRuntimeAuthority: string }> = [];
+  const { dependencies: injected } = dependencies({ upsert: async (_client: unknown, report: { activeRuntimeAuthority: string }) => { writes.push(report); } });
+  await recordAssistantProjectionParity("project-1", legacy, injected, "canonical");
+  assert.equal(writes[0].activeRuntimeAuthority, "canonical");
 });

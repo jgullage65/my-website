@@ -1,6 +1,7 @@
 import type { PoolClient } from "@neondatabase/serverless";
 import type { KnowledgePack } from "../knowledge/contracts";
 import { compareAssistantProjectionParity } from "./parity";
+import type { ProjectRuntimeAuthority } from "../runtime-authority/projectRuntimeAuthority";
 import { getPersistedAssistantProjection, upsertAssistantProjectionParityReport } from "./persistence";
 
 export type AssistantProjectionParityDependencies = {
@@ -11,14 +12,14 @@ export type AssistantProjectionParityDependencies = {
 };
 
 /**
- * Phase 9A observability only. Its caller starts this alongside legacy chat
- * work, then awaits this non-throwing promise before a successful response is
- * returned. Trusted Knowledge remains the sole runtime authority.
+ * Phase 9B observability. Its caller supplies the legacy comparison pack in
+ * either authority mode; this non-throwing path never changes the response.
  */
 export async function recordAssistantProjectionParity(
   projectId: string,
   legacy: KnowledgePack,
   dependencies: AssistantProjectionParityDependencies,
+  activeRuntimeAuthority: ProjectRuntimeAuthority = "legacy",
 ): Promise<void> {
   let client: PoolClient | null = null;
   const comparedAt = new Date().toISOString();
@@ -27,9 +28,9 @@ export async function recordAssistantProjectionParity(
     const persisted = await dependencies.getPersisted(client, projectId);
     if (!persisted) throw new Error("assistant_projection_unavailable");
     const report = dependencies.compare({ projectId, legacy, canonicalProjection: persisted.projection, comparedAt });
-    await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: report.assistantProjectionVersion, assistantProjectionSchemaVersion: report.assistantProjectionSchemaVersion, status: report.status, mismatchSummary: report.mismatchSummary, categoryBreakdown: report.categories, failureDetails: null });
+    await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: report.assistantProjectionVersion, assistantProjectionSchemaVersion: report.assistantProjectionSchemaVersion, status: report.status, mismatchSummary: report.mismatchSummary, categoryBreakdown: report.categories, failureDetails: null, activeRuntimeAuthority });
   } catch (error) {
     // Canonical comparison and its durable telemetry are deliberately non-blocking.
-    try { if (client) await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: null, assistantProjectionSchemaVersion: null, status: "COMPARISON_FAILURE", mismatchSummary: { total: 0, major: 0, minor: 0 }, categoryBreakdown: {}, failureDetails: { error: error instanceof Error ? error.message : "unknown_error" } }); } catch { /* telemetry persistence failure must not affect chat */ }
+    try { if (client) await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: null, assistantProjectionSchemaVersion: null, status: "COMPARISON_FAILURE", mismatchSummary: { total: 0, major: 0, minor: 0 }, categoryBreakdown: {}, failureDetails: { error: error instanceof Error ? error.message : "unknown_error" }, activeRuntimeAuthority }); } catch { /* telemetry persistence failure must not affect chat */ }
   } finally { client?.release(); }
 }
