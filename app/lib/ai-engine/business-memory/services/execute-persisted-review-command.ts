@@ -38,6 +38,7 @@ export async function executePersistedReviewCommand({ projectId, clerkUserId, re
 export async function executePersistedReviewCommandsAtomically({ projectId, clerkUserId, requests }: { projectId: string; clerkUserId: string; requests: readonly ReviewCommandRequest[] }): Promise<PersistedReviewCommandResult[]> {
   await ensureAiBuilderSchema();
   const client = await transactionPool().connect();
+  let activeRequest: ReviewCommandRequest | undefined;
   try {
     // The project row lock is the serialization point. READ COMMITTED makes a
     // waiter observe the winner's ledger row after the lock is released, so an
@@ -45,7 +46,7 @@ export async function executePersistedReviewCommandsAtomically({ projectId, cler
     // 40001 from a stale SERIALIZABLE snapshot.
     await client.query("BEGIN ISOLATION LEVEL READ COMMITTED");
     const results: PersistedReviewCommandResult[] = [];
-    for (const request of requests) results.push(await executeInTransaction(client, { projectId, clerkUserId, request }));
+    for (const request of requests) { activeRequest=request; results.push(await executeInTransaction(client, { projectId, clerkUserId, request })); }
     await client.query("COMMIT");
     return results;
   } catch (cause) {
@@ -53,7 +54,7 @@ export async function executePersistedReviewCommandsAtomically({ projectId, cler
     const applicationError = cause instanceof TrustedKnowledgeProjectionError
       ? new PersistedReviewCommandError(cause.code, "Trusted Knowledge could not be reconciled from the canonical review state.", cause.code === "invalid_trusted_projection_source_state" || cause.code === "trusted_knowledge_projection_invalid_source" ? 409 : 500)
       : cause;
-    const first = requests[0];
+    const first = activeRequest ?? requests[0];
     const safe = safeOperationalError(applicationError);
     const reviewFailure = applicationError instanceof PersistedReviewCommandError && applicationError.status < 500;
     await writeOperationalFailureAfterRollback({

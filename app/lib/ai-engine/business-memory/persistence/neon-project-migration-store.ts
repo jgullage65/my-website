@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { Pool, PoolClient } from "@neondatabase/serverless";
+import { writeOperationalEvent } from "../../operations/operational-events";
 import {
   PROJECT_MIGRATION_STATE_VERSION,
   isValidProjectMigrationTransition,
@@ -78,6 +79,7 @@ export class NeonProjectMigrationStore {
       const current = await this.lockOwned(client, input);
       if (current.migrationRevision !== input.expectedRevision) throw new ProjectMigrationStoreError("AI_BUILDER_MIGRATION_REVISION_CONFLICT");
       const result = await client.query(`UPDATE ai_builder_projects SET migration_revision = migration_revision + 1, migration_attempt_count = migration_attempt_count + 1, migration_last_attempted_step = $3, migration_run_id = $4, migration_last_error_code = $5, migration_last_error_message = $6, migration_last_error_at = NOW() WHERE id = $1 AND clerk_user_id = $2 RETURNING ${columns}`, [input.projectId, input.clerkUserId, input.attemptedStep, input.migrationRunId, persistedErrorMessage(input.errorCode), persistedErrorMessage(input.errorMessage)]);
+      await writeOperationalEvent(client,{projectId:input.projectId,eventType:"migration_failed",category:"migration",severity:"error",outcome:"failed",sourceComponent:"NeonProjectMigrationStore",migrationRunId:input.migrationRunId??undefined,errorCode:persistedErrorMessage(input.errorCode),errorMessage:"Project migration failed.",metadata:{attemptedStep:input.attemptedStep,resultingRevision:current.migrationRevision+1}});
       return record(result.rows[0]);
     });
   }
@@ -93,6 +95,8 @@ export class NeonProjectMigrationStore {
     const result = await client.query(`UPDATE ai_builder_projects SET migration_state = $3, migration_state_version = $4, migration_revision = migration_revision + 1, migration_started_at = CASE WHEN migration_state = 'legacy_only' AND migration_started_at IS NULL THEN NOW() ELSE migration_started_at END, migration_last_transition_at = NOW(), migration_completed_at = CASE WHEN $3 = 'legacy_retired' THEN NOW() ELSE migration_completed_at END, migration_last_successful_step = $5, migration_last_attempted_step = $5, migration_run_id = $6, migration_last_error_code = NULL, migration_last_error_message = NULL, migration_last_error_at = NULL WHERE id = $1 AND clerk_user_id = $2 RETURNING ${columns}`, [input.projectId, input.clerkUserId, input.nextState, PROJECT_MIGRATION_STATE_VERSION, input.successfulStep, input.migrationRunId]);
     const updated = record(result.rows[0]);
     await client.query("INSERT INTO ai_builder_project_migration_history (project_id, clerk_user_id, previous_state, next_state, previous_revision, resulting_revision, state_version, migration_run_id, actor_type, actor_id, reason) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)", [input.projectId, input.clerkUserId, current.migrationState, updated.migrationState, current.migrationRevision, updated.migrationRevision, updated.migrationStateVersion, input.migrationRunId, input.actorType, input.actorId, input.reason]);
+    const eventType=current.migrationState==="legacy_only"?"migration_started":updated.migrationState==="legacy_retired"?"migration_succeeded":"migration_checkpointed";
+    await writeOperationalEvent(client,{projectId:input.projectId,eventType,category:"migration",severity:"info",outcome:eventType==="migration_started"?"started":eventType==="migration_succeeded"?"succeeded":"succeeded",sourceComponent:"NeonProjectMigrationStore",migrationRunId:input.migrationRunId??undefined,metadata:{previousState:current.migrationState,nextState:updated.migrationState,previousRevision:current.migrationRevision,resultingRevision:updated.migrationRevision,successfulStep:input.successfulStep}});
     return updated;
   }
 

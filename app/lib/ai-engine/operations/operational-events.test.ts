@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { safeOperationalError, sanitizeOperationalMetadata } from "./operational-events";
+import { safeOperationalError, sanitizeOperationalMetadata, unresolvedDriftEvents } from "./operational-events";
 
 test("operational metadata accepts bounded operational facts", () => {
   assert.deepEqual(sanitizeOperationalMetadata({ attempt: 2, categories: { revision: "mismatch" } }), { attempt: 2, categories: { revision: "mismatch" } });
@@ -15,4 +15,14 @@ test("operational errors are bounded and do not preserve stack traces", () => {
   const safe = safeOperationalError(error);
   assert.equal(safe.errorCode, "unsafe_code_with_spaces");
   assert.equal(safe.errorMessage.length, 512);
+});
+test("unknown errors use a generic safe message",()=>{
+  assert.deepEqual(safeOperationalError(new Error("database row secret")),{errorCode:"operational_error",errorMessage:"The operation failed unexpectedly."});
+});
+test("unresolved drift excludes signatures with a later resolution",async()=>{
+  let sql="";const client={query:async(text:string)=>{sql=text;return {rows:[]};}};
+  await unresolvedDriftEvents(client as any,"project");
+  assert.match(sql,/event_type='drift_unresolved'/);
+  assert.match(sql,/NOT EXISTS/);
+  assert.match(sql,/event_type='drift_resolved'/);
 });

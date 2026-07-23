@@ -6,6 +6,7 @@ import { inspectCanonicalProvenanceProject, repairCanonicalProvenanceProject } f
 import { rebuildPersistedBusinessMemoryFromTrustedKnowledge } from "../persistence/rebuild-persisted-business-memory";
 import { getProjectMigrationState, recordProjectMigrationFailure, transitionProjectMigrationState } from "./project-migration-service";
 import type { ProjectMigrationRecord } from "../persistence/neon-project-migration-store";
+import { safeOperationalError, writeOperationalFailureAfterRollback } from "../../operations/operational-events";
 
 export type ExecuteProjectBackfillInput = {
   projectId: string;
@@ -34,7 +35,7 @@ export type ProjectBackfillResult = {
 const CANONICAL_STEP = "canonical_shadow_verified";
 const BUSINESS_MEMORY_STEP = "business_memory_backfill_verified";
 const errorText = (error: unknown, fallback: string) => {
-  const value = error instanceof Error ? error.message : fallback;
+  const value = error && typeof error === "object" && "code" in error && error instanceof Error ? error.message : fallback;
   return value.replace(/\u0000/g, "").split(/\r?\n/)[0]!.slice(0, 2_000) || fallback;
 };
 const errorCode = (error: unknown, fallback: string) => {
@@ -86,6 +87,7 @@ async function rebuildAndVerifyBusinessMemory(input: ExecuteProjectBackfillInput
 
 async function recordFailure(input: ExecuteProjectBackfillInput, state: ProjectMigrationRecord, attemptedStep: string, error: unknown) {
   await recordProjectMigrationFailure({ projectId: input.projectId, clerkUserId: input.clerkUserId, expectedRevision: state.migrationRevision, migrationRunId: input.migrationRunId, attemptedStep, errorCode: errorCode(error, "AI_BUILDER_BACKFILL_FAILED"), errorMessage: errorText(error, "Project backfill failed.") });
+  if(attemptedStep===BUSINESS_MEMORY_STEP){const safe=safeOperationalError(error);await writeOperationalFailureAfterRollback({projectId:input.projectId,eventType:"business_memory_rebuild_failed",category:"business_memory",severity:"error",outcome:"failed",sourceComponent:"executeProjectBackfill",migrationRunId:input.migrationRunId,errorCode:safe.errorCode,errorMessage:safe.errorMessage},error);}
 }
 
 /** Executes only 7E's two durable projections; later migration states are intentionally untouched. */

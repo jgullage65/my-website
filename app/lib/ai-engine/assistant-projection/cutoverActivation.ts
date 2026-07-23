@@ -3,6 +3,7 @@ import "server-only";
 import { Pool, type PoolClient } from "@neondatabase/serverless";
 import { cutoverEligibilityFailure } from "./cutover";
 import { getPersistedAssistantProjectionForUpdate } from "./persistence";
+import { safeOperationalError, writeOperationalEvent } from "../operations/operational-events";
 
 type QueryClient = Pick<PoolClient, "query" | "release">;
 
@@ -40,8 +41,11 @@ export async function activateAssistantProjectionCanonicalRuntime(projectId: str
     if (failure) throw new AssistantProjectionCutoverActivationError(failure);
     await client.query("UPDATE ai_builder_projects SET runtime_authority='canonical',updated_at=NOW() WHERE id=$1", [projectId]);
     await client.query("COMMIT");
+    await writeOperationalEvent(client,{projectId,eventType:"runtime_cutover_succeeded",category:"runtime_cutover",severity:"info",outcome:"succeeded",sourceComponent:"activateAssistantProjectionCanonicalRuntime"});
   } catch (cause) {
     await client.query("ROLLBACK").catch(() => undefined);
+    const safe=safeOperationalError(cause);
+    await writeOperationalEvent(client,{projectId,eventType:"runtime_cutover_rejected",category:"runtime_cutover",severity:"warning",outcome:"rejected",sourceComponent:"activateAssistantProjectionCanonicalRuntime",errorCode:safe.errorCode,errorMessage:safe.errorMessage}).catch(()=>undefined);
     throw cause;
   } finally { client.release(); }
 }

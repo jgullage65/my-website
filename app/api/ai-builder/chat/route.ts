@@ -21,6 +21,7 @@ import { getPersistedAssistantProjectionForUpdate } from "@/app/lib/ai-engine/as
 import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION } from "@/app/lib/ai-engine/assistant-projection/contracts";
 import { getProjectRuntimeAuthority } from "@/app/lib/ai-engine/runtime-authority/projectRuntimeAuthority";
 import { cutoverEligibilityFailure } from "@/app/lib/ai-engine/assistant-projection/cutover";
+import { writeRuntimeAuthorityMismatchAfterRollback } from "@/app/lib/ai-engine/operations/operational-events";
 import { normalizeConversationMemory, updateConversationSummary, updateStructuredConversationMemory, type MemoryMessage } from "@/app/lib/ai-engine/memory/conversationMemory";
 
 export const runtime = "nodejs";
@@ -63,6 +64,7 @@ type ParityEvidenceRow = {
  */
 async function loadCanonicalRuntimeKnowledge(projectId: string) {
   const client = await getProjectionPool().connect();
+  let authorityMismatch: string | null = null;
   try {
     // The project lock serializes authority changes, Business Memory
     // invalidation, and rebuilds. Copy the validated artifact before COMMIT;
@@ -71,7 +73,7 @@ async function loadCanonicalRuntimeKnowledge(projectId: string) {
     await client.query("SELECT id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [projectId]);
     const authority = await getProjectRuntimeAuthority(client, projectId);
     // Legacy is a migration-pending marker, not a request-time fallback.
-    if (authority !== "canonical") throw new Error("assistant_projection_migration_required");
+    if (authority !== "canonical") { authorityMismatch=authority; throw new Error("assistant_projection_migration_required"); }
     const persisted = await getPersistedAssistantProjectionForUpdate(client, projectId);
     if (!persisted) throw new Error("assistant_projection_runtime_unavailable_missing");
     if (persisted.invalidationState !== "valid") {
@@ -96,6 +98,7 @@ async function loadCanonicalRuntimeKnowledge(projectId: string) {
     return persisted.projection;
   } catch (cause) {
     await client.query("ROLLBACK").catch(() => undefined);
+    if(authorityMismatch) await writeRuntimeAuthorityMismatchAfterRollback(projectId,"canonical",authorityMismatch);
     if (cause instanceof Error && cause.message.startsWith("assistant_projection_")) throw cause;
     throw new Error("assistant_projection_runtime_unavailable_validation_failure");
   } finally {

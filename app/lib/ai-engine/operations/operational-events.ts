@@ -44,7 +44,7 @@ export function sanitizeOperationalMetadata(metadata: Record<string, unknown> = 
 
 export function safeOperationalError(error: unknown): { errorCode: string; errorMessage: string } {
   const candidate = error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : "operational_error";
-  const message = error instanceof Error ? error.message : "Operational operation failed.";
+  const message = error && typeof error === "object" && "code" in error && error instanceof Error ? error.message : "The operation failed unexpectedly.";
   return { errorCode: truncate(candidate.replace(/[^a-zA-Z0-9_.:-]/g, "_"), 128), errorMessage: truncate(message.replace(/[\r\n\t]+/g, " "), 512) };
 }
 
@@ -63,6 +63,11 @@ export async function writeOperationalFailureAfterRollback(input: OperationalEve
   catch (telemetryError) { if (originalError && typeof originalError === "object") (originalError as Error & { telemetryPersistenceError?: unknown }).telemetryPersistenceError = telemetryError; else console.error("operational telemetry persistence failed", telemetryError); }
 }
 
+/** Persists one event per still-current authority mismatch signature. */
+export async function writeRuntimeAuthorityMismatchAfterRollback(projectId:string, expected:string, observed:string):Promise<void>{
+  try{await ensureAiBuilderSchema();const client=await (pool??=new Pool({connectionString:process.env.DATABASE_URL})).connect();try{await client.query("BEGIN");const latest=(await client.query("SELECT expected_value,observed_value FROM ai_builder_operational_events WHERE project_id=$1 AND event_type='runtime_authority_mismatch' ORDER BY occurred_at DESC,id DESC LIMIT 1",[projectId])).rows[0];if(latest?.expected_value!==expected||latest?.observed_value!==observed)await writeOperationalEvent(client,{projectId,eventType:"runtime_authority_mismatch",category:"runtime_cutover",severity:"error",outcome:"rejected",sourceComponent:"loadCanonicalRuntimeKnowledge",expectedValue:expected,observedValue:observed,metadata:{signature:`${expected}:${observed}`}});await client.query("COMMIT");}catch(error){await client.query("ROLLBACK").catch(()=>undefined);throw error;}finally{client.release();}}catch(error){console.error("runtime authority mismatch telemetry failed",error);}
+}
+
 export async function recentOperationalEvents(client: QueryClient, where: "project" | "type" | "job" | "command" | "migration", value: string, limit = 50) {
   const column = { project: "project_id", type: "event_type", job: "synchronization_job_id", command: "command_id", migration: "migration_run_id" }[where];
   return (await client.query(`SELECT * FROM ai_builder_operational_events WHERE ${column}=$1 ORDER BY occurred_at DESC,id DESC LIMIT $2`, [value, Math.max(1, Math.min(limit, 200))])).rows;
@@ -72,6 +77,6 @@ export const eventsByType = (client: QueryClient, type: OperationalEventType, li
 export const eventsForSynchronizationJob = (client: QueryClient, jobId: string, limit?: number) => recentOperationalEvents(client, "job", jobId, limit);
 export const eventsForCommand = (client: QueryClient, commandId: string, limit?: number) => recentOperationalEvents(client, "command", commandId, limit);
 export const eventsForMigrationRun = (client: QueryClient, runId: string, limit?: number) => recentOperationalEvents(client, "migration", runId, limit);
-export async function unresolvedDriftEvents(client: QueryClient, projectId: string, limit = 50) { return (await client.query("SELECT * FROM ai_builder_operational_events WHERE project_id=$1 AND event_type IN ('drift_detected','drift_unresolved','reconciliation_blocked') ORDER BY occurred_at DESC,id DESC LIMIT $2", [projectId, Math.max(1, Math.min(limit, 200))])).rows; }
+export async function unresolvedDriftEvents(client: QueryClient, projectId: string, limit = 50) { return (await client.query("SELECT e.* FROM ai_builder_operational_events e WHERE e.project_id=$1 AND e.event_type='drift_unresolved' AND NOT EXISTS (SELECT 1 FROM ai_builder_operational_events r WHERE r.project_id=e.project_id AND r.event_type='drift_resolved' AND r.metadata->>'signature'=e.metadata->>'signature' AND (r.occurred_at,r.id)>(e.occurred_at,e.id)) ORDER BY e.occurred_at DESC,e.id DESC LIMIT $2", [projectId, Math.max(1, Math.min(limit, 200))])).rows; }
 export async function recentDeadLetterEntries(client: QueryClient, projectId: string, limit = 50) { return (await client.query("SELECT * FROM ai_builder_operational_events WHERE project_id=$1 AND event_type IN ('dead_letter_entered','dead_letter_reopened') ORDER BY occurred_at DESC,id DESC LIMIT $2", [projectId, Math.max(1, Math.min(limit, 200))])).rows; }
 export async function runtimeAuthorityMismatches(client: QueryClient, projectId: string, limit = 50) { return (await client.query("SELECT * FROM ai_builder_operational_events WHERE project_id=$1 AND event_type='runtime_authority_mismatch' ORDER BY occurred_at DESC,id DESC LIMIT $2", [projectId, Math.max(1, Math.min(limit, 200))])).rows; }
