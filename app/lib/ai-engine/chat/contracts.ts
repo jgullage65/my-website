@@ -38,4 +38,5 @@ export type ChatDiagnostics={
     topScoreBands: number[];
   };
   conflictAnalysis?: { conflictGroupCount: number; authoritativeResolutionCount: number; unresolvedConflictCount: number; correctedAssertionCount: number; predecessorSuppressedCount: number; citationCount: number; evidenceCount: number; sourceCount: number; };
+  conversationMemory?: { available: boolean; selectedItemCount: number; selectedCategories: string[]; excludedConflict: boolean; retrievalDurationMs: number; };
 };

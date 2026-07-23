@@ -6,6 +6,7 @@ import {
   retrieveStructuredCanonicalKnowledge,
   buildStructuredSystemPrompt,
   analyzeCanonicalConflicts,
+  buildCombinedRuntimeContext,
 } from "@/app/lib/ai-engine/chat";
 import type {
   ChatRequest,
@@ -357,7 +358,18 @@ export async function POST(request: Request) {
     const message = body.message.trim().slice(0, 4000);
     const startedAt = Date.now();
 
+    // Memory is optional context from this already-owned thread only. Invalid
+    // state is deliberately unavailable rather than a chat failure.
+    let conversationMemory = null;
+    if (persistenceContext) {
+      const normalized = normalizeConversationMemory(persistenceContext.memory, { threadId: persistenceContext.threadId, projectId: persistenceContext.projectId });
+      if (normalized.invalid || normalized.memory.threadId !== persistenceContext.threadId || normalized.memory.projectId !== persistenceContext.projectId) {
+        console.warn("AI_BUILDER_CONVERSATION_MEMORY", { failureCode: "runtime_memory_invalid_or_mismatched" });
+      } else conversationMemory = normalized.memory;
+    }
+    // The authoritative structured retrieval has exactly one invocation.
     const retrieved = retrieveStructuredCanonicalKnowledge(projection.canonicalProjection, message);
+    const runtimeContext = buildCombinedRuntimeContext(retrieved, conversationMemory, message);
     const conflict = analyzeCanonicalConflicts(projection.canonicalProjection, retrieved, message);
     const responseDepthDecision = classifyResponseDepth(message);
 
@@ -366,6 +378,7 @@ export async function POST(request: Request) {
       retrieved,
       responseDepthDecision,
       conflict,
+      runtimeContext,
     );
 
     const answer = await runOpenAiChat({
@@ -383,6 +396,7 @@ export async function POST(request: Request) {
         retrievalMs: Date.now() - startedAt,
         runtimeSource: projection.source,
         conflictAnalysis: conflict.diagnostics,
+        conversationMemory: { available: runtimeContext.conversationMemory.available, selectedItemCount: runtimeContext.conversationMemory.items.length, selectedCategories: runtimeContext.conversationMemory.selectedCategories, excludedConflict: runtimeContext.conversationMemory.excludedConflict, retrievalDurationMs: runtimeContext.conversationMemory.retrievalDurationMs },
         structuredRetrieval: { engineVersion: retrieved.engineVersion, intent: retrieved.query.intent, directCandidateCount: retrieved.diagnostics.directCandidateCount, relationshipExpansionCount: retrieved.diagnostics.relationshipExpansionCount, relationshipCandidateCount: retrieved.diagnostics.relationshipCandidateCount, totalCandidateCount: retrieved.diagnostics.totalCandidateCount, evidenceSelectedCount: retrieved.diagnostics.evidenceSelectedCount, sourceSelectedCount: retrieved.diagnostics.sourceSelectedCount, selectedDirectCount: retrieved.diagnostics.selectedDirectCount, selectedRelatedCount: retrieved.diagnostics.selectedRelatedCount, retrievalDurationMs: retrieved.diagnostics.retrievalDurationMs, selectedResultCount: retrieved.items.length, selectedCategoryCounts: retrieved.diagnostics.selectedCategoryCounts, topScoreBands: retrieved.diagnostics.topScoreBands },
       },
     };
