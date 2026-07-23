@@ -463,7 +463,10 @@ async function createAiBuilderSchema() {
     END $$
   `;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_assistant_projections_state_updated_idx ON ai_builder_assistant_projections(invalidation_state, updated_at)`;
-  await sql`CREATE TABLE IF NOT EXISTS ai_builder_assistant_projection_parity_reports (project_id TEXT PRIMARY KEY REFERENCES ai_builder_projects(id) ON DELETE CASCADE, compared_at TIMESTAMPTZ NOT NULL, legacy_runtime_version INTEGER NOT NULL, assistant_projection_version INTEGER, assistant_projection_schema_version INTEGER, status TEXT NOT NULL CHECK (status IN ('MATCH','MINOR_DIFFERENCE','MAJOR_DIFFERENCE','COMPARISON_FAILURE')), mismatch_summary JSONB NOT NULL, category_breakdown JSONB NOT NULL, failure_details JSONB, active_runtime_authority TEXT NOT NULL DEFAULT 'legacy' CHECK (active_runtime_authority IN ('legacy', 'canonical')), updated_at TIMESTAMPTZ NOT NULL)`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_assistant_projection_parity_reports (project_id TEXT PRIMARY KEY REFERENCES ai_builder_projects(id) ON DELETE CASCADE, compared_at TIMESTAMPTZ NOT NULL, legacy_runtime_version INTEGER NOT NULL, assistant_projection_version INTEGER, assistant_projection_schema_version INTEGER, artifact_fingerprint TEXT, status TEXT NOT NULL CHECK (status IN ('MATCH','MINOR_DIFFERENCE','MAJOR_DIFFERENCE','COMPARISON_FAILURE')), mismatch_summary JSONB NOT NULL, category_breakdown JSONB NOT NULL, failure_details JSONB, active_runtime_authority TEXT NOT NULL DEFAULT 'legacy' CHECK (active_runtime_authority IN ('legacy', 'canonical')), updated_at TIMESTAMPTZ NOT NULL)`;
+  // Additive migration: NULL preserves historical reports but makes them
+  // ineligible until a comparison records the exact artifact identity.
+  await sql`ALTER TABLE ai_builder_assistant_projection_parity_reports ADD COLUMN IF NOT EXISTS artifact_fingerprint TEXT`;
   await sql`ALTER TABLE ai_builder_assistant_projection_parity_reports ADD COLUMN IF NOT EXISTS active_runtime_authority TEXT NOT NULL DEFAULT 'legacy'`;
   // CREATE TABLE checks do not retrofit older installations, so add this
   // independently and idempotently after the additive column migration.

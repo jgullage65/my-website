@@ -9,12 +9,15 @@ export type AssistantProjectionCutoverEvidence = {
   schemaVersion: unknown;
   activeRuntimeAuthority: unknown;
   comparedAt: unknown;
+  artifactFingerprint: unknown;
 };
 
 export type AssistantProjectionCutoverArtifact = {
   projectionVersion: number;
   schemaVersion: number;
   generatedAt: string;
+  businessMemoryFingerprint: string;
+  invalidationState?: string;
 };
 
 /**
@@ -31,8 +34,11 @@ export function cutoverEligibilityFailure(input: {
   if (input.runtimeAuthority !== "canonical") return "assistant_projection_migration_required";
   if (!input.evidence) return "assistant_projection_runtime_unavailable_parity_evidence_unavailable";
   if (input.evidence.status !== "MATCH") return "assistant_projection_runtime_unavailable_parity_status_unacceptable";
-  if (input.evidence.activeRuntimeAuthority !== "canonical") return "assistant_projection_runtime_unavailable_parity_authority_invalid";
+  if (input.artifact.invalidationState !== undefined && input.artifact.invalidationState !== "valid") return `assistant_projection_runtime_unavailable_${input.artifact.invalidationState}`;
   if (input.evidence.projectionVersion !== input.artifact.projectionVersion || input.evidence.schemaVersion !== input.artifact.schemaVersion) return "assistant_projection_runtime_unavailable_parity_evidence_stale";
+  // Version numbers describe a contract, not the immutable artifact. Historical
+  // reports without this value intentionally fail closed until regenerated.
+  if (typeof input.evidence.artifactFingerprint !== "string" || !input.evidence.artifactFingerprint || input.evidence.artifactFingerprint !== input.artifact.businessMemoryFingerprint) return "assistant_projection_runtime_unavailable_parity_evidence_fingerprint_mismatch";
   const comparedAt = new Date(String(input.evidence.comparedAt)).getTime();
   const generatedAt = new Date(input.artifact.generatedAt).getTime();
   if (!Number.isFinite(comparedAt) || !Number.isFinite(generatedAt) || comparedAt < generatedAt) return "assistant_projection_runtime_unavailable_parity_evidence_stale";
