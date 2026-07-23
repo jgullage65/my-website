@@ -6,6 +6,7 @@ let schemaPromise: Promise<void> | null = null;
 
 async function createAiBuilderSchema() {
   const sql = getSql();
+  await sql`CREATE EXTENSION IF NOT EXISTS pgcrypto`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_projects (
@@ -341,14 +342,38 @@ async function createAiBuilderSchema() {
       project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
       thread_id TEXT NOT NULL REFERENCES ai_builder_chat_threads(id) ON DELETE CASCADE,
       idempotency_key TEXT NOT NULL,
-      user_message_id TEXT NOT NULL REFERENCES ai_builder_chat_messages(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
-      assistant_message_id TEXT NOT NULL REFERENCES ai_builder_chat_messages(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
-      user_message_count INTEGER NOT NULL,
+      request_fingerprint TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending','completed','failed')),
+      owner_token TEXT,
+      pending_expires_at TIMESTAMPTZ,
+      user_message_id TEXT REFERENCES ai_builder_chat_messages(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+      assistant_message_id TEXT REFERENCES ai_builder_chat_messages(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+      user_message_count INTEGER,
       memory_revision INTEGER,
+      completed_at TIMESTAMPTZ,
+      failed_at TIMESTAMPTZ,
+      failure_code TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       UNIQUE (project_id, thread_id, idempotency_key)
     )
   `;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ADD COLUMN IF NOT EXISTS request_fingerprint TEXT`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ADD COLUMN IF NOT EXISTS status TEXT`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ADD COLUMN IF NOT EXISTS owner_token TEXT`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ADD COLUMN IF NOT EXISTS pending_expires_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ADD COLUMN IF NOT EXISTS failed_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ADD COLUMN IF NOT EXISTS failure_code TEXT`;
+  await sql`UPDATE ai_builder_chat_exchanges SET request_fingerprint=encode(digest(COALESCE((SELECT content FROM ai_builder_chat_messages WHERE id=user_message_id),''),'sha256'),'hex'),status='completed',completed_at=COALESCE(completed_at,created_at) WHERE request_fingerprint IS NULL OR status IS NULL`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ALTER COLUMN request_fingerprint SET NOT NULL`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ALTER COLUMN status SET NOT NULL`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ALTER COLUMN user_message_id DROP NOT NULL`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ALTER COLUMN assistant_message_id DROP NOT NULL`;
+  await sql`ALTER TABLE ai_builder_chat_exchanges ALTER COLUMN user_message_count DROP NOT NULL`;
+  await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='ai_builder_chat_exchanges_status_check') THEN ALTER TABLE ai_builder_chat_exchanges ADD CONSTRAINT ai_builder_chat_exchanges_status_check CHECK (status IN ('pending','completed','failed')); END IF; END $$`;
+  await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='ai_builder_chat_exchanges_fingerprint_check') THEN ALTER TABLE ai_builder_chat_exchanges ADD CONSTRAINT ai_builder_chat_exchanges_fingerprint_check CHECK (length(request_fingerprint)=64); END IF; END $$`;
+  await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='ai_builder_chat_exchanges_lifecycle_check') THEN ALTER TABLE ai_builder_chat_exchanges ADD CONSTRAINT ai_builder_chat_exchanges_lifecycle_check CHECK ((status='pending' AND owner_token IS NOT NULL AND pending_expires_at IS NOT NULL) OR (status='completed' AND user_message_id IS NOT NULL AND assistant_message_id IS NOT NULL AND user_message_count IS NOT NULL AND completed_at IS NOT NULL) OR (status='failed' AND failed_at IS NOT NULL)); END IF; END $$`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_chat_exchanges_pending_project_idx ON ai_builder_chat_exchanges(project_id,pending_expires_at) WHERE status='pending'`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_purchase_interest (

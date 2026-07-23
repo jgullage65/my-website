@@ -51,8 +51,9 @@ db("chat schema enforces per-thread sequence and exchange idempotency uniqueness
     await pool.query("INSERT INTO ai_builder_chat_messages (id,thread_id,role,content,sequence) VALUES ($1,$2,'user','one',1),($3,$2,'assistant','two',2)", [`user-${randomUUID()}`, threadId, `assistant-${randomUUID()}`]);
     await assert.rejects(() => pool.query("INSERT INTO ai_builder_chat_messages (id,thread_id,role,content,sequence) VALUES ($1,$2,'user','duplicate',1)", [`duplicate-${randomUUID()}`, threadId]), (error: { code?:string }) => error.code === "23505");
     const ids = (await pool.query("SELECT id FROM ai_builder_chat_messages WHERE thread_id=$1 ORDER BY sequence", [threadId])).rows;
-    await pool.query("INSERT INTO ai_builder_chat_exchanges (project_id,thread_id,idempotency_key,user_message_id,assistant_message_id,user_message_count) VALUES ($1,$2,'retry-key',$3,$4,1)", [projectId, threadId, ids[0].id, ids[1].id]);
-    await assert.rejects(() => pool.query("INSERT INTO ai_builder_chat_exchanges (project_id,thread_id,idempotency_key,user_message_id,assistant_message_id,user_message_count) VALUES ($1,$2,'retry-key',$3,$4,1)", [projectId, threadId, ids[0].id, ids[1].id]), (error: { code?:string }) => error.code === "23505");
+    const fingerprint="f".repeat(64);
+    await pool.query("INSERT INTO ai_builder_chat_exchanges (project_id,thread_id,idempotency_key,request_fingerprint,status,user_message_id,assistant_message_id,user_message_count,completed_at) VALUES ($1,$2,'retry-key',$5,'completed',$3,$4,1,NOW())", [projectId, threadId, ids[0].id, ids[1].id, fingerprint]);
+    await assert.rejects(() => pool.query("INSERT INTO ai_builder_chat_exchanges (project_id,thread_id,idempotency_key,request_fingerprint,status,user_message_id,assistant_message_id,user_message_count,completed_at) VALUES ($1,$2,'retry-key',$5,'completed',$3,$4,1,NOW())", [projectId, threadId, ids[0].id, ids[1].id, fingerprint]), (error: { code?:string }) => error.code === "23505");
   } finally {
     await pool.query("DELETE FROM ai_builder_projects WHERE id=$1", [projectId]);
     await pool.end();

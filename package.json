@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "db:migrate": "node scripts/run-database-migrations.mjs",
     "lint": "next lint",
     "test:ai-builder-contracts": "npm run test:ai-builder-contracts:unit && npm run test:ai-builder-business-memory-mapper",
     "test:ai-builder-contracts:unit": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/ai-engine/business-memory/contracts.test.ts app/lib/ai-engine/provenance.test.ts app/lib/ai-engine/business-memory/review-command-validator.test.ts app/lib/ai-engine/business-memory/review-command-request-parser.test.ts app/lib/ai-engine/business-memory/review-command-executor.test.ts",

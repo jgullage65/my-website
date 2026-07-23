@@ -126,6 +126,7 @@ export default function AiBuilderDemoChat({
   chatThread,
   onBack,
 }: Props) {
+  const retrySubmissionRef = useRef<{message:string;idempotencyKey:string}|null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     createInitialMessages(knowledge, chatThread),
   );
@@ -385,6 +386,8 @@ export default function AiBuilderDemoChat({
     }
 
     const temporaryUserMessageId = createMessageId("user");
+    const logicalSubmission=retrySubmissionRef.current?.message===normalizedMessage?retrySubmissionRef.current:{message:normalizedMessage,idempotencyKey:crypto.randomUUID()};
+    retrySubmissionRef.current=logicalSubmission;
 
     const userMessage: ChatMessage = {
       id: temporaryUserMessageId,
@@ -407,7 +410,7 @@ export default function AiBuilderDemoChat({
           knowledge,
           projectId,
           threadId: chatThread.id,
-          idempotencyKey: crypto.randomUUID(),
+          idempotencyKey: logicalSubmission.idempotencyKey,
           message: normalizedMessage,
         }),
       });
@@ -433,6 +436,7 @@ export default function AiBuilderDemoChat({
             ),
           );
           setMessage(normalizedMessage);
+          retrySubmissionRef.current=null;
           await showPurchaseInterestModal();
           return;
         }
@@ -472,6 +476,7 @@ export default function AiBuilderDemoChat({
         payload.usage?.userMessageCount ?? userMessageCount + 1;
 
       setUserMessageCount(nextUserMessageCount);
+      retrySubmissionRef.current=null;
 
       if (nextUserMessageCount >= PROJECT_USER_MESSAGE_LIMIT) {
         await showPurchaseInterestModal();
@@ -627,9 +632,7 @@ export default function AiBuilderDemoChat({
             <textarea
               rows={2}
               value={message}
-              onChange={(event) =>
-                setMessage(event.target.value)
-              }
+              onChange={(event) => { setMessage(event.target.value); retrySubmissionRef.current=null; }}
               disabled={chatUnavailable || sending}
               placeholder="Ask about services, pricing, policies, or the business..."
               className="min-h-[52px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-50"
