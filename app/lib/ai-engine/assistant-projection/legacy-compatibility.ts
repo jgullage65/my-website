@@ -60,7 +60,7 @@ function factFromItem(item: AssistantProjectionTextKnowledgeItem, category: "ser
     confidence: item.confidence.level, confidenceScore: item.confidence.score,
     sourceEntryId: sourceId, sourceExcerpt: evidence?.excerpt ?? "", sourceType: sourceType(source),
     sourceUrl: evidence?.sourceUrl ?? source?.url ?? null, tags: stableIds(item.tags),
-    provenance: { ...EMPTY_PROVENANCE }, reviewState: item.reviewState, governanceRevision: 0,
+    provenance: { ...EMPTY_PROVENANCE, ...(item.provenance ?? {}) }, reviewState: item.reviewState, governanceRevision: 0,
   };
 }
 
@@ -70,8 +70,8 @@ function factFromRestriction(item: AssistantProjectionRestriction, category: "be
   }
   return {
     id: item.id, category, title: category === "behavior_rule" ? "Behavior rule" : "Prohibited claim", content: item.instruction,
-    confidence: "medium", confidenceScore: 0, sourceEntryId: "", sourceExcerpt: "", sourceType: "generated_qa", sourceUrl: null, tags: [],
-    provenance: { ...EMPTY_PROVENANCE }, reviewState: "approved", governanceRevision: 0,
+    confidence: "medium", confidenceScore: 0, sourceEntryId: item.sourceIds[0] ?? "", sourceExcerpt: "", sourceType: "generated_qa", sourceUrl: null, tags: [],
+    provenance: { ...EMPTY_PROVENANCE }, reviewState: item.reviewState, governanceRevision: 0,
   };
 }
 
@@ -92,7 +92,7 @@ export function buildLegacyKnowledgePackFromAssistantProjection(projection: Assi
     if (!item || typeof item.id !== "string" || !item.id || typeof item.question !== "string" || !item.question || typeof item.answer !== "string" || !item.answer) {
       return fail("assistant_projection_legacy_adapter_invalid_faq", "Assistant Projection FAQ is invalid.");
     }
-    return { id: item.id, question: item.question, answer: item.answer, confidence: item.confidence.level, confidenceScore: item.confidence.score, sourceEntryIds: stableIds(item.sourceIds), provenance: { ...EMPTY_PROVENANCE }, reviewState: item.reviewState, governanceRevision: 0 };
+    return { id: item.id, question: item.question, answer: item.answer, confidence: item.confidence.level, confidenceScore: item.confidence.score, sourceEntryIds: stableIds(item.sourceIds), provenance: { ...EMPTY_PROVENANCE, ...(item.provenance ?? {}) }, reviewState: item.reviewState, governanceRevision: 0 };
   }).sort((a, b) => a.id.localeCompare(b.id));
   const restrictions = [...projection.restrictions].sort((a, b) => a.id.localeCompare(b.id));
   const behaviorRules: KnowledgeFact[] = [];

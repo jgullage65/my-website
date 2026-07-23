@@ -21,11 +21,12 @@ const byId = <T extends { id: string }>(values: readonly T[]) => [...values].sor
 const stableId = (prefix: string, content: string) => `${prefix}_${createHash("sha256").update(content).digest("hex").slice(0, 24)}`;
 type SupportedAssertion = BusinessAssertion & { reviewState: "approved" | "corrected" };
 const supportedAssertion = (assertion: BusinessAssertion): assertion is SupportedAssertion => assertion.reviewState === "approved" || assertion.reviewState === "corrected";
-const supportedRelationship = (relationship: BusinessRelationship) => relationship.reviewState === "approved" || relationship.reviewState === "corrected";
+type SupportedRelationship = BusinessRelationship & { reviewState: "approved" | "corrected" };
+const supportedRelationship = (relationship: BusinessRelationship): relationship is SupportedRelationship => relationship.reviewState === "approved" || relationship.reviewState === "corrected";
 
 export class AssistantProjectionGenerationError extends Error {
-  readonly code: "assistant_projection_unresolved_conflict";
-  constructor(code: "assistant_projection_unresolved_conflict") { super(code); this.name = "AssistantProjectionGenerationError"; this.code = code; }
+  readonly code: "assistant_projection_unresolved_conflict" | "assistant_projection_unresolved_revision_authority" | "assistant_projection_ambiguous_identity";
+  constructor(code: AssistantProjectionGenerationError["code"]) { super(code); this.name = "AssistantProjectionGenerationError"; this.code = code; }
 }
 
 const setLikeArrayFields = new Set([
@@ -62,6 +63,31 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
   if (memory.conflicts.some((conflict) => !conflict.resolved)) throw new AssistantProjectionGenerationError("assistant_projection_unresolved_conflict");
   const entities = new Map(memory.entities.map((entity) => [entity.id, entity]));
   const assertions = new Map(memory.assertions.map((assertion) => [assertion.id, assertion]));
+  // Revision links are authoritative governance data, not a text-deduplication hint.
+  const successors = new Map<string, BusinessAssertion[]>();
+  for (const assertion of memory.assertions) {
+    const predecessorId = assertion.predecessorAssertionId;
+    if (!predecessorId) continue;
+    const predecessor = assertions.get(predecessorId);
+    if (!predecessor || (assertion.reviewState === "corrected" && !["approved", "corrected", "superseded", "archived"].includes(predecessor.reviewState))) {
+      throw new AssistantProjectionGenerationError("assistant_projection_unresolved_revision_authority");
+    }
+    successors.set(predecessorId, [...(successors.get(predecessorId) ?? []), assertion]);
+  }
+  for (const assertion of memory.assertions) {
+    const seen = new Set<string>(); let current: BusinessAssertion | undefined = assertion;
+    while (current?.predecessorAssertionId) {
+      if (seen.has(current.id)) throw new AssistantProjectionGenerationError("assistant_projection_unresolved_revision_authority");
+      seen.add(current.id); current = assertions.get(current.predecessorAssertionId);
+      if (!current) break;
+    }
+  }
+  for (const [predecessorId, linked] of Array.from(successors.entries())) {
+    const activeSuccessors = linked.filter(supportedAssertion);
+    if (activeSuccessors.length > 1) throw new AssistantProjectionGenerationError("assistant_projection_unresolved_revision_authority");
+    const predecessor = assertions.get(predecessorId)!;
+    if ((activeSuccessors.length || linked.some(successor => successor.reviewState === "proposed")) && supportedAssertion(predecessor)) throw new AssistantProjectionGenerationError("assistant_projection_unresolved_revision_authority");
+  }
   const sources = new Map(memory.sources.map((source) => [source.id, source]));
   const evidence = new Map(memory.evidence.filter((item) => sources.has(item.sourceId)).map((item) => [item.id, item]));
   const redirects = new Map<string, string>();
@@ -78,21 +104,24 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
     if (!entity || !entityId || !supportedAssertion(assertion)) return null;
     return { id: assertion.id, entityId, assertionId: assertion.id, entityType: entity.type, title: entity.name, value: assertion.value,
       aliases: sortedUnique(entity.aliases), tags: sortedUnique(assertion.tags), confidence: { ...assertion.confidence }, authority: assertion.authority, reviewState: assertion.reviewState,
-      evidenceIds: sortedUnique(assertion.evidenceIds.filter((id) => evidence.has(id))), sourceIds: sortedUnique(assertion.sourceIds.filter((id) => sources.has(id))) };
+      evidenceIds: sortedUnique(assertion.evidenceIds.filter((id) => evidence.has(id))), sourceIds: sortedUnique(assertion.sourceIds.filter((id) => sources.has(id))), ...(assertion.provenance ? { provenance: { ...assertion.provenance } } : {}) };
   };
   // Business Memory intentionally preserves independently addressable duplicate assertions, including after entity redirects; 8A projects each approved/corrected assertion rather than inventing reconciliation.
   const items = memory.assertions.map(itemFor).filter((item): item is AssistantProjectionTextKnowledgeItem => item !== null);
   const ofType = (type: BusinessEntity["type"]) => byId(items.filter((item) => item.entityType === type));
+  const fromSourceIds = (assertion: BusinessAssertion) => assertion.sourceIds.filter((id) => sources.has(id));
+  const fromEvidenceIds = (assertion: BusinessAssertion) => assertion.evidenceIds.filter((id) => evidence.has(id));
   const relationships = byId(memory.relationships.filter((relationship) => {
     const from = assertions.get(relationship.fromAssertionId), to = assertions.get(relationship.toAssertionId);
-    return supportedRelationship(relationship) && !!from && !!to && supportedAssertion(from) && supportedAssertion(to) && canonicalEntityId(relationship.fromEntityId) !== null && canonicalEntityId(relationship.toEntityId) !== null;
-  }).map((relationship) => ({ id: relationship.id, type: relationship.type, sourceEntityId: canonicalEntityId(relationship.fromEntityId)!, targetEntityId: canonicalEntityId(relationship.toEntityId)!, sourceAssertionId: relationship.fromAssertionId, targetAssertionId: relationship.toAssertionId, sourceEntryIds: sortedUnique(relationship.sourceEntryIds) })));
-  const ruleRestrictions = (type: "prohibited_claim" | "behavior_rule", values: readonly string[]): AssistantProjectionRestriction[] => Array.from(values.reduce((rules, value) => {
-    const key = normalizedRule(value), display = normalize(value), existing = rules.get(key);
-    if (!existing || compare(display, existing) < 0) rules.set(key, display);
-    return rules;
-  }, new Map<string, string>())).map(([key, instruction]) => ({ id: stableId(`assistant_${type}`, key), type, instruction, relatedEntityIds: [], relatedAssertionIds: [], evidenceIds: [] }));
-  const restrictions = byId([...ruleRestrictions("prohibited_claim", memory.assistant.prohibitedClaims ?? []), ...ruleRestrictions("behavior_rule", memory.assistant.behaviorRules ?? [])]);
+    return supportedRelationship(relationship) && !!from && !!to && supportedAssertion(from) && supportedAssertion(to) && from.entityId === relationship.fromEntityId && to.entityId === relationship.toEntityId && canonicalEntityId(relationship.fromEntityId) !== null && canonicalEntityId(relationship.toEntityId) !== null && ["service", "pricing_concept", "policy", "faq"].includes(entities.get(relationship.fromEntityId)?.type ?? "") && ["service", "pricing_concept", "policy", "faq"].includes(entities.get(relationship.toEntityId)?.type ?? "") && relationship.sourceEntryIds.every((id) => typeof id === "string" && id.length > 0);
+  }).map((relationship) => ({ id: relationship.id, type: relationship.type, sourceEntityId: canonicalEntityId(relationship.fromEntityId)!, targetEntityId: canonicalEntityId(relationship.toEntityId)!, sourceAssertionId: relationship.fromAssertionId, targetAssertionId: relationship.toAssertionId, sourceEntryIds: sortedUnique(relationship.sourceEntryIds), sourceIds: sortedUnique([...fromSourceIds(assertions.get(relationship.fromAssertionId)!), ...fromSourceIds(assertions.get(relationship.toAssertionId)!)]), evidenceIds: sortedUnique([...fromEvidenceIds(assertions.get(relationship.fromAssertionId)!), ...fromEvidenceIds(assertions.get(relationship.toAssertionId)!)]), reviewState: relationship.reviewState })));
+  // Restrictions are reviewed canonical assertions tagged by their restriction kind.
+  // assistant.behaviorRules/prohibitedClaims are configuration only and never become Business Memory runtime knowledge.
+  const restrictions = byId(memory.assertions.filter(supportedAssertion).flatMap((assertion): AssistantProjectionRestriction[] => {
+    const type = assertion.tags.includes("behavior_rule") ? "behavior_rule" : assertion.tags.includes("prohibited_claim") ? "prohibited_claim" : null;
+    if (!type || !entities.has(assertion.entityId)) return [];
+    return [{ id: assertion.id, type, instruction: assertion.value, relatedEntityIds: [canonicalEntityId(assertion.entityId)].filter((id): id is string => id !== null), relatedAssertionIds: [assertion.id], evidenceIds: sortedUnique(assertion.evidenceIds.filter((id) => evidence.has(id))), sourceIds: sortedUnique(assertion.sourceIds.filter((id) => sources.has(id))), reviewState: assertion.reviewState }];
+  }));
   const associatedMerges = identityEntity ? (memory.entityMerges ?? []).filter((merge) => canonicalEntityId(merge.canonicalEntityId) === identityEntity.id && merge.mergedEntityIds.every((id) => entities.get(id)?.type === "business")) : [];
   const contactEntityIds = identityEntity ? sortedUnique(relationships.flatMap((relationship) => {
     const source = entities.get(relationship.sourceEntityId), target = entities.get(relationship.targetEntityId);
@@ -100,6 +129,7 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
     if (relationship.targetEntityId === identityEntity.id && source?.type === "contact_method") return [relationship.sourceEntityId];
     return [];
   })) : [];
+  if (canonicalBusinessIds.length > 1) throw new AssistantProjectionGenerationError("assistant_projection_ambiguous_identity");
   const projection: AssistantProjection = { projectId: memory.projectId, businessMemoryFingerprint: businessMemoryFingerprint(memory), projectionVersion: ASSISTANT_PROJECTION_VERSION, schemaVersion: ASSISTANT_PROJECTION_SCHEMA_VERSION,
     identity: { status: identityEntity ? "resolved" : canonicalBusinessIds.length === 0 ? "missing" : "ambiguous", canonicalEntityId: identityEntity?.id ?? null, businessName: identityEntity?.name ?? null, aliases: sortedUnique([...(identityEntity?.aliases ?? []), ...associatedMerges.flatMap((merge) => merge.approvedAliases)]), mergedEntityIds: sortedUnique(associatedMerges.flatMap((merge) => merge.mergedEntityIds)), redirectedEntityIds: sortedUnique(associatedMerges.flatMap((merge) => merge.mergedEntityIds)), contactEntityIds },
     assistant: { name: memory.assistant.name, purpose: memory.assistant.purpose, tone: memory.assistant.tone, responseStyle: memory.assistant.responseStyle, primaryAudience: memory.assistant.primaryAudience, escalationInstructions: sortedUnique(memory.assistant.escalationInstructions) },

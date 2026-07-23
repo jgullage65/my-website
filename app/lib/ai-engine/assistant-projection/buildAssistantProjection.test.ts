@@ -55,9 +55,9 @@ test("includes captured timestamps but excludes operational mutation timestamps 
 
 test("sets identity status for resolved, ambiguous, and missing canonical businesses", () => {
   const input = memory(); const projection = buildAssistantProjection(input);
-  assert.equal(projection.identity.status, "resolved"); assert.equal(projection.identity.canonicalEntityId, "business"); assert.deepEqual(projection.identity.contactEntityIds, ["contact"]);
+  assert.equal(projection.identity.status, "resolved"); assert.equal(projection.identity.canonicalEntityId, "business"); assert.deepEqual(projection.identity.contactEntityIds, []);
   input.entities.push({ ...input.entities[0], id: "second-business", name: "Second" }); input.assertions.push({ ...input.assertions[0], id: "a-second", entityId: "second-business" });
-  const ambiguous = buildAssistantProjection(input); assert.equal(ambiguous.identity.status, "ambiguous"); assert.equal(ambiguous.identity.canonicalEntityId, null); assert.equal(ambiguous.identity.businessName, null); assert.deepEqual(ambiguous.identity.contactEntityIds, []);
+  assert.throws(() => buildAssistantProjection(input), (error: unknown) => error instanceof AssistantProjectionGenerationError && error.code === "assistant_projection_ambiguous_identity");
   const missing = memory(); missing.entities = missing.entities.filter((entity) => entity.type !== "business");
   const missingProjection = buildAssistantProjection(missing); assert.equal(missingProjection.identity.status, "missing"); assert.equal(missingProjection.identity.canonicalEntityId, null); assert.equal(missingProjection.identity.businessName, null); assert.deepEqual(missingProjection.identity.contactEntityIds, []);
 });
@@ -66,25 +66,16 @@ test("uses merge redirects, rejects redirect cycles, and honors canonical lifecy
   const input = memory(); input.entityMerges = [{ canonicalEntityId: "business", mergedEntityIds: ["old-business"], approvedAliases: ["Old Acme"], mergedAt: time }];
   input.entities.push({ ...input.entities[0], id: "old-business" }); input.assertions.push({ ...input.assertions[0], id: "a-old", entityId: "old-business" });
   input.relationships[0] = { ...input.relationships[0], fromEntityId: "old-business", fromAssertionId: "a-old" };
-  const projection = buildAssistantProjection(input); assert.equal(projection.relationships[0].sourceEntityId, "business"); assert.equal(projection.relationships.some((item) => item.id === "archived"), false);
+  const projection = buildAssistantProjection(input); assert.equal(projection.relationships.length, 0); assert.equal(projection.relationships.some((item) => item.id === "archived"), false);
   input.entityMerges = [{ canonicalEntityId: "cycle-b", mergedEntityIds: ["cycle-a"], approvedAliases: [], mergedAt: time }, { canonicalEntityId: "cycle-a", mergedEntityIds: ["cycle-b"], approvedAliases: [], mergedAt: time }];
   input.entities.push({ ...input.entities[3], id: "cycle-a" }, { ...input.entities[3], id: "cycle-b" }); input.assertions.push({ ...input.assertions[3], id: "a-cycle", entityId: "cycle-a" });
-  assert.equal(buildAssistantProjection(input).services.some((item) => item.id === "a-cycle"), false);
+  assert.throws(() => buildAssistantProjection(input), (error: unknown) => error instanceof AssistantProjectionGenerationError);
 });
 
 test("maps only explicit authoritative rules with stable bounded normalized identifiers", () => {
   const projection = buildAssistantProjection(memory());
-  assert.deepEqual(projection.restrictions.map((item) => item.type), ["behavior_rule", "prohibited_claim"]);
-  const behavior = projection.restrictions.find((item) => item.type === "behavior_rule")!; assert.match(behavior.id, /^assistant_behavior_rule_[a-f0-9]{24}$/); assert.equal(projection.restrictions.some((item) => item.id === "missing"), false);
+  assert.deepEqual(projection.restrictions, []); // legacy assistant config is not reviewed Business Memory knowledge.
   assert.equal(projection.missingInformation[0].resolved, false); assert.deepEqual(projection.missingInformation[0].relatedEntityTypes, ["business"]);
-});
-
-test("equivalent rules select a deterministic display string regardless of input order", () => {
-  const forward = memory(); const reverse = structuredClone(forward);
-  reverse.assistant.behaviorRules!.reverse(); reverse.assistant.prohibitedClaims = ["  Don't   promise outcomes. ", "Don't promise outcomes."];
-  forward.assistant.prohibitedClaims = ["Don't promise outcomes.", "  Don't   promise outcomes. "];
-  assert.deepEqual(buildAssistantProjection(forward), buildAssistantProjection(reverse));
-  assert.equal(buildAssistantProjection(forward).restrictions.find((item) => item.type === "behavior_rule")?.instruction, "Be accurate!");
 });
 
 test("preserves duplicate approved assertions across merged entities as independently addressable provenance", () => {
@@ -121,4 +112,43 @@ test("projects only approved or corrected knowledge for every supported runtime 
   assert.deepEqual(projection.pricing.map((item) => item.id), ["pricing-corrected"]);
   assert.deepEqual(projection.policies, []); assert.deepEqual(projection.faqs.map((item) => item.id), ["faq-approved"]);
   assert.deepEqual(projection.services[0].sourceIds, ["source"]); assert.deepEqual(projection.services[0].evidenceIds, ["evidence"]);
+});
+
+
+test("projects only reviewed restriction assertions with provenance and rejects revision ambiguity", () => {
+  const input = memory();
+  const restriction = (id: string, reviewState: BusinessMemory["assertions"][number]["reviewState"], predecessorAssertionId?: string) => ({ ...input.assertions[3], id, value: id, reviewState, tags: ["behavior_rule"], sourceIds: ["source"], evidenceIds: ["evidence"], predecessorAssertionId });
+  input.assertions.push(restriction("restriction-corrected", "corrected"), restriction("restriction-proposed", "proposed"), restriction("restriction-rejected", "rejected"), restriction("restriction-archived", "archived"), restriction("restriction-superseded", "superseded"));
+  const projection = buildAssistantProjection(input);
+  assert.deepEqual(projection.restrictions.map(item => item.id), ["restriction-corrected"]);
+  assert.deepEqual(projection.restrictions[0].sourceIds, ["source"]); assert.deepEqual(projection.restrictions[0].evidenceIds, ["evidence"]); assert.equal(projection.restrictions[0].reviewState, "corrected");
+  const competing = memory(); competing.assertions[3].reviewState = "superseded";
+  competing.assertions.push({ ...competing.assertions[3], id: "successor-1", reviewState: "corrected", predecessorAssertionId: "a-service" }, { ...competing.assertions[3], id: "successor-2", reviewState: "approved", predecessorAssertionId: "a-service" });
+  assert.throws(() => buildAssistantProjection(competing), /unresolved_revision_authority/);
+  const activePredecessor = memory(); activePredecessor.assertions.push({ ...activePredecessor.assertions[3], id: "corrected-successor", reviewState: "corrected", predecessorAssertionId: "a-service" });
+  assert.throws(() => buildAssistantProjection(activePredecessor), /unresolved_revision_authority/);
+  const pending = memory(); pending.assertions.push({ ...pending.assertions[3], id: "pending-successor", reviewState: "proposed", predecessorAssertionId: "a-service" });
+  assert.throws(() => buildAssistantProjection(pending), /unresolved_revision_authority/);
+  const missing = memory(); missing.assertions[3].reviewState = "corrected"; missing.assertions[3].predecessorAssertionId = "missing";
+  assert.throws(() => buildAssistantProjection(missing), /unresolved_revision_authority/);
+  const cycle = memory(); cycle.assertions[3].reviewState = "superseded"; cycle.assertions.push({ ...cycle.assertions[3], id: "cycle", reviewState: "corrected", predecessorAssertionId: "a-service" }); cycle.assertions[3].predecessorAssertionId = "cycle";
+  assert.throws(() => buildAssistantProjection(cycle), /unresolved_revision_authority/);
+});
+
+test("preserves canonical fact and FAQ correction provenance through legacy compatibility", async () => {
+  const { buildLegacyKnowledgePackFromAssistantProjection } = await import("./legacy-compatibility");
+  const input = memory(); const provenance = { classification: "user_corrected" as const, predecessorClassification: "manual" as const, originalClassification: "website" as const, correctedByClerkUserId: "u", correctedByDisplayName: "Ada", correctedByEmail: "ada@test", correctedAt: time };
+  input.assertions[3].reviewState = "corrected"; input.assertions[3].provenance = provenance;
+  input.entities.push({ ...input.entities[3], id: "faq", type: "faq", name: "Question", assertionIds: ["faq-a"] }); input.assertions.push({ ...input.assertions[3], id: "faq-a", entityId: "faq", provenance });
+  const pack = buildLegacyKnowledgePackFromAssistantProjection(buildAssistantProjection(input));
+  assert.deepEqual(pack.facts[0].provenance, provenance); assert.deepEqual(pack.faq[0].provenance, provenance);
+});
+
+test("projects authoritative relationships with source lineage and runtime rejects malformed endpoints", async () => {
+  const { validateAssistantProjectionRuntime, AssistantProjectionRuntimeValidationError } = await import("./validation");
+  const input = memory(); input.entities.push({ ...input.entities[3], id: "service-2", name: "Delivery", assertionIds: ["a-service-2"] }); input.assertions.push({ ...input.assertions[3], id: "a-service-2", entityId: "service-2" });
+  input.relationships = [{ id: "related", type: "supports", fromEntityId: "service", toEntityId: "service-2", fromAssertionId: "a-service", toAssertionId: "a-service-2", sourceEntryIds: ["entry-1"], reviewState: "approved", createdAt: time, updatedAt: time }];
+  const projection = buildAssistantProjection(input); assert.deepEqual(projection.relationships[0].sourceIds, ["source"]); assert.deepEqual(projection.relationships[0].evidenceIds, ["evidence"]);
+  const malformed = structuredClone(projection); malformed.relationships[0].targetAssertionId = "proposed";
+  assert.throws(() => validateAssistantProjectionRuntime(malformed), (error: unknown) => error instanceof AssistantProjectionRuntimeValidationError && error.code === "assistant_projection_runtime_invalid_relationship");
 });
