@@ -12,18 +12,24 @@ export const ASSISTANT_PROJECTION_SCHEMA_VERSION = 1 as const;
 /** Version of the deterministic Business Memory-to-projection mapping. */
 export const ASSISTANT_PROJECTION_VERSION = 1 as const;
 
+export type AssistantProjectionSource = {
+  id: string;
+  origin: KnowledgeSourceOrigin;
+  url: string | null;
+  label: string | null;
+  capturedAt: string;
+  crawlAttemptId: string | null;
+};
+
 export type AssistantProjectionEvidence = {
   id: string;
   canonicalSourceId: string;
-  sourceType: KnowledgeSourceOrigin | null;
   sourceUrl: string | null;
   excerpt: string;
   capturedAt: string;
-  crawlAttemptId: string | null;
-  provenanceClassification: KnowledgeSourceOrigin | null;
 };
 
-export type AssistantProjectionKnowledgeItem = {
+export type AssistantProjectionTextKnowledgeItem = {
   id: string;
   entityId: string;
   assertionId: string;
@@ -39,19 +45,30 @@ export type AssistantProjectionKnowledgeItem = {
   sourceIds: string[];
 };
 
-export type AssistantProjectionFaq = AssistantProjectionKnowledgeItem & {
+/** Business Memory currently represents services as reviewed text claims. */
+export type AssistantProjectionService = AssistantProjectionTextKnowledgeItem & { entityType: "service" };
+/** Business Memory currently represents pricing as reviewed text claims. */
+export type AssistantProjectionPricing = AssistantProjectionTextKnowledgeItem & { entityType: "pricing_concept" };
+/** Business Memory currently represents policies as reviewed text claims. */
+export type AssistantProjectionPolicy = AssistantProjectionTextKnowledgeItem & { entityType: "policy" };
+export type AssistantProjectionFaq = AssistantProjectionTextKnowledgeItem & {
+  entityType: "faq";
   question: string;
   answer: string;
 };
 
+/**
+ * Escalation instructions remain assistant configuration, not canonical answer
+ * restrictions. Restrictions below are only explicit assistant rules or unresolved
+ * canonical conflicts.
+ */
 export type AssistantProjectionRestriction = {
   id: string;
-  type: "prohibited_claim" | "behavior_rule" | "conflict_suppression" | "missing_information";
+  type: "prohibited_claim" | "behavior_rule" | "conflict_suppression";
   instruction: string;
   relatedEntityIds: string[];
   relatedAssertionIds: string[];
   evidenceIds: string[];
-  active: boolean;
 };
 
 export type AssistantProjectionRelationship = {
@@ -62,10 +79,6 @@ export type AssistantProjectionRelationship = {
   sourceAssertionId: string;
   targetAssertionId: string;
   sourceEntryIds: string[];
-  confidence: Confidence | null;
-  evidenceIds: string[];
-  active: boolean;
-  resolved: boolean;
 };
 
 export type AssistantProjectionMissingInformation = {
@@ -73,6 +86,7 @@ export type AssistantProjectionMissingInformation = {
   topic: string;
   reason: string;
   suggestedFollowUpQuestion: string;
+  relatedEntityTypes: BusinessEntityType[];
   relatedEntityIds: string[];
   relatedAssertionIds: string[];
   resolved: boolean;
@@ -82,7 +96,6 @@ export type AssistantProjectionIdentity = {
   canonicalEntityId: string | null;
   businessName: string | null;
   aliases: string[];
-  identityKeys: string[];
   mergedEntityIds: string[];
   redirectedEntityIds: string[];
   contactEntityIds: string[];
@@ -99,17 +112,19 @@ export type AssistantProjectionAssistantConfiguration = {
 
 export type AssistantProjection = {
   projectId: string;
-  businessMemoryVersion: string;
+  /** SHA-256 fingerprint of stable canonical content, excluding timestamps. */
+  businessMemoryFingerprint: string;
   projectionVersion: typeof ASSISTANT_PROJECTION_VERSION;
   schemaVersion: typeof ASSISTANT_PROJECTION_SCHEMA_VERSION;
   identity: AssistantProjectionIdentity;
   assistant: AssistantProjectionAssistantConfiguration;
-  services: AssistantProjectionKnowledgeItem[];
-  pricing: AssistantProjectionKnowledgeItem[];
-  policies: AssistantProjectionKnowledgeItem[];
+  services: AssistantProjectionService[];
+  pricing: AssistantProjectionPricing[];
+  policies: AssistantProjectionPolicy[];
   faqs: AssistantProjectionFaq[];
   restrictions: AssistantProjectionRestriction[];
   relationships: AssistantProjectionRelationship[];
+  sources: AssistantProjectionSource[];
   evidence: AssistantProjectionEvidence[];
   missingInformation: AssistantProjectionMissingInformation[];
 };
