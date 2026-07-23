@@ -17,7 +17,7 @@ import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import { buildKnowledgePackFromTrustedRows, reconcileTrustedKnowledgeProjectionForProject, TrustedKnowledgeProjectionError, type TrustedKnowledgeProjectionRow } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
 import { projectionFresh, type ProjectionFreshness as ProjectionFreshnessState } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeFreshness";
-import { getPersistedAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/persistence";
+import { getPersistedAssistantProjection, upsertAssistantProjectionParityReport } from "@/app/lib/ai-engine/assistant-projection/persistence";
 import { compareAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parity";
 import type { KnowledgePack } from "@/app/lib/ai-engine/knowledge/contracts";
 
@@ -58,23 +58,17 @@ async function repairProjection(projectId: string): Promise<void> { const client
 function recordAssistantProjectionParity(projectId: string, legacy: KnowledgePack): void {
   void (async () => {
     let client: PoolClient | null = null;
+    const comparedAt = new Date().toISOString();
     try {
       client = await getProjectionPool().connect();
       const persisted = await getPersistedAssistantProjection(client, projectId);
       if (!persisted) throw new Error("assistant_projection_unavailable");
-      const report = compareAssistantProjectionParity({ projectId, legacy, canonicalProjection: persisted.projection });
-      console.info("AI_BUILDER_RUNTIME_PARITY", report);
+      const report = compareAssistantProjectionParity({ projectId, legacy, canonicalProjection: persisted.projection, comparedAt });
+      await upsertAssistantProjectionParityReport(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: report.assistantProjectionVersion, assistantProjectionSchemaVersion: report.assistantProjectionSchemaVersion, status: report.status, mismatchSummary: report.mismatchSummary, categoryBreakdown: report.categories, failureDetails: null });
     } catch (error) {
-      console.info("AI_BUILDER_RUNTIME_PARITY", {
-        projectId,
-        runtimeVersion: legacy.version,
-        comparedAt: new Date().toISOString(),
-        status: "COMPARISON_FAILURE",
-        error: error instanceof Error ? error.message : "unknown_error",
-      });
-    } finally {
-      client?.release();
-    }
+      // Canonical comparison and its durable telemetry are deliberately non-blocking.
+      try { if (client) await upsertAssistantProjectionParityReport(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: null, assistantProjectionSchemaVersion: null, status: "COMPARISON_FAILURE", mismatchSummary: { total: 0, major: 0, minor: 0 }, categoryBreakdown: {}, failureDetails: { error: error instanceof Error ? error.message : "unknown_error" } }); } catch { /* telemetry persistence failure must not affect chat */ }
+    } finally { client?.release(); }
   })();
 }
 

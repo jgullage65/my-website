@@ -227,3 +227,23 @@ export async function markAssistantProjectionFailedIfUnchanged(client: QueryClie
   const result = await client.query("UPDATE ai_builder_assistant_projections SET invalidation_state='failed',updated_at=NOW() WHERE project_id=$1 AND business_memory_fingerprint=$2 AND generated_at=$3::timestamptz AND updated_at=$4::timestamptz AND invalidation_state = ANY($5::text[]) RETURNING project_id,business_memory_fingerprint,projection_version,schema_version,generated_at,invalidation_state,projection_json,created_at,updated_at", [input.projectId, input.expectedFingerprint, input.expectedGeneratedAt, input.expectedUpdatedAt, input.allowedStates]);
   const row = (result.rows as DatabaseRow[])[0]; return row ? parsePersistedAssistantProjectionRecord(row) : null;
 }
+
+export type AssistantProjectionParityPersistenceInput = {
+  projectId: string;
+  comparedAt: string;
+  runtimeVersion: number;
+  assistantProjectionVersion: number | null;
+  assistantProjectionSchemaVersion: number | null;
+  status: "MATCH" | "MINOR_DIFFERENCE" | "MAJOR_DIFFERENCE" | "COMPARISON_FAILURE";
+  mismatchSummary: unknown;
+  categoryBreakdown: unknown;
+  failureDetails: unknown | null;
+};
+
+/** Stores only the latest comparison per project; this observability record never affects runtime authority. */
+export async function upsertAssistantProjectionParityReport(client: QueryClient, input: AssistantProjectionParityPersistenceInput): Promise<void> {
+  await client.query(
+    "INSERT INTO ai_builder_assistant_projection_parity_reports (project_id,compared_at,legacy_runtime_version,assistant_projection_version,assistant_projection_schema_version,status,mismatch_summary,category_breakdown,failure_details,updated_at) VALUES ($1,$2::timestamptz,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,NOW()) ON CONFLICT (project_id) DO UPDATE SET compared_at=EXCLUDED.compared_at,legacy_runtime_version=EXCLUDED.legacy_runtime_version,assistant_projection_version=EXCLUDED.assistant_projection_version,assistant_projection_schema_version=EXCLUDED.assistant_projection_schema_version,status=EXCLUDED.status,mismatch_summary=EXCLUDED.mismatch_summary,category_breakdown=EXCLUDED.category_breakdown,failure_details=EXCLUDED.failure_details,updated_at=NOW()",
+    [input.projectId, input.comparedAt, input.runtimeVersion, input.assistantProjectionVersion, input.assistantProjectionSchemaVersion, input.status, JSON.stringify(input.mismatchSummary), JSON.stringify(input.categoryBreakdown), input.failureDetails === null ? null : JSON.stringify(input.failureDetails)],
+  );
+}
