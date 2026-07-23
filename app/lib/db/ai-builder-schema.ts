@@ -17,6 +17,7 @@ async function createAiBuilderSchema() {
       assistant_configuration JSONB NOT NULL DEFAULT '{}'::jsonb,
       context_counts JSONB NOT NULL DEFAULT '{}'::jsonb,
       governance_revision INTEGER NOT NULL DEFAULT 0,
+      state_revision INTEGER NOT NULL DEFAULT 0,
       trusted_knowledge_revision INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL,
       updated_at TIMESTAMPTZ NOT NULL,
@@ -36,6 +37,7 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_status TEXT`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS internal_fields JSONB NOT NULL DEFAULT '{}'::jsonb`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS governance_revision INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS state_revision INTEGER NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS trusted_knowledge_revision INTEGER NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE ai_builder_projects ADD COLUMN IF NOT EXISTS business_memory_revision INTEGER NOT NULL DEFAULT 0`;
   // These are deliberately relational columns rather than JSONB: migration
@@ -315,7 +317,36 @@ async function createAiBuilderSchema() {
       role TEXT NOT NULL,
       content TEXT NOT NULL,
       metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      sequence INTEGER,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+  await sql`ALTER TABLE ai_builder_chat_messages ADD COLUMN IF NOT EXISTS sequence INTEGER`;
+  await sql`
+    WITH numbered AS (
+      SELECT id, ROW_NUMBER() OVER (PARTITION BY thread_id ORDER BY created_at, id)::integer AS sequence
+      FROM ai_builder_chat_messages
+    )
+    UPDATE ai_builder_chat_messages AS messages
+    SET sequence = numbered.sequence
+    FROM numbered
+    WHERE messages.id = numbered.id AND messages.sequence IS NULL
+  `;
+  await sql`ALTER TABLE ai_builder_chat_messages ALTER COLUMN sequence SET NOT NULL`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS ai_builder_chat_messages_thread_sequence_idx ON ai_builder_chat_messages(thread_id, sequence)`;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_chat_exchanges (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL REFERENCES ai_builder_chat_threads(id) ON DELETE CASCADE,
+      idempotency_key TEXT NOT NULL,
+      user_message_id TEXT NOT NULL REFERENCES ai_builder_chat_messages(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+      assistant_message_id TEXT NOT NULL REFERENCES ai_builder_chat_messages(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+      user_message_count INTEGER NOT NULL,
+      memory_revision INTEGER,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (project_id, thread_id, idempotency_key)
     )
   `;
 
@@ -619,7 +650,7 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_missing_information_project_idx ON ai_builder_missing_information(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_progress_project_idx ON ai_builder_progress(project_id, id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_chat_threads_project_idx ON ai_builder_chat_threads(project_id, updated_at DESC)`;
-  await sql`CREATE INDEX IF NOT EXISTS ai_builder_chat_messages_thread_idx ON ai_builder_chat_messages(thread_id, created_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_chat_messages_thread_idx ON ai_builder_chat_messages(thread_id, sequence)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_purchase_interest_created_at_idx ON ai_builder_purchase_interest(created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_admin_notes_project_idx ON ai_builder_admin_notes(project_id, created_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_communications_project_idx ON ai_builder_communications(project_id, sent_at DESC)`;

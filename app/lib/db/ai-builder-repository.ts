@@ -18,6 +18,7 @@ import type { NeonQueryFunctionInTransaction, NeonQueryInTransaction } from "@ne
 import { buildCanonicalProvenanceShadowQueries } from "./canonical-provenance-shadow";
 import { requireClerkIdentity, requireClerkUserId } from "@/app/lib/auth/clerk";
 import { normalizeContextProvenance, normalizeFaqProvenance } from "@/app/lib/ai-engine/provenance";
+import { Pool } from "@neondatabase/serverless";
 
 type DatabaseRow = Record<string, unknown>;
 
@@ -37,6 +38,7 @@ export type PersistAiBuilderProjectInput = {
 };
 
 export type LoadedAiBuilderProject = {
+  stateRevision: number;
   session: AiBuilderSession;
   businessName: string;
   industry: string;
@@ -154,6 +156,7 @@ export type AiBuilderProjectSummary = {
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
+  stateRevision: number;
 };
 
 type TransactionSql = NeonQueryFunctionInTransaction<boolean, boolean>;
@@ -507,6 +510,7 @@ export async function getAiBuilderProjectWithDependencies(
       updated_at,
       expires_at,
       internal_fields -> 'website_knowledge' AS website_knowledge
+      , state_revision
     FROM ai_builder_projects
     WHERE id = ${projectId}
       AND clerk_user_id = ${clerkUserId}
@@ -567,6 +571,7 @@ export async function getAiBuilderProjectWithDependencies(
     : null;
 
   return {
+    stateRevision: Number(project.state_revision ?? 0),
     session: reconciledSession,
     businessName: String(project.business_name),
     industry: String(project.industry),
@@ -610,6 +615,7 @@ export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]
       projects.created_at,
       projects.updated_at,
       projects.archived_at,
+      projects.state_revision,
       COUNT(messages.id)::integer AS message_count
     FROM ai_builder_projects projects
     LEFT JOIN ai_builder_chat_threads threads ON threads.project_id = projects.id
@@ -629,53 +635,54 @@ export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]
     createdAt: toIsoString(row.created_at),
     updatedAt: toIsoString(row.updated_at),
     archivedAt: row.archived_at == null ? null : toIsoString(row.archived_at),
+    stateRevision: Number(row.state_revision ?? 0),
   }));
+}
+
+export class AiBuilderRevisionConflictError extends Error {
+  constructor(public readonly currentRevision: number) { super("ai_builder_revision_conflict"); }
+}
+
+type ProjectMutationResult = { stateRevision: number } | null;
+let mutationPool: Pool | null = null;
+async function mutateProject(projectId: string, expectedRevision: number, mode: "rename"|"archive"|"restore", businessName?: string): Promise<ProjectMutationResult> {
+  const clerkUserId = await requireClerkUserId();
+  await ensureAiBuilderSchema();
+  return mutateAiBuilderProjectForOwner(projectId, clerkUserId, expectedRevision, mode, businessName);
+}
+export async function mutateAiBuilderProjectForOwner(projectId: string, clerkUserId: string, expectedRevision: number, mode: "rename"|"archive"|"restore", businessName?: string): Promise<ProjectMutationResult> {
+  const client = await (mutationPool ??= new Pool({ connectionString: process.env.DATABASE_URL })).connect();
+  try {
+    await client.query("BEGIN");
+    const row = (await client.query("SELECT state_revision, archived_at FROM ai_builder_projects WHERE id=$1 AND clerk_user_id=$2 FOR UPDATE", [projectId, clerkUserId])).rows[0] as DatabaseRow|undefined;
+    if (!row) { await client.query("ROLLBACK"); return null; }
+    const current = Number(row.state_revision ?? 0);
+    if (current !== expectedRevision) throw new AiBuilderRevisionConflictError(current);
+    const archived = row.archived_at != null;
+    if ((mode === "rename" && archived) || (mode === "archive" && archived) || (mode === "restore" && !archived)) { await client.query("ROLLBACK"); return null; }
+    const result = mode === "rename"
+      ? await client.query("UPDATE ai_builder_projects SET business_name=$3, state_revision=state_revision+1, updated_at=NOW() WHERE id=$1 AND clerk_user_id=$2 RETURNING state_revision", [projectId, clerkUserId, businessName])
+      : mode === "archive"
+        ? await client.query("UPDATE ai_builder_projects SET archived_at=NOW(), state_revision=state_revision+1, updated_at=NOW() WHERE id=$1 AND clerk_user_id=$2 RETURNING state_revision", [projectId, clerkUserId])
+        : await client.query("UPDATE ai_builder_projects SET archived_at=NULL, state_revision=state_revision+1, updated_at=NOW() WHERE id=$1 AND clerk_user_id=$2 RETURNING state_revision", [projectId, clerkUserId]);
+    await client.query("COMMIT");
+    return { stateRevision: Number(result.rows[0].state_revision) };
+  } catch (error) { await client.query("ROLLBACK").catch(()=>undefined); throw error; }
+  finally { client.release(); }
 }
 
 export async function renameAiBuilderProject(
   projectId: string,
   businessName: string,
-): Promise<boolean> {
-  const clerkUserId = await requireClerkUserId();
-  await ensureAiBuilderSchema();
-  const sql = getSql();
-  const rows = (await sql`
-    UPDATE ai_builder_projects
-    SET business_name = ${businessName}, updated_at = NOW()
-    WHERE id = ${projectId}
-      AND clerk_user_id = ${clerkUserId}
-      AND archived_at IS NULL
-    RETURNING id
-  `) as DatabaseRow[];
-  return Boolean(rows[0]);
+  expectedRevision: number,
+): Promise<ProjectMutationResult> {
+  return mutateProject(projectId, expectedRevision, "rename", businessName);
 }
 
-export async function archiveAiBuilderProject(projectId: string): Promise<boolean> {
-  const clerkUserId = await requireClerkUserId();
-  await ensureAiBuilderSchema();
-  const sql = getSql();
-  const rows = (await sql`
-    UPDATE ai_builder_projects
-    SET archived_at = NOW(), updated_at = NOW()
-    WHERE id = ${projectId}
-      AND clerk_user_id = ${clerkUserId}
-      AND archived_at IS NULL
-    RETURNING id
-  `) as DatabaseRow[];
-  return Boolean(rows[0]);
+export async function archiveAiBuilderProject(projectId: string, expectedRevision: number): Promise<ProjectMutationResult> {
+  return mutateProject(projectId, expectedRevision, "archive");
 }
 
-export async function restoreAiBuilderProject(projectId: string): Promise<boolean> {
-  const clerkUserId = await requireClerkUserId();
-  await ensureAiBuilderSchema();
-  const sql = getSql();
-  const rows = (await sql`
-    UPDATE ai_builder_projects
-    SET archived_at = NULL, updated_at = NOW()
-    WHERE id = ${projectId}
-      AND clerk_user_id = ${clerkUserId}
-      AND archived_at IS NOT NULL
-    RETURNING id
-  `) as DatabaseRow[];
-  return Boolean(rows[0]);
+export async function restoreAiBuilderProject(projectId: string, expectedRevision: number): Promise<ProjectMutationResult> {
+  return mutateProject(projectId, expectedRevision, "restore");
 }

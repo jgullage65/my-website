@@ -151,7 +151,7 @@ export async function getAdminProjectDetail(projectId: string) {
     sql`SELECT * FROM ai_builder_context_entries WHERE project_id = ${projectId} ORDER BY created_at`,
     sql`SELECT * FROM ai_builder_faq_entries WHERE project_id = ${projectId} ORDER BY created_at`,
     sql`SELECT * FROM ai_builder_progress WHERE project_id = ${projectId} ORDER BY id`,
-    sql`SELECT t.id, t.title, t.created_at, m.role, m.content, m.created_at AS message_created_at FROM ai_builder_chat_threads t LEFT JOIN ai_builder_chat_messages m ON m.thread_id = t.id WHERE t.project_id = ${projectId} ORDER BY t.created_at, m.created_at`,
+    sql`SELECT t.id, t.title, t.created_at, m.role, m.content, m.created_at AS message_created_at FROM ai_builder_chat_threads t LEFT JOIN ai_builder_chat_messages m ON m.thread_id = t.id WHERE t.project_id = ${projectId} ORDER BY t.created_at, m.sequence`,
     sql`SELECT * FROM ai_builder_purchase_interest WHERE project_id = ${projectId} ORDER BY created_at DESC`,
     sql`SELECT * FROM ai_builder_intake_blocks WHERE project_id = ${projectId} ORDER BY created_at`,
     sql`SELECT * FROM ai_builder_admin_notes WHERE project_id = ${projectId} ORDER BY created_at DESC`,

@@ -42,6 +42,7 @@ type PersistentChatRequest = Omit<ChatRequest, "knowledge"> & {
   knowledge?: unknown;
   projectId?: string;
   threadId?: string;
+  idempotencyKey?: string;
 };
 
 type DatabaseRow = Record<string, unknown>;
@@ -141,6 +142,9 @@ function isValidRequest(value: unknown): value is PersistentChatRequest {
     return false;
   }
 
+  if (candidate.projectId !== undefined && candidate.threadId !== undefined &&
+      (typeof candidate.idempotencyKey !== "string" || !candidate.idempotencyKey.trim() || candidate.idempotencyKey.length > 200)) return false;
+
   return true;
 }
 
@@ -213,8 +217,8 @@ async function resolvePersistentThread(input: {
 }
 
 async function persistChatExchange(input: {
-  projectId: string; threadId: string; userMessage: string; response: ChatResponse;
-}): Promise<{ userMessageId:string; assistantMessageId:string; memoryRevision:number|null }> {
+  projectId: string; threadId: string; idempotencyKey:string; userMessage: string; response: ChatResponse;
+}): Promise<{ userMessageId:string; assistantMessageId:string; memoryRevision:number|null; userMessageCount:number; response:ChatResponse }> {
   const clerkUserId = await requireClerkUserId(); await ensureAiBuilderSchema();
   const client = await getProjectionPool().connect();
   const userCreatedAt = new Date(); const assistantCreatedAt = new Date(userCreatedAt.getTime() + 1);
@@ -222,26 +226,33 @@ async function persistChatExchange(input: {
   try {
     await client.query("BEGIN");
     // This is the ownership and concurrency boundary for the entire exchange.
-    const locked=(await client.query(`SELECT threads.memory FROM ai_builder_chat_threads threads JOIN ai_builder_projects projects ON projects.id=threads.project_id WHERE threads.id=$1 AND threads.project_id=$2 AND projects.clerk_user_id=$3 AND projects.archived_at IS NULL FOR UPDATE`,[input.threadId,input.projectId,clerkUserId])).rows[0] as DatabaseRow|undefined;
+    const locked=(await client.query(`SELECT threads.memory FROM ai_builder_chat_threads threads JOIN ai_builder_projects projects ON projects.id=threads.project_id WHERE threads.id=$1 AND threads.project_id=$2 AND projects.clerk_user_id=$3 AND projects.archived_at IS NULL FOR UPDATE OF threads`,[input.threadId,input.projectId,clerkUserId])).rows[0] as DatabaseRow|undefined;
     if(!locked) throw new Error("chat_thread_not_found");
+    const prior=(await client.query(`SELECT e.user_message_id,e.assistant_message_id,e.user_message_count,e.memory_revision,m.content,m.metadata FROM ai_builder_chat_exchanges e JOIN ai_builder_chat_messages m ON m.id=e.assistant_message_id WHERE e.project_id=$1 AND e.thread_id=$2 AND e.idempotency_key=$3`,[input.projectId,input.threadId,input.idempotencyKey])).rows[0] as DatabaseRow|undefined;
+    if(prior) { await client.query("COMMIT"); const metadata=(prior.metadata??{}) as Record<string,unknown>; return {userMessageId:String(prior.user_message_id),assistantMessageId:String(prior.assistant_message_id),memoryRevision:prior.memory_revision==null?null:Number(prior.memory_revision),userMessageCount:Number(prior.user_message_count),response:{answer:String(prior.content),citations:Array.isArray(metadata.citations)?metadata.citations.filter((x):x is string=>typeof x==="string"):[],diagnostics:metadata.diagnostics as ChatResponse["diagnostics"]}}; }
     const count=Number((await client.query(`SELECT COUNT(*) FILTER (WHERE role='user')::integer AS count FROM ai_builder_chat_messages WHERE thread_id=$1`,[input.threadId])).rows[0]?.count??0);
-    if(count>=PROJECT_USER_MESSAGE_LIMIT) throw new Error("project_message_limit_reached");
-    await client.query(`INSERT INTO ai_builder_chat_messages (id,thread_id,role,content,metadata,created_at) VALUES ($1,$2,'user',$3,$4::jsonb,$5::timestamptz)`,[userMessageId,input.threadId,input.userMessage,JSON.stringify({projectId:input.projectId}),userCreatedAt.toISOString()]);
-    await client.query(`INSERT INTO ai_builder_chat_messages (id,thread_id,role,content,metadata,created_at) VALUES ($1,$2,'assistant',$3,$4::jsonb,$5::timestamptz)`,[assistantMessageId,input.threadId,input.response.answer,JSON.stringify({projectId:input.projectId,citations:input.response.citations,diagnostics:input.response.diagnostics}),assistantCreatedAt.toISOString()]);
+    if(count>=PROJECT_USER_MESSAGE_LIMIT) throw new ChatLimitError(count);
+    const nextSequence=Number((await client.query(`SELECT COALESCE(MAX(sequence),0)+1 AS sequence FROM ai_builder_chat_messages WHERE thread_id=$1`,[input.threadId])).rows[0].sequence);
+    const userMessageCount=count+1;
+    await client.query(`INSERT INTO ai_builder_chat_exchanges (project_id,thread_id,idempotency_key,user_message_id,assistant_message_id,user_message_count) VALUES ($1,$2,$3,$4,$5,$6)`,[input.projectId,input.threadId,input.idempotencyKey,userMessageId,assistantMessageId,userMessageCount]);
+    await client.query(`INSERT INTO ai_builder_chat_messages (id,thread_id,role,content,metadata,sequence,created_at) VALUES ($1,$2,'user',$3,$4::jsonb,$5,$6::timestamptz)`,[userMessageId,input.threadId,input.userMessage,JSON.stringify({projectId:input.projectId}),nextSequence,userCreatedAt.toISOString()]);
+    await client.query(`INSERT INTO ai_builder_chat_messages (id,thread_id,role,content,metadata,sequence,created_at) VALUES ($1,$2,'assistant',$3,$4::jsonb,$5,$6::timestamptz)`,[assistantMessageId,input.threadId,input.response.answer,JSON.stringify({projectId:input.projectId,citations:input.response.citations,diagnostics:input.response.diagnostics}),nextSequence+1,assistantCreatedAt.toISOString()]);
     const normalized=normalizeConversationMemory(locked.memory,{threadId:input.threadId,projectId:input.projectId},assistantCreatedAt.toISOString());
     // Invalid canonical state is preserved: answering is independent from optional memory processing.
-    if(normalized.invalid) { console.warn("AI_BUILDER_CONVERSATION_MEMORY",{threadId:input.threadId,failureCode:"invalid_canonical_memory"}); await client.query("COMMIT"); return {userMessageId,assistantMessageId,memoryRevision:null}; }
-    const messageRows=(await client.query(`SELECT id,role,content,created_at FROM ai_builder_chat_messages WHERE thread_id=$1 ORDER BY created_at DESC,id DESC LIMIT 14`,[input.threadId])).rows as Array<{id:string;role:string;content:string;created_at:string}>;
+    if(normalized.invalid) { console.warn("AI_BUILDER_CONVERSATION_MEMORY",{threadId:input.threadId,failureCode:"invalid_canonical_memory"}); await client.query("COMMIT"); return {userMessageId,assistantMessageId,memoryRevision:null,userMessageCount,response:input.response}; }
+    const messageRows=(await client.query(`SELECT id,role,content,created_at FROM ai_builder_chat_messages WHERE thread_id=$1 ORDER BY sequence DESC LIMIT 14`,[input.threadId])).rows as Array<{id:string;role:string;content:string;created_at:string}>;
     const messages:MemoryMessage[]=messageRows.reverse().map(m=>({id:m.id,role:m.role,content:m.content,createdAt:new Date(m.created_at).toISOString()}));
     const structured=updateStructuredConversationMemory(normalized.memory,messages,assistantCreatedAt.toISOString());
     const updated=updateConversationSummary(structured,messages,assistantCreatedAt.toISOString());
     const nextMemory={...updated,revision:normalized.memory.revision+1,updatedAt:assistantCreatedAt.toISOString()};
     const { customerGoal: _customerGoal, collectedDetails: _collectedDetails, unresolvedQuestions: _unresolvedQuestions, ...persistedMemory } = nextMemory;
     await client.query(`UPDATE ai_builder_chat_threads SET memory=$1::jsonb,updated_at=$2::timestamptz WHERE id=$3 AND project_id=$4`,[JSON.stringify(persistedMemory),assistantCreatedAt.toISOString(),input.threadId,input.projectId]);
+    await client.query(`UPDATE ai_builder_chat_exchanges SET memory_revision=$4 WHERE project_id=$1 AND thread_id=$2 AND idempotency_key=$3`,[input.projectId,input.threadId,input.idempotencyKey,nextMemory.revision]);
     console.info("AI_BUILDER_CONVERSATION_MEMORY",{threadId:input.threadId,previousRevision:normalized.memory.revision,resultingRevision:nextMemory.revision,legacyNormalized:normalized.legacyNormalized,summaryUpdated:updated!==structured,summarizedMessageCount:nextMemory.summaryCoverage.summarizedMessageCount,structuredMemoryChanges:structured!==normalized.memory,concurrencyConflict:false,failureCode:null});
-    await client.query("COMMIT"); return {userMessageId,assistantMessageId,memoryRevision:nextMemory.revision};
+    await client.query("COMMIT"); return {userMessageId,assistantMessageId,memoryRevision:nextMemory.revision,userMessageCount,response:input.response};
   } catch(error) { await client.query("ROLLBACK").catch(()=>undefined); console.warn("AI_BUILDER_CONVERSATION_MEMORY",{threadId:input.threadId,concurrencyConflict:false,failureCode:error instanceof Error?error.message:"memory_exchange_failed"}); throw error; } finally { client.release(); }
 }
+class ChatLimitError extends Error { constructor(public readonly userMessageCount:number){super("project_message_limit_reached");} }
 function getErrorDetails(error: unknown): {
   status: number;
   code: string;
@@ -409,18 +420,17 @@ export async function POST(request: Request) {
       ? await persistChatExchange({
           projectId: persistenceContext.projectId,
           threadId: persistenceContext.threadId,
+          idempotencyKey: body.idempotencyKey!.trim(),
           userMessage: message,
           response,
         })
       : null;
 
-    const userMessageCount = persistenceContext
-      ? persistenceContext.userMessageCount + 1
-      : null;
+    const userMessageCount = persistedMessages?.userMessageCount ?? null;
 
     return NextResponse.json({
       ok: true,
-      response,
+      response: persistedMessages?.response ?? response,
       persistedMessages,
       usage:
         userMessageCount === null
@@ -445,6 +455,7 @@ export async function POST(request: Request) {
           : "unknown_error",
     });
 
+    const usage = error instanceof ChatLimitError ? { userMessageCount:error.userMessageCount, limit:PROJECT_USER_MESSAGE_LIMIT, remaining:0 } : undefined;
     return NextResponse.json(
       {
         ok: false,
@@ -452,6 +463,7 @@ export async function POST(request: Request) {
           code: details.code,
           message: details.message,
         },
+        usage,
       },
       { status: details.status },
     );

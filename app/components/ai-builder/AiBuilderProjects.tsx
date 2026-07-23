@@ -12,6 +12,7 @@ type Project = {
   id: string; businessName: string; website: string | null; industry: string;
   status: string; messageCount: number; createdAt: string; updatedAt: string;
   archivedAt: string | null;
+  stateRevision: number;
 };
 
 const PROJECT_LIMIT = 3;
@@ -34,6 +35,12 @@ export default function AiBuilderProjects() {
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
   const openProjects = useMemo(() => projects.filter((project) => !project.archivedAt), [projects]);
   const archivedProjects = useMemo(() => projects.filter((project) => project.archivedAt), [projects]);
+
+  async function refreshAuthoritativeProjects() {
+    const response = await fetch("/api/ai-builder/projects", { cache:"no-store" });
+    const payload = await response.json();
+    if (response.ok && payload.ok) setProjects(payload.projects);
+  }
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -68,10 +75,11 @@ export default function AiBuilderProjects() {
     if (!businessName || businessName === project.businessName) return;
     setBusy(project.id);
     try {
-      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ businessName }) });
+      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ businessName, expectedRevision:project.stateRevision }) });
       const payload = await response.json();
+      if (response.status === 409) await refreshAuthoritativeProjects();
       if (!response.ok || !payload.ok) throw new Error(payload.error?.message);
-      setProjects((current) => current.map((item) => item.id === project.id ? { ...item, businessName, updatedAt: new Date().toISOString() } : item));
+      setProjects((current) => current.map((item) => item.id === project.id ? { ...item, businessName, stateRevision:payload.stateRevision, updatedAt: new Date().toISOString() } : item));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The project could not be renamed."); }
     finally { setBusy(null); setMenu(null); }
   }
@@ -81,11 +89,12 @@ export default function AiBuilderProjects() {
     if (!confirmed) return;
     setBusy(project.id);
     try {
-      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, { method: "DELETE" });
+      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}?expectedRevision=${project.stateRevision}`, { method: "DELETE" });
       const payload = await response.json();
+      if (response.status === 409) await refreshAuthoritativeProjects();
       if (!response.ok || !payload.ok) throw new Error(payload.error?.message);
       const now = new Date().toISOString();
-      setProjects((current) => current.map((item) => item.id === project.id ? { ...item, archivedAt: now, updatedAt: now } : item));
+      setProjects((current) => current.map((item) => item.id === project.id ? { ...item, archivedAt: now, stateRevision:payload.stateRevision, updatedAt: now } : item));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The project could not be archived."); }
     finally { setBusy(null); setMenu(null); }
   }
@@ -93,11 +102,12 @@ export default function AiBuilderProjects() {
   async function restore(project: Project) {
     setBusy(project.id);
     try {
-      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restore: true }) });
+      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ restore: true, expectedRevision:project.stateRevision }) });
       const payload = await response.json();
+      if (response.status === 409) await refreshAuthoritativeProjects();
       if (!response.ok || !payload.ok) throw new Error(payload.error?.message);
       const now = new Date().toISOString();
-      setProjects((current) => current.map((item) => item.id === project.id ? { ...item, archivedAt: null, updatedAt: now } : item));
+      setProjects((current) => current.map((item) => item.id === project.id ? { ...item, archivedAt: null, stateRevision:payload.stateRevision, updatedAt: now } : item));
     } catch (reason) { setError(reason instanceof Error ? reason.message : "The project could not be restored."); }
     finally { setBusy(null); setMenu(null); }
   }

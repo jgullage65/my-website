@@ -5,6 +5,7 @@ import {
   getAiBuilderProject,
   renameAiBuilderProject,
   restoreAiBuilderProject,
+  AiBuilderRevisionConflictError,
 } from "@/app/lib/db/ai-builder-repository";
 import { getSql } from "@/app/lib/db/client";
 import { isAuthenticationRequired, requireClerkUserId } from "@/app/lib/auth/clerk";
@@ -24,6 +25,7 @@ type UpdateProjectBody = {
   session?: AiBuilderSession;
   businessName?: string;
   restore?: boolean;
+  expectedRevision?: number;
 };
 
 type StoredChatMessage = {
@@ -94,10 +96,11 @@ export async function GET(_request: Request, context: RouteContext) {
           role,
           content,
           metadata,
+          sequence,
           created_at
         FROM ai_builder_chat_messages
         WHERE thread_id = ${project.initialThread.id}
-        ORDER BY created_at, id
+        ORDER BY sequence
       `) as DatabaseRow[];
 
       chatThread = {
@@ -147,6 +150,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({
       ok: true,
       projectId: project.session.id,
+      stateRevision: project.stateRevision,
       session: project.session,
       builder: {
         businessName: project.businessName,
@@ -253,14 +257,16 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!normalizedProjectId) {
     return errorResponse(400, "invalid_project_name", "A project name is required.");
   }
+  if (!Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 0) return errorResponse(400, "invalid_expected_revision", "A valid expected revision is required.");
 
   if (body.restore === true) {
     try {
-      const restored = await restoreAiBuilderProject(normalizedProjectId);
+      const restored = await restoreAiBuilderProject(normalizedProjectId, Number(body.expectedRevision));
       if (!restored) return errorResponse(404, "project_not_found", "This archived AI Builder project could not be found.");
-      return NextResponse.json({ ok: true, projectId: normalizedProjectId, restored: true });
+      return NextResponse.json({ ok: true, projectId: normalizedProjectId, restored: true, stateRevision: restored.stateRevision });
     } catch (error) {
       if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
+      if (error instanceof AiBuilderRevisionConflictError) return NextResponse.json({ok:false,error:{code:"ai_builder_revision_conflict",message:"This project changed. Refresh and try again."},currentRevision:error.currentRevision},{status:409});
       return errorResponse(500, "project_restore_failed", "The project could not be restored.");
     }
   }
@@ -269,7 +275,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   if (!businessName) return errorResponse(400, "invalid_project_name", "A project name is required.");
 
   try {
-    const renamed = await renameAiBuilderProject(normalizedProjectId, businessName);
+    const renamed = await renameAiBuilderProject(normalizedProjectId, businessName, Number(body.expectedRevision));
     if (!renamed) {
       return errorResponse(
         404,
@@ -281,9 +287,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       ok: true,
       projectId: normalizedProjectId,
       businessName,
+      stateRevision: renamed.stateRevision,
     });
   } catch (error) {
     if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
+    if (error instanceof AiBuilderRevisionConflictError) return NextResponse.json({ok:false,error:{code:"ai_builder_revision_conflict",message:"This project changed. Refresh and try again."},currentRevision:error.currentRevision},{status:409});
     console.error("AI_BUILDER_PROJECT_RENAME_FAILED", {
       projectId: normalizedProjectId,
       message: error instanceof Error ? error.message : "unknown_error",
@@ -296,16 +304,19 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: Request, context: RouteContext) {
+export async function DELETE(request: Request, context: RouteContext) {
   const { projectId } = await context.params;
   const normalizedProjectId = normalizeProjectId(projectId);
 
   if (!normalizedProjectId) {
     return errorResponse(400, "missing_project_id", "A project ID is required.");
   }
+  const expectedRevisionValue = new URL(request.url).searchParams.get("expectedRevision");
+  const expectedRevision = Number(expectedRevisionValue);
+  if (expectedRevisionValue === null || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) return errorResponse(400, "invalid_expected_revision", "A valid expected revision is required.");
 
   try {
-    const archived = await archiveAiBuilderProject(normalizedProjectId);
+    const archived = await archiveAiBuilderProject(normalizedProjectId, expectedRevision);
     if (!archived) {
       return errorResponse(
         404,
@@ -313,9 +324,10 @@ export async function DELETE(_request: Request, context: RouteContext) {
         "This AI Builder project could not be found.",
       );
     }
-    return NextResponse.json({ ok: true, archived: true });
+    return NextResponse.json({ ok: true, archived: true, stateRevision: archived.stateRevision });
   } catch (error) {
     if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
+    if (error instanceof AiBuilderRevisionConflictError) return NextResponse.json({ok:false,error:{code:"ai_builder_revision_conflict",message:"This project changed. Refresh and try again."},currentRevision:error.currentRevision},{status:409});
     console.error("AI_BUILDER_PROJECT_ARCHIVE_FAILED", {
       projectId: normalizedProjectId,
       message: error instanceof Error ? error.message : "unknown_error",

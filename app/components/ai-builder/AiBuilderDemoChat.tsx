@@ -407,6 +407,7 @@ export default function AiBuilderDemoChat({
           knowledge,
           projectId,
           threadId: chatThread.id,
+          idempotencyKey: crypto.randomUUID(),
           message: normalizedMessage,
         }),
       });
