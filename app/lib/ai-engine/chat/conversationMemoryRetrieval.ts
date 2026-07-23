@@ -57,6 +57,29 @@ const businessValues = (retrieved: StructuredCanonicalRetrievalResult) => retrie
   return [];
 });
 const numbers = (value: string): string[] => value.match(/(?:\$|£|€)?\d+(?:\.\d+)?%?/g) ?? [];
+const factualMemoryCategories = new Set<ConversationMemoryContextItem["category"]>(["decision", "clarification", "summary", "current_task"]);
+const factualTerms = (value: string) => new Set(Array.from(words(value), word => word.endsWith("ies") ? `${word.slice(0, -3)}y` : word.endsWith("s") ? word.slice(0, -1) : word));
+const sharesFactualSubject = (left: string, right: string) => Array.from(factualTerms(left)).some(term => factualTerms(right).has(term));
+type FactualPolarity = "available" | "unavailable" | "open" | "closed" | "included" | "extra_cost";
+const factualPolarities = (value: string) => {
+  const normalized = value.toLowerCase();
+  const polarities = new Set<FactualPolarity>();
+  const unavailable = /\b(?:do not|don't|does not|doesn't|no)\s+(?:offer|provide|have|allow)\b|\b(?:not available|unavailable)\b/.test(normalized);
+  const extraCost = /\b(?:costs?|charges?|priced?)\s+(?:extra|additional)\b|\b(?:extra|additional)\s+(?:cost|charge|fee)\b|\bnot included\b/.test(normalized);
+  if (unavailable) polarities.add("unavailable");
+  else if (/\b(?:available|offer|offers|offered|provide|provides|provided|allow|allows|allowed)\b/.test(normalized)) polarities.add("available");
+  if (/\bclosed\b/.test(normalized)) polarities.add("closed");
+  if (/\bopen\b/.test(normalized)) polarities.add("open");
+  if (extraCost) polarities.add("extra_cost");
+  else if (/\bincluded\b|\bat no additional cost\b/.test(normalized)) polarities.add("included");
+  return polarities;
+};
+const oppositePolarity: Record<FactualPolarity, FactualPolarity> = { available: "unavailable", unavailable: "available", open: "closed", closed: "open", included: "extra_cost", extra_cost: "included" };
+const hasNonnumericFactualConflict = (memory: ConversationMemoryContextItem, fact: string) => {
+  if (!factualMemoryCategories.has(memory.category) || !sharesFactualSubject(memory.content, fact)) return false;
+  const remembered = factualPolarities(memory.content), canonical = factualPolarities(fact);
+  return Array.from(remembered).some(polarity => canonical.has(oppositePolarity[polarity]));
+};
 
 /** Remove only concrete contradictory remembered assertions; factual authority remains canonical. */
 export function excludeConflictingConversationMemory(items: ConversationMemoryContextItem[], retrieved: StructuredCanonicalRetrievalResult): { items: ConversationMemoryContextItem[]; excludedConflict: boolean } {
@@ -64,11 +87,14 @@ export function excludeConflictingConversationMemory(items: ConversationMemoryCo
   let excludedConflict = false;
   const kept = items.filter(item => {
     const rememberedNumbers = numbers(item.content);
-    if (!rememberedNumbers.length) return true;
-    const conflict = facts.some(fact => {
+    const numericConflict = rememberedNumbers.length > 0 && facts.some(fact => {
       const factNumbers = numbers(fact);
       return factNumbers.length > 0 && rememberedNumbers.some(number => !factNumbers.includes(number)) && Array.from(words(item.content)).some(word => words(fact).has(word));
     });
+    // Conservative, deterministic polarity pairs require a shared factual subject.
+    // Preferences, goals, and questions remain continuity context rather than facts.
+    const nonnumericConflict = facts.some(fact => hasNonnumericFactualConflict(item, fact));
+    const conflict = numericConflict || nonnumericConflict;
     excludedConflict ||= conflict;
     return !conflict;
   });
