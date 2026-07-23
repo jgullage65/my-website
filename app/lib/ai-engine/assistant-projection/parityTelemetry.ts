@@ -28,10 +28,10 @@ export async function recordAssistantProjectionParity(
     const persisted = await dependencies.getPersisted(client, projectId);
     if (!persisted) throw new Error("assistant_projection_unavailable");
     const report = dependencies.compare({ projectId, legacy, canonicalProjection: persisted.projection, comparedAt });
-    await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: report.assistantProjectionVersion, assistantProjectionSchemaVersion: report.assistantProjectionSchemaVersion, status: report.status, mismatchSummary: report.mismatchSummary, categoryBreakdown: report.categories, failureDetails: null, activeRuntimeAuthority });
+    await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: report.assistantProjectionVersion, assistantProjectionSchemaVersion: report.assistantProjectionSchemaVersion, artifactFingerprint: persisted.businessMemoryFingerprint, status: report.status, mismatchSummary: report.mismatchSummary, categoryBreakdown: report.categories, failureDetails: null, activeRuntimeAuthority });
   } catch (error) {
     // Canonical comparison and its durable telemetry are deliberately non-blocking.
-    try { if (client) await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: null, assistantProjectionSchemaVersion: null, status: "COMPARISON_FAILURE", mismatchSummary: { total: 0, major: 0, minor: 0 }, categoryBreakdown: {}, failureDetails: { error: error instanceof Error ? error.message : "unknown_error" }, activeRuntimeAuthority }); } catch { /* telemetry persistence failure must not affect chat */ }
+    try { if (client) await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: null, assistantProjectionSchemaVersion: null, artifactFingerprint: null, status: "COMPARISON_FAILURE", mismatchSummary: { total: 0, major: 0, minor: 0 }, categoryBreakdown: {}, failureDetails: { error: error instanceof Error ? error.message : "unknown_error" }, activeRuntimeAuthority }); } catch { /* telemetry persistence failure must not affect chat */ }
   } finally { client?.release(); }
 }
 
@@ -54,6 +54,7 @@ export async function recordAssistantProjectionParityComparisonFailure(
       runtimeVersion: 0,
       assistantProjectionVersion: persisted?.projectionVersion ?? null,
       assistantProjectionSchemaVersion: persisted?.schemaVersion ?? null,
+      artifactFingerprint: persisted?.businessMemoryFingerprint ?? null,
       status: "COMPARISON_FAILURE",
       mismatchSummary: { total: 0, major: 0, minor: 0 },
       categoryBreakdown: {},

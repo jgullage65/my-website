@@ -15,7 +15,7 @@ import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
 import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
-import { getPersistedAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/persistence";
+import { getPersistedAssistantProjectionForUpdate } from "@/app/lib/ai-engine/assistant-projection/persistence";
 import { buildLegacyKnowledgePackFromAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/legacy-compatibility";
 import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION } from "@/app/lib/ai-engine/assistant-projection/contracts";
 import { getProjectRuntimeAuthority } from "@/app/lib/ai-engine/runtime-authority/projectRuntimeAuthority";
@@ -44,6 +44,7 @@ type ParityEvidenceRow = {
   assistant_projection_schema_version: unknown;
   active_runtime_authority: unknown;
   compared_at: unknown;
+  artifact_fingerprint: unknown;
 };
 
 /**
@@ -56,10 +57,15 @@ type ParityEvidenceRow = {
 async function loadCanonicalRuntimeKnowledge(projectId: string) {
   const client = await getProjectionPool().connect();
   try {
+    // The project lock serializes authority changes, Business Memory
+    // invalidation, and rebuilds. Copy the validated artifact before COMMIT;
+    // OpenAI/retrieval never runs while this transaction is held.
+    await client.query("BEGIN");
+    await client.query("SELECT id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [projectId]);
     const authority = await getProjectRuntimeAuthority(client, projectId);
     // Legacy is a migration-pending marker, not a request-time fallback.
     if (authority !== "canonical") throw new Error("assistant_projection_migration_required");
-    const persisted = await getPersistedAssistantProjection(client, projectId);
+    const persisted = await getPersistedAssistantProjectionForUpdate(client, projectId);
     if (!persisted) throw new Error("assistant_projection_runtime_unavailable_missing");
     if (persisted.invalidationState !== "valid") {
       throw new Error(`assistant_projection_runtime_unavailable_${persisted.invalidationState}`);
@@ -68,20 +74,23 @@ async function loadCanonicalRuntimeKnowledge(projectId: string) {
     if (persisted.schemaVersion !== ASSISTANT_PROJECTION_SCHEMA_VERSION) throw new Error("assistant_projection_runtime_unavailable_unsupported_schema_version");
 
     const report = (await client.query(
-      "SELECT status,assistant_projection_version,assistant_projection_schema_version,active_runtime_authority,compared_at FROM ai_builder_assistant_projection_parity_reports WHERE project_id=$1",
+      "SELECT status,assistant_projection_version,assistant_projection_schema_version,active_runtime_authority,compared_at,artifact_fingerprint FROM ai_builder_assistant_projection_parity_reports WHERE project_id=$1 FOR UPDATE",
       [projectId],
     )).rows[0] as ParityEvidenceRow | undefined;
     const eligibilityFailure = cutoverEligibilityFailure({
       runtimeAuthority: authority,
       artifact: persisted,
-      evidence: report ? { status: report.status, projectionVersion: report.assistant_projection_version, schemaVersion: report.assistant_projection_schema_version, activeRuntimeAuthority: report.active_runtime_authority, comparedAt: report.compared_at } : null,
+      evidence: report ? { status: report.status, projectionVersion: report.assistant_projection_version, schemaVersion: report.assistant_projection_schema_version, activeRuntimeAuthority: report.active_runtime_authority, comparedAt: report.compared_at, artifactFingerprint: report.artifact_fingerprint } : null,
     });
     if (eligibilityFailure) throw new Error(eligibilityFailure);
 
     // Shape adapter only: it consumes the persisted Assistant Projection and
     // performs no Trusted Knowledge or Business Memory read.
-    return buildLegacyKnowledgePackFromAssistantProjection(persisted.projection);
+    const knowledge = buildLegacyKnowledgePackFromAssistantProjection(persisted.projection);
+    await client.query("COMMIT");
+    return knowledge;
   } catch (cause) {
+    await client.query("ROLLBACK").catch(() => undefined);
     if (cause instanceof Error && cause.message.startsWith("assistant_projection_")) throw cause;
     throw new Error("assistant_projection_runtime_unavailable_validation_failure");
   } finally {

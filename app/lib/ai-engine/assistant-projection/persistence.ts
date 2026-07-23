@@ -156,7 +156,9 @@ export async function getPersistedAssistantProjection(client: QueryClient, proje
  */
 export async function getPersistedAssistantProjectionForUpdate(client: QueryClient, projectId: string): Promise<PersistedAssistantProjectionRecord | null> {
   await client.query("SELECT id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [projectId]);
-  return getPersistedAssistantProjection(client, projectId);
+  const result = await client.query("SELECT project_id,business_memory_fingerprint,projection_version,schema_version,generated_at,invalidation_state,projection_json,created_at,updated_at FROM ai_builder_assistant_projections WHERE project_id=$1 FOR UPDATE", [projectId]);
+  const row = (result.rows as DatabaseRow[])[0];
+  return row ? parsePersistedAssistantProjectionRecord(row) : null;
 }
 
 /** Internal server-only primitive that atomically replaces a project's valid current artifact. */
@@ -243,12 +245,14 @@ export type AssistantProjectionParityPersistenceInput = {
   categoryBreakdown: unknown;
   failureDetails: unknown | null;
   activeRuntimeAuthority: ProjectRuntimeAuthority;
+  /** Exact immutable source fingerprint of the projection compared. */
+  artifactFingerprint: string | null;
 };
 
 /** Stores only the latest comparison per project; this observability record never affects runtime authority. */
 export async function upsertAssistantProjectionParityReport(client: QueryClient, input: AssistantProjectionParityPersistenceInput): Promise<void> {
   await client.query(
-    "INSERT INTO ai_builder_assistant_projection_parity_reports (project_id,compared_at,legacy_runtime_version,assistant_projection_version,assistant_projection_schema_version,status,mismatch_summary,category_breakdown,failure_details,active_runtime_authority,updated_at) VALUES ($1,$2::timestamptz,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10,NOW()) ON CONFLICT (project_id) DO UPDATE SET compared_at=EXCLUDED.compared_at,legacy_runtime_version=EXCLUDED.legacy_runtime_version,assistant_projection_version=EXCLUDED.assistant_projection_version,assistant_projection_schema_version=EXCLUDED.assistant_projection_schema_version,status=EXCLUDED.status,mismatch_summary=EXCLUDED.mismatch_summary,category_breakdown=EXCLUDED.category_breakdown,failure_details=EXCLUDED.failure_details,active_runtime_authority=EXCLUDED.active_runtime_authority,updated_at=NOW()",
-    [input.projectId, input.comparedAt, input.runtimeVersion, input.assistantProjectionVersion, input.assistantProjectionSchemaVersion, input.status, JSON.stringify(input.mismatchSummary), JSON.stringify(input.categoryBreakdown), input.failureDetails === null ? null : JSON.stringify(input.failureDetails), input.activeRuntimeAuthority],
+    "INSERT INTO ai_builder_assistant_projection_parity_reports (project_id,compared_at,legacy_runtime_version,assistant_projection_version,assistant_projection_schema_version,artifact_fingerprint,status,mismatch_summary,category_breakdown,failure_details,active_runtime_authority,updated_at) VALUES ($1,$2::timestamptz,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,NOW()) ON CONFLICT (project_id) DO UPDATE SET compared_at=EXCLUDED.compared_at,legacy_runtime_version=EXCLUDED.legacy_runtime_version,assistant_projection_version=EXCLUDED.assistant_projection_version,assistant_projection_schema_version=EXCLUDED.assistant_projection_schema_version,artifact_fingerprint=EXCLUDED.artifact_fingerprint,status=EXCLUDED.status,mismatch_summary=EXCLUDED.mismatch_summary,category_breakdown=EXCLUDED.category_breakdown,failure_details=EXCLUDED.failure_details,active_runtime_authority=EXCLUDED.active_runtime_authority,updated_at=NOW()",
+    [input.projectId, input.comparedAt, input.runtimeVersion, input.assistantProjectionVersion, input.assistantProjectionSchemaVersion, input.artifactFingerprint, input.status, JSON.stringify(input.mismatchSummary), JSON.stringify(input.categoryBreakdown), input.failureDetails === null ? null : JSON.stringify(input.failureDetails), input.activeRuntimeAuthority],
   );
 }
