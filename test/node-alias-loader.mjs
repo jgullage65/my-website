@@ -1,14 +1,15 @@
-import { existsSync } from "node:fs";
+import { existsSync, statSync } from "node:fs";
 import { dirname, resolve as resolvePath } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 function resolveTypeScript(base) {
   return [base, `${base}.ts`, `${base}.tsx`, resolvePath(base, "index.ts")]
-    .find((candidate) => existsSync(candidate));
+    .find((candidate) => existsSync(candidate) && statSync(candidate).isFile());
 }
 
 export async function resolve(specifier, context, nextResolve) {
   if (specifier === "server-only") return { shortCircuit: true, url: "data:text/javascript," };
+  if (specifier === "next/server") return { shortCircuit: true, url: "data:text/javascript,export const NextResponse={json:(body,init={})=>({body,status:init.status??200})};" };
   if (specifier === "@/app/lib/auth/clerk") return { shortCircuit: true, url: "data:text/javascript,export const requireClerkIdentity=async()=>{throw new Error('test stub')};export const requireClerkUserId=async()=>{throw new Error('test stub')};" };
   if (specifier.startsWith("@/")) {
     const file = resolveTypeScript(resolvePath(process.cwd(), specifier.slice(2)));
