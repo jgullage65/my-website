@@ -19,7 +19,7 @@ import { buildKnowledgePackFromTrustedRows, reconcileTrustedKnowledgeProjectionF
 import { projectionFresh, type ProjectionFreshness as ProjectionFreshnessState } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeFreshness";
 import { getPersistedAssistantProjection, upsertAssistantProjectionParityReport } from "@/app/lib/ai-engine/assistant-projection/persistence";
 import { compareAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parity";
-import type { KnowledgePack } from "@/app/lib/ai-engine/knowledge/contracts";
+import { recordAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parityTelemetry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,35 +57,6 @@ async function loadProjectionFreshness(projectId: string): Promise<ProjectionFre
 }
 
 async function repairProjection(projectId: string): Promise<void> { const client = await getProjectionPool().connect(); try { await client.query("BEGIN"); const project = (await client.query("SELECT id, governance_revision FROM ai_builder_projects WHERE id = $1 FOR UPDATE", [projectId])).rows[0]; if (!project) throw new Error("chat_thread_not_found"); await reconcileTrustedKnowledgeProjectionForProject(client, projectId, Number(project.governance_revision)); await client.query("COMMIT"); } catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; } finally { client.release(); } }
-
-/**
- * Phase 9A observability only. Its caller starts this alongside legacy chat
- * work, then awaits this non-throwing promise before a successful response is
- * returned. Trusted Knowledge remains the sole runtime authority.
- */
-export async function recordAssistantProjectionParity(
-  projectId: string,
-  legacy: KnowledgePack,
-  dependencies: AssistantProjectionParityDependencies = {
-    connect: () => getProjectionPool().connect(),
-    getPersisted: getPersistedAssistantProjection,
-    compare: compareAssistantProjectionParity,
-    upsert: upsertAssistantProjectionParityReport,
-  },
-): Promise<void> {
-    let client: PoolClient | null = null;
-    const comparedAt = new Date().toISOString();
-    try {
-      client = await dependencies.connect();
-      const persisted = await dependencies.getPersisted(client, projectId);
-      if (!persisted) throw new Error("assistant_projection_unavailable");
-      const report = dependencies.compare({ projectId, legacy, canonicalProjection: persisted.projection, comparedAt });
-      await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: report.assistantProjectionVersion, assistantProjectionSchemaVersion: report.assistantProjectionSchemaVersion, status: report.status, mismatchSummary: report.mismatchSummary, categoryBreakdown: report.categories, failureDetails: null });
-    } catch (error) {
-      // Canonical comparison and its durable telemetry are deliberately non-blocking.
-      try { if (client) await dependencies.upsert(client, { projectId, comparedAt, runtimeVersion: legacy.version, assistantProjectionVersion: null, assistantProjectionSchemaVersion: null, status: "COMPARISON_FAILURE", mismatchSummary: { total: 0, major: 0, minor: 0 }, categoryBreakdown: {}, failureDetails: { error: error instanceof Error ? error.message : "unknown_error" } }); } catch { /* telemetry persistence failure must not affect chat */ }
-    } finally { client?.release(); }
-}
 
 type PersistentThread = {
   projectId: string;
@@ -421,7 +392,12 @@ export async function POST(request: Request) {
     // The canonical projection is read and compared in isolation. Its output
     // is deliberately not used by retrieval, prompts, or response diagnostics.
     // Run it concurrently with legacy chat work and settle it before returning.
-    const parityPromise = recordAssistantProjectionParity(projectId, projection.knowledge);
+    const parityPromise = recordAssistantProjectionParity(projectId, projection.knowledge, {
+      connect: () => getProjectionPool().connect(),
+      getPersisted: getPersistedAssistantProjection,
+      compare: compareAssistantProjectionParity,
+      upsert: upsertAssistantProjectionParityReport,
+    });
     if (
       projection.knowledge.facts.length === 0 &&
       projection.knowledge.faq.length === 0

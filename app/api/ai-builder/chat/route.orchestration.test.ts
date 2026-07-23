@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildSystemPrompt, classifyResponseDepth, retrieveKnowledge } from "@/app/lib/ai-engine/chat";
 import { compareAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parity";
-import { recordAssistantProjectionParity } from "./route";
+import { recordAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parityTelemetry";
 
 const legacy = {
   sessionId: "project-1", assistantName: "Ava", assistantPurpose: "Help", assistantTone: "warm", primaryAudience: null, builtAt: "", version: 7,
