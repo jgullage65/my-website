@@ -33,23 +33,11 @@ import type {
     createdAt: string;
   };
   
-  export type ConversationFact = {
-    key: string;
-    value: string;
-    confidence: "high" | "medium" | "low";
-    sourceTurnId: string;
-    updatedAt: string;
-  };
+  /** @deprecated: use CanonicalConversationMemory. */
+  export type ConversationFact = { key: string; value: string; confidence: "high" | "medium" | "low"; sourceTurnId: string; updatedAt: string; };
+
+  export type ConversationMemory = import("../memory/conversationMemory").CanonicalConversationMemory;
   
-  export type ConversationMemory = {
-    threadId: string;
-    currentSubject: string | null;
-    customerGoal: string | null;
-    selectedService: string | null;
-    collectedDetails: ConversationFact[];
-    unresolvedQuestions: string[];
-    recentClarifications: string[];
-    summary: string;
-    updatedAt: string;
-  };
-  
+/** Phase 11A canonical thread-scoped memory; never permanent business knowledge. */
+export type { CanonicalConversationMemory, ConversationDetail, ConversationPreference, ConversationFollowUp, SummaryCoverage } from "../memory/conversationMemory";
+export { CONVERSATION_MEMORY_SCHEMA_VERSION } from "../memory/conversationMemory";
