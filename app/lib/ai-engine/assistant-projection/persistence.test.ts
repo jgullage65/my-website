@@ -7,8 +7,12 @@ import { AssistantProjectionPersistenceError, getPersistedAssistantProjection, p
 
 const databaseUrl = process.env.DATABASE_URL_TEST;
 const generatedAt = "2026-07-23T12:00:00.000Z";
-function projection(projectId: string, fingerprint = "fingerprint-1"): AssistantProjection {
-  return { projectId, businessMemoryFingerprint: fingerprint, projectionVersion: ASSISTANT_PROJECTION_VERSION, schemaVersion: ASSISTANT_PROJECTION_SCHEMA_VERSION, identity: { status: "missing", canonicalEntityId: null, businessName: null, aliases: [], mergedEntityIds: [], redirectedEntityIds: [], contactEntityIds: [] }, assistant: { name: "Assistant", purpose: "Help", tone: "helpful", responseStyle: "concise", primaryAudience: null, escalationInstructions: [] }, services: [], pricing: [], policies: [], faqs: [], restrictions: [], relationships: [], sources: [], evidence: [], missingInformation: [] };
+const fingerprint = "business_memory_0123456789abcdef01234567";
+function projection(projectId: string, businessMemoryFingerprint = fingerprint): AssistantProjection {
+  return { projectId, businessMemoryFingerprint, projectionVersion: ASSISTANT_PROJECTION_VERSION, schemaVersion: ASSISTANT_PROJECTION_SCHEMA_VERSION, identity: { status: "missing", canonicalEntityId: null, businessName: null, aliases: [], mergedEntityIds: [], redirectedEntityIds: [], contactEntityIds: [] }, assistant: { name: "Assistant", purpose: "Help", tone: "helpful", responseStyle: "concise", primaryAudience: null, escalationInstructions: [] }, services: [], pricing: [], policies: [], faqs: [], restrictions: [], relationships: [], sources: [], evidence: [], missingInformation: [] };
+}
+function row(value = projection("project-1")): Record<string, unknown> {
+  return { project_id: value.projectId, business_memory_fingerprint: value.businessMemoryFingerprint, projection_version: value.projectionVersion, schema_version: value.schemaVersion, generated_at: generatedAt, invalidation_state: "valid", projection_json: value, created_at: generatedAt, updated_at: generatedAt };
 }
 async function setup() {
   process.env.DATABASE_URL = databaseUrl;
@@ -24,32 +28,50 @@ db("inserts, reads, and replaces one current projection per project", async () =
   const s = await setup(); try {
     const first = projection(s.projectId); const inserted = await upsertPersistedAssistantProjection(s.client, { ...first, projection: first, generatedAt });
     assert.equal(inserted.invalidationState, "valid"); assert.equal(inserted.generatedAt, generatedAt); assert.deepEqual(inserted.projection, first);
-    const read = await getPersistedAssistantProjection(s.client, s.projectId); assert.deepEqual(read?.projection, first);
-    const second = projection(s.projectId, "fingerprint-2"); await upsertPersistedAssistantProjection(s.client, { ...second, projection: second, generatedAt: "2026-07-23T13:00:00.000Z" });
-    const rows = await s.client.query("SELECT * FROM ai_builder_assistant_projections WHERE project_id=$1", [s.projectId]); assert.equal(rows.rows.length, 1); assert.equal(rows.rows[0].business_memory_fingerprint, "fingerprint-2"); assert.equal(rows.rows[0].projection_json.generatedAt, undefined);
+    const second = projection(s.projectId, "business_memory_abcdef0123456789abcdef01"); await upsertPersistedAssistantProjection(s.client, { ...second, projection: second, generatedAt: "2026-07-23T13:00:00.000Z" });
+    const rows = await s.client.query("SELECT * FROM ai_builder_assistant_projections WHERE project_id=$1", [s.projectId]); assert.equal(rows.rows.length, 1); assert.equal(rows.rows[0].business_memory_fingerprint, second.businessMemoryFingerprint); assert.equal(rows.rows[0].projection_json.generatedAt, undefined);
   } finally { await s.client.query("DELETE FROM ai_builder_projects WHERE id=$1", [s.projectId]); s.client.release(); await s.pool.end(); }
 });
 
-db("state transition preserves payload, fingerprint, and generated timestamp", async () => {
+db("state updates preserve generated timestamp and upserts always restore valid", async () => {
   const s = await setup(); try {
     const value = projection(s.projectId); await upsertPersistedAssistantProjection(s.client, { ...value, projection: value, generatedAt });
     const updated = await updateAssistantProjectionInvalidationState(s.client, s.projectId, "invalidated");
-    assert.equal(updated?.invalidationState, "invalidated"); assert.deepEqual(updated?.projection, value); assert.equal(updated?.businessMemoryFingerprint, value.businessMemoryFingerprint); assert.equal(updated?.generatedAt, generatedAt);
+    assert.equal(updated?.invalidationState, "invalidated"); assert.deepEqual(updated?.projection, value); assert.equal(updated?.generatedAt, generatedAt);
+    const upserted = await upsertPersistedAssistantProjection(s.client, { ...value, projection: value, generatedAt }); assert.equal(upserted.invalidationState, "valid");
+    assert.equal(await updateAssistantProjectionInvalidationState(s.client, "missing-project", "failed"), null);
   } finally { await s.client.query("DELETE FROM ai_builder_projects WHERE id=$1", [s.projectId]); s.client.release(); await s.pool.end(); }
 });
 
-db("separate projects remain isolated and missing records return null", async () => {
+db("omitted generatedAt uses a valid timestamp outside projection JSON", async () => {
+  const s = await setup(); try {
+    const value = projection(s.projectId); const inserted = await upsertPersistedAssistantProjection(s.client, { ...value, projection: value });
+    assert.ok(!Number.isNaN(Date.parse(inserted.generatedAt))); assert.equal("generatedAt" in inserted.projection, false);
+  } finally { await s.client.query("DELETE FROM ai_builder_projects WHERE id=$1", [s.projectId]); s.client.release(); await s.pool.end(); }
+});
+
+db("separate project rows do not overwrite one another and missing records return null", async () => {
   const a = await setup(), b = await setup(); try {
-    const value = projection(a.projectId); await upsertPersistedAssistantProjection(a.client, { ...value, projection: value });
-    assert.equal(await getPersistedAssistantProjection(b.client, b.projectId), null); assert.equal((await getPersistedAssistantProjection(b.client, a.projectId))?.projectId, a.projectId);
+    const first = projection(a.projectId), second = projection(b.projectId, "business_memory_abcdef0123456789abcdef01");
+    await upsertPersistedAssistantProjection(a.client, { ...first, projection: first }); await upsertPersistedAssistantProjection(b.client, { ...second, projection: second });
+    assert.equal((await getPersistedAssistantProjection(a.client, a.projectId))?.businessMemoryFingerprint, first.businessMemoryFingerprint); assert.equal((await getPersistedAssistantProjection(b.client, b.projectId))?.businessMemoryFingerprint, second.businessMemoryFingerprint); assert.equal(await getPersistedAssistantProjection(a.client, "missing-project"), null);
   } finally { for (const s of [a, b]) { await s.client.query("DELETE FROM ai_builder_projects WHERE id=$1", [s.projectId]); s.client.release(); await s.pool.end(); } }
 });
 
-test("write and read boundaries reject inconsistent or malformed projection metadata", () => {
-  const value = projection("project-1");
-  for (const [field, changed, code] of [["projectId", "project-2", "project_id"], ["businessMemoryFingerprint", "other", "fingerprint"], ["projectionVersion", 2, "projection_version"], ["schemaVersion", 2, "schema_version"]] as const) {
-    const altered = { ...value, [field]: changed } as AssistantProjection;
-    assert.throws(() => validatePersistedAssistantProjectionWrite({ ...value, projection: altered }), (error: unknown) => error instanceof AssistantProjectionPersistenceError && error.code.includes(code));
+test("write validation accepts generator-format fingerprints and rejects malformed metadata and payloads", () => {
+  const value = projection("project-1"); validatePersistedAssistantProjectionWrite({ ...value, projection: value, generatedAt });
+  assert.throws(() => validatePersistedAssistantProjectionWrite({ ...value, businessMemoryFingerprint: "fingerprint-1", projection: value }), /assistant_projection_invalid_fingerprint/);
+  for (const [changed, code] of [[{ businessMemoryFingerprint: "fingerprint-1" }, "invalid_payload"], [{ services: {} }, "invalid_payload"], [{ identity: null }, "invalid_payload"], [{ identity: { status: "unknown" } }, "invalid_payload"], [{ assistant: [] }, "invalid_payload"], [{ projectId: "project-2" }, "project_id_mismatch"], [{ businessMemoryFingerprint: "business_memory_abcdef0123456789abcdef01" }, "fingerprint_mismatch"], [{ projectionVersion: 2 }, "invalid_payload"], [{ schemaVersion: 2 }, "invalid_payload"]] as const) {
+    assert.throws(() => validatePersistedAssistantProjectionWrite({ ...value, projection: { ...value, ...changed } as AssistantProjection }), (error: unknown) => error instanceof AssistantProjectionPersistenceError && error.code.includes(code));
   }
-  assert.throws(() => parsePersistedAssistantProjectionRecord({ project_id: "project-1", business_memory_fingerprint: "fingerprint-1", projection_version: 1, schema_version: 1, generated_at: generatedAt, invalidation_state: "valid", projection_json: [], created_at: generatedAt, updated_at: generatedAt }), /assistant_projection_invalid_projection_json/);
+  assert.throws(() => validatePersistedAssistantProjectionWrite({ ...value, projection: value, generatedAt: "bad" }), /assistant_projection_invalid_generated_at/);
+});
+
+test("persisted rows reject malformed payloads, metadata, state, and timestamps", () => {
+  const value = projection("project-1");
+  for (const [changed, code] of [[{ business_memory_fingerprint: "fingerprint-1" }, "row_fingerprint"], [{ projection_json: { ...value, businessMemoryFingerprint: "fingerprint-1" } }, "invalid_projection_json"], [{ projection_json: { ...value, projectId: "project-2" } }, "row_project_id_mismatch"], [{ projection_json: { ...value, businessMemoryFingerprint: "business_memory_abcdef0123456789abcdef01" } }, "row_fingerprint_mismatch"], [{ projection_json: { ...value, projectionVersion: 2 } }, "invalid_projection_json"], [{ projection_json: { ...value, schemaVersion: 2 } }, "invalid_projection_json"], [{ invalidation_state: "unknown" }, "row_invalidation_state"], [{ generated_at: "bad" }, "row_generated_at"], [{ created_at: "bad" }, "row_created_at"], [{ updated_at: "bad" }, "row_updated_at"], [{ projection_json: { ...value, services: "not-array" } }, "invalid_projection_json"], [{ projection_json: { ...value, identity: null } }, "invalid_projection_json"], [{ projection_json: { ...value, identity: { status: "unknown" } } }, "invalid_projection_json"], [{ projection_json: { ...value, assistant: [] } }, "invalid_projection_json"], [{ projection_json: { ...value, missingInformation: undefined } }, "invalid_projection_json"]] as const) {
+    assert.throws(() => parsePersistedAssistantProjectionRecord({ ...row(value), ...changed }), (error: unknown) => error instanceof AssistantProjectionPersistenceError && error.code.includes(code));
+  }
+  const withoutServices = { ...value } as Partial<AssistantProjection>; delete withoutServices.services;
+  assert.throws(() => parsePersistedAssistantProjectionRecord({ ...row(value), projection_json: withoutServices }), /assistant_projection_invalid_projection_json/);
 });

@@ -438,8 +438,8 @@ async function createAiBuilderSchema() {
     CREATE TABLE IF NOT EXISTS ai_builder_assistant_projections (
       project_id TEXT PRIMARY KEY REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
       business_memory_fingerprint TEXT NOT NULL,
-      projection_version INTEGER NOT NULL,
-      schema_version INTEGER NOT NULL,
+      projection_version INTEGER NOT NULL CHECK (projection_version > 0),
+      schema_version INTEGER NOT NULL CHECK (schema_version > 0),
       generated_at TIMESTAMPTZ NOT NULL,
       invalidation_state TEXT NOT NULL CHECK (invalidation_state IN ('valid', 'invalidated', 'rebuilding', 'failed')),
       projection_json JSONB NOT NULL,
@@ -447,6 +447,19 @@ async function createAiBuilderSchema() {
       updated_at TIMESTAMPTZ NOT NULL
     )
   `;
+  // Existing installations need these additive checks too; do not pin exact
+  // versions because future projection migrations remain valid.
+  await sql`
+    DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ai_builder_assistant_projections_projection_version_positive_check') THEN
+        ALTER TABLE ai_builder_assistant_projections ADD CONSTRAINT ai_builder_assistant_projections_projection_version_positive_check CHECK (projection_version > 0);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ai_builder_assistant_projections_schema_version_positive_check') THEN
+        ALTER TABLE ai_builder_assistant_projections ADD CONSTRAINT ai_builder_assistant_projections_schema_version_positive_check CHECK (schema_version > 0);
+      END IF;
+    END $$
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_assistant_projections_state_updated_idx ON ai_builder_assistant_projections(invalidation_state, updated_at)`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_business_memory_entities (id TEXT PRIMARY KEY, memory_id TEXT NOT NULL REFERENCES ai_builder_business_memory(id) ON DELETE CASCADE, entity_type TEXT NOT NULL, name TEXT NOT NULL, aliases JSONB NOT NULL DEFAULT '[]'::jsonb, tags JSONB NOT NULL DEFAULT '[]'::jsonb, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL)`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_business_memory_assertions (id TEXT PRIMARY KEY, memory_id TEXT NOT NULL REFERENCES ai_builder_business_memory(id) ON DELETE CASCADE, entity_id TEXT NOT NULL REFERENCES ai_builder_business_memory_entities(id) ON DELETE CASCADE, trusted_knowledge_id TEXT NOT NULL REFERENCES ai_builder_canonical_trusted_knowledge(id) ON DELETE RESTRICT, candidate_claim_id TEXT NOT NULL REFERENCES ai_builder_canonical_candidate_claims(id) ON DELETE RESTRICT, value TEXT NOT NULL, confidence TEXT NOT NULL, confidence_score DOUBLE PRECISION NOT NULL, review_state TEXT NOT NULL, authority TEXT NOT NULL, tags JSONB NOT NULL DEFAULT '[]'::jsonb, legacy_entry_id TEXT, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL, UNIQUE(memory_id, trusted_knowledge_id))`;
   // Lifecycle makes restore distinguishable from an ordinary approval without
