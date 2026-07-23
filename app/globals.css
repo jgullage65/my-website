@@ -89,10 +89,10 @@ body {
   isolation: isolate;
   contain: paint;
   background:
-    radial-gradient(circle at 18% 14%, rgba(22, 35, 92, 0.9), transparent 34%),
-    radial-gradient(circle at 82% 20%, rgba(8, 42, 88, 0.82), transparent 36%),
-    radial-gradient(circle at 52% 78%, rgba(88, 58, 10, 0.18), transparent 38%),
-    linear-gradient(180deg, #070c1e 0%, #0b1128 48%, #090e21 100%);
+    radial-gradient(circle at 18% 14%, rgba(15, 28, 56, 0.78), transparent 34%),
+    radial-gradient(circle at 82% 20%, rgba(12, 34, 62, 0.72), transparent 36%),
+    radial-gradient(circle at 52% 78%, rgba(57, 40, 12, 0.16), transparent 38%),
+    linear-gradient(180deg, #050b18 0%, #0a142b 48%, #060b1b 100%);
 }
 
 .site-background__depth,
