@@ -568,6 +568,12 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS reason TEXT`;
   await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ`;
   await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ`;
+  // A command is a durable state machine, not merely a request receipt.  The
+  // attempt link lets retries and repairs return the outcome of the work they
+  // actually started without re-executing a duplicate command.
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'succeeded'`;
+  await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS attempt_id TEXT REFERENCES ai_builder_downstream_synchronization_attempts(id) ON DELETE SET NULL`;
+  await sql`DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='ai_builder_downstream_synchronization_commands_state_check') THEN ALTER TABLE ai_builder_downstream_synchronization_commands ADD CONSTRAINT ai_builder_downstream_synchronization_commands_state_check CHECK (state IN ('running','succeeded','failed')); END IF; END $$`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_faq_entries_project_idx ON ai_builder_faq_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_conflicts_project_idx ON ai_builder_conflicts(project_id)`;
