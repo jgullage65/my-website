@@ -20,6 +20,9 @@ import { projectionFresh, type ProjectionFreshness as ProjectionFreshnessState }
 import { getPersistedAssistantProjection, upsertAssistantProjectionParityReport } from "@/app/lib/ai-engine/assistant-projection/persistence";
 import { compareAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parity";
 import { recordAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parityTelemetry";
+import { buildLegacyKnowledgePackFromAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/legacy-compatibility";
+import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION } from "@/app/lib/ai-engine/assistant-projection/contracts";
+import { getProjectRuntimeAuthority, type ProjectRuntimeAuthority } from "@/app/lib/ai-engine/runtime-authority/projectRuntimeAuthority";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,6 +60,15 @@ async function loadProjectionFreshness(projectId: string): Promise<ProjectionFre
 }
 
 async function repairProjection(projectId: string): Promise<void> { const client = await getProjectionPool().connect(); try { await client.query("BEGIN"); const project = (await client.query("SELECT id, governance_revision FROM ai_builder_projects WHERE id = $1 FOR UPDATE", [projectId])).rows[0]; if (!project) throw new Error("chat_thread_not_found"); await reconcileTrustedKnowledgeProjectionForProject(client, projectId, Number(project.governance_revision)); await client.query("COMMIT"); } catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; } finally { client.release(); } }
+async function loadLegacyRuntimeKnowledge(projectId: string, assistantConfiguration: { name: string; purpose: string; tone: string; primaryAudience: string | null }) {
+  let freshness = await loadProjectionFreshness(projectId);
+  if (!projectionFresh(freshness)) {
+    try { await repairProjection(projectId); } catch (cause) { if (cause instanceof TrustedKnowledgeProjectionError) throw cause; throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_reconciliation_failed", "Trusted Knowledge repair failed."); }
+    freshness = await loadProjectionFreshness(projectId);
+  }
+  if (!projectionFresh(freshness)) throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_stale", "Trusted Knowledge remains stale after repair.");
+  return buildKnowledgePackFromTrustedRows({ projectId, assistantConfiguration, rows: freshness.rows });
+}
 
 type PersistentThread = {
   projectId: string;
@@ -299,6 +311,8 @@ function getErrorDetails(error: unknown): {
     };
   }
 
+  if (code.startsWith("assistant_projection_runtime_unavailable")) return { status: 503, code, message: "The assistant runtime is temporarily unavailable. Please try again or contact support to switch this project to the legacy runtime." };
+
   if (code === "trusted_knowledge_projection_stale" || code === "trusted_knowledge_projection_reconciliation_failed" || code === "invalid_trusted_projection_source_state" || code === "trusted_knowledge_projection_invalid_source") return { status: 503, code, message: "Trusted Knowledge is temporarily unavailable. Please try again." };
 
   if (code === "openai_api_key_missing") {
@@ -372,32 +386,32 @@ export async function POST(request: Request) {
       : null;
     if (!project) throw new Error("chat_thread_not_found");
 
-    // The review rows are authoritative, but chat must read their persisted
-    // Trusted Knowledge projection rather than rebuilding from raw intake.
-    let freshness = await loadProjectionFreshness(projectId);
-    if (!projectionFresh(freshness)) {
-      try { await repairProjection(projectId); } catch (cause) { if (cause instanceof TrustedKnowledgeProjectionError) throw cause; throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_reconciliation_failed", "Trusted Knowledge repair failed."); }
-      freshness = await loadProjectionFreshness(projectId);
+    // The durable project authority is server-controlled; request bodies cannot select it.
+    const authorityClient = await getProjectionPool().connect();
+    let authority: ProjectRuntimeAuthority;
+    try { authority = await getProjectRuntimeAuthority(authorityClient, projectId); }
+    finally { authorityClient.release(); }
+
+    let projection: { source: "trusted_knowledge_projection" | "assistant_projection"; knowledge: import("@/app/lib/ai-engine/knowledge").KnowledgePack };
+    let parityPromise: Promise<void>;
+    if (authority === "canonical") {
+      // Read only the persisted Assistant Projection boundary; never rebuild from Business Memory here.
+      const canonicalClient = await getProjectionPool().connect();
+      try {
+        const persisted = await getPersistedAssistantProjection(canonicalClient, projectId);
+        if (!persisted || persisted.invalidationState !== "valid" || persisted.projectionVersion !== ASSISTANT_PROJECTION_VERSION || persisted.schemaVersion !== ASSISTANT_PROJECTION_SCHEMA_VERSION) throw new Error("assistant_projection_runtime_unavailable");
+        projection = { source: "assistant_projection", knowledge: buildLegacyKnowledgePackFromAssistantProjection(persisted.projection) };
+      } catch (cause) {
+        if (cause instanceof Error && cause.message === "assistant_projection_runtime_unavailable") throw cause;
+        throw new Error("assistant_projection_runtime_unavailable");
+      } finally { canonicalClient.release(); }
+      // Legacy comparison failure is telemetry-only and never changes canonical serving.
+      parityPromise = (async () => { try { const legacy = await loadLegacyRuntimeKnowledge(projectId, project.session.assistantConfiguration); await recordAssistantProjectionParity(projectId, legacy, { connect: () => getProjectionPool().connect(), getPersisted: getPersistedAssistantProjection, compare: compareAssistantProjectionParity, upsert: upsertAssistantProjectionParityReport }, authority); } catch { /* comparison loading cannot alter canonical serving */ } })();
+    } else {
+      const legacy = await loadLegacyRuntimeKnowledge(projectId, project.session.assistantConfiguration);
+      projection = { source: "trusted_knowledge_projection", knowledge: legacy };
+      parityPromise = recordAssistantProjectionParity(projectId, legacy, { connect: () => getProjectionPool().connect(), getPersisted: getPersistedAssistantProjection, compare: compareAssistantProjectionParity, upsert: upsertAssistantProjectionParityReport }, authority);
     }
-    if (!projectionFresh(freshness)) throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_stale", "Trusted Knowledge remains stale after repair.");
-    const trustedRows = freshness.rows;
-    const projection = {
-      source: "trusted_knowledge_projection" as const,
-      knowledge: buildKnowledgePackFromTrustedRows({
-        projectId,
-        assistantConfiguration: project.session.assistantConfiguration,
-        rows: trustedRows,
-      }),
-    };
-    // The canonical projection is read and compared in isolation. Its output
-    // is deliberately not used by retrieval, prompts, or response diagnostics.
-    // Run it concurrently with legacy chat work and settle it before returning.
-    const parityPromise = recordAssistantProjectionParity(projectId, projection.knowledge, {
-      connect: () => getProjectionPool().connect(),
-      getPersisted: getPersistedAssistantProjection,
-      compare: compareAssistantProjectionParity,
-      upsert: upsertAssistantProjectionParityReport,
-    });
     if (
       projection.knowledge.facts.length === 0 &&
       projection.knowledge.faq.length === 0
@@ -450,7 +464,7 @@ export async function POST(request: Request) {
       : null;
 
     // recordAssistantProjectionParity contains its own non-throwing boundary,
-    // so telemetry failures cannot alter this legacy response.
+    // so telemetry failures cannot alter the authority-selected response.
     await parityPromise;
 
     return NextResponse.json({

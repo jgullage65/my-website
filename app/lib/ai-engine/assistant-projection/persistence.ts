@@ -2,6 +2,7 @@ import "server-only";
 
 import type { PoolClient } from "@neondatabase/serverless";
 import type { BusinessMemory } from "../business-memory/contracts";
+import type { ProjectRuntimeAuthority } from "../runtime-authority/projectRuntimeAuthority";
 import {
   ASSISTANT_PROJECTION_SCHEMA_VERSION,
   ASSISTANT_PROJECTION_VERSION,
@@ -238,12 +239,13 @@ export type AssistantProjectionParityPersistenceInput = {
   mismatchSummary: unknown;
   categoryBreakdown: unknown;
   failureDetails: unknown | null;
+  activeRuntimeAuthority: ProjectRuntimeAuthority;
 };
 
 /** Stores only the latest comparison per project; this observability record never affects runtime authority. */
 export async function upsertAssistantProjectionParityReport(client: QueryClient, input: AssistantProjectionParityPersistenceInput): Promise<void> {
   await client.query(
-    "INSERT INTO ai_builder_assistant_projection_parity_reports (project_id,compared_at,legacy_runtime_version,assistant_projection_version,assistant_projection_schema_version,status,mismatch_summary,category_breakdown,failure_details,updated_at) VALUES ($1,$2::timestamptz,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,NOW()) ON CONFLICT (project_id) DO UPDATE SET compared_at=EXCLUDED.compared_at,legacy_runtime_version=EXCLUDED.legacy_runtime_version,assistant_projection_version=EXCLUDED.assistant_projection_version,assistant_projection_schema_version=EXCLUDED.assistant_projection_schema_version,status=EXCLUDED.status,mismatch_summary=EXCLUDED.mismatch_summary,category_breakdown=EXCLUDED.category_breakdown,failure_details=EXCLUDED.failure_details,updated_at=NOW()",
-    [input.projectId, input.comparedAt, input.runtimeVersion, input.assistantProjectionVersion, input.assistantProjectionSchemaVersion, input.status, JSON.stringify(input.mismatchSummary), JSON.stringify(input.categoryBreakdown), input.failureDetails === null ? null : JSON.stringify(input.failureDetails)],
+    "INSERT INTO ai_builder_assistant_projection_parity_reports (project_id,compared_at,legacy_runtime_version,assistant_projection_version,assistant_projection_schema_version,status,mismatch_summary,category_breakdown,failure_details,active_runtime_authority,updated_at) VALUES ($1,$2::timestamptz,$3,$4,$5,$6,$7::jsonb,$8::jsonb,$9::jsonb,$10,NOW()) ON CONFLICT (project_id) DO UPDATE SET compared_at=EXCLUDED.compared_at,legacy_runtime_version=EXCLUDED.legacy_runtime_version,assistant_projection_version=EXCLUDED.assistant_projection_version,assistant_projection_schema_version=EXCLUDED.assistant_projection_schema_version,status=EXCLUDED.status,mismatch_summary=EXCLUDED.mismatch_summary,category_breakdown=EXCLUDED.category_breakdown,failure_details=EXCLUDED.failure_details,active_runtime_authority=EXCLUDED.active_runtime_authority,updated_at=NOW()",
+    [input.projectId, input.comparedAt, input.runtimeVersion, input.assistantProjectionVersion, input.assistantProjectionSchemaVersion, input.status, JSON.stringify(input.mismatchSummary), JSON.stringify(input.categoryBreakdown), input.failureDetails === null ? null : JSON.stringify(input.failureDetails), input.activeRuntimeAuthority],
   );
 }
