@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 
-export type CanonicalSourceKind = "manual" | "website";
+export type CanonicalSourceKind = "manual" | "website" | "conversation";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -49,6 +49,14 @@ export function websiteSnapshotPayload(knowledge: PersistedWebsiteKnowledge): Js
       unresolvedQuestions: knowledge.knowledge.unresolvedQuestions.slice().sort(),
     },
   };
+}
+
+export function conversationSnapshotPayload(input: { projectId: string; threadId: string; messageId: string; role: string; content: string }): JsonValue {
+  return { projectId: input.projectId, threadId: input.threadId, messageId: input.messageId, role: input.role, content: input.content };
+}
+
+export function conversationEvidenceIdentity(snapshotId: string, statement: string): string {
+  return canonicalId("evidence", snapshotId, fingerprint({ statement }));
 }
 
 export function manualEvidenceIdentity(snapshotId: string, block: AiBuilderSession["intakeBlocks"][number]): string {

@@ -88,13 +88,18 @@ async function createAiBuilderSchema() {
     CREATE TABLE IF NOT EXISTS ai_builder_canonical_sources (
       id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
       project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
-      kind TEXT NOT NULL CHECK (kind IN ('manual', 'website')),
+      kind TEXT NOT NULL CHECK (kind IN ('manual', 'website', 'conversation')),
       canonical_identity TEXT NOT NULL UNIQUE,
       url TEXT,
       metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL
     )
   `;
+
+  // Existing installations retain the original check constraint, so upgrade it
+  // additively before conversation provenance can be persisted.
+  await sql`ALTER TABLE ai_builder_canonical_sources DROP CONSTRAINT IF EXISTS ai_builder_canonical_sources_kind_check`;
+  await sql`ALTER TABLE ai_builder_canonical_sources ADD CONSTRAINT ai_builder_canonical_sources_kind_check CHECK (kind IN ('manual', 'website', 'conversation'))`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_canonical_source_snapshots (
@@ -505,6 +510,8 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_business_memory_assertions_memory_idx ON ai_builder_business_memory_assertions(memory_id, entity_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_intake_blocks_project_idx ON ai_builder_intake_blocks(project_id)`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_review_command_history (id TEXT PRIMARY KEY, command_id TEXT NOT NULL UNIQUE, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, item_id TEXT NOT NULL, item_kind TEXT NOT NULL, command_kind TEXT NOT NULL, actor JSONB NOT NULL, previous_state TEXT NOT NULL, new_state TEXT NOT NULL, project_revision INTEGER NOT NULL, correction JSONB, created_at TIMESTAMPTZ NOT NULL)`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_conversation_promotion_command_ledger (command_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, request_fingerprint TEXT NOT NULL, result JSONB NOT NULL, executed_at TIMESTAMPTZ NOT NULL)`;
+
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_review_command_ledger (command_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, item_id TEXT NOT NULL, resulting_revision INTEGER NOT NULL, resulting_state TEXT NOT NULL, executed_at TIMESTAMPTZ NOT NULL, result JSONB NOT NULL)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_context_entries_project_idx ON ai_builder_context_entries(project_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_faq_entries_project_idx ON ai_builder_faq_entries(project_id)`;
