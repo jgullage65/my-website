@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { BusinessMemory } from "../business-memory/contracts";
-import { buildAssistantProjection } from "./buildAssistantProjection";
+import { AssistantProjectionGenerationError, buildAssistantProjection } from "./buildAssistantProjection";
 
 const time = "2026-07-19T10:00:00.000Z";
 function memory(): BusinessMemory {
@@ -18,7 +18,7 @@ function memory(): BusinessMemory {
       { id: "business-contact", type: "supports", fromEntityId: "business", toEntityId: "contact", fromAssertionId: "a-business", toAssertionId: "a-contact", sourceEntryIds: [], reviewState: "corrected", createdAt: time, updatedAt: time },
       { id: "archived", type: "supports", fromEntityId: "business", toEntityId: "unrelated-contact", fromAssertionId: "a-business", toAssertionId: "a-other", sourceEntryIds: [], reviewState: "archived", createdAt: time, updatedAt: time },
     ], sources: [{ id: "source", origin: "website", sourceEntryId: null, intakeBlockId: null, url: "https://acme.test", label: "Acme", capturedAt: time, crawlAttemptId: "crawl" }], evidence: [{ id: "evidence", sourceId: "source", excerpt: "Planning", url: null, capturedAt: time }],
-    conflicts: [{ id: "conflict", projectId: "project", topic: "price", conflictingStatements: [], relatedEntityIds: ["service"], relatedAssertionIds: ["a-service"], sourceIds: ["source"], evidenceIds: ["evidence"], suggestedClarificationQuestion: "Confirm price", resolved: false, resolution: null, createdAt: time, updatedAt: time }],
+    conflicts: [],
     missingInformation: [{ id: "missing", projectId: "project", topic: "hours", reason: "unknown", suggestedQuestion: "What hours?", relatedEntityTypes: ["business"], relatedEntityIds: ["business"], relatedAssertionIds: ["a-business"], resolved: false, createdAt: time, updatedAt: time }],
   };
 }
@@ -72,9 +72,9 @@ test("uses merge redirects, rejects redirect cycles, and honors canonical lifecy
   assert.equal(buildAssistantProjection(input).services.some((item) => item.id === "a-cycle"), false);
 });
 
-test("maps only explicit rules and conflicts with stable bounded normalized identifiers", () => {
+test("maps only explicit authoritative rules with stable bounded normalized identifiers", () => {
   const projection = buildAssistantProjection(memory());
-  assert.deepEqual(projection.restrictions.map((item) => item.type), ["behavior_rule", "prohibited_claim", "conflict_suppression"]);
+  assert.deepEqual(projection.restrictions.map((item) => item.type), ["behavior_rule", "prohibited_claim"]);
   const behavior = projection.restrictions.find((item) => item.type === "behavior_rule")!; assert.match(behavior.id, /^assistant_behavior_rule_[a-f0-9]{24}$/); assert.equal(projection.restrictions.some((item) => item.id === "missing"), false);
   assert.equal(projection.missingInformation[0].resolved, false); assert.deepEqual(projection.missingInformation[0].relatedEntityTypes, ["business"]);
 });
@@ -97,14 +97,28 @@ test("preserves duplicate approved assertions across merged entities as independ
   assert.ok(services.every((item) => item.entityId === "service"));
 });
 
-test("projects conflicting assertions together with their suppression restriction", () => {
-  const projection = buildAssistantProjection(memory()); const restriction = projection.restrictions.find((item) => item.type === "conflict_suppression")!;
-  assert.ok(projection.services.some((item) => item.assertionId === "a-service"));
-  assert.deepEqual(restriction.relatedAssertionIds, ["a-service"]); assert.deepEqual(restriction.evidenceIds, ["evidence"]);
+test("rejects unresolved conflicts rather than serializing ambiguous runtime knowledge", () => {
+  const input = memory(); input.conflicts = [{ id: "conflict", projectId: "project", topic: "price", conflictingStatements: [], relatedEntityIds: ["service"], relatedAssertionIds: ["a-service"], sourceIds: ["source"], evidenceIds: ["evidence"], suggestedClarificationQuestion: "Confirm price", resolved: false, resolution: null, createdAt: time, updatedAt: time }];
+  assert.throws(() => buildAssistantProjection(input), (error: unknown) => error instanceof AssistantProjectionGenerationError && error.code === "assistant_projection_unresolved_conflict");
 });
 
 test("filters archived assertions and invalid evidence references without mutating input", () => {
   const input = memory(); input.assertions[3].reviewState = "archived"; input.assertions[3].evidenceIds.push("missing-evidence"); const before = structuredClone(input);
   const projection = buildAssistantProjection(input); assert.equal(projection.services.length, 0); assert.deepEqual(input, before);
   assert.equal(projection.relationships.every((item) => !("active" in item) && !("resolved" in item) && !("confidence" in item)), true);
+});
+
+test("projects only approved or corrected knowledge for every supported runtime type and preserves provenance", () => {
+  const input = memory();
+  const add = (id: string, type: BusinessMemory["entities"][number]["type"], state: BusinessMemory["assertions"][number]["reviewState"]) => {
+    input.entities.push({ ...input.entities[3], id: `${id}-entity`, type, name: id, assertionIds: [id] });
+    input.assertions.push({ ...input.assertions[3], id, entityId: `${id}-entity`, reviewState: state, authority: state === "corrected" ? "corrected" : "confirmed", sourceIds: ["source"], evidenceIds: ["evidence"] });
+  };
+  add("faq-approved", "faq", "approved"); add("pricing-corrected", "pricing_concept", "corrected"); add("policy-proposed", "policy", "proposed");
+  for (const state of ["proposed", "archived"] as const) add(`service-${state}`, "service", state);
+  const projection = buildAssistantProjection(input);
+  assert.deepEqual(projection.services.map((item) => item.id), ["a-service"]);
+  assert.deepEqual(projection.pricing.map((item) => item.id), ["pricing-corrected"]);
+  assert.deepEqual(projection.policies, []); assert.deepEqual(projection.faqs.map((item) => item.id), ["faq-approved"]);
+  assert.deepEqual(projection.services[0].sourceIds, ["source"]); assert.deepEqual(projection.services[0].evidenceIds, ["evidence"]);
 });

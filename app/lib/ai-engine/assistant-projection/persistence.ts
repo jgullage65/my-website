@@ -10,6 +10,7 @@ import {
   type AssistantProjectionInvalidationState,
   type PersistedAssistantProjectionRecord,
 } from "./contracts";
+import { AssistantProjectionRuntimeValidationError, validateAssistantProjectionRuntime } from "./validation";
 
 type DatabaseRow = Record<string, unknown>;
 type QueryClient = Pick<PoolClient, "query">;
@@ -106,6 +107,8 @@ function projectionObject(value: unknown, code: string, allowHistoricalVersion =
   for (const field of ["services", "pricing", "policies", "faqs", "restrictions", "relationships", "sources", "evidence", "missingInformation"] as const) {
     if (!Array.isArray(projection[field])) throw new AssistantProjectionPersistenceError(code);
   }
+  try { validateAssistantProjectionRuntime(projection as AssistantProjection); }
+  catch (cause) { if (cause instanceof AssistantProjectionRuntimeValidationError) throw new AssistantProjectionPersistenceError(`${code}_${cause.code}`); throw cause; }
   return projection as AssistantProjection;
 }
 
