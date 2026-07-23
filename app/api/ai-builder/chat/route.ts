@@ -20,6 +20,7 @@ import { getPersistedAssistantProjectionForUpdate } from "@/app/lib/ai-engine/as
 import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION } from "@/app/lib/ai-engine/assistant-projection/contracts";
 import { getProjectRuntimeAuthority } from "@/app/lib/ai-engine/runtime-authority/projectRuntimeAuthority";
 import { cutoverEligibilityFailure } from "@/app/lib/ai-engine/assistant-projection/cutover";
+import { normalizeConversationMemory, updateConversationSummary, type MemoryMessage } from "@/app/lib/ai-engine/memory/conversationMemory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -105,6 +106,7 @@ type PersistentThread = {
   projectId: string;
   threadId: string;
   userMessageCount: number;
+  memory: unknown;
 };
 
 function isValidRequest(value: unknown): value is PersistentChatRequest {
@@ -174,6 +176,7 @@ async function resolvePersistentThread(input: {
     SELECT
       threads.id,
       threads.project_id,
+      threads.memory,
       COUNT(messages.id) FILTER (
         WHERE messages.role = 'user'
       )::integer AS user_message_count
@@ -200,6 +203,7 @@ async function resolvePersistentThread(input: {
     projectId,
     threadId,
     userMessageCount: Number(rows[0].user_message_count ?? 0),
+    memory: rows[0].memory,
   };
 }
 
@@ -208,9 +212,11 @@ async function persistChatExchange(input: {
   threadId: string;
   userMessage: string;
   response: ChatResponse;
+  previousMemory: unknown;
 }): Promise<{
   userMessageId: string;
   assistantMessageId: string;
+  memoryRevision: number | null;
 }> {
   const clerkUserId = await requireClerkUserId();
   await ensureAiBuilderSchema();
@@ -275,17 +281,24 @@ async function persistChatExchange(input: {
     )
   `;
 
-  await sql`
+  // Memory is normalized server-side and only sees this thread's persisted IDs.
+  // It is intentionally not supplied to retrieval, citations, or any permanent store.
+  const normalized = normalizeConversationMemory(input.previousMemory, { threadId: input.threadId, projectId: input.projectId }, assistantCreatedAt.toISOString());
+  const updated = updateConversationSummary(normalized.memory, [
+    { id: userMessageId, role: "user", content: input.userMessage, createdAt: userCreatedAt.toISOString() },
+    { id: assistantMessageId, role: "assistant", content: input.response.answer, createdAt: assistantCreatedAt.toISOString() },
+  ] satisfies MemoryMessage[], assistantCreatedAt.toISOString());
+  const nextMemory = { ...updated, revision: normalized.memory.revision + 1, updatedAt: assistantCreatedAt.toISOString() };
+  const memoryUpdate = (await sql`
     UPDATE ai_builder_chat_threads
-    SET updated_at = ${assistantCreatedAt.toISOString()}::timestamptz
-    WHERE id = ${input.threadId}
-      AND project_id = ${input.projectId}
-  `;
+    SET memory = ${JSON.stringify(nextMemory)}::jsonb, updated_at = ${assistantCreatedAt.toISOString()}::timestamptz
+    WHERE id = ${input.threadId} AND project_id = ${input.projectId}
+      AND CASE WHEN (memory->>'revision') ~ '^[0-9]+$' THEN (memory->>'revision')::integer ELSE 0 END = ${normalized.memory.revision}
+    RETURNING id
+  `) as DatabaseRow[];
+  if (!memoryUpdate[0]) console.warn("AI_BUILDER_CONVERSATION_MEMORY_CONFLICT", { threadId: input.threadId, previousRevision: normalized.memory.revision });
 
-  return {
-    userMessageId,
-    assistantMessageId,
-  };
+  return { userMessageId, assistantMessageId, memoryRevision: memoryUpdate[0] ? nextMemory.revision : null };
 }
 
 function getErrorDetails(error: unknown): {
@@ -464,6 +477,7 @@ export async function POST(request: Request) {
           threadId: persistenceContext.threadId,
           userMessage: message,
           response,
+          previousMemory: persistenceContext.memory,
         })
       : null;
 

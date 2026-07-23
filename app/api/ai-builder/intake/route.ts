@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import type { ConversationMemory } from "@/app/lib/ai-engine/contracts";
+import { createConversationMemory } from "@/app/lib/ai-engine/memory/conversationMemory";
 import { runOpenAiIntakeModel } from "@/app/lib/ai-engine/providers";
 import type { OpenAiIntakeCallMetadata } from "@/app/lib/ai-engine/providers/openaiIntakeRunner";
 import { runEngine } from "@/app/lib/ai-engine/runtime";
@@ -167,20 +167,8 @@ function createId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
 
-function buildEmptyConversationMemory(
-  threadId: string,
-): ConversationMemory {
-  return {
-    threadId,
-    currentSubject: null,
-    customerGoal: null,
-    selectedService: null,
-    collectedDetails: [],
-    unresolvedQuestions: [],
-    recentClarifications: [],
-    summary: "Thread not started.",
-    updatedAt: new Date().toISOString(),
-  };
+function buildEmptyConversationMemory(threadId: string, projectId: string) {
+  return createConversationMemory(threadId, projectId);
 }
 
 function errorResponse(
@@ -431,7 +419,7 @@ export async function POST(request: Request) {
       try {
         await startGenerationTelemetry(generationAttemptId,sessionId,generationStartedAt);
         send({ type: "progress", percent: 0 });
-        const initialMemory = buildEmptyConversationMemory(threadId);
+        const initialMemory = buildEmptyConversationMemory(threadId, sessionId);
         send({ type: "progress", percent: 20 });
 
         generationStartedAt = new Date().toISOString();
