@@ -15,7 +15,7 @@ type Project = {
 };
 
 const PROJECT_LIMIT = 3;
-const sectionClassName = "overflow-hidden rounded-[24px] border border-[rgba(245,158,11,0.2)] border-t-2 border-t-amber-300/70 bg-[#030713] shadow-[0_18px_48px_rgba(0,0,0,.28)]";
+const sectionClassName = "overflow-hidden rounded-[24px] border-[1.5px] border-[rgba(245,158,11,0.2)] border-t-2 border-t-amber-300/70 bg-[#030713] shadow-[0_18px_48px_rgba(0,0,0,.28)]";
 
 function date(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
