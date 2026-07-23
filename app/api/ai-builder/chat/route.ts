@@ -64,7 +64,8 @@ type ParityEvidenceRow = {
  */
 async function loadCanonicalRuntimeKnowledge(projectId: string) {
   const client = await getProjectionPool().connect();
-  let authorityMismatch: string | null = null;
+  let artifactFingerprint: string | null = null;
+  const rejectRuntime = (code:string):never => { throw new Error(code); };
   try {
     // The project lock serializes authority changes, Business Memory
     // invalidation, and rebuilds. Copy the validated artifact before COMMIT;
@@ -73,14 +74,15 @@ async function loadCanonicalRuntimeKnowledge(projectId: string) {
     await client.query("SELECT id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [projectId]);
     const authority = await getProjectRuntimeAuthority(client, projectId);
     // Legacy is a migration-pending marker, not a request-time fallback.
-    if (authority !== "canonical") { authorityMismatch=authority; throw new Error("assistant_projection_migration_required"); }
+    if (authority !== "canonical") rejectRuntime("assistant_projection_migration_required");
     const persisted = await getPersistedAssistantProjectionForUpdate(client, projectId);
     if (!persisted) throw new Error("assistant_projection_runtime_unavailable_missing");
+    artifactFingerprint=persisted.businessMemoryFingerprint;
     if (persisted.invalidationState !== "valid") {
-      throw new Error(`assistant_projection_runtime_unavailable_${persisted.invalidationState}`);
+      rejectRuntime(`assistant_projection_runtime_unavailable_${persisted.invalidationState}`);
     }
-    if (persisted.projectionVersion !== ASSISTANT_PROJECTION_VERSION) throw new Error("assistant_projection_runtime_unavailable_unsupported_projection_version");
-    if (persisted.schemaVersion !== ASSISTANT_PROJECTION_SCHEMA_VERSION) throw new Error("assistant_projection_runtime_unavailable_unsupported_schema_version");
+    if (persisted.projectionVersion !== ASSISTANT_PROJECTION_VERSION) rejectRuntime("assistant_projection_runtime_unavailable_unsupported_projection_version");
+    if (persisted.schemaVersion !== ASSISTANT_PROJECTION_SCHEMA_VERSION) rejectRuntime("assistant_projection_runtime_unavailable_unsupported_schema_version");
 
     const report = (await client.query(
       "SELECT status,assistant_projection_version,assistant_projection_schema_version,active_runtime_authority,compared_at,artifact_fingerprint FROM ai_builder_assistant_projection_parity_reports WHERE project_id=$1 FOR UPDATE",
@@ -91,15 +93,14 @@ async function loadCanonicalRuntimeKnowledge(projectId: string) {
       artifact: persisted,
       evidence: report ? { status: report.status, projectionVersion: report.assistant_projection_version, schemaVersion: report.assistant_projection_schema_version, activeRuntimeAuthority: report.active_runtime_authority, comparedAt: report.compared_at, artifactFingerprint: report.artifact_fingerprint } : null,
     });
-    if (eligibilityFailure) throw new Error(eligibilityFailure);
+    if (eligibilityFailure) rejectRuntime(eligibilityFailure);
 
     // Return the validated canonical DTO directly; retrieval owns relevance, not projection generation.
     await client.query("COMMIT");
     return persisted.projection;
   } catch (cause) {
     await client.query("ROLLBACK").catch(() => undefined);
-    if(authorityMismatch) await writeRuntimeAuthorityMismatchAfterRollback(projectId,"canonical",authorityMismatch);
-    if (cause instanceof Error && cause.message.startsWith("assistant_projection_")) throw cause;
+    if (cause instanceof Error && cause.message.startsWith("assistant_projection_")) { await writeRuntimeAuthorityMismatchAfterRollback(projectId,cause.message,artifactFingerprint); throw cause; }
     throw new Error("assistant_projection_runtime_unavailable_validation_failure");
   } finally {
     client.release();

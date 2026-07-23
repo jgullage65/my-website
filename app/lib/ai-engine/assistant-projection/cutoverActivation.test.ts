@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { activateAssistantProjectionCanonicalRuntime, setAssistantProjectionCutoverPoolForTests } from "./cutoverActivation";
+import { activateAssistantProjectionCanonicalRuntime, setAssistantProjectionCutoverPoolForTests, setAssistantProjectionCutoverTelemetryForTests } from "./cutoverActivation";
 
 const projection = { projectId: "project-1", businessMemoryFingerprint: "business_memory_abcdef0123456789abcdef01", projectionVersion: 1, schemaVersion: 1, identity: { status: "missing", canonicalEntityId: null, businessName: null, aliases: [], mergedEntityIds: [], redirectedEntityIds: [], contactEntityIds: [] }, assistant: { name: "Ava", purpose: "Help", tone: "warm", responseStyle: "brief", primaryAudience: null, escalationInstructions: [] }, services: [], products: [], pricing: [], policies: [], faqs: [], restrictions: [], relationships: [], sources: [], evidence: [], missingInformation: [] };
 function harness(status = "MATCH", fingerprint = projection.businessMemoryFingerprint) {
@@ -19,4 +19,10 @@ test("failed offline validation rolls back without changing authority and releas
   const h = harness("MINOR_DIFFERENCE"); setAssistantProjectionCutoverPoolForTests({ connect: async () => h.client } as never);
   try { await assert.rejects(activateAssistantProjectionCanonicalRuntime("project-1"), /parity_status_unacceptable/); assert.ok(h.calls.includes("ROLLBACK")); assert.ok(!h.calls.some((sql) => sql.includes("SET runtime_authority='canonical'"))); assert.equal(h.released(), 1); }
   finally { setAssistantProjectionCutoverPoolForTests(null); }
+});
+
+test("committed cutover is not rejected when best-effort success telemetry fails",async()=>{
+  const h=harness(),events:string[]=[];setAssistantProjectionCutoverPoolForTests({connect:async()=>h.client} as never);setAssistantProjectionCutoverTelemetryForTests(async input=>{events.push(input.eventType);throw new Error("telemetry failed");});
+  try{await activateAssistantProjectionCanonicalRuntime("project-1");assert.ok(h.calls.includes("COMMIT"));assert.ok(!h.calls.includes("ROLLBACK"));assert.deepEqual(events,["runtime_cutover_succeeded"]);}
+  finally{setAssistantProjectionCutoverPoolForTests(null);setAssistantProjectionCutoverTelemetryForTests(null);}
 });

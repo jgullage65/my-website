@@ -8,12 +8,12 @@ export const OPERATIONAL_EVENT_TYPES = ["review_command_failed","governance_tran
 export type OperationalEventType = typeof OPERATIONAL_EVENT_TYPES[number];
 export type OperationalCategory = "review_governance" | "business_memory" | "assistant_projection" | "reconciliation" | "drift" | "retry_recovery" | "migration" | "runtime_cutover";
 export type OperationalSeverity = "info" | "warning" | "error" | "critical";
-export type OperationalOutcome = "started" | "succeeded" | "failed" | "blocked" | "no_op" | "detected" | "resolved" | "rejected" | "scheduled";
+export type OperationalOutcome = "started" | "checkpointed" | "succeeded" | "failed" | "blocked" | "no_op" | "detected" | "resolved" | "rejected" | "scheduled";
 type QueryClient = Pick<PoolClient, "query">;
 
 const categories = new Set<OperationalCategory>(["review_governance","business_memory","assistant_projection","reconciliation","drift","retry_recovery","migration","runtime_cutover"]);
 const severities = new Set<OperationalSeverity>(["info","warning","error","critical"]);
-const outcomes = new Set<OperationalOutcome>(["started","succeeded","failed","blocked","no_op","detected","resolved","rejected","scheduled"]);
+const outcomes = new Set<OperationalOutcome>(["started","checkpointed","succeeded","failed","blocked","no_op","detected","resolved","rejected","scheduled"]);
 const unsafeKey = /(?:content|prompt|token|secret|password|stack|row|payload|knowledge)/i;
 const MAX_METADATA_BYTES = 4096;
 const truncate = (value: string, size: number) => value.length <= size ? value : value.slice(0, size);
@@ -42,9 +42,11 @@ export function sanitizeOperationalMetadata(metadata: Record<string, unknown> = 
   return safe;
 }
 
-export function safeOperationalError(error: unknown): { errorCode: string; errorMessage: string } {
-  const candidate = error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : "operational_error";
-  const message = error && typeof error === "object" && "code" in error && error instanceof Error ? error.message : "The operation failed unexpectedly.";
+export function safeOperationalError(error: unknown, allowlistedApplicationCodes: readonly string[] = []): { errorCode: string; errorMessage: string } {
+  const suppliedCode = error && typeof error === "object" && "code" in error ? String((error as { code: unknown }).code) : null;
+  const trusted = error instanceof Error && suppliedCode !== null && allowlistedApplicationCodes.includes(suppliedCode);
+  const candidate = trusted ? suppliedCode : "operational_error";
+  const message = trusted ? error.message : "The operation failed unexpectedly.";
   return { errorCode: truncate(candidate.replace(/[^a-zA-Z0-9_.:-]/g, "_"), 128), errorMessage: truncate(message.replace(/[\r\n\t]+/g, " "), 512) };
 }
 
@@ -63,9 +65,13 @@ export async function writeOperationalFailureAfterRollback(input: OperationalEve
   catch (telemetryError) { if (originalError && typeof originalError === "object") (originalError as Error & { telemetryPersistenceError?: unknown }).telemetryPersistenceError = telemetryError; else console.error("operational telemetry persistence failed", telemetryError); }
 }
 
+/** Uses an independent transaction and deliberately never affects the completed operation. */
+export async function writeOperationalEventBestEffort(input:OperationalEventInput):Promise<void>{await writeOperationalFailureAfterRollback(input);}
+
 /** Persists one event per still-current authority mismatch signature. */
-export async function writeRuntimeAuthorityMismatchAfterRollback(projectId:string, expected:string, observed:string):Promise<void>{
-  try{await ensureAiBuilderSchema();const client=await (pool??=new Pool({connectionString:process.env.DATABASE_URL})).connect();try{await client.query("BEGIN");const latest=(await client.query("SELECT expected_value,observed_value FROM ai_builder_operational_events WHERE project_id=$1 AND event_type='runtime_authority_mismatch' ORDER BY occurred_at DESC,id DESC LIMIT 1",[projectId])).rows[0];if(latest?.expected_value!==expected||latest?.observed_value!==observed)await writeOperationalEvent(client,{projectId,eventType:"runtime_authority_mismatch",category:"runtime_cutover",severity:"error",outcome:"rejected",sourceComponent:"loadCanonicalRuntimeKnowledge",expectedValue:expected,observedValue:observed,metadata:{signature:`${expected}:${observed}`}});await client.query("COMMIT");}catch(error){await client.query("ROLLBACK").catch(()=>undefined);throw error;}finally{client.release();}}catch(error){console.error("runtime authority mismatch telemetry failed",error);}
+export async function writeRuntimeAuthorityMismatchAfterRollback(projectId:string, errorCode:string, artifactFingerprint:string|null, occurredAt=new Date()):Promise<void>{
+  const bucket=new Date(Math.floor(occurredAt.getTime()/3_600_000)*3_600_000).toISOString();
+  try{await ensureAiBuilderSchema();const client=await (pool??=new Pool({connectionString:process.env.DATABASE_URL})).connect();try{await client.query("BEGIN");const duplicate=(await client.query("SELECT 1 FROM ai_builder_operational_events WHERE project_id=$1 AND event_type='runtime_authority_mismatch' AND error_code=$2 AND COALESCE(assistant_projection_fingerprint,'missing')=$3 AND metadata->>'hourBucket'=$4 LIMIT 1",[projectId,errorCode,artifactFingerprint??"missing",bucket])).rows[0];if(!duplicate)await writeOperationalEvent(client,{projectId,eventType:"runtime_authority_mismatch",category:"runtime_cutover",severity:"error",outcome:"rejected",sourceComponent:"loadCanonicalRuntimeKnowledge",assistantProjectionFingerprint:artifactFingerprint??undefined,errorCode,errorMessage:"Canonical runtime validation failed.",metadata:{hourBucket:bucket,artifactMissing:artifactFingerprint===null}});await client.query("COMMIT");}catch(error){await client.query("ROLLBACK").catch(()=>undefined);throw error;}finally{client.release();}}catch(error){console.error("runtime authority mismatch telemetry failed",error);}
 }
 
 export async function recentOperationalEvents(client: QueryClient, where: "project" | "type" | "job" | "command" | "migration", value: string, limit = 50) {

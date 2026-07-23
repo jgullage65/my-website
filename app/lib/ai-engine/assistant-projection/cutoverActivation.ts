@@ -3,7 +3,7 @@ import "server-only";
 import { Pool, type PoolClient } from "@neondatabase/serverless";
 import { cutoverEligibilityFailure } from "./cutover";
 import { getPersistedAssistantProjectionForUpdate } from "./persistence";
-import { safeOperationalError, writeOperationalEvent } from "../operations/operational-events";
+import { safeOperationalError, writeOperationalEventBestEffort } from "../operations/operational-events";
 
 type QueryClient = Pick<PoolClient, "query" | "release">;
 
@@ -13,9 +13,11 @@ export class AssistantProjectionCutoverActivationError extends Error {
 }
 
 let pool: Pick<Pool, "connect"> | null = null;
+let emitCutoverEvent = writeOperationalEventBestEffort;
 const activationPool = () => (pool ??= new Pool({ connectionString: process.env.DATABASE_URL }));
 /** Test seam only; activation remains an internal, offline operator boundary. */
 export function setAssistantProjectionCutoverPoolForTests(nextPool: Pick<Pool, "connect"> | null): void { pool = nextPool; }
+export function setAssistantProjectionCutoverTelemetryForTests(next:typeof writeOperationalEventBestEffort|null):void { emitCutoverEvent=next??writeOperationalEventBestEffort; }
 
 /**
  * Atomically authorizes canonical-only chat after an offline parity job has
@@ -24,6 +26,7 @@ export function setAssistantProjectionCutoverPoolForTests(nextPool: Pick<Pool, "
  */
 export async function activateAssistantProjectionCanonicalRuntime(projectId: string): Promise<void> {
   const client = await activationPool().connect() as QueryClient;
+  let committed = false;
   try {
     await client.query("BEGIN");
     const project = (await client.query("SELECT id FROM ai_builder_projects WHERE id=$1 FOR UPDATE", [projectId])).rows[0];
@@ -41,11 +44,15 @@ export async function activateAssistantProjectionCanonicalRuntime(projectId: str
     if (failure) throw new AssistantProjectionCutoverActivationError(failure);
     await client.query("UPDATE ai_builder_projects SET runtime_authority='canonical',updated_at=NOW() WHERE id=$1", [projectId]);
     await client.query("COMMIT");
-    await writeOperationalEvent(client,{projectId,eventType:"runtime_cutover_succeeded",category:"runtime_cutover",severity:"info",outcome:"succeeded",sourceComponent:"activateAssistantProjectionCanonicalRuntime"});
+    committed = true;
   } catch (cause) {
-    await client.query("ROLLBACK").catch(() => undefined);
-    const safe=safeOperationalError(cause);
-    await writeOperationalEvent(client,{projectId,eventType:"runtime_cutover_rejected",category:"runtime_cutover",severity:"warning",outcome:"rejected",sourceComponent:"activateAssistantProjectionCanonicalRuntime",errorCode:safe.errorCode,errorMessage:safe.errorMessage}).catch(()=>undefined);
+    if (!committed) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      const code=cause instanceof AssistantProjectionCutoverActivationError?cause.code:"operational_error";
+      const safe=safeOperationalError(cause,[code]);
+      await emitCutoverEvent({projectId,eventType:"runtime_cutover_rejected",category:"runtime_cutover",severity:"warning",outcome:"rejected",sourceComponent:"activateAssistantProjectionCanonicalRuntime",errorCode:safe.errorCode,errorMessage:safe.errorMessage}).catch(()=>undefined);
+    }
     throw cause;
   } finally { client.release(); }
+  await emitCutoverEvent({projectId,eventType:"runtime_cutover_succeeded",category:"runtime_cutover",severity:"info",outcome:"succeeded",sourceComponent:"activateAssistantProjectionCanonicalRuntime"}).catch(()=>undefined);
 }
