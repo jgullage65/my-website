@@ -15,7 +15,7 @@ type Project = {
 };
 
 const PROJECT_LIMIT = 3;
-const sectionClassName = "overflow-hidden rounded-[24px] border border-blue-400/25 border-t-2 border-t-amber-300/70 bg-[#081226] shadow-[0_18px_48px_rgba(0,0,0,.28)]";
+const sectionClassName = "overflow-hidden rounded-[24px] border-[1.5px] border-[rgba(245,158,11,0.2)] border-t-2 border-t-amber-300/70 bg-[#030713] shadow-[0_18px_48px_rgba(0,0,0,.28)]";
 
 function date(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -125,10 +125,10 @@ export default function AiBuilderProjects() {
         ) : null}
 
         {isSignedIn && !loading && projects.length ? <div className="mt-10 space-y-5">
-          <ProjectSection title="Open Projects" expanded={openExpanded} onToggle={() => setOpenExpanded((value) => !value)} count={openProjects.length}>
+          <ProjectSection title="Open Projects" expanded={openExpanded} onToggle={() => setOpenExpanded((value) => !value)}>
             <ProjectGrid projects={openProjects} archived={false} menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
           </ProjectSection>
-          <ProjectSection title="Archived Projects" expanded={archivedExpanded} onToggle={() => setArchivedExpanded((value) => !value)} count={archivedProjects.length}>
+          <ProjectSection title="Archived Projects" expanded={archivedExpanded} onToggle={() => setArchivedExpanded((value) => !value)}>
             <ProjectGrid projects={archivedProjects} archived menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
           </ProjectSection>
         </div> : null}
@@ -137,14 +137,13 @@ export default function AiBuilderProjects() {
   );
 }
 
-function ProjectSection({ title, expanded, onToggle, count, children }: { title: string; expanded: boolean; onToggle: () => void; count: number; children: React.ReactNode }) {
+function ProjectSection({ title, expanded, onToggle, children }: { title: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }) {
   return <section className={sectionClassName}>
-    <button type="button" onClick={onToggle} aria-expanded={expanded} className="flex w-full items-center gap-3 px-5 py-4 text-left text-white sm:px-6">
-      <span aria-hidden="true" className={`text-sm text-[var(--gold)] transition-transform duration-300 ${expanded ? "rotate-90" : ""}`}>▶</span>
-      <h2 className="text-lg font-black tracking-[-.025em] sm:text-xl">{title}</h2>
-      <span className="ml-auto text-sm font-bold text-slate-400">{count}</span>
+    <button type="button" onClick={onToggle} aria-expanded={expanded} className="grid w-full grid-cols-[1fr_auto_1fr] items-center px-5 py-4 text-white sm:px-6">
+      <h2 className="col-start-2 text-center text-lg font-black tracking-[-.025em] sm:text-xl">{title}</h2>
+      <span aria-hidden="true" className={`col-start-3 justify-self-end text-sm text-[var(--gold)] transition-transform duration-300 ${expanded ? "rotate-90" : ""}`}>▶</span>
     </button>
-    <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}><div className="overflow-hidden"><div className="border-t border-blue-400/15 p-5 sm:p-6">{children}</div></div></div>
+    <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}><div className="overflow-hidden"><div className="border-t border-amber-300/20 p-5 sm:p-6">{children}</div></div></div>
   </section>;
 }
 
