@@ -20,7 +20,7 @@ import { getPersistedAssistantProjectionForUpdate } from "@/app/lib/ai-engine/as
 import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION } from "@/app/lib/ai-engine/assistant-projection/contracts";
 import { getProjectRuntimeAuthority } from "@/app/lib/ai-engine/runtime-authority/projectRuntimeAuthority";
 import { cutoverEligibilityFailure } from "@/app/lib/ai-engine/assistant-projection/cutover";
-import { normalizeConversationMemory, updateConversationSummary, type MemoryMessage } from "@/app/lib/ai-engine/memory/conversationMemory";
+import { normalizeConversationMemory, updateConversationSummary, updateStructuredConversationMemory, type MemoryMessage } from "@/app/lib/ai-engine/memory/conversationMemory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -208,99 +208,35 @@ async function resolvePersistentThread(input: {
 }
 
 async function persistChatExchange(input: {
-  projectId: string;
-  threadId: string;
-  userMessage: string;
-  response: ChatResponse;
-  previousMemory: unknown;
-}): Promise<{
-  userMessageId: string;
-  assistantMessageId: string;
-  memoryRevision: number | null;
-}> {
-  const clerkUserId = await requireClerkUserId();
-  await ensureAiBuilderSchema();
-
-  const sql = getSql();
-  const userCreatedAt = new Date();
-  const assistantCreatedAt = new Date(userCreatedAt.getTime() + 1);
-  const userMessageId = `user_${randomUUID()}`;
-  const assistantMessageId = `assistant_${randomUUID()}`;
-
-  const ownedThreads = (await sql`
-    SELECT threads.id
-    FROM ai_builder_chat_threads threads
-    JOIN ai_builder_projects projects ON projects.id = threads.project_id
-    WHERE threads.id = ${input.threadId}
-      AND threads.project_id = ${input.projectId}
-      AND projects.clerk_user_id = ${clerkUserId}
-      AND projects.archived_at IS NULL
-    LIMIT 1
-  `) as DatabaseRow[];
-  if (!ownedThreads[0]) throw new Error("chat_thread_not_found");
-
-  await sql`
-    INSERT INTO ai_builder_chat_messages (
-      id,
-      thread_id,
-      role,
-      content,
-      metadata,
-      created_at
-    ) VALUES (
-      ${userMessageId},
-      ${input.threadId},
-      ${"user"},
-      ${input.userMessage},
-      ${JSON.stringify({
-        projectId: input.projectId,
-      })}::jsonb,
-      ${userCreatedAt.toISOString()}::timestamptz
-    )
-  `;
-
-  await sql`
-    INSERT INTO ai_builder_chat_messages (
-      id,
-      thread_id,
-      role,
-      content,
-      metadata,
-      created_at
-    ) VALUES (
-      ${assistantMessageId},
-      ${input.threadId},
-      ${"assistant"},
-      ${input.response.answer},
-      ${JSON.stringify({
-        projectId: input.projectId,
-        citations: input.response.citations,
-        diagnostics: input.response.diagnostics,
-      })}::jsonb,
-      ${assistantCreatedAt.toISOString()}::timestamptz
-    )
-  `;
-
-  // Memory is normalized server-side and only sees this thread's persisted IDs.
-  // It is intentionally not supplied to retrieval, citations, or any permanent store.
-  const normalized = normalizeConversationMemory(input.previousMemory, { threadId: input.threadId, projectId: input.projectId }, assistantCreatedAt.toISOString());
-  const updated = updateConversationSummary(normalized.memory, [
-    { id: userMessageId, role: "user", content: input.userMessage, createdAt: userCreatedAt.toISOString() },
-    { id: assistantMessageId, role: "assistant", content: input.response.answer, createdAt: assistantCreatedAt.toISOString() },
-  ] satisfies MemoryMessage[], assistantCreatedAt.toISOString());
-  const nextMemory = { ...updated, revision: normalized.memory.revision + 1, updatedAt: assistantCreatedAt.toISOString() };
-  const memoryUpdate = (await sql`
-    UPDATE ai_builder_chat_threads
-    SET memory = ${JSON.stringify(nextMemory)}::jsonb, updated_at = ${assistantCreatedAt.toISOString()}::timestamptz
-    WHERE id = ${input.threadId} AND project_id = ${input.projectId}
-      AND CASE WHEN (memory->>'revision') ~ '^[0-9]+$' THEN (memory->>'revision')::integer ELSE 0 END = ${normalized.memory.revision}
-    RETURNING id
-  `) as DatabaseRow[];
-  if (!memoryUpdate[0]) console.warn("AI_BUILDER_CONVERSATION_MEMORY_CONFLICT", { threadId: input.threadId, previousRevision: normalized.memory.revision });
-
-  return { userMessageId, assistantMessageId, memoryRevision: memoryUpdate[0] ? nextMemory.revision : null };
+  projectId: string; threadId: string; userMessage: string; response: ChatResponse;
+}): Promise<{ userMessageId:string; assistantMessageId:string; memoryRevision:number|null }> {
+  const clerkUserId = await requireClerkUserId(); await ensureAiBuilderSchema();
+  const client = await getProjectionPool().connect();
+  const userCreatedAt = new Date(); const assistantCreatedAt = new Date(userCreatedAt.getTime() + 1);
+  const userMessageId=`user_${randomUUID()}`; const assistantMessageId=`assistant_${randomUUID()}`;
+  try {
+    await client.query("BEGIN");
+    // This is the ownership and concurrency boundary for the entire exchange.
+    const locked=(await client.query(`SELECT threads.memory FROM ai_builder_chat_threads threads JOIN ai_builder_projects projects ON projects.id=threads.project_id WHERE threads.id=$1 AND threads.project_id=$2 AND projects.clerk_user_id=$3 AND projects.archived_at IS NULL FOR UPDATE`,[input.threadId,input.projectId,clerkUserId])).rows[0] as DatabaseRow|undefined;
+    if(!locked) throw new Error("chat_thread_not_found");
+    const count=Number((await client.query(`SELECT COUNT(*) FILTER (WHERE role='user')::integer AS count FROM ai_builder_chat_messages WHERE thread_id=$1`,[input.threadId])).rows[0]?.count??0);
+    if(count>=PROJECT_USER_MESSAGE_LIMIT) throw new Error("project_message_limit_reached");
+    await client.query(`INSERT INTO ai_builder_chat_messages (id,thread_id,role,content,metadata,created_at) VALUES ($1,$2,'user',$3,$4::jsonb,$5::timestamptz)`,[userMessageId,input.threadId,input.userMessage,JSON.stringify({projectId:input.projectId}),userCreatedAt.toISOString()]);
+    await client.query(`INSERT INTO ai_builder_chat_messages (id,thread_id,role,content,metadata,created_at) VALUES ($1,$2,'assistant',$3,$4::jsonb,$5::timestamptz)`,[assistantMessageId,input.threadId,input.response.answer,JSON.stringify({projectId:input.projectId,citations:input.response.citations,diagnostics:input.response.diagnostics}),assistantCreatedAt.toISOString()]);
+    const normalized=normalizeConversationMemory(locked.memory,{threadId:input.threadId,projectId:input.projectId},assistantCreatedAt.toISOString());
+    // Invalid canonical state is preserved: answering is independent from optional memory processing.
+    if(normalized.invalid) { console.warn("AI_BUILDER_CONVERSATION_MEMORY",{threadId:input.threadId,failureCode:"invalid_canonical_memory"}); await client.query("COMMIT"); return {userMessageId,assistantMessageId,memoryRevision:null}; }
+    const messageRows=(await client.query(`SELECT id,role,content,created_at FROM ai_builder_chat_messages WHERE thread_id=$1 ORDER BY created_at DESC,id DESC LIMIT 14`,[input.threadId])).rows as Array<{id:string;role:string;content:string;created_at:string}>;
+    const messages:MemoryMessage[]=messageRows.reverse().map(m=>({id:m.id,role:m.role,content:m.content,createdAt:new Date(m.created_at).toISOString()}));
+    const structured=updateStructuredConversationMemory(normalized.memory,messages,assistantCreatedAt.toISOString());
+    const updated=updateConversationSummary(structured,messages,assistantCreatedAt.toISOString());
+    const nextMemory={...updated,revision:normalized.memory.revision+1,updatedAt:assistantCreatedAt.toISOString()};
+    const { customerGoal: _customerGoal, collectedDetails: _collectedDetails, unresolvedQuestions: _unresolvedQuestions, ...persistedMemory } = nextMemory;
+    await client.query(`UPDATE ai_builder_chat_threads SET memory=$1::jsonb,updated_at=$2::timestamptz WHERE id=$3 AND project_id=$4`,[JSON.stringify(persistedMemory),assistantCreatedAt.toISOString(),input.threadId,input.projectId]);
+    console.info("AI_BUILDER_CONVERSATION_MEMORY",{threadId:input.threadId,previousRevision:normalized.memory.revision,resultingRevision:nextMemory.revision,legacyNormalized:normalized.legacyNormalized,summaryUpdated:updated!==structured,summarizedMessageCount:nextMemory.summaryCoverage.summarizedMessageCount,structuredMemoryChanges:structured!==normalized.memory,concurrencyConflict:false,failureCode:null});
+    await client.query("COMMIT"); return {userMessageId,assistantMessageId,memoryRevision:nextMemory.revision};
+  } catch(error) { await client.query("ROLLBACK").catch(()=>undefined); console.warn("AI_BUILDER_CONVERSATION_MEMORY",{threadId:input.threadId,concurrencyConflict:false,failureCode:error instanceof Error?error.message:"memory_exchange_failed"}); throw error; } finally { client.release(); }
 }
-
 function getErrorDetails(error: unknown): {
   status: number;
   code: string;
@@ -397,27 +333,7 @@ export async function POST(request: Request) {
       threadId: body.threadId,
     });
 
-    if (
-      persistenceContext &&
-      persistenceContext.userMessageCount >= PROJECT_USER_MESSAGE_LIMIT
-    ) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: {
-            code: "project_message_limit_reached",
-            message:
-              "This project has reached its 20-message demo limit.",
-          },
-          usage: {
-            userMessageCount: persistenceContext.userMessageCount,
-            limit: PROJECT_USER_MESSAGE_LIMIT,
-            remaining: 0,
-          },
-        },
-        { status: 429 },
-      );
-    }
+
 
     // The nonpersistent selector identifies the server-owned project only;
     // no client knowledge is used to construct the runtime projection.
@@ -477,7 +393,6 @@ export async function POST(request: Request) {
           threadId: persistenceContext.threadId,
           userMessage: message,
           response,
-          previousMemory: persistenceContext.memory,
         })
       : null;
 
