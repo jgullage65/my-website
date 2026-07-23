@@ -120,9 +120,9 @@ body {
 .site-background__depth {
   opacity: 0.95;
   background:
-    radial-gradient(62rem 34rem at 12% 28%, rgba(212, 175, 55, 0.17), transparent 72%),
-    radial-gradient(58rem 32rem at 88% 62%, rgba(37, 99, 235, 0.17), transparent 74%),
-    radial-gradient(38rem 24rem at 54% 42%, rgba(212, 175, 55, 0.08), transparent 78%);
+    radial-gradient(62rem 34rem at 12% 28%, rgba(18, 36, 70, 0.22), transparent 72%),
+    radial-gradient(58rem 32rem at 88% 62%, rgba(19, 43, 78, 0.23), transparent 74%),
+    radial-gradient(38rem 24rem at 54% 42%, rgba(20, 39, 73, 0.14), transparent 78%);
   animation: site-depth-drift 12s ease-in-out infinite alternate;
 }
 
