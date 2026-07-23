@@ -20,7 +20,7 @@ export function parseProjectRuntimeAuthority(value: unknown): ProjectRuntimeAuth
   throw new ProjectRuntimeAuthorityError("project_runtime_authority_invalid");
 }
 
-/** Reads the durable, project-scoped source of runtime authority. */
+/** Reads the durable project cutover marker. `legacy` means migration pending; it is never a legacy runtime source. */
 export async function getProjectRuntimeAuthority(client: QueryClient, projectId: string): Promise<ProjectRuntimeAuthority> {
   const result = await client.query("SELECT runtime_authority FROM ai_builder_projects WHERE id=$1", [projectId]);
   const row = result.rows[0] as { runtime_authority?: unknown } | undefined;
@@ -28,7 +28,7 @@ export async function getProjectRuntimeAuthority(client: QueryClient, projectId:
   return parseProjectRuntimeAuthority(row.runtime_authority);
 }
 
-/** Owner-scoped server boundary. This changes only authority and updated_at. */
+/** Owner-scoped migration boundary. Setting `legacy` does not restore chat service after Phase 9D. */
 let pool: Pool | null = null;
 const authorityPool = () => (pool ??= new Pool({ connectionString: process.env.DATABASE_URL }));
 /** Test seam for the connection boundary; production always uses DATABASE_URL. */
