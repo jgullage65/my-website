@@ -45,7 +45,16 @@ async function rebuildAssistantProjectionAfterProjectLock(input: { client: Query
   const previousState = existing?.invalidationState ?? "missing";
   if (existing && existing.invalidationState !== "rebuilding") await updateAssistantProjectionInvalidationState(input.client, input.projectId, "rebuilding");
   await input.client.query("SAVEPOINT assistant_projection_rebuild");
-  try { const record = await upsertPersistedAssistantProjection(input.client, { ...projection, projection }); await input.client.query("RELEASE SAVEPOINT assistant_projection_rebuild"); return { record, rebuilt: true, previousState }; }
+  try {
+    const record = await upsertPersistedAssistantProjection(input.client, {
+      ...projection,
+      projectionVersion: ASSISTANT_PROJECTION_VERSION,
+      schemaVersion: ASSISTANT_PROJECTION_SCHEMA_VERSION,
+      projection,
+    });
+    await input.client.query("RELEASE SAVEPOINT assistant_projection_rebuild");
+    return { record, rebuilt: true, previousState };
+  }
   catch (cause) { await input.client.query("ROLLBACK TO SAVEPOINT assistant_projection_rebuild"); await input.client.query("RELEASE SAVEPOINT assistant_projection_rebuild"); throw new AssistantProjectionRebuildError(cause, existing ? { projectId: input.projectId, previousFingerprint: existing.businessMemoryFingerprint, previousGeneratedAt: existing.generatedAt, previousUpdatedAt: existing.updatedAt, previousState: existing.invalidationState } : undefined); }
 }
 export async function ensureAssistantProjectionCurrentInTransaction(input: { client: QueryClient; projectId: string }): Promise<RebuildAssistantProjectionResult> { return rebuildAssistantProjectionInTransaction(input); }
