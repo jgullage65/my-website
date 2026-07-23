@@ -34,11 +34,32 @@ test("is deterministic, timestamp-independent, and preserves resolvable source r
   assert.equal("provenanceClassification" in first.evidence[0], false);
 });
 
-test("selects only an unambiguous canonical business and only related contacts", () => {
+test("canonicalizes collection, nested set-like array, and object insertion order for fingerprints", () => {
+  const input = memory(); const baseline = buildAssistantProjection(input).businessMemoryFingerprint;
+  const reordered = structuredClone(input);
+  reordered.entities.reverse(); reordered.assertions.reverse(); reordered.relationships.reverse(); reordered.sources.reverse(); reordered.evidence.reverse(); reordered.conflicts.reverse(); reordered.missingInformation.reverse();
+  reordered.entities[0].aliases.reverse(); reordered.entities[0].assertionIds.reverse(); reordered.assistant.escalationInstructions.reverse();
+  reordered.assertions[0].confidence = { score: .9, level: "high" };
+  assert.equal(buildAssistantProjection(reordered).businessMemoryFingerprint, baseline);
+});
+
+test("includes captured timestamps but excludes operational mutation timestamps from fingerprints", () => {
+  const input = memory(); const baseline = buildAssistantProjection(input).businessMemoryFingerprint;
+  const updated = structuredClone(input); updated.updatedAt = "2099-01-01T00:00:00.000Z"; updated.entities[0].updatedAt = updated.updatedAt;
+  assert.equal(buildAssistantProjection(updated).businessMemoryFingerprint, baseline);
+  const sourceCaptured = structuredClone(input); sourceCaptured.sources[0].capturedAt = "2099-01-01T00:00:00.000Z";
+  assert.notEqual(buildAssistantProjection(sourceCaptured).businessMemoryFingerprint, baseline);
+  const evidenceCaptured = structuredClone(input); evidenceCaptured.evidence[0].capturedAt = "2099-01-01T00:00:00.000Z";
+  assert.notEqual(buildAssistantProjection(evidenceCaptured).businessMemoryFingerprint, baseline);
+});
+
+test("sets identity status for resolved, ambiguous, and missing canonical businesses", () => {
   const input = memory(); const projection = buildAssistantProjection(input);
-  assert.equal(projection.identity.canonicalEntityId, "business"); assert.deepEqual(projection.identity.contactEntityIds, ["contact"]);
+  assert.equal(projection.identity.status, "resolved"); assert.equal(projection.identity.canonicalEntityId, "business"); assert.deepEqual(projection.identity.contactEntityIds, ["contact"]);
   input.entities.push({ ...input.entities[0], id: "second-business", name: "Second" }); input.assertions.push({ ...input.assertions[0], id: "a-second", entityId: "second-business" });
-  const ambiguous = buildAssistantProjection(input); assert.equal(ambiguous.identity.canonicalEntityId, null); assert.deepEqual(ambiguous.identity.contactEntityIds, []);
+  const ambiguous = buildAssistantProjection(input); assert.equal(ambiguous.identity.status, "ambiguous"); assert.equal(ambiguous.identity.canonicalEntityId, null); assert.equal(ambiguous.identity.businessName, null); assert.deepEqual(ambiguous.identity.contactEntityIds, []);
+  const missing = memory(); missing.entities = missing.entities.filter((entity) => entity.type !== "business");
+  const missingProjection = buildAssistantProjection(missing); assert.equal(missingProjection.identity.status, "missing"); assert.equal(missingProjection.identity.canonicalEntityId, null); assert.equal(missingProjection.identity.businessName, null); assert.deepEqual(missingProjection.identity.contactEntityIds, []);
 });
 
 test("uses merge redirects, rejects redirect cycles, and honors canonical lifecycle", () => {
@@ -58,7 +79,31 @@ test("maps only explicit rules and conflicts with stable bounded normalized iden
   assert.equal(projection.missingInformation[0].resolved, false); assert.deepEqual(projection.missingInformation[0].relatedEntityTypes, ["business"]);
 });
 
-test("filters superseded assertions and invalid evidence references without mutating input", () => {
+test("equivalent rules select a deterministic display string regardless of input order", () => {
+  const forward = memory(); const reverse = structuredClone(forward);
+  reverse.assistant.behaviorRules!.reverse(); reverse.assistant.prohibitedClaims = ["  Don't   promise outcomes. ", "Don't promise outcomes."];
+  forward.assistant.prohibitedClaims = ["Don't promise outcomes.", "  Don't   promise outcomes. "];
+  assert.deepEqual(buildAssistantProjection(forward), buildAssistantProjection(reverse));
+  assert.equal(buildAssistantProjection(forward).restrictions.find((item) => item.type === "behavior_rule")?.instruction, "Be accurate!");
+});
+
+test("preserves duplicate approved assertions across merged entities as independently addressable provenance", () => {
+  const input = memory();
+  input.entities.push({ ...input.entities[3], id: "old-service", assertionIds: ["a-old-service"] });
+  input.entityMerges = [{ canonicalEntityId: "service", mergedEntityIds: ["old-service"], approvedAliases: [], mergedAt: time }];
+  input.assertions.push({ ...input.assertions[3], id: "a-old-service", entityId: "old-service", value: input.assertions[3].value });
+  const services = buildAssistantProjection(input).services.filter((item) => item.value === "service");
+  assert.deepEqual(services.map((item) => item.assertionId).sort(), ["a-old-service", "a-service"]);
+  assert.ok(services.every((item) => item.entityId === "service"));
+});
+
+test("projects conflicting assertions together with their suppression restriction", () => {
+  const projection = buildAssistantProjection(memory()); const restriction = projection.restrictions.find((item) => item.type === "conflict_suppression")!;
+  assert.ok(projection.services.some((item) => item.assertionId === "a-service"));
+  assert.deepEqual(restriction.relatedAssertionIds, ["a-service"]); assert.deepEqual(restriction.evidenceIds, ["evidence"]);
+});
+
+test("filters archived assertions and invalid evidence references without mutating input", () => {
   const input = memory(); input.assertions[3].reviewState = "archived"; input.assertions[3].evidenceIds.push("missing-evidence"); const before = structuredClone(input);
   const projection = buildAssistantProjection(input); assert.equal(projection.services.length, 0); assert.deepEqual(input, before);
   assert.equal(projection.relationships.every((item) => !("active" in item) && !("resolved" in item) && !("confidence" in item)), true);
