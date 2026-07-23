@@ -130,7 +130,7 @@ export default function ContactPageClient() {
             </p>
           </header>
 
-          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="grid min-h-0 flex-1 touch-pan-y gap-5 overflow-y-auto overscroll-contain pr-1 sm:touch-auto sm:overflow-visible sm:overscroll-auto sm:pr-0">
+          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="contact-form-scroll grid min-h-0 flex-1 touch-pan-y gap-5 overflow-y-auto overscroll-contain pr-1 sm:touch-auto sm:overflow-visible sm:overscroll-auto sm:pr-0">
             <input type="hidden" name="form_type" value="Project Request" />
 
             <div className="grid gap-5 md:grid-cols-2">

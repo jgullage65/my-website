@@ -65,6 +65,28 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-color: var(--gold) var(--navy-0);
+  scrollbar-width: thin;
+}
+
+/* Keep browser-provided scrollbars aligned with the site's canonical gold UI. */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--navy-0);
+}
+
+*::-webkit-scrollbar-thumb {
+  border: 2px solid var(--navy-0);
+  border-radius: 999px;
+  background: var(--gold);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #e5c35a;
 }
 
 html {
