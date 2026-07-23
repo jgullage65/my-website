@@ -258,10 +258,15 @@ export async function POST(request: Request) {
       try {
     send({ type: "progress", percent: 5 });
     crawlStartedAt = new Date().toISOString();
-    const crawl = await crawlBusinessWebsite(website, (completed, maximum) => {
+    let crawlProgress = 10;
+    const crawl = await crawlBusinessWebsite(website, () => {
+      crawlProgress = Math.min(
+        65,
+        crawlProgress + Math.max(1, Math.round((65 - crawlProgress) * 0.15)),
+      );
       send({
         type: "progress",
-        percent: Math.min(65, 10 + Math.round((completed / maximum) * 55)),
+        percent: crawlProgress,
       });
     });
     crawlDiagnostics = crawl.diagnostics;

@@ -56,7 +56,7 @@ test("falls back from a generic homepage or internal-page name to the canonical 
   assert.equal(resolveCrawledBusinessName("Acme & Sons", crawl), "Acme & Sons");
 });
 
-test("crawls pages concurrently with a bounded limit", async () => {
+test("crawls all eligible pages with bounded concurrency", async () => {
   let active = 0;
   let maximumActive = 0;
   const fetchPage = async (url: URL) => {
@@ -72,7 +72,7 @@ test("crawls pages concurrently with a bounded limit", async () => {
     fetchPage,
   });
 
-  assert.equal(result.pages.length, 8);
+  assert.equal(result.pages.length, 12);
   assert.equal(maximumActive, 3);
   assert.ok(maximumActive <= 3);
   assert.ok(result.diagnostics.timings.homepageFetchMs >= 0);

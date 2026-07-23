@@ -56,7 +56,6 @@ export function resolveCrawledBusinessName(extractedName: unknown, crawl: Pick<B
   return label.replace(/[-_]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-const MAX_PAGES = 8;
 const MAX_HTML_BYTES = 750_000;
 const MAX_TEXT_PER_PAGE = 12_000;
 const FETCH_TIMEOUT_MS = 7_000;
@@ -416,7 +415,7 @@ function discoverInternalLinks(
 
 export async function crawlBusinessWebsite(
   websiteUrl: string,
-  onPage?: (completedPages: number, maximumPages: number) => void,
+  onPage?: (completedPages: number) => void,
   dependencies: {
     fetchPage?: typeof fetchHtml;
     assertSafe?: typeof assertSafeDestination;
@@ -487,7 +486,7 @@ export async function crawlBusinessWebsite(
         pageType: inferPageType(fetched.resolvedUrl, title),
         text,
       });
-      onPage?.(pages.length, MAX_PAGES);
+      onPage?.(pages.length);
       const discoveryStarted = now();
       const discoveredLinks = discoverInternalLinks(
         fetched.html,
@@ -501,9 +500,9 @@ export async function crawlBusinessWebsite(
   if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
 
-  while (queue.length > 0 && pages.length < MAX_PAGES) {
+  while (queue.length > 0) {
     const batch: URL[] = [];
-    while (queue.length && batch.length < Math.min(MAX_CONCURRENT_FETCHES, MAX_PAGES - pages.length)) {
+    while (queue.length && batch.length < MAX_CONCURRENT_FETCHES) {
       const nextUrl = queue.shift()!;
       queued.delete(nextUrl);
       if (visited.has(nextUrl)) continue;
@@ -529,7 +528,7 @@ export async function crawlBusinessWebsite(
         if (error && !warnings.includes(message)) warnings.push(message);
         continue;
       }
-      if (pages.length < MAX_PAGES) processFetched(fetched);
+      processFetched(fetched);
     }
   }
 
