@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { Pool, type PoolClient } from "@neondatabase/serverless";
+import { Pool } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import {
   buildSystemPrompt,
@@ -15,14 +15,11 @@ import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
 import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
-import { buildKnowledgePackFromTrustedRows, reconcileTrustedKnowledgeProjectionForProject, TrustedKnowledgeProjectionError, type TrustedKnowledgeProjectionRow } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
-import { projectionFresh, type ProjectionFreshness as ProjectionFreshnessState } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeFreshness";
-import { getPersistedAssistantProjection, upsertAssistantProjectionParityReport } from "@/app/lib/ai-engine/assistant-projection/persistence";
-import { compareAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parity";
-import { recordAssistantProjectionParity, recordAssistantProjectionParityComparisonFailure } from "@/app/lib/ai-engine/assistant-projection/parityTelemetry";
+import { getPersistedAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/persistence";
 import { buildLegacyKnowledgePackFromAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/legacy-compatibility";
 import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION } from "@/app/lib/ai-engine/assistant-projection/contracts";
-import { getProjectRuntimeAuthority, type ProjectRuntimeAuthority } from "@/app/lib/ai-engine/runtime-authority/projectRuntimeAuthority";
+import { getProjectRuntimeAuthority } from "@/app/lib/ai-engine/runtime-authority/projectRuntimeAuthority";
+import { cutoverEligibilityFailure } from "@/app/lib/ai-engine/assistant-projection/cutover";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,33 +38,55 @@ type PersistentChatRequest = Omit<ChatRequest, "knowledge"> & {
 
 type DatabaseRow = Record<string, unknown>;
 
-type ProjectionFreshness = ProjectionFreshnessState & { rows: TrustedKnowledgeProjectionRow[] };
-
-type AssistantProjectionParityDependencies = {
-  connect: () => Promise<PoolClient>;
-  getPersisted: typeof getPersistedAssistantProjection;
-  compare: typeof compareAssistantProjectionParity;
-  upsert: typeof upsertAssistantProjectionParityReport;
+type ParityEvidenceRow = {
+  status: unknown;
+  assistant_projection_version: unknown;
+  assistant_projection_schema_version: unknown;
+  active_runtime_authority: unknown;
+  compared_at: unknown;
 };
 
-async function loadProjectionFreshness(projectId: string): Promise<ProjectionFreshness> {
-  const sql = getSql();
-  const projects = await sql`SELECT governance_revision, trusted_knowledge_revision, (SELECT COUNT(*)::integer FROM ai_builder_context_entries WHERE project_id=${projectId} AND status IN ('approved','corrected')) + (SELECT COUNT(*)::integer FROM ai_builder_faq_entries WHERE project_id=${projectId} AND status IN ('approved','corrected')) AS active_canonical_count FROM ai_builder_projects WHERE id=${projectId} LIMIT 1` as DatabaseRow[];
-  const project = projects[0]; if (!project) throw new Error("chat_thread_not_found");
-  const rows = await sql`SELECT source_item_id, source_item_kind, review_state, content, provenance, source_entry_ids, governance_revision FROM ai_builder_trusted_knowledge_projection WHERE project_id=${projectId} AND active=TRUE ORDER BY source_item_kind,source_item_id` as TrustedKnowledgeProjectionRow[];
-  const governanceRevision = Number(project.governance_revision); const trustedKnowledgeRevision = Number(project.trusted_knowledge_revision);
-  return { governanceRevision, trustedKnowledgeRevision, activeCanonicalCount: Number(project.active_canonical_count), activeProjectionCount: rows.length, mixedActiveRevisions: rows.some((row) => Number(row.governance_revision) !== governanceRevision), rows };
-}
+/**
+ * Cutover is deliberately strict: only a MATCH report created for this exact
+ * valid artifact and schema permits chat serving. MINOR_DIFFERENCE is not
+ * accepted because it is evidence of an unreviewed semantic/provenance delta.
+ * Business Memory mutations invalidate the artifact, so a valid artifact is
+ * also the durable proof that no newer mutation invalidated this evidence.
+ */
+async function loadCanonicalRuntimeKnowledge(projectId: string) {
+  const client = await getProjectionPool().connect();
+  try {
+    const authority = await getProjectRuntimeAuthority(client, projectId);
+    // Legacy is a migration-pending marker, not a request-time fallback.
+    if (authority !== "canonical") throw new Error("assistant_projection_migration_required");
+    const persisted = await getPersistedAssistantProjection(client, projectId);
+    if (!persisted) throw new Error("assistant_projection_runtime_unavailable_missing");
+    if (persisted.invalidationState !== "valid") {
+      throw new Error(`assistant_projection_runtime_unavailable_${persisted.invalidationState}`);
+    }
+    if (persisted.projectionVersion !== ASSISTANT_PROJECTION_VERSION) throw new Error("assistant_projection_runtime_unavailable_unsupported_projection_version");
+    if (persisted.schemaVersion !== ASSISTANT_PROJECTION_SCHEMA_VERSION) throw new Error("assistant_projection_runtime_unavailable_unsupported_schema_version");
 
-async function repairProjection(projectId: string): Promise<void> { const client = await getProjectionPool().connect(); try { await client.query("BEGIN"); const project = (await client.query("SELECT id, governance_revision FROM ai_builder_projects WHERE id = $1 FOR UPDATE", [projectId])).rows[0]; if (!project) throw new Error("chat_thread_not_found"); await reconcileTrustedKnowledgeProjectionForProject(client, projectId, Number(project.governance_revision)); await client.query("COMMIT"); } catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; } finally { client.release(); } }
-async function loadLegacyRuntimeKnowledge(projectId: string, assistantConfiguration: { name: string; purpose: string; tone: string; primaryAudience: string | null }) {
-  let freshness = await loadProjectionFreshness(projectId);
-  if (!projectionFresh(freshness)) {
-    try { await repairProjection(projectId); } catch (cause) { if (cause instanceof TrustedKnowledgeProjectionError) throw cause; throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_reconciliation_failed", "Trusted Knowledge repair failed."); }
-    freshness = await loadProjectionFreshness(projectId);
+    const report = (await client.query(
+      "SELECT status,assistant_projection_version,assistant_projection_schema_version,active_runtime_authority,compared_at FROM ai_builder_assistant_projection_parity_reports WHERE project_id=$1",
+      [projectId],
+    )).rows[0] as ParityEvidenceRow | undefined;
+    const eligibilityFailure = cutoverEligibilityFailure({
+      runtimeAuthority: authority,
+      artifact: persisted,
+      evidence: report ? { status: report.status, projectionVersion: report.assistant_projection_version, schemaVersion: report.assistant_projection_schema_version, activeRuntimeAuthority: report.active_runtime_authority, comparedAt: report.compared_at } : null,
+    });
+    if (eligibilityFailure) throw new Error(eligibilityFailure);
+
+    // Shape adapter only: it consumes the persisted Assistant Projection and
+    // performs no Trusted Knowledge or Business Memory read.
+    return buildLegacyKnowledgePackFromAssistantProjection(persisted.projection);
+  } catch (cause) {
+    if (cause instanceof Error && cause.message.startsWith("assistant_projection_")) throw cause;
+    throw new Error("assistant_projection_runtime_unavailable_validation_failure");
+  } finally {
+    client.release();
   }
-  if (!projectionFresh(freshness)) throw new TrustedKnowledgeProjectionError("trusted_knowledge_projection_stale", "Trusted Knowledge remains stale after repair.");
-  return buildKnowledgePackFromTrustedRows({ projectId, assistantConfiguration, rows: freshness.rows });
 }
 
 type PersistentThread = {
@@ -311,9 +330,9 @@ function getErrorDetails(error: unknown): {
     };
   }
 
-  if (code.startsWith("assistant_projection_runtime_unavailable")) return { status: 503, code, message: "The assistant runtime is temporarily unavailable. Please try again or contact support to switch this project to the legacy runtime." };
+  if (code === "assistant_projection_migration_required") return { status: 503, code, message: "This assistant project needs migration before chat is available. Please contact support." };
 
-  if (code === "trusted_knowledge_projection_stale" || code === "trusted_knowledge_projection_reconciliation_failed" || code === "invalid_trusted_projection_source_state" || code === "trusted_knowledge_projection_invalid_source") return { status: 503, code, message: "Trusted Knowledge is temporarily unavailable. Please try again." };
+  if (code.startsWith("assistant_projection_runtime_unavailable")) return { status: 503, code, message: "The assistant runtime is temporarily unavailable. Please try again later." };
 
   if (code === "openai_api_key_missing") {
     return {
@@ -386,46 +405,15 @@ export async function POST(request: Request) {
       : null;
     if (!project) throw new Error("chat_thread_not_found");
 
-    // The durable project authority is server-controlled; request bodies cannot select it.
-    const authorityClient = await getProjectionPool().connect();
-    let authority: ProjectRuntimeAuthority;
-    try { authority = await getProjectRuntimeAuthority(authorityClient, projectId); }
-    finally { authorityClient.release(); }
-
-    let projection: { source: "trusted_knowledge_projection" | "assistant_projection"; knowledge: import("@/app/lib/ai-engine/knowledge").KnowledgePack };
-    let parityPromise: Promise<void>;
-    if (authority === "canonical") {
-      // Read only the persisted Assistant Projection boundary; never rebuild from Business Memory here.
-      const canonicalClient = await getProjectionPool().connect();
-      try {
-        const persisted = await getPersistedAssistantProjection(canonicalClient, projectId);
-        if (!persisted || persisted.invalidationState !== "valid" || persisted.projectionVersion !== ASSISTANT_PROJECTION_VERSION || persisted.schemaVersion !== ASSISTANT_PROJECTION_SCHEMA_VERSION) throw new Error("assistant_projection_runtime_unavailable");
-        projection = { source: "assistant_projection", knowledge: buildLegacyKnowledgePackFromAssistantProjection(persisted.projection) };
-      } catch (cause) {
-        if (cause instanceof Error && cause.message === "assistant_projection_runtime_unavailable") throw cause;
-        throw new Error("assistant_projection_runtime_unavailable");
-      } finally { canonicalClient.release(); }
-      // Legacy comparison failure is telemetry-only and never changes canonical serving.
-      parityPromise = (async () => {
-        const dependencies = { connect: () => getProjectionPool().connect(), getPersisted: getPersistedAssistantProjection, compare: compareAssistantProjectionParity, upsert: upsertAssistantProjectionParityReport };
-        try {
-          const legacy = await loadLegacyRuntimeKnowledge(projectId, project.session.assistantConfiguration);
-          await recordAssistantProjectionParity(projectId, legacy, dependencies, authority);
-        } catch {
-          // A failed comparison is a durable outcome, not an omitted attempt.
-          await recordAssistantProjectionParityComparisonFailure(projectId, dependencies, authority, "legacy_comparison_load_failed");
-        }
-      })();
-    } else {
-      const legacy = await loadLegacyRuntimeKnowledge(projectId, project.session.assistantConfiguration);
-      projection = { source: "trusted_knowledge_projection", knowledge: legacy };
-      parityPromise = recordAssistantProjectionParity(projectId, legacy, { connect: () => getProjectionPool().connect(), getPersisted: getPersistedAssistantProjection, compare: compareAssistantProjectionParity, upsert: upsertAssistantProjectionParityReport }, authority);
-    }
+    // Runtime authority and all cutover evidence are read server-side. Client
+    // input cannot select a source or re-enable the removed legacy path.
+    const knowledge = await loadCanonicalRuntimeKnowledge(projectId);
+    const projection = { source: "assistant_projection" as const, knowledge };
     if (
       projection.knowledge.facts.length === 0 &&
       projection.knowledge.faq.length === 0
     ) {
-      throw new Error(authority === "canonical" ? "assistant_projection_runtime_unavailable" : "approved_knowledge_unavailable");
+      throw new Error("assistant_projection_runtime_unavailable_empty");
     }
 
     const message = body.message.trim().slice(0, 4000);
@@ -471,10 +459,6 @@ export async function POST(request: Request) {
     const userMessageCount = persistenceContext
       ? persistenceContext.userMessageCount + 1
       : null;
-
-    // recordAssistantProjectionParity contains its own non-throwing boundary,
-    // so telemetry failures cannot alter the authority-selected response.
-    await parityPromise;
 
     return NextResponse.json({
       ok: true,
