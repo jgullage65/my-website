@@ -105,7 +105,7 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
     if (!entity || !entityId || !supportedAssertion(assertion)) return null;
     return { id: assertion.id, entityId, assertionId: assertion.id, entityType: entity.type, title: entity.name, value: assertion.value,
       aliases: sortedUnique(entity.aliases), tags: sortedUnique(assertion.tags), confidence: { ...assertion.confidence }, authority: assertion.authority, reviewState: assertion.reviewState,
-      evidenceIds: sortedUnique(assertion.evidenceIds.filter((id) => evidence.has(id))), sourceIds: sortedUnique(assertion.sourceIds.filter((id) => sources.has(id))), ...(assertion.provenance ? { provenance: { ...assertion.provenance } } : {}) };
+      evidenceIds: sortedUnique(assertion.evidenceIds.filter((id) => evidence.has(id))), sourceIds: sortedUnique(assertion.sourceIds.filter((id) => sources.has(id))), ...(assertion.provenance ? { provenance: { ...assertion.provenance } } : {}), predecessorAssertionId: assertion.predecessorAssertionId ?? null };
   };
   // Business Memory intentionally preserves independently addressable duplicate assertions, including after entity redirects; 8A projects each approved/corrected assertion rather than inventing reconciliation.
   const items = memory.assertions.map(itemFor).filter((item): item is AssistantProjectionTextKnowledgeItem => item !== null);

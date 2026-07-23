@@ -21,4 +21,5 @@ export type ChatDiagnostics={
   retrievedFaq:number;
   retrievalMs:number;
   runtimeSource?: "server_legacy_projection" | "trusted_knowledge_projection" | "assistant_projection";
+  structuredRetrieval?: { engineVersion: string; intent: string; directCandidateCount: number; relationshipExpansionCount: number; selectedResultCount: number; selectedCategoryCounts: Record<string, number>; topScoreBands: number[]; };
 };
