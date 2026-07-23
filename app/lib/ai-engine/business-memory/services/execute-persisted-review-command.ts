@@ -7,6 +7,7 @@ import { validateReviewCommand, type AuthoritativeReviewProject } from "../revie
 import type { ReviewCommand, ReviewCommandRequest } from "../review-commands";
 import { NeonReviewCommandExecutionStore } from "../persistence/neon-review-command-execution-store";
 import { TrustedKnowledgeProjectionError } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
+import { safeOperationalError, writeOperationalFailureAfterRollback } from "@/app/lib/ai-engine/operations/operational-events";
 
 let pool: Pool | null = null;
 const transactionPool = () => (pool ??= new Pool({ connectionString: process.env.DATABASE_URL }));
@@ -49,7 +50,20 @@ export async function executePersistedReviewCommandsAtomically({ projectId, cler
     return results;
   } catch (cause) {
     await client.query("ROLLBACK").catch(() => undefined);
-    if (cause instanceof TrustedKnowledgeProjectionError) throw new PersistedReviewCommandError(cause.code, "Trusted Knowledge could not be reconciled from the canonical review state.", cause.code === "invalid_trusted_projection_source_state" || cause.code === "trusted_knowledge_projection_invalid_source" ? 409 : 500);
+    const applicationError = cause instanceof TrustedKnowledgeProjectionError
+      ? new PersistedReviewCommandError(cause.code, "Trusted Knowledge could not be reconciled from the canonical review state.", cause.code === "invalid_trusted_projection_source_state" || cause.code === "trusted_knowledge_projection_invalid_source" ? 409 : 500)
+      : cause;
+    const first = requests[0];
+    const safe = safeOperationalError(applicationError);
+    const reviewFailure = applicationError instanceof PersistedReviewCommandError && applicationError.status < 500;
+    await writeOperationalFailureAfterRollback({
+      projectId, eventType: reviewFailure ? "review_command_failed" : "governance_transaction_failed", category: "review_governance",
+      severity: "error", outcome: "failed", sourceComponent: "executePersistedReviewCommandsAtomically", correlationId: first?.commandId,
+      commandId: first?.commandId, errorCode: safe.errorCode, errorMessage: safe.errorMessage,
+      expectedValue: first?.clientRevision === undefined ? undefined : String(first.clientRevision),
+      metadata: first ? { commandKind: first.kind, itemKind: first.itemKind } : { batchSize: requests.length },
+    }, applicationError);
+    if (cause instanceof TrustedKnowledgeProjectionError) throw applicationError;
     throw cause;
   } finally { client.release(); }
 }

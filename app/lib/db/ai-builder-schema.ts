@@ -562,6 +562,43 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_downstream_synchronization_attempts ADD COLUMN IF NOT EXISTS reason TEXT`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_downstream_synchronization_attempts_job_idx ON ai_builder_downstream_synchronization_attempts(job_id, attempt_number)`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_downstream_synchronization_commands (command_id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE, job_id TEXT NOT NULL REFERENCES ai_builder_downstream_synchronization_jobs(id) ON DELETE CASCADE, command_type TEXT NOT NULL, request_fingerprint TEXT NOT NULL, result JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+  // Phase 12C: this is intentionally an append-only audit stream.  Consumers
+  // derive current status from durable domain tables; events are never mutated.
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_operational_events (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+    event_type TEXT NOT NULL,
+    category TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    source_component TEXT NOT NULL,
+    correlation_id TEXT,
+    command_id TEXT,
+    synchronization_job_id TEXT,
+    synchronization_attempt_id TEXT,
+    migration_run_id TEXT,
+    trusted_knowledge_revision INTEGER,
+    business_memory_revision INTEGER,
+    assistant_projection_fingerprint TEXT,
+    expected_value TEXT,
+    observed_value TEXT,
+    error_code TEXT,
+    error_message TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    occurred_at TIMESTAMPTZ NOT NULL,
+    persisted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT ai_builder_operational_events_type_check CHECK (event_type IN ('review_command_failed','governance_transaction_failed','business_memory_rebuild_started','business_memory_rebuild_succeeded','business_memory_rebuild_failed','assistant_projection_rebuild_started','assistant_projection_rebuild_succeeded','assistant_projection_rebuild_failed','reconciliation_started','reconciliation_no_op','reconciliation_repaired','reconciliation_blocked','reconciliation_failed','drift_detected','drift_resolved','drift_unresolved','retry_scheduled','retry_started','retry_succeeded','retry_failed','dead_letter_entered','dead_letter_reopened','stale_running_recovered','migration_started','migration_checkpointed','migration_succeeded','migration_failed','runtime_cutover_succeeded','runtime_cutover_rejected','runtime_authority_mismatch')),
+    CONSTRAINT ai_builder_operational_events_category_check CHECK (category IN ('review_governance','business_memory','assistant_projection','reconciliation','drift','retry_recovery','migration','runtime_cutover')),
+    CONSTRAINT ai_builder_operational_events_severity_check CHECK (severity IN ('info','warning','error','critical')),
+    CONSTRAINT ai_builder_operational_events_outcome_check CHECK (outcome IN ('started','succeeded','failed','blocked','no_op','detected','resolved','rejected','scheduled')),
+    CONSTRAINT ai_builder_operational_events_error_bounds CHECK (error_code IS NULL OR char_length(error_code) <= 128),
+    CONSTRAINT ai_builder_operational_events_message_bounds CHECK (error_message IS NULL OR char_length(error_message) <= 512)
+  )`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_operational_events_project_occurred_idx ON ai_builder_operational_events(project_id, occurred_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_operational_events_type_occurred_idx ON ai_builder_operational_events(event_type, occurred_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_operational_events_job_idx ON ai_builder_operational_events(synchronization_job_id) WHERE synchronization_job_id IS NOT NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_operational_events_command_idx ON ai_builder_operational_events(command_id) WHERE command_id IS NOT NULL`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_operational_events_migration_idx ON ai_builder_operational_events(migration_run_id) WHERE migration_run_id IS NOT NULL`;
   await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS repair_action TEXT`;
   await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS actor_type TEXT`;
   await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS actor_id TEXT`;
