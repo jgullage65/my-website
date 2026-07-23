@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { Pool } from "@neondatabase/serverless";
+import { Pool, type PoolClient } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import {
   buildSystemPrompt,
@@ -17,6 +17,9 @@ import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import { buildKnowledgePackFromTrustedRows, reconcileTrustedKnowledgeProjectionForProject, TrustedKnowledgeProjectionError, type TrustedKnowledgeProjectionRow } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeProjection";
 import { projectionFresh, type ProjectionFreshness as ProjectionFreshnessState } from "@/app/lib/ai-engine/knowledge/trustedKnowledgeFreshness";
+import { getPersistedAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/persistence";
+import { compareAssistantProjectionParity } from "@/app/lib/ai-engine/assistant-projection/parity";
+import type { KnowledgePack } from "@/app/lib/ai-engine/knowledge/contracts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +50,33 @@ async function loadProjectionFreshness(projectId: string): Promise<ProjectionFre
 }
 
 async function repairProjection(projectId: string): Promise<void> { const client = await getProjectionPool().connect(); try { await client.query("BEGIN"); const project = (await client.query("SELECT id, governance_revision FROM ai_builder_projects WHERE id = $1 FOR UPDATE", [projectId])).rows[0]; if (!project) throw new Error("chat_thread_not_found"); await reconcileTrustedKnowledgeProjectionForProject(client, projectId, Number(project.governance_revision)); await client.query("COMMIT"); } catch (error) { await client.query("ROLLBACK").catch(() => undefined); throw error; } finally { client.release(); } }
+
+/**
+ * Phase 9A observability only. This intentionally runs independently and is
+ * never awaited by the request path: trusted knowledge remains authoritative.
+ */
+function recordAssistantProjectionParity(projectId: string, legacy: KnowledgePack): void {
+  void (async () => {
+    let client: PoolClient | null = null;
+    try {
+      client = await getProjectionPool().connect();
+      const persisted = await getPersistedAssistantProjection(client, projectId);
+      if (!persisted) throw new Error("assistant_projection_unavailable");
+      const report = compareAssistantProjectionParity({ projectId, legacy, canonicalProjection: persisted.projection });
+      console.info("AI_BUILDER_RUNTIME_PARITY", report);
+    } catch (error) {
+      console.info("AI_BUILDER_RUNTIME_PARITY", {
+        projectId,
+        runtimeVersion: legacy.version,
+        comparedAt: new Date().toISOString(),
+        status: "COMPARISON_FAILURE",
+        error: error instanceof Error ? error.message : "unknown_error",
+      });
+    } finally {
+      client?.release();
+    }
+  })();
+}
 
 type PersistentThread = {
   projectId: string;
@@ -379,6 +409,9 @@ export async function POST(request: Request) {
         rows: trustedRows,
       }),
     };
+    // The canonical projection is read and compared in isolation. Its output
+    // is deliberately not used by retrieval, prompts, or response diagnostics.
+    recordAssistantProjectionParity(projectId, projection.knowledge);
     if (
       projection.knowledge.facts.length === 0 &&
       projection.knowledge.faq.length === 0
