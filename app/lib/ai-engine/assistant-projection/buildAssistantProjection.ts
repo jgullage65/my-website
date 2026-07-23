@@ -21,7 +21,8 @@ const byId = <T extends { id: string }>(values: readonly T[]) => [...values].sor
 const stableId = (prefix: string, content: string) => `${prefix}_${createHash("sha256").update(content).digest("hex").slice(0, 24)}`;
 type SupportedAssertion = BusinessAssertion & { reviewState: "approved" | "corrected" };
 const supportedAssertion = (assertion: BusinessAssertion): assertion is SupportedAssertion => assertion.reviewState === "approved" || assertion.reviewState === "corrected";
-const supportedRelationship = (relationship: BusinessRelationship) => relationship.reviewState === "approved" || relationship.reviewState === "corrected";
+type SupportedRelationship = BusinessRelationship & { reviewState: "approved" | "corrected" };
+const supportedRelationship = (relationship: BusinessRelationship): relationship is SupportedRelationship => relationship.reviewState === "approved" || relationship.reviewState === "corrected";
 
 export class AssistantProjectionGenerationError extends Error {
   readonly code: "assistant_projection_unresolved_conflict" | "assistant_projection_unresolved_revision_authority" | "assistant_projection_ambiguous_identity";
