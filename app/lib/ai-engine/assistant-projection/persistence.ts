@@ -175,3 +175,17 @@ export async function updateAssistantProjectionInvalidationState(client: QueryCl
   const row = (result.rows as DatabaseRow[])[0];
   return row ? parsePersistedAssistantProjectionRecord(row) : null;
 }
+
+/**
+ * Records a Business Memory content commit without ever taking an active
+ * rebuild (or its durable failure) backwards.  The predicate is part of the
+ * write, rather than a preceding read, so it remains correct under races.
+ */
+export async function invalidateAssistantProjectionForBusinessMemoryChange(client: QueryClient, projectId: string): Promise<PersistedAssistantProjectionRecord | null> {
+  const result = await client.query(
+    "UPDATE ai_builder_assistant_projections SET invalidation_state='invalidated',updated_at=NOW() WHERE project_id=$1 AND invalidation_state='valid' RETURNING project_id,business_memory_fingerprint,projection_version,schema_version,generated_at,invalidation_state,projection_json,created_at,updated_at",
+    [projectId],
+  );
+  const row = (result.rows as DatabaseRow[])[0];
+  return row ? parsePersistedAssistantProjectionRecord(row) : null;
+}
