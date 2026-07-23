@@ -11,7 +11,7 @@ export class AssistantProjectionRuntimeValidationError extends Error {
 }
 
 const authoritativeStates = new Set(["approved", "corrected"]);
-const textCollections = ["services", "pricing", "policies", "faqs"] as const;
+const textCollections = ["services", "products", "pricing", "policies", "faqs"] as const;
 
 function fail(code: string): never { throw new AssistantProjectionRuntimeValidationError(code); }
 
@@ -36,6 +36,7 @@ function validateItem(item: unknown, collection: string, sourceIds: Set<string>,
  * silently omitted or adapted into an answer.
  */
 export function validateAssistantProjectionRuntime(projection: AssistantProjection): void {
+  if (!Array.isArray(projection.products)) fail("assistant_projection_runtime_invalid_products");
   const sourceIds = new Set(projection.sources.map((source) => source.id));
   const evidenceIds = new Set(projection.evidence.map((evidence) => evidence.id));
   if (projection.evidence.some((evidence) => !sourceIds.has(evidence.canonicalSourceId))) fail("assistant_projection_runtime_invalid_evidence_source");

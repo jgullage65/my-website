@@ -9,11 +9,11 @@ import type {
 } from "../business-memory/contracts";
 
 /** Wire schema for the durable, runtime-facing Assistant Projection boundary. */
-// Schema v2 makes revision linkage a required wire field on text knowledge.
-export const ASSISTANT_PROJECTION_SCHEMA_VERSION = 2 as const;
+// Schema v3 adds the dedicated product collection while retaining revision linkage.
+export const ASSISTANT_PROJECTION_SCHEMA_VERSION = 3 as const;
 /** Version of the deterministic Business Memory-to-projection mapping. */
-// Mapping v2 serializes revision linkage deterministically for every claim.
-export const ASSISTANT_PROJECTION_VERSION = 2 as const;
+// Mapping v3 serializes products and revision linkage deterministically for every claim.
+export const ASSISTANT_PROJECTION_VERSION = 3 as const;
 
 export type AssistantProjectionSource = {
   id: string;
@@ -54,6 +54,8 @@ export type AssistantProjectionTextKnowledgeItem = {
 
 /** Business Memory currently represents services as reviewed text claims. */
 export type AssistantProjectionService = AssistantProjectionTextKnowledgeItem & { entityType: "service" };
+/** Business Memory products are reviewed text claims in their own runtime collection. */
+export type AssistantProjectionProduct = AssistantProjectionTextKnowledgeItem & { entityType: "product" };
 /** Business Memory currently represents pricing as reviewed text claims. */
 export type AssistantProjectionPricing = AssistantProjectionTextKnowledgeItem & { entityType: "pricing_concept" };
 /** Business Memory currently represents policies as reviewed text claims. */
@@ -134,6 +136,7 @@ export type AssistantProjection = {
   identity: AssistantProjectionIdentity;
   assistant: AssistantProjectionAssistantConfiguration;
   services: AssistantProjectionService[];
+  products: AssistantProjectionProduct[];
   pricing: AssistantProjectionPricing[];
   policies: AssistantProjectionPolicy[];
   faqs: AssistantProjectionFaq[];

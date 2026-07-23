@@ -15,7 +15,7 @@ function projection(): AssistantProjection {
     identity: { status: "resolved", canonicalEntityId: "business", businessName: "Acme", aliases: ["Acme Inc"], mergedEntityIds: [], redirectedEntityIds: [], contactEntityIds: [] },
     assistant: { name: "Ava", purpose: "Help visitors", tone: "warm", responseStyle: "brief", primaryAudience: "Owners", escalationInstructions: ["Escalate billing"] },
     services: [item("service-z", "service", "Support", "We provide support"), item("service-a", "service", "Consulting", "We provide consulting")],
-    pricing: [item("pricing", "pricing_concept", "Pricing", "Plans start at $10")], policies: [item("policy", "policy", "Returns", "Returns within 30 days")],
+    products: [], pricing: [item("pricing", "pricing_concept", "Pricing", "Plans start at $10")], policies: [item("policy", "policy", "Returns", "Returns within 30 days")],
     faqs: [{ ...item("faq", "faq", "Unused", "Unused"), question: "What services do you offer?", answer: "Consulting and support." }],
     restrictions: [{ id: "rule", type: "behavior_rule", instruction: "Be accurate.", relatedEntityIds: [], relatedAssertionIds: [], evidenceIds: [], sourceIds: [], reviewState: "approved" as const }, { id: "claim", type: "prohibited_claim", instruction: "Do not promise outcomes.", relatedEntityIds: [], relatedAssertionIds: [], evidenceIds: [], sourceIds: [], reviewState: "approved" as const }],
     relationships: [], sources: [{ id: "source-b", origin: "website", url: "https://b.test", label: null, capturedAt, crawlAttemptId: null }, { id: "source-a", origin: "manual_intake", url: "https://a.test", label: null, capturedAt, crawlAttemptId: null }],

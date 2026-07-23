@@ -152,3 +152,13 @@ test("projects authoritative relationships with source lineage and runtime rejec
   const malformed = structuredClone(projection); malformed.relationships[0].targetAssertionId = "proposed";
   assert.throws(() => validateAssistantProjectionRuntime(malformed), (error: unknown) => error instanceof AssistantProjectionRuntimeValidationError && error.code === "assistant_projection_runtime_invalid_relationship");
 });
+
+
+test("projects approved products into their dedicated canonical collection", () => {
+  const input = memory();
+  input.entities.push({ id: "product", type: "product", name: "Starter Kit", aliases: ["kit"], tags: [], assertionIds: ["a-product"], sourceIds: ["source"], evidenceIds: ["evidence"], createdAt: time, updatedAt: time });
+  input.assertions.push({ ...input.assertions[3], id: "a-product", entityId: "product", value: "Starter kit details", sourceIds: ["source"], evidenceIds: ["evidence"] });
+  const projection = buildAssistantProjection(input);
+  assert.deepEqual(projection.products.map(item => [item.entityType, item.entityId, item.assertionId, item.aliases]), [["product", "product", "a-product", ["kit"]]]);
+  assert.equal(projection.services.some(item => item.assertionId === "a-product"), false);
+});

@@ -30,7 +30,7 @@ const getProjectionPool = () => (projectionPool ??= new Pool({ connectionString:
 
 /** A canonical projection is usable whenever it has any runtime knowledge. */
 function hasAnswerableAssistantProjection(projection: import("@/app/lib/ai-engine/assistant-projection/contracts").AssistantProjection): boolean {
-  return projection.services.length + projection.pricing.length + projection.policies.length + projection.faqs.length + projection.restrictions.length > 0;
+  return projection.services.length + projection.products.length + projection.pricing.length + projection.policies.length + projection.faqs.length + projection.restrictions.length > 0;
 }
 
 type PersistentChatRequest = Omit<ChatRequest, "knowledge"> & {
