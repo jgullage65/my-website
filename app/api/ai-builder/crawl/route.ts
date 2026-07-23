@@ -3,6 +3,8 @@ import OpenAI from "openai";
 import { BusinessWebsiteCrawlError, crawlBusinessWebsite, resolveCrawledBusinessName } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
 import { finishCrawlTelemetry, startCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
+import { estimateAiTokenCost } from "@/app/lib/telemetry/ai-pricing";
+import type { AiTokenUsage } from "@/app/lib/telemetry/ai-pricing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -247,6 +249,12 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 
       let crawlRecorded = false;
+      let model = process.env.AI_BUILDER_CRAWLER_MODEL?.trim() || "gpt-5-mini";
+      let usage: AiTokenUsage | undefined;
+      let aiCalls = 0;
+      let aiExtractionStarted: number | undefined;
+      let aiExtractionDurationMs = 0;
+      let crawlDiagnostics: BusinessWebsiteCrawlError["diagnostics"] | undefined;
       try {
     send({ type: "progress", percent: 5 });
     crawlStartedAt = new Date().toISOString();
@@ -256,6 +264,7 @@ export async function POST(request: Request) {
         percent: Math.min(65, 10 + Math.round((completed / maximum) * 55)),
       });
     });
+    crawlDiagnostics = crawl.diagnostics;
     const crawlCompletedAt = new Date().toISOString();
     const telemetryFinish = performance.now();
     await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
@@ -263,7 +272,6 @@ export async function POST(request: Request) {
     crawlRecorded = true;
     send({ type: "progress", percent: 70 });
     const client = new OpenAI({ apiKey });
-    const model = process.env.AI_BUILDER_CRAWLER_MODEL?.trim() || "gpt-5-mini";
 
     const source = crawl.pages
       .map(
@@ -284,6 +292,8 @@ export async function POST(request: Request) {
 
     send({ type: "progress", percent: 75 });
     const aiStarted = performance.now();
+    aiExtractionStarted = aiStarted;
+    aiCalls += 1;
     const response = await client.responses.create({
       model,
       instructions: [
@@ -313,6 +323,12 @@ export async function POST(request: Request) {
         },
       },
     });
+    model = response.model || model;
+    usage = response.usage ? {
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+      totalTokens: response.usage.total_tokens,
+    } : undefined;
 
     const extracted = JSON.parse(response.output_text.trim()) as {
       businessName: string;
@@ -328,6 +344,7 @@ export async function POST(request: Request) {
     ]));
     const knowledge = normalizeKnowledge(extracted.knowledge, crawledPages);
     const aiKnowledgeExtractionMs = performance.now() - aiStarted;
+    aiExtractionDurationMs = aiKnowledgeExtractionMs;
     const timings = {
       ...crawl.diagnostics.timings,
       aiKnowledgeExtractionMs,
@@ -364,6 +381,7 @@ export async function POST(request: Request) {
         const message = error instanceof Error ? error.message : "The website could not be imported.";
         if (!crawlRecorded) {
           const diagnostics=error instanceof BusinessWebsiteCrawlError?error.diagnostics:undefined;
+          crawlDiagnostics = diagnostics;
           await finishCrawlTelemetry(attemptId,{status:"failed",startedAt:crawlStartedAt,completedAt:new Date().toISOString(),...diagnostics,errors:[{stage:"crawl",message:message.slice(0,500)}],failureStage:"crawl"});
         }
         console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website, message });
@@ -376,6 +394,30 @@ export async function POST(request: Request) {
           crawlAttemptId: attemptId,
         });
       } finally {
+        if (aiExtractionStarted !== undefined && aiExtractionDurationMs === 0) aiExtractionDurationMs = performance.now() - aiExtractionStarted;
+        const cost = usage ? estimateAiTokenCost(model, usage) : undefined;
+        const pagesProcessed = crawlDiagnostics?.pagesProcessed ?? 0;
+        console.info("AI_BUILDER_CRAWL_DIAGNOSTICS", {
+          attemptId,
+          website,
+          model,
+          pagesDiscovered: crawlDiagnostics?.pagesDiscovered ?? 0,
+          pagesCrawled: pagesProcessed,
+          pagesProcessed,
+          pagesSkipped: crawlDiagnostics?.pagesSkipped ?? 0,
+          pagesFailed: crawlDiagnostics?.pagesFailed ?? 0,
+          aiCalls,
+          inputTokens: usage?.inputTokens ?? 0,
+          outputTokens: usage?.outputTokens ?? 0,
+          totalTokens: usage?.totalTokens ?? 0,
+          estimatedInputCostUsd: cost?.inputCostUsd ?? null,
+          estimatedOutputCostUsd: cost?.outputCostUsd ?? null,
+          estimatedTotalCostUsd: cost?.totalCostUsd ?? null,
+          costPerPageUsd: cost && pagesProcessed > 0 ? cost.totalCostUsd / pagesProcessed : null,
+          crawlDurationMs: crawlDiagnostics?.timings.totalCrawlDurationMs ?? 0,
+          aiExtractionDurationMs,
+          totalRequestDurationMs: performance.now() - requestStarted,
+        });
         controller.close();
       }
     },
