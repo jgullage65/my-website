@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import type { PoolClient } from "@neondatabase/serverless";
 import { BUSINESS_MEMORY_SCHEMA_VERSION, type KnowledgeSourceOrigin } from "../contracts";
 import { invalidateAssistantProjectionForCommittedBusinessMemory } from "../../assistant-projection/lifecycle";
+import { writeOperationalEvent } from "@/app/lib/ai-engine/operations/operational-events";
 
 type Row = Record<string, any>;
 type QueryClient = Pick<PoolClient, "query">;
@@ -82,8 +83,11 @@ export async function rebuildPersistedBusinessMemoryFromTrustedKnowledge(client:
   const unchanged = existing?.state_fingerprint === stateFingerprint;
   if (unchanged && !options.forceReconstruction) {
     if (Number(existing.trusted_knowledge_revision) !== trustedKnowledgeRevision) await client.query("UPDATE ai_builder_business_memory SET trusted_knowledge_revision=$2, updated_at=$3::timestamptz WHERE project_id=$1", [projectId, trustedKnowledgeRevision, new Date().toISOString()]);
-    await client.query("UPDATE ai_builder_projects SET business_memory_revision=$2 WHERE id=$1", [projectId, Number(existing.revision)]); return;
+    await client.query("UPDATE ai_builder_projects SET business_memory_revision=$2 WHERE id=$1", [projectId, Number(existing.revision)]);
+    // A source-revision refresh is a deliberate no-op, not a rebuild success.
+    return;
   }
+  await writeOperationalEvent(client, { projectId, eventType: "business_memory_rebuild_started", category: "business_memory", severity: "info", outcome: "started", sourceComponent: "rebuildPersistedBusinessMemoryFromTrustedKnowledge", trustedKnowledgeRevision, metadata: { forceReconstruction: Boolean(options.forceReconstruction) } });
   const now = new Date().toISOString();
   if (unchanged) {
     // A forced reconstruction rewrites the deterministic child rows, but an
@@ -109,4 +113,6 @@ export async function rebuildPersistedBusinessMemoryFromTrustedKnowledge(client:
   // No-op source-revision refreshes above intentionally do not invalidate;
   // a caller explicitly requesting reconstruction requires reevaluation.
   if (!unchanged || options.forceReconstruction) await invalidateAssistantProjectionForCommittedBusinessMemory(client, projectId);
+  const persisted = (await client.query("SELECT revision, trusted_knowledge_revision, state_fingerprint FROM ai_builder_business_memory WHERE project_id=$1", [projectId])).rows[0] as Row;
+  await writeOperationalEvent(client, { projectId, eventType: "business_memory_rebuild_succeeded", category: "business_memory", severity: "info", outcome: "succeeded", sourceComponent: "rebuildPersistedBusinessMemoryFromTrustedKnowledge", trustedKnowledgeRevision: Number(persisted.trusted_knowledge_revision), businessMemoryRevision: Number(persisted.revision), metadata: { stateFingerprint: String(persisted.state_fingerprint), materialChanged: !unchanged, forceReconstruction: Boolean(options.forceReconstruction), noOp: false } });
 }
