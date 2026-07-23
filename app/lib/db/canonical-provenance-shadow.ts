@@ -240,7 +240,7 @@ export function buildCanonicalProvenanceShadowQueries(sql: TransactionSql, input
   return queries;
 }
 
-export type LegacyReviewEntry = { id: string; status: string; content: string; updatedAt: string; kind: "context_entry" | "faq"; provenance?: { predecessor: string; original: string } };
+export type LegacyReviewEntry = { id: string; status: string; content: string; updatedAt: string; kind: "context_entry" | "faq"; provenance?: { predecessor: string; original: string }; conversationCandidateIdentity?: string };
 export type LegacyReviewTransition = { entry: LegacyReviewEntry; previousStatus: string; action: "approve" | "correction" | "archive" | "restore" | "reject" | "unapprove" };
 
 const REVIEW_TRANSITIONS: Record<string, LegacyReviewTransition["action"]> = {
@@ -298,10 +298,14 @@ export async function writeCanonicalGovernanceShadow(
   for (const transition of input.transitions) {
     const key = transition.entry.kind === "context_entry" ? "legacyContextEntryId" : "legacyFaqEntryId";
     const content = transition.entry.content.trim();
-    const matching = await tx.query(`SELECT id, claim_identity, metadata FROM ai_builder_canonical_candidate_claims WHERE project_id = $1 AND metadata ->> $2 = $3 AND normalized_content = $4 ORDER BY created_at DESC, id DESC LIMIT 1`, [input.projectId, key, transition.entry.id, content]);
+    // Conversation promotion's review row is compatibility UI only. Its stored
+    // identity is authoritative: never derive a second claim from that row.
+    const matching = transition.entry.conversationCandidateIdentity
+      ? await tx.query(`SELECT id, claim_identity, metadata FROM ai_builder_canonical_candidate_claims WHERE project_id = $1 AND claim_identity = $2 LIMIT 1`, [input.projectId, transition.entry.conversationCandidateIdentity])
+      : await tx.query(`SELECT id, claim_identity, metadata FROM ai_builder_canonical_candidate_claims WHERE project_id = $1 AND metadata ->> $2 = $3 AND normalized_content = $4 ORDER BY created_at DESC, id DESC LIMIT 1`, [input.projectId, key, transition.entry.id, content]);
     let candidate = matching.rows[0] as { id: string; claim_identity: string; metadata: Record<string, unknown> } | undefined;
 
-    if (transition.action === "correction") {
+    if (transition.action === "correction" && !transition.entry.conversationCandidateIdentity) {
       const predecessorRows = await tx.query(`SELECT id, source_snapshot_id, claim_type, category, title, confidence, confidence_score, metadata, created_at FROM ai_builder_canonical_candidate_claims WHERE project_id = $1 AND metadata ->> $2 = $3 AND normalized_content <> $4 ${candidate ? "AND id <> $5" : ""} ORDER BY created_at DESC, id DESC LIMIT 1`, candidate ? [input.projectId, key, transition.entry.id, content, candidate.id] : [input.projectId, key, transition.entry.id, content]);
       const predecessor = predecessorRows.rows[0] as { id: string; source_snapshot_id: string; claim_type: string; category: string; title: string; confidence: string; confidence_score: number; metadata: Record<string, unknown> } | undefined;
       if (!predecessor) throw new Error(`canonical_governance_candidate_missing:${transition.entry.kind}:${transition.entry.id}`);
@@ -320,6 +324,11 @@ export async function writeCanonicalGovernanceShadow(
       if (counts && Number(counts.corrected) < Number(counts.predecessor)) throw new Error(`canonical_correction_evidence_inheritance_failed:${transition.entry.kind}:${transition.entry.id}`);
     }
     if (!candidate) throw new Error(`canonical_governance_candidate_missing:${transition.entry.kind}:${transition.entry.id}`);
+    if (transition.action === "correction" && transition.entry.conversationCandidateIdentity) {
+      // Corrections govern the original chat-backed claim and deliberately
+      // retain its source, snapshot, evidence links, and identity.
+      await tx.query(`UPDATE ai_builder_canonical_candidate_claims SET normalized_content=$1, status='corrected', updated_at=$2::timestamptz WHERE id=$3 AND project_id=$4`, [content, transition.entry.updatedAt, candidate.id, input.projectId]);
+    }
     // Keep the deterministic candidate projection aligned with the legacy review
     // state before recording its append-only governance event.
     await tx.query(`UPDATE ai_builder_canonical_candidate_claims SET status=$1, updated_at=$2::timestamptz WHERE id=$3 AND project_id=$4`, [transition.entry.status, transition.entry.updatedAt, candidate.id, input.projectId]);

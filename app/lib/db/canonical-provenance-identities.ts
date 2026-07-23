@@ -23,7 +23,18 @@ function canonicalId(...parts: string[]): string {
   return `canonical:${parts.join(":")}`;
 }
 
-export function sourceIdentity(projectId: string, kind: CanonicalSourceKind): string {
+export function sourceIdentity(projectId: string, kind: Exclude<CanonicalSourceKind, "conversation">): string;
+export function sourceIdentity(projectId: string, kind: "conversation", threadId: string, messageId: string): string;
+/**
+ * Conversation observations are immutable chat-message sources, rather than a
+ * project-wide source. This prevents evidence from separate messages sharing
+ * a source while retaining deterministic replay for one persisted message.
+ */
+export function sourceIdentity(projectId: string, kind: CanonicalSourceKind, threadId?: string, messageId?: string): string {
+  if (kind === "conversation") {
+    if (!threadId || !messageId) throw new Error("conversation_source_identity_requires_thread_and_message");
+    return canonicalId("source", projectId, kind, threadId, messageId);
+  }
   return canonicalId("source", projectId, kind);
 }
 
