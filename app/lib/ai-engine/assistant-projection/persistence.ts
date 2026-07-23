@@ -24,7 +24,7 @@ const identityStatuses = new Set<AssistantProjection["identity"]["status"]>([
 const businessMemoryFingerprintPattern = /^business_memory_[a-f0-9]{24}$/;
 const requiredProjectionFields = [
   "projectId", "businessMemoryFingerprint", "projectionVersion", "schemaVersion",
-  "identity", "assistant", "services", "pricing", "policies", "faqs",
+  "identity", "assistant", "services", "products", "pricing", "policies", "faqs",
   "restrictions", "relationships", "sources", "evidence", "missingInformation",
 ] as const;
 
@@ -89,7 +89,8 @@ function object(value: unknown, code: string): Record<string, unknown> {
 
 function projectionObject(value: unknown, code: string, allowHistoricalVersion = false): AssistantProjection {
   const projection = object(value, code);
-  if (!requiredProjectionFields.every((field) => Object.prototype.hasOwnProperty.call(projection, field))) {
+  const fields = allowHistoricalVersion && Number(projection.projectionVersion) < 3 ? requiredProjectionFields.filter((field) => field !== "products") : requiredProjectionFields;
+  if (!fields.every((field) => Object.prototype.hasOwnProperty.call(projection, field))) {
     throw new AssistantProjectionPersistenceError(code);
   }
   requiredText(projection.projectId, code);
@@ -106,9 +107,12 @@ function projectionObject(value: unknown, code: string, allowHistoricalVersion =
     throw new AssistantProjectionPersistenceError(code);
   }
   object(projection.assistant, code);
-  for (const field of ["services", "pricing", "policies", "faqs", "restrictions", "relationships", "sources", "evidence", "missingInformation"] as const) {
+  for (const field of ["services", "products", "pricing", "policies", "faqs", "restrictions", "relationships", "sources", "evidence", "missingInformation"] as const) {
     if (!Array.isArray(projection[field])) throw new AssistantProjectionPersistenceError(code);
   }
+  // Pre-v3 artifacts are parsed only as stale records; give their historical DTO
+  // an empty non-persisted product collection so validation can inspect it.
+  if (allowHistoricalVersion && Number(projection.projectionVersion) < 3 && !("products" in projection)) projection.products = [];
   try { validateAssistantProjectionRuntime(projection as AssistantProjection); }
   catch (cause) { if (cause instanceof AssistantProjectionRuntimeValidationError) throw new AssistantProjectionPersistenceError(`${code}_${cause.code}`); throw cause; }
   return projection as AssistantProjection;
