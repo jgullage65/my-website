@@ -1,6 +1,7 @@
 import type { AssistantProjection } from "../assistant-projection/contracts";
 import type { StructuredCanonicalRetrievalResult, StructuredCanonicalRetrievalItem } from "./structuredCanonicalRetrieval";
 import type { ResponseDepthDecision } from "./classifyResponseDepth";
+import type { ConflictAnalysis } from "./conflictAnalysis";
 function render(item: StructuredCanonicalRetrievalItem): string {
  if (item.category === "identity") { const identity = item.item; return `identity: ${"businessName" in identity ? identity.businessName ?? "Unknown business" : "Unknown business"}`; }
  if (item.category === "missing_information") { const missing = item.item; return "topic" in missing ? `Missing ${missing.topic}: ${missing.reason}. Follow-up: ${missing.suggestedFollowUpQuestion}` : ""; }
@@ -8,9 +9,12 @@ function render(item: StructuredCanonicalRetrievalItem): string {
  if ("title" in item.item) return `${item.category}: ${item.item.title}: ${item.item.value}${item.provenance?.correctedAt ? ` (corrected ${item.provenance.correctedAt})` : ""}`;
  return "";
 }
-export function buildStructuredSystemPrompt(projection: AssistantProjection, retrieved: StructuredCanonicalRetrievalResult, response: ResponseDepthDecision): string {
- const direct = retrieved.items.filter(x=>x.direct).map(render), related = retrieved.items.filter(x=>!x.direct).map(render);
+export function buildStructuredSystemPrompt(projection: AssistantProjection, retrieved: StructuredCanonicalRetrievalResult, response: ResponseDepthDecision, conflict?: ConflictAnalysis): string {
+ const answerItems = conflict?.answerItems ?? retrieved.items;
+ const direct = answerItems.filter(x=>x.direct).map(render), related = answerItems.filter(x=>!x.direct).map(render);
  const evidence = retrieved.evidence.map(x=>`Evidence: ${x.excerpt}`).join("\n") || "None retrieved.";
  const sources = retrieved.sources.map(x=>`Source: ${x.label ?? x.url ?? x.origin} (${x.origin})`).join("\n") || "None retrieved.";
- return [`You are ${projection.assistant.name}.`, projection.assistant.purpose, `Tone: ${projection.assistant.tone}`, "Only answer from approved canonical business knowledge.", "Do not invent unsupported business facts. Be transparent when required information is missing.", `Response guidance: ${response.reason}`, `Directly relevant canonical knowledge:\n${direct.join("\n") || "None retrieved."}`, `Related supporting knowledge:\n${related.join("\n") || "None retrieved."}`, `Restrictions:\n${retrieved.items.filter(x=>x.category==="restriction").map(render).join("\n") || "None retrieved."}`, `Bounded supporting evidence:\n${evidence}`, `Source provenance:\n${sources}`].join("\n\n");
+ const conflicts = conflict?.unresolvedConflictGroups.length ? "The available business knowledge is not fully consistent for this topic. State that uncertainty naturally; do not choose a conflicting claim or imply certainty." : "No unresolved conflicts were found.";
+ const citations = conflict?.citationChains.map(chain => JSON.stringify({ hasEvidence: chain.evidenceIds.length > 0, hasSources: chain.sourceIds.length > 0, hasRelationshipSupport: chain.relationshipIds.length > 0, corrected: !!chain.predecessorAssertionId })).join("\n") ?? "None.";
+ return [`You are ${projection.assistant.name}.`, projection.assistant.purpose, `Tone: ${projection.assistant.tone}`, "Only answer from approved canonical business knowledge.", "Do not invent unsupported business facts. Be transparent when required information is missing.", conflicts, `Response guidance: ${response.reason}`, `Directly relevant canonical knowledge:\n${direct.join("\n") || "None retrieved."}`, `Related supporting knowledge:\n${related.join("\n") || "None retrieved."}`, `Restrictions:\n${answerItems.filter(x=>x.category==="restriction").map(render).join("\n") || "None retrieved."}`, `Provenance summary:\n${conflict?.provenanceSummary.join(" ") ?? "Based on reviewed business information."}`, `Citation support metadata:\n${citations}`, `Bounded supporting evidence:\n${evidence}`, `Source provenance:\n${sources}`].join("\n\n");
 }
