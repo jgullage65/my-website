@@ -5,8 +5,8 @@ function render(item: StructuredCanonicalRetrievalItem): string {
  if (item.category === "identity") { const identity = item.item; return `identity: ${"businessName" in identity ? identity.businessName ?? "Unknown business" : "Unknown business"}`; }
  if (item.category === "missing_information") { const missing = item.item; return "topic" in missing ? `Missing ${missing.topic}: ${missing.reason}. Follow-up: ${missing.suggestedFollowUpQuestion}` : ""; }
  if ("instruction" in item.item) return `restriction: ${item.item.instruction}`;
- if (!("title" in item.item)) return "";
- return `${item.category}: ${item.item.title}: ${item.item.value}${item.provenance?.correctedAt ? ` (corrected ${item.provenance.correctedAt})` : ""}`;
+ if ("title" in item.item) return `${item.category}: ${item.item.title}: ${item.item.value}${item.provenance?.correctedAt ? ` (corrected ${item.provenance.correctedAt})` : ""}`;
+ return "";
 }
 export function buildStructuredSystemPrompt(projection: AssistantProjection, retrieved: StructuredCanonicalRetrievalResult, response: ResponseDepthDecision): string {
  const direct = retrieved.items.filter(x=>x.direct).map(render), related = retrieved.items.filter(x=>!x.direct).map(render);
