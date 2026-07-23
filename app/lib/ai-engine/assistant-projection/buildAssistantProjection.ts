@@ -6,6 +6,7 @@ import {
   type AssistantProjection,
   type AssistantProjectionFaq,
   type AssistantProjectionPolicy,
+  type AssistantProjectionRelationship,
   type AssistantProjectionPricing,
   type AssistantProjectionRestriction,
   type AssistantProjectionService,
@@ -111,10 +112,12 @@ export function buildAssistantProjection(memory: BusinessMemory): AssistantProje
   const ofType = (type: BusinessEntity["type"]) => byId(items.filter((item) => item.entityType === type));
   const fromSourceIds = (assertion: BusinessAssertion) => assertion.sourceIds.filter((id) => sources.has(id));
   const fromEvidenceIds = (assertion: BusinessAssertion) => assertion.evidenceIds.filter((id) => evidence.has(id));
-  const relationships = byId(memory.relationships.filter((relationship) => {
+  const relationships = byId(memory.relationships.flatMap((relationship): AssistantProjectionRelationship[] => {
+    if (!supportedRelationship(relationship)) return [];
     const from = assertions.get(relationship.fromAssertionId), to = assertions.get(relationship.toAssertionId);
-    return supportedRelationship(relationship) && !!from && !!to && supportedAssertion(from) && supportedAssertion(to) && from.entityId === relationship.fromEntityId && to.entityId === relationship.toEntityId && canonicalEntityId(relationship.fromEntityId) !== null && canonicalEntityId(relationship.toEntityId) !== null && ["service", "pricing_concept", "policy", "faq"].includes(entities.get(relationship.fromEntityId)?.type ?? "") && ["service", "pricing_concept", "policy", "faq"].includes(entities.get(relationship.toEntityId)?.type ?? "") && relationship.sourceEntryIds.every((id) => typeof id === "string" && id.length > 0);
-  }).map((relationship) => ({ id: relationship.id, type: relationship.type, sourceEntityId: canonicalEntityId(relationship.fromEntityId)!, targetEntityId: canonicalEntityId(relationship.toEntityId)!, sourceAssertionId: relationship.fromAssertionId, targetAssertionId: relationship.toAssertionId, sourceEntryIds: sortedUnique(relationship.sourceEntryIds), sourceIds: sortedUnique([...fromSourceIds(assertions.get(relationship.fromAssertionId)!), ...fromSourceIds(assertions.get(relationship.toAssertionId)!)]), evidenceIds: sortedUnique([...fromEvidenceIds(assertions.get(relationship.fromAssertionId)!), ...fromEvidenceIds(assertions.get(relationship.toAssertionId)!)]), reviewState: relationship.reviewState })));
+    if (!from || !to || !supportedAssertion(from) || !supportedAssertion(to) || from.entityId !== relationship.fromEntityId || to.entityId !== relationship.toEntityId || canonicalEntityId(relationship.fromEntityId) === null || canonicalEntityId(relationship.toEntityId) === null || !["service", "pricing_concept", "policy", "faq"].includes(entities.get(relationship.fromEntityId)?.type ?? "") || !["service", "pricing_concept", "policy", "faq"].includes(entities.get(relationship.toEntityId)?.type ?? "") || !relationship.sourceEntryIds.every((id) => typeof id === "string" && id.length > 0)) return [];
+    return [{ id: relationship.id, type: relationship.type, sourceEntityId: canonicalEntityId(relationship.fromEntityId)!, targetEntityId: canonicalEntityId(relationship.toEntityId)!, sourceAssertionId: relationship.fromAssertionId, targetAssertionId: relationship.toAssertionId, sourceEntryIds: sortedUnique(relationship.sourceEntryIds), sourceIds: sortedUnique([...fromSourceIds(from), ...fromSourceIds(to)]), evidenceIds: sortedUnique([...fromEvidenceIds(from), ...fromEvidenceIds(to)]), reviewState: relationship.reviewState }];
+  }));
   // Restrictions are reviewed canonical assertions tagged by their restriction kind.
   // assistant.behaviorRules/prohibitedClaims are configuration only and never become Business Memory runtime knowledge.
   const restrictions = byId(memory.assertions.filter(supportedAssertion).flatMap((assertion): AssistantProjectionRestriction[] => {
