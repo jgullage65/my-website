@@ -46,6 +46,8 @@ export type AssistantProjectionTextKnowledgeItem = {
   sourceIds: string[];
   /** Optional for schema-v1 reads; generated projections preserve canonical provenance. */
   provenance?: AssertionCorrectionProvenance;
+  /** Canonical revision linkage retained for retrieval precedence and future citations. */
+  predecessorAssertionId?: string | null;
 };
 
 /** Business Memory currently represents services as reviewed text claims. */

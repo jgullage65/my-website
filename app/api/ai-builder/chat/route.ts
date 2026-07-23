@@ -2,9 +2,9 @@ import { randomUUID } from "crypto";
 import { Pool } from "@neondatabase/serverless";
 import { NextResponse } from "next/server";
 import {
-  buildSystemPrompt,
   classifyResponseDepth,
-  retrieveKnowledge,
+  retrieveStructuredCanonicalKnowledge,
+  buildStructuredSystemPrompt,
 } from "@/app/lib/ai-engine/chat";
 import type {
   ChatRequest,
@@ -16,7 +16,6 @@ import { getSql } from "@/app/lib/db/client";
 import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import { getPersistedAssistantProjectionForUpdate } from "@/app/lib/ai-engine/assistant-projection/persistence";
-import { buildLegacyKnowledgePackFromAssistantProjection } from "@/app/lib/ai-engine/assistant-projection/legacy-compatibility";
 import { ASSISTANT_PROJECTION_SCHEMA_VERSION, ASSISTANT_PROJECTION_VERSION } from "@/app/lib/ai-engine/assistant-projection/contracts";
 import { getProjectRuntimeAuthority } from "@/app/lib/ai-engine/runtime-authority/projectRuntimeAuthority";
 import { cutoverEligibilityFailure } from "@/app/lib/ai-engine/assistant-projection/cutover";
@@ -84,11 +83,9 @@ async function loadCanonicalRuntimeKnowledge(projectId: string) {
     });
     if (eligibilityFailure) throw new Error(eligibilityFailure);
 
-    // Shape adapter only: it consumes the persisted Assistant Projection and
-    // performs no Trusted Knowledge or Business Memory read.
-    const knowledge = buildLegacyKnowledgePackFromAssistantProjection(persisted.projection);
+    // Return the validated canonical DTO directly; retrieval owns relevance, not projection generation.
     await client.query("COMMIT");
-    return knowledge;
+    return persisted.projection;
   } catch (cause) {
     await client.query("ROLLBACK").catch(() => undefined);
     if (cause instanceof Error && cause.message.startsWith("assistant_projection_")) throw cause;
@@ -416,11 +413,11 @@ export async function POST(request: Request) {
 
     // Runtime authority and all cutover evidence are read server-side. Client
     // input cannot select a source or re-enable the removed legacy path.
-    const knowledge = await loadCanonicalRuntimeKnowledge(projectId);
-    const projection = { source: "assistant_projection" as const, knowledge };
+    const canonicalProjection = await loadCanonicalRuntimeKnowledge(projectId);
+    const projection = { source: "assistant_projection" as const, canonicalProjection };
     if (
-      projection.knowledge.facts.length === 0 &&
-      projection.knowledge.faq.length === 0
+      projection.canonicalProjection.services.length === 0 &&
+      projection.canonicalProjection.faqs.length === 0
     ) {
       throw new Error("assistant_projection_runtime_unavailable_empty");
     }
@@ -428,14 +425,11 @@ export async function POST(request: Request) {
     const message = body.message.trim().slice(0, 4000);
     const startedAt = Date.now();
 
-    const retrieved = retrieveKnowledge({
-      knowledge: projection.knowledge,
-      message,
-    });
+    const retrieved = retrieveStructuredCanonicalKnowledge(projection.canonicalProjection, message);
     const responseDepthDecision = classifyResponseDepth(message);
 
-    const systemPrompt = buildSystemPrompt(
-      projection.knowledge,
+    const systemPrompt = buildStructuredSystemPrompt(
+      projection.canonicalProjection,
       retrieved,
       responseDepthDecision,
     );
@@ -447,12 +441,14 @@ export async function POST(request: Request) {
 
     const response: ChatResponse = {
       answer,
-      citations: retrieved.facts.concat(retrieved.faq),
+      // Existing response shape is retained; citations are derived from the one canonical retrieval pass.
+      citations: retrieved.items.map((item) => "instruction" in item.item ? item.item.instruction : `${item.item.title}: ${item.item.value}`),
       diagnostics: {
-        retrievedFacts: retrieved.facts.length,
-        retrievedFaq: retrieved.faq.length,
+        retrievedFacts: retrieved.items.filter((item) => item.category !== "faq").length,
+        retrievedFaq: retrieved.items.filter((item) => item.category === "faq").length,
         retrievalMs: Date.now() - startedAt,
         runtimeSource: projection.source,
+        structuredRetrieval: { engineVersion: retrieved.engineVersion, intent: retrieved.query.intent, directCandidateCount: retrieved.diagnostics.directCandidateCount, relationshipExpansionCount: retrieved.diagnostics.relationshipExpansionCount, selectedResultCount: retrieved.items.length, selectedCategoryCounts: retrieved.diagnostics.selectedCategoryCounts, topScoreBands: retrieved.diagnostics.topScoreBands },
       },
     };
 

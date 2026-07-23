@@ -26,7 +26,7 @@ function validateItem(item: unknown, collection: string, sourceIds: Set<string>,
   if (!authoritativeStates.has(value.reviewState as string)) fail("assistant_projection_runtime_non_authoritative_knowledge");
   if (typeof value.id !== "string" || !value.id || typeof value.entityId !== "string" || !value.entityId || typeof value.assertionId !== "string" || !value.assertionId || typeof value.title !== "string" || !value.title || typeof value.value !== "string" || !value.value) fail("assistant_projection_runtime_invalid_knowledge");
   if (collection === "faqs" && (typeof value.question !== "string" || !value.question || typeof value.answer !== "string" || !value.answer)) fail("assistant_projection_runtime_invalid_faq");
-  if (!validProvenance(value.provenance)) fail("assistant_projection_runtime_invalid_provenance");
+  if (!validProvenance(value.provenance) || (value.predecessorAssertionId !== undefined && value.predecessorAssertionId !== null && (typeof value.predecessorAssertionId !== "string" || !value.predecessorAssertionId))) fail("assistant_projection_runtime_invalid_provenance");
   if (!Array.isArray(value.sourceIds) || !Array.isArray(value.evidenceIds) || value.sourceIds.some((id) => typeof id !== "string" || !sourceIds.has(id)) || value.evidenceIds.some((id) => typeof id !== "string" || !evidenceIds.has(id))) fail("assistant_projection_runtime_invalid_provenance_reference");
 }
 
