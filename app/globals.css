@@ -442,6 +442,30 @@ select {
   font: inherit;
 }
 
+/*
+ * iOS Safari enlarges the viewport when a form control uses type smaller than
+ * 16px. Keep every AI Builder control at that minimum on phones so moving
+ * between cards and fields never changes the user's page zoom.
+ */
+@media (max-width: 639px) {
+  .ai-builder-shell {
+    overflow-x: clip;
+  }
+
+  .ai-builder-shell__content {
+    max-width: none;
+    padding-inline: 0;
+    padding-block: 2rem;
+  }
+
+  .ai-builder-shell input,
+  .ai-builder-shell textarea,
+  .ai-builder-shell select,
+  .cl-formFieldInput {
+    font-size: 16px;
+  }
+}
+
 /* Keep Clerk fields on-brand in desktop browsers and during autofill. */
 .cl-formFieldInput {
   color: var(--text) !important;
