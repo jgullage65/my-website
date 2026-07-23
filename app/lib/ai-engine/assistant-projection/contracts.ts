@@ -9,9 +9,11 @@ import type {
 } from "../business-memory/contracts";
 
 /** Wire schema for the durable, runtime-facing Assistant Projection boundary. */
-export const ASSISTANT_PROJECTION_SCHEMA_VERSION = 1 as const;
+// Schema v2 makes revision linkage a required wire field on text knowledge.
+export const ASSISTANT_PROJECTION_SCHEMA_VERSION = 2 as const;
 /** Version of the deterministic Business Memory-to-projection mapping. */
-export const ASSISTANT_PROJECTION_VERSION = 1 as const;
+// Mapping v2 serializes revision linkage deterministically for every claim.
+export const ASSISTANT_PROJECTION_VERSION = 2 as const;
 
 export type AssistantProjectionSource = {
   id: string;
@@ -126,8 +128,9 @@ export type AssistantProjection = {
   projectId: string;
   /** SHA-256 fingerprint of stable canonical content, excluding operational mutation timestamps. */
   businessMemoryFingerprint: string;
-  projectionVersion: typeof ASSISTANT_PROJECTION_VERSION;
-  schemaVersion: typeof ASSISTANT_PROJECTION_SCHEMA_VERSION;
+  /** Number permits historical DTO parsing; current writes are checked separately. */
+  projectionVersion: number;
+  schemaVersion: number;
   identity: AssistantProjectionIdentity;
   assistant: AssistantProjectionAssistantConfiguration;
   services: AssistantProjectionService[];
