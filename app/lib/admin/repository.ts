@@ -18,8 +18,11 @@ export type AdminUser = {
 export type AdminPurchase = {
   id: string; projectId: string; businessName: string; ownerName: string | null;
   email: string | null; status: string; followUpStage: string;
-  internalComments: string | null; createdAt: string; updatedAt: string;
+  internalComments: string | null; createdAt: string; updatedAt: string; stateRevision: number;
 };
+export class AdminRevisionConflictError extends Error {
+  constructor(public readonly currentRevision: number) { super("ai_builder_revision_conflict"); }
+}
 export type AdminActivity = {
   id: string; kind: "user" | "project" | "purchase" | "crawl" | "generation";
   label: string; detail: string; occurredAt: string; projectId?: string;
@@ -86,7 +89,7 @@ export async function listAdminPurchases(): Promise<AdminPurchase[]> {
   const sql = getSql();
   const rows = await sql`
     SELECT pi.id, pi.project_id, pi.status, pi.follow_up_stage,
-      pi.internal_comments, pi.created_at, pi.updated_at, p.business_name,
+      pi.internal_comments, pi.created_at, pi.updated_at, pi.state_revision, p.business_name,
       p.owner_name, p.owner_email
     FROM ai_builder_purchase_interest pi
     JOIN ai_builder_projects p ON p.id = pi.project_id
@@ -95,7 +98,7 @@ export async function listAdminPurchases(): Promise<AdminPurchase[]> {
   return rows.map((r) => ({ id: String(r.id), projectId: String(r.project_id),
     businessName: String(r.business_name), ownerName: text(r.owner_name), email: text(r.owner_email),
     status: String(r.status), followUpStage: String(r.follow_up_stage),
-    internalComments: text(r.internal_comments), createdAt: iso(r.created_at), updatedAt: iso(r.updated_at) }));
+    internalComments: text(r.internal_comments), createdAt: iso(r.created_at), updatedAt: iso(r.updated_at), stateRevision: Number(r.state_revision ?? 0) }));
 }
 
 export async function getAdminOverview() {
@@ -165,13 +168,13 @@ export async function getAdminProjectDetail(projectId: string) {
       clerkUserId: text(p.clerk_user_id), status: String(p.status),
       configuration: p.assistant_configuration, counts: p.context_counts,
       internalStatus: text(p.internal_status), internalFields: p.internal_fields,
-      createdAt: iso(p.created_at), updatedAt: iso(p.updated_at), expiresAt: p.expires_at ? iso(p.expires_at) : null },
+      createdAt: iso(p.created_at), updatedAt: iso(p.updated_at), expiresAt: p.expires_at ? iso(p.expires_at) : null, stateRevision: Number(p.state_revision ?? 0) },
     knowledge, faqs, progress, threads, purchases, intake, notes, communications, crawlTelemetry, generationTelemetry };
 }
 
 export async function updateAdminProject(projectId: string, input: {
   businessName: string; ownerName: string | null; ownerEmail: string | null;
-  website: string | null; internalStatus: string | null; internalSummary: string | null;
+  website: string | null; internalStatus: string | null; internalSummary: string | null; expectedRevision: number;
 }) {
   await requireAdmin(); await ensureAiBuilderSchema(); const sql = getSql();
   const rows = await sql`
@@ -188,9 +191,10 @@ export async function updateAdminProject(projectId: string, input: {
           TRUE
         )
       END,
-      updated_at = NOW()
-    WHERE id = ${projectId} AND archived_at IS NULL RETURNING id
+      state_revision = state_revision + 1, updated_at = NOW()
+    WHERE id = ${projectId} AND archived_at IS NULL AND state_revision = ${input.expectedRevision} RETURNING id, state_revision
   ` as Row[];
+  if (!rows[0]) { const current=await sql`SELECT state_revision FROM ai_builder_projects WHERE id=${projectId} AND archived_at IS NULL` as Row[]; if(current[0]) throw new AdminRevisionConflictError(Number(current[0].state_revision??0)); }
   return Boolean(rows[0]);
 }
 
@@ -200,22 +204,25 @@ export async function createAdminNote(projectId: string, content: string) {
     VALUES (${crypto.randomUUID()}, ${projectId}, ${content}, ${admin.id}, ${admin.email})`;
 }
 
-export async function updateAdminNote(noteId: string, projectId: string, content: string) {
+export async function updateAdminNote(noteId: string, projectId: string, content: string, expectedRevision: number) {
   await requireAdmin(); await ensureAiBuilderSchema(); const sql = getSql();
-  await sql`UPDATE ai_builder_admin_notes SET content = ${content}, updated_at = NOW()
-    WHERE id = ${noteId} AND project_id = ${projectId}`;
+  const rows=await sql`UPDATE ai_builder_admin_notes SET content = ${content}, state_revision=state_revision+1, updated_at = NOW()
+    WHERE id = ${noteId} AND project_id = ${projectId} AND state_revision=${expectedRevision} RETURNING state_revision` as Row[];
+  if(!rows[0]) { const current=await sql`SELECT state_revision FROM ai_builder_admin_notes WHERE id=${noteId} AND project_id=${projectId}` as Row[]; if(current[0]) throw new AdminRevisionConflictError(Number(current[0].state_revision??0)); }
 }
 
-export async function deleteAdminNote(noteId: string, projectId: string) {
+export async function deleteAdminNote(noteId: string, projectId: string, expectedRevision: number) {
   await requireAdmin(); await ensureAiBuilderSchema(); const sql = getSql();
-  await sql`DELETE FROM ai_builder_admin_notes WHERE id = ${noteId} AND project_id = ${projectId}`;
+  const rows=await sql`DELETE FROM ai_builder_admin_notes WHERE id = ${noteId} AND project_id = ${projectId} AND state_revision=${expectedRevision} RETURNING state_revision` as Row[];
+  if(!rows[0]) { const current=await sql`SELECT state_revision FROM ai_builder_admin_notes WHERE id=${noteId} AND project_id=${projectId}` as Row[]; if(current[0]) throw new AdminRevisionConflictError(Number(current[0].state_revision??0)); }
 }
 
 export async function updateAdminPurchase(purchaseId: string, input: {
-  status: string; followUpStage: string; internalComments: string | null;
+  status: string; followUpStage: string; internalComments: string | null; expectedRevision: number;
 }) {
   await requireAdmin(); await ensureAiBuilderSchema(); const sql = getSql();
-  await sql`UPDATE ai_builder_purchase_interest SET status = ${input.status},
+  const rows=await sql`UPDATE ai_builder_purchase_interest SET status = ${input.status},
     follow_up_stage = ${input.followUpStage}, internal_comments = ${input.internalComments},
-    updated_at = NOW() WHERE id = ${purchaseId}`;
+    state_revision=state_revision+1, updated_at = NOW() WHERE id = ${purchaseId} AND state_revision=${input.expectedRevision} RETURNING state_revision` as Row[];
+  if(!rows[0]) { const current=await sql`SELECT state_revision FROM ai_builder_purchase_interest WHERE id=${purchaseId}` as Row[]; if(current[0]) throw new AdminRevisionConflictError(Number(current[0].state_revision??0)); }
 }

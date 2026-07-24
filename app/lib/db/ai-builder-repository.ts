@@ -450,6 +450,7 @@ async function persistWebsiteReviewRepair(
 ): Promise<void> {
   if (!insertedEntries.length && !insertedFaqEntries.length) return;
   await sql.transaction((tx) => [
+    tx`SELECT id FROM ai_builder_projects WHERE id = ${session.id} FOR UPDATE`,
     ...insertedEntries.flatMap((entry) => [tx`
       INSERT INTO ai_builder_context_entries (
         id, project_id, category, title, content, confidence, confidence_score,
@@ -479,7 +480,13 @@ async function persistWebsiteReviewRepair(
       SELECT 1 FROM ai_builder_faq_entries
       WHERE id = ${entry.id} AND project_id = ${session.id}
     ) THEN 1 ELSE 0 END AS verified_repair_owner`]),
-    tx`UPDATE ai_builder_projects SET context_counts = ${JSON.stringify(session.contextCounts)}::jsonb WHERE id = ${session.id}`,
+    tx`UPDATE ai_builder_projects SET context_counts = jsonb_build_object(
+      'total', (SELECT COUNT(*) FROM ai_builder_context_entries WHERE project_id=${session.id}),
+      'approved', (SELECT COUNT(*) FROM ai_builder_context_entries WHERE project_id=${session.id} AND status='approved'),
+      'proposed', (SELECT COUNT(*) FROM ai_builder_context_entries WHERE project_id=${session.id} AND status='proposed'),
+      'archived', (SELECT COUNT(*) FROM ai_builder_context_entries WHERE project_id=${session.id} AND status='archived'),
+      'byCategory', COALESCE((SELECT jsonb_object_agg(category,total) FROM (SELECT category,COUNT(*) AS total FROM ai_builder_context_entries WHERE project_id=${session.id} GROUP BY category) counts), '{}'::jsonb)
+    ) WHERE id = ${session.id}`,
   ]);
 }
 

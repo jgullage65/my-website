@@ -388,6 +388,7 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_purchase_interest ADD COLUMN IF NOT EXISTS follow_up_stage TEXT NOT NULL DEFAULT 'new'`;
   await sql`ALTER TABLE ai_builder_purchase_interest ADD COLUMN IF NOT EXISTS internal_comments TEXT`;
   await sql`ALTER TABLE ai_builder_purchase_interest ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`;
+  await sql`ALTER TABLE ai_builder_purchase_interest ADD COLUMN IF NOT EXISTS state_revision INTEGER NOT NULL DEFAULT 0`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_admin_notes (
@@ -400,6 +401,7 @@ async function createAiBuilderSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE ai_builder_admin_notes ADD COLUMN IF NOT EXISTS state_revision INTEGER NOT NULL DEFAULT 0`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_communications (
