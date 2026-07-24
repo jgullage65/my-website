@@ -62,7 +62,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [showWebsiteKnowledge, setShowWebsiteKnowledge] = useState(false);
 
   useEffect(() => {
-    if (!importing) return;
+    if (!importing || importStage !== "processing") return;
 
     const timer = window.setInterval(() => {
       setImportProgress((current) => {
@@ -74,7 +74,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
     }, 700);
 
     return () => window.clearInterval(timer);
-  }, [importing]);
+  }, [importing, importStage]);
 
   const updateProfile = (
     key: "businessName" | "industry" | "website" | "tone",
@@ -119,7 +119,10 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         setCrawlPages(status.job.pagesCrawled);
         if (status.job.crawlComplete || status.job.state === "processing") { setImportStage("processing"); setImportProgress(status.job.processingPercent ?? 70); }
         if (status.job.state === "failed") throw new Error(status.job.errorMessage || "The website could not be imported.");
-        if (status.job.state === "completed") payload = status.job.result ?? null;
+        if (status.job.state === "completed") {
+          if (!status.job.result) throw new Error("The website import completed without a result.");
+          payload = status.job.result;
+        }
       }
 
       if (!payload?.ok || !payload.import) {
