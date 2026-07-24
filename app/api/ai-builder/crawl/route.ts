@@ -107,7 +107,7 @@ const extractionInstructions = [
   "Determine businessName from the canonical homepage identity and business content, never from an internal page title such as Contact, About, or Services.",
 ].join(" ");
 
-export function measureWebsiteExtractionFinalInput(input: string): number {
+function measureWebsiteExtractionFinalInput(input: string): number {
   return JSON.stringify({ instructions: extractionInstructions, input, text: { format: { type: "json_schema", name: "ai_builder_website_import", strict: true, schema: extractionSchema } } }).length;
 }
 
