@@ -197,16 +197,16 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   }
 
-  let session: AiBuilderSession;
-  try {
-    ({ session } = parseLegacyReviewSessionRequest(payload, normalizedProjectId));
-  } catch (error) {
-    if (error instanceof LegacyReviewSessionRequestParseError) return errorResponse(400, error.code, error.message);
-    throw error;
-  }
-
   try {
     const clerkUserId = await requireClerkUserId();
+    let session: AiBuilderSession;
+    try {
+      ({ session } = parseLegacyReviewSessionRequest(payload, normalizedProjectId));
+    } catch (error) {
+      if (error instanceof LegacyReviewSessionRequestParseError) return errorResponse(400, error.code, error.message);
+      throw error;
+    }
+
     const existing = await getAiBuilderProject(normalizedProjectId);
     if (!existing) return errorResponse(404, "project_not_found", "This AI Builder project could not be found.");
 
