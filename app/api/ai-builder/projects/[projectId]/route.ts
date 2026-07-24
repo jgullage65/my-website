@@ -11,6 +11,7 @@ import { getSql } from "@/app/lib/db/client";
 import { isAuthenticationRequired, requireClerkUserId } from "@/app/lib/auth/clerk";
 import { commandsFromLegacyReviewSession, UnsupportedLegacyReviewMutationError } from "@/app/lib/ai-engine/business-memory/legacy-review-command-adapter";
 import { executePersistedReviewCommandsAtomically, PersistedReviewCommandError } from "@/app/lib/ai-engine/business-memory/services/execute-persisted-review-command";
+import { LegacyReviewSessionRequestParseError, parseLegacyReviewSessionRequest } from "@/app/lib/ai-engine/business-memory/legacy-review-session-request-parser";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -184,10 +185,10 @@ export async function PUT(request: Request, context: RouteContext) {
     return errorResponse(400, "missing_project_id", "A project ID is required.");
   }
 
-  let body: UpdateProjectBody;
+  let payload: unknown;
 
   try {
-    body = (await request.json()) as UpdateProjectBody;
+    payload = await request.json();
   } catch {
     return errorResponse(
       400,
@@ -196,22 +197,12 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   }
 
-  const session = body.session;
-
-  if (!session || session.id !== normalizedProjectId) {
-    return errorResponse(
-      400,
-      "invalid_session",
-      "The saved session must match the requested project.",
-    );
-  }
-
-  if (!Array.isArray(session.contextEntries) || !Array.isArray(session.faqEntries)) {
-    return errorResponse(
-      400,
-      "invalid_session",
-      "The AI Builder session is incomplete.",
-    );
+  let session: AiBuilderSession;
+  try {
+    ({ session } = parseLegacyReviewSessionRequest(payload, normalizedProjectId));
+  } catch (error) {
+    if (error instanceof LegacyReviewSessionRequestParseError) return errorResponse(400, error.code, error.message);
+    throw error;
   }
 
   try {
