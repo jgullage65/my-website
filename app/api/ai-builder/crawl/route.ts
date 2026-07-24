@@ -292,8 +292,7 @@ export async function POST(request: Request) {
             .filter(Boolean)
             .join("\n"),
       )
-      .join("\n\n---\n\n")
-      .slice(0, 60_000);
+      .join("\n\n---\n\n");
 
     send({ type: "progress", percent: 75 });
     const aiStarted = performance.now();

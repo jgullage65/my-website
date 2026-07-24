@@ -57,7 +57,6 @@ export function resolveCrawledBusinessName(extractedName: unknown, crawl: Pick<B
 }
 
 const MAX_HTML_BYTES = 750_000;
-const MAX_TEXT_PER_PAGE = 12_000;
 const FETCH_TIMEOUT_MS = 7_000;
 const MAX_REDIRECTS = 3;
 const MAX_CONCURRENT_FETCHES = 3;
@@ -324,8 +323,7 @@ function stripHtmlToText(html: string): string {
     .replace(/[ \t]+/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
-    .trim()
-    .slice(0, MAX_TEXT_PER_PAGE);
+    .trim();
 }
 
 function extractTitle(html: string): string {
