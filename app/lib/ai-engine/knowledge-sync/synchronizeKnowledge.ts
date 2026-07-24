@@ -11,7 +11,42 @@ export type SynchronizeKnowledgeInput = {
 
 const compare = (left: string, right: string): number => left < right ? -1 : left > right ? 1 : 0;
 const normalize = (value: string): string => value.replace(/\s+/g, " ").trim().toLowerCase();
-const entityTypeForFact = (category: WebsiteKnowledgeFact["category"]): BusinessEntityType => ({ business_identity: "business", industry: "business", product: "product", service: "service", customer: "customer_segment", pricing: "pricing_concept", policy: "policy", process: "process", faq: "faq", differentiator: "differentiator", guarantee: "guarantee", location: "location", contact: "contact_method", other: "other" } as const)[category];
+const entityTypesByWebsiteCategory: Record<WebsiteKnowledgeFact["category"], BusinessEntityType> = {
+  company_overview: "general_knowledge",
+  mission_value_proposition: "general_knowledge",
+  business_identity: "business",
+  industry: "general_knowledge",
+  product: "product",
+  service: "service",
+  customer: "customer_segment",
+  pricing: "pricing_concept",
+  policy: "policy",
+  process: "process",
+  faq: "faq",
+  differentiator: "differentiator",
+  guarantee: "guarantee",
+  location: "location",
+  contact: "contact_method",
+  other: "other",
+  feature_capability: "service",
+  pricing_plan: "pricing_concept",
+  customer_segment: "customer_segment",
+  industry_served: "customer_segment",
+  primary_use_case: "general_knowledge",
+  integration: "general_knowledge",
+  ai_automation: "general_knowledge",
+  technical_capability: "general_knowledge",
+  security_compliance: "policy",
+  certification: "general_knowledge",
+  support_onboarding: "process",
+  partnership: "general_knowledge",
+  location_service_area: "location",
+  contact_information: "contact_method",
+  brand_voice_terminology: "general_knowledge",
+  competitive_differentiator: "differentiator",
+  additional_business_knowledge: "general_knowledge",
+};
+const entityTypeForFact = (category: WebsiteKnowledgeFact["category"]): BusinessEntityType => entityTypesByWebsiteCategory[category];
 const entityIdentity = (type: string, name: string): string => `${normalize(type)}\u0000${normalize(name)}`;
 const sortBy = <T>(values: T[], key: (value: T) => string): T[] => values.sort((left, right) => compare(key(left), key(right)));
 
