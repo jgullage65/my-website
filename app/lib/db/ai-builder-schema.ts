@@ -680,6 +680,8 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_operational_events_job_idx ON ai_builder_operational_events(synchronization_job_id) WHERE synchronization_job_id IS NOT NULL`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_operational_events_command_idx ON ai_builder_operational_events(command_id) WHERE command_id IS NOT NULL`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_operational_events_migration_idx ON ai_builder_operational_events(migration_run_id) WHERE migration_run_id IS NOT NULL`;
+  await sql`ALTER TABLE ai_builder_operational_events ADD COLUMN IF NOT EXISTS deduplication_key TEXT`;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS ai_builder_operational_events_runtime_mismatch_dedup_idx ON ai_builder_operational_events(deduplication_key) WHERE event_type='runtime_authority_mismatch' AND deduplication_key IS NOT NULL`;
   await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS repair_action TEXT`;
   await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS actor_type TEXT`;
   await sql`ALTER TABLE ai_builder_downstream_synchronization_commands ADD COLUMN IF NOT EXISTS actor_id TEXT`;

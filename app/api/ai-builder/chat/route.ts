@@ -101,7 +101,9 @@ async function loadCanonicalRuntimeKnowledge(projectId: string) {
   } catch (cause) {
     await client.query("ROLLBACK").catch(() => undefined);
     if (cause instanceof Error && cause.message.startsWith("assistant_projection_")) { await writeRuntimeAuthorityMismatchAfterRollback(projectId,cause.message,artifactFingerprint); throw cause; }
-    throw new Error("assistant_projection_runtime_unavailable_validation_failure");
+    const publicError = new Error("assistant_projection_runtime_unavailable_validation_failure");
+    await writeRuntimeAuthorityMismatchAfterRollback(projectId,publicError.message,artifactFingerprint);
+    throw publicError;
   } finally {
     client.release();
   }
