@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import type {
   IntakeModelInput,
 } from "@/app/lib/ai-engine/intake";
+import { AI_BUILDER_MAX_FINAL_INPUT_CHARACTERS, AiBuilderInputBatchingError } from "@/app/lib/ai-engine/knowledge/websiteExtractionBatching";
 
 const BUSINESS_CONTEXT_CATEGORIES = [
   "business_profile",
@@ -221,6 +222,11 @@ export const runOpenAiIntakeModel = async (
   const client = getOpenAiClient();
   const model =
     process.env.AI_BUILDER_INTAKE_MODEL?.trim() || "gpt-5-mini";
+
+  const finalInputCharacterCount = JSON.stringify({ instructions: input.systemPrompt, input: input.userPrompt, text: { format: { type: "json_schema", name: input.responseFormatName, strict: true, schema: intakeExtractionSchema } } }).length;
+  if (finalInputCharacterCount > AI_BUILDER_MAX_FINAL_INPUT_CHARACTERS) {
+    throw new AiBuilderInputBatchingError(`intake extraction input is ${finalInputCharacterCount} characters`);
+  }
 
   const response = await client.responses.create({
     model,

@@ -6,6 +6,13 @@ import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import { estimateAiTokenCost } from "@/app/lib/telemetry/ai-pricing";
 import type { AiTokenUsage } from "@/app/lib/telemetry/ai-pricing";
 import {
+  AI_BUILDER_MAX_FINAL_INPUT_CHARACTERS,
+  assertSafeWebsiteExtractionInput,
+  buildWebsiteExtractionBatches,
+  renderWebsiteExtractionBatch,
+  type WebsiteExtractionChunk,
+} from "@/app/lib/ai-engine/knowledge/websiteExtractionBatching";
+import {
   WEBSITE_KNOWLEDGE_CATEGORIES,
   WEBSITE_KNOWLEDGE_COVERAGE_FIELDS,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
@@ -77,6 +84,32 @@ const extractionSchema = {
     },
   },
 } as const;
+
+const extractionInstructions = [
+  "Extract structured business intake information from the supplied public website pages.",
+  "These pages may be one batch from a larger crawl; extract all supported information in this batch without assuming that absent information is absent from the website.",
+  "Use only information explicitly supported by the pages.",
+  "Do not invent pricing, policies, guarantees, customers, industries, locations, or claims.",
+  "The five flat fields are editable intake summaries that a business owner can review and edit.",
+  "Products/services should explain the main offers and outcomes.",
+  "Ideal customers should describe only clearly supported audiences. Leave it brief when the audience is unclear.",
+  "Additional knowledge may include FAQs, processes, policies, differentiators, guarantees, contact methods, locations, or other supported details.",
+  "Return an empty string for any field that cannot be supported.",
+  "Knowledge is the evidence-backed permanent knowledge representation.",
+  "Classify every fact into the most specific canonical section: company_overview, mission_value_proposition, product, service, feature_capability, pricing_plan, customer_segment, industry_served, primary_use_case, integration, ai_automation, technical_capability, security_compliance, certification, support_onboarding, partnership, location_service_area, contact_information, brand_voice_terminology, faq, policy, competitive_differentiator, or additional_business_knowledge.",
+  "Populate each canonical section intentionally when supported. Keep distinct products, services, plans, features, integrations, certifications, locations, contacts, policies, use cases, and FAQ answers as independently reviewable facts instead of compressing them into a general summary.",
+  "Use additional_business_knowledge only when no more specific canonical section applies.",
+  "Every knowledge fact must include one or more direct evidence entries with a crawled page URL and a short, direct supporting excerpt from that page.",
+  "Do not use the requested website URL as evidence unless it is one of the crawled page URLs.",
+  "Omit unsupported facts rather than guessing or inferring them.",
+  "Set coverage scores according to how much clearly supported information is available for each topic, not according to the number of pages crawled.",
+  "Put important information that is unclear or unsupported in unresolvedQuestions.",
+  "Determine businessName from the canonical homepage identity and business content, never from an internal page title such as Contact, About, or Services.",
+].join(" ");
+
+export function measureWebsiteExtractionFinalInput(input: string): number {
+  return JSON.stringify({ instructions: extractionInstructions, input, text: { format: { type: "json_schema", name: "ai_builder_website_import", strict: true, schema: extractionSchema } } }).length;
+}
 
 const factCategories = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
 
@@ -158,36 +191,13 @@ type ExtractedWebsiteBatch = {
   knowledge: ReturnType<typeof normalizeKnowledge>;
 };
 
-type ExtractionUnit = {
-  pageNumber: number;
-  url: string;
-  pageType: string;
-  title: string;
-  text: string;
-};
-
-function renderExtractionUnit(unit: ExtractionUnit): string {
-  return [
-    `PAGE ${unit.pageNumber}`,
-    `URL: ${unit.url}`,
-    `TYPE: ${unit.pageType}`,
-    unit.title ? `TITLE: ${unit.title}` : "",
-    "CONTENT:",
-    unit.text,
-  ].filter(Boolean).join("\n");
-}
-
-function renderExtractionBatch(units: ExtractionUnit[]): string {
-  return units.map(renderExtractionUnit).join("\n\n---\n\n");
-}
-
 function splitTextInHalf(value: string): [string, string] {
   let midpoint = Math.floor(value.length / 2);
   if (midpoint > 0 && midpoint < value.length && /[\uD800-\uDBFF]/.test(value[midpoint - 1] ?? "") && /[\uDC00-\uDFFF]/.test(value[midpoint] ?? "")) midpoint += 1;
   return [value.slice(0, midpoint), value.slice(midpoint)];
 }
 
-function splitExtractionUnits(units: ExtractionUnit[]): [ExtractionUnit[], ExtractionUnit[]] | null {
+function splitExtractionUnits(units: WebsiteExtractionChunk[]): [WebsiteExtractionChunk[], WebsiteExtractionChunk[]] | null {
   if (units.length > 1) {
     const midpoint = Math.ceil(units.length / 2);
     return [units.slice(0, midpoint), units.slice(midpoint)];
@@ -195,7 +205,7 @@ function splitExtractionUnits(units: ExtractionUnit[]): [ExtractionUnit[], Extra
   const unit = units[0];
   if (!unit || unit.text.length < 2) return null;
   const [left, right] = splitTextInHalf(unit.text);
-  return [[{ ...unit, text: left }], [{ ...unit, text: right }]];
+  return [[{ ...unit, text: left, chunkIndex: unit.chunkIndex * 2 - 1, chunkCount: unit.chunkCount * 2 }], [{ ...unit, text: right, chunkIndex: unit.chunkIndex * 2, chunkCount: unit.chunkCount * 2 }]];
 }
 
 function isContextWindowError(error: unknown): boolean {
@@ -326,6 +336,7 @@ export async function POST(request: Request) {
 
     const extractionUnits = crawl.pages.map((page, index) => ({
       pageNumber: index + 1,
+      sourceIdentifier: `crawl-page-${index + 1}`,
       url: page.url,
       pageType: page.pageType,
       title: page.title,
@@ -339,36 +350,21 @@ export async function POST(request: Request) {
     send({ type: "progress", percent: 75 });
     const aiStarted = performance.now();
     aiExtractionStarted = aiStarted;
-    const pendingBatches: ExtractionUnit[][] = [extractionUnits];
+    const plannedBatches = buildWebsiteExtractionBatches(extractionUnits, measureWebsiteExtractionFinalInput);
+    const pendingBatches: WebsiteExtractionChunk[][] = plannedBatches.map((batch) => batch.units);
     const extractedBatches: ExtractedWebsiteBatch[] = [];
     while (pendingBatches.length > 0) {
       const units = pendingBatches.shift()!;
+      const batchIndex = aiCalls + 1;
+      const input = renderWebsiteExtractionBatch(units);
+      const finalInputCharacterCount = assertSafeWebsiteExtractionInput(input, measureWebsiteExtractionFinalInput);
+      const callStarted = performance.now();
       try {
         aiCalls += 1;
         const response = await client.responses.create({
           model,
-          instructions: [
-            "Extract structured business intake information from the supplied public website pages.",
-            "These pages may be one batch from a larger crawl; extract all supported information in this batch without assuming that absent information is absent from the website.",
-            "Use only information explicitly supported by the pages.",
-            "Do not invent pricing, policies, guarantees, customers, industries, locations, or claims.",
-            "The five flat fields are editable intake summaries that a business owner can review and edit.",
-            "Products/services should explain the main offers and outcomes.",
-            "Ideal customers should describe only clearly supported audiences. Leave it brief when the audience is unclear.",
-            "Additional knowledge may include FAQs, processes, policies, differentiators, guarantees, contact methods, locations, or other supported details.",
-            "Return an empty string for any field that cannot be supported.",
-            "Knowledge is the evidence-backed permanent knowledge representation.",
-            "Classify every fact into the most specific canonical section: company_overview, mission_value_proposition, product, service, feature_capability, pricing_plan, customer_segment, industry_served, primary_use_case, integration, ai_automation, technical_capability, security_compliance, certification, support_onboarding, partnership, location_service_area, contact_information, brand_voice_terminology, faq, policy, competitive_differentiator, or additional_business_knowledge.",
-            "Populate each canonical section intentionally when supported. Keep distinct products, services, plans, features, integrations, certifications, locations, contacts, policies, use cases, and FAQ answers as independently reviewable facts instead of compressing them into a general summary.",
-            "Use additional_business_knowledge only when no more specific canonical section applies.",
-            "Every knowledge fact must include one or more direct evidence entries with a crawled page URL and a short, direct supporting excerpt from that page.",
-            "Do not use the requested website URL as evidence unless it is one of the crawled page URLs.",
-            "Omit unsupported facts rather than guessing or inferring them.",
-            "Set coverage scores according to how much clearly supported information is available for each topic, not according to the number of pages crawled.",
-            "Put important information that is unclear or unsupported in unresolvedQuestions.",
-            "Determine businessName from the canonical homepage identity and business content, never from an internal page title such as Contact, About, or Services.",
-          ].join(" "),
-          input: renderExtractionBatch(units),
+          instructions: extractionInstructions,
+          input,
           text: {
             format: {
               type: "json_schema",
@@ -378,6 +374,7 @@ export async function POST(request: Request) {
             },
           },
         });
+        console.info("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, inputTokenCount: response.usage?.input_tokens, outputTokenCount: response.usage?.output_tokens, model: response.model || model, durationMs: performance.now() - callStarted, success: true });
         model = response.model || model;
         if (response.usage) {
           const batchUsage = {
@@ -406,6 +403,7 @@ export async function POST(request: Request) {
         const batch = JSON.parse(response.output_text.trim()) as Omit<ExtractedWebsiteBatch, "knowledge"> & { knowledge: unknown };
         extractedBatches.push({ ...batch, knowledge: normalizeKnowledge(batch.knowledge, crawledPages) });
       } catch (error) {
+        console.error("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, model, durationMs: performance.now() - callStarted, success: false, error: error instanceof Error ? error.message : String(error) });
         if (!isContextWindowError(error)) throw error;
         const split = splitExtractionUnits(units);
         if (!split) throw error;

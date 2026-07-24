@@ -8,6 +8,7 @@ import {
   persistAiBuilderProjectWithDependencies,
 } from "./ai-builder-repository";
 import { buildCanonicalProvenanceShadowQueries } from "./canonical-provenance-shadow";
+import { buildExpectedCanonicalProjection } from "./canonical-provenance-reconciliation";
 
 const timestamp = "2026-07-20T10:00:00.000Z";
 const input = (status = "review") => ({
@@ -321,6 +322,24 @@ test("canonical provenance statements are appended to the authoritative creation
   assert.ok(statements.findIndex((text) => text.includes("INSERT INTO ai_builder_chat_threads")) < statements.findIndex((text) => text.includes("INSERT INTO ai_builder_canonical_sources")));
   assert.ok(statements.some((text) => text.includes("AI_BUILDER_CANONICAL_PROVENANCE_OWNERSHIP_COLLISION")));
   assert.ok(statements.some((text) => text.includes("INSERT INTO ai_builder_canonical_candidate_claims")));
+});
+
+test("canonical candidate-evidence verification uses typed projection fields without integer-cast sentinels", () => {
+  const project = input();
+  const expectedLinks = buildExpectedCanonicalProjection({
+    projectId: project.session.id,
+    session: project.session,
+    website: project.website,
+    websiteKnowledge: project.websiteKnowledge,
+  }).filter((record) => record.type === "candidate_evidence_link");
+  const statements = canonicalClaimStatements(project).filter(({ text }) => text.includes("canonical_candidate_evidence_link_verified"));
+
+  assert.equal(statements.length, expectedLinks.length);
+  assert.deepEqual(
+    statements.map(({ values }) => values.slice(0, 2)),
+    expectedLinks.map((record) => [record.fields.candidateClaim, record.fields.evidence]),
+  );
+  assert.ok(statements.every(({ text }) => !text.includes("AI_BUILDER_CANONICAL_PROVENANCE_INCOMPLETE") && !text.includes("CAST(")));
 });
 
 
