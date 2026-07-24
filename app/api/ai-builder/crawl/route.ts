@@ -207,6 +207,110 @@ function normalizeKnowledge(value: unknown, crawledPages: Map<string, string>) {
   return { facts, coverage, unresolvedQuestions };
 }
 
+type ExtractedWebsiteBatch = {
+  businessName: string;
+  industry: string;
+  productsServices: string;
+  idealCustomers: string;
+  additionalKnowledge: string;
+  knowledge: ReturnType<typeof normalizeKnowledge>;
+};
+
+type ExtractionUnit = {
+  pageNumber: number;
+  url: string;
+  pageType: string;
+  title: string;
+  text: string;
+};
+
+function renderExtractionUnit(unit: ExtractionUnit): string {
+  return [
+    `PAGE ${unit.pageNumber}`,
+    `URL: ${unit.url}`,
+    `TYPE: ${unit.pageType}`,
+    unit.title ? `TITLE: ${unit.title}` : "",
+    "CONTENT:",
+    unit.text,
+  ].filter(Boolean).join("\n");
+}
+
+function renderExtractionBatch(units: ExtractionUnit[]): string {
+  return units.map(renderExtractionUnit).join("\n\n---\n\n");
+}
+
+function splitTextInHalf(value: string): [string, string] {
+  let midpoint = Math.floor(value.length / 2);
+  if (midpoint > 0 && midpoint < value.length && /[\uD800-\uDBFF]/.test(value[midpoint - 1] ?? "") && /[\uDC00-\uDFFF]/.test(value[midpoint] ?? "")) midpoint += 1;
+  return [value.slice(0, midpoint), value.slice(midpoint)];
+}
+
+function splitExtractionUnits(units: ExtractionUnit[]): [ExtractionUnit[], ExtractionUnit[]] | null {
+  if (units.length > 1) {
+    const midpoint = Math.ceil(units.length / 2);
+    return [units.slice(0, midpoint), units.slice(midpoint)];
+  }
+  const unit = units[0];
+  if (!unit || unit.text.length < 2) return null;
+  const [left, right] = splitTextInHalf(unit.text);
+  return [[{ ...unit, text: left }], [{ ...unit, text: right }]];
+}
+
+function isContextWindowError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const candidate = error as { status?: unknown; code?: unknown; message?: unknown; error?: { code?: unknown; message?: unknown } };
+  const code = String(candidate.code ?? candidate.error?.code ?? "").toLowerCase();
+  const message = String(candidate.message ?? candidate.error?.message ?? "").toLowerCase();
+  return candidate.status === 400 && (
+    code.includes("context") ||
+    message.includes("context window") ||
+    message.includes("maximum context") ||
+    message.includes("too many tokens") ||
+    message.includes("input exceeds")
+  );
+}
+
+function appendDistinct(values: string[]): string {
+  const seen = new Set<string>();
+  return values.map(normalizeText).filter((value) => {
+    const identity = value.toLocaleLowerCase();
+    if (!value || seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  }).join("\n\n");
+}
+
+function mergeExtractedBatches(batches: ExtractedWebsiteBatch[]): ExtractedWebsiteBatch {
+  const facts = new Map<string, ExtractedWebsiteBatch["knowledge"]["facts"][number]>();
+  for (const batch of batches) {
+    for (const fact of batch.knowledge.facts) {
+      const identity = [fact.category, fact.title].map((value) => normalizeText(value).toLocaleLowerCase()).join("\u0000");
+      const existing = facts.get(identity);
+      if (!existing) {
+        facts.set(identity, fact);
+        continue;
+      }
+      const evidence = new Map(existing.evidence.map((item) => [`${canonicalizeUrl(item.url)}\u0000${normalizeText(item.excerpt).toLocaleLowerCase()}`, item]));
+      for (const item of fact.evidence) evidence.set(`${canonicalizeUrl(item.url)}\u0000${normalizeText(item.excerpt).toLocaleLowerCase()}`, item);
+      const confidenceOrder = { low: 0, medium: 1, high: 2 } as const;
+      facts.set(identity, { ...existing, value: appendDistinct([existing.value, fact.value]), confidence: confidenceOrder[fact.confidence as keyof typeof confidenceOrder] > confidenceOrder[existing.confidence as keyof typeof confidenceOrder] ? fact.confidence : existing.confidence, evidence: Array.from(evidence.values()) });
+    }
+  }
+  const coverage = Object.fromEntries(coverageFields.map((field) => [field, Math.max(0, ...batches.map((batch) => batch.knowledge.coverage[field]))])) as ExtractedWebsiteBatch["knowledge"]["coverage"];
+  return {
+    businessName: batches.map((batch) => normalizeText(batch.businessName)).find(Boolean) ?? "",
+    industry: appendDistinct(batches.map((batch) => batch.industry)),
+    productsServices: appendDistinct(batches.map((batch) => batch.productsServices)),
+    idealCustomers: appendDistinct(batches.map((batch) => batch.idealCustomers)),
+    additionalKnowledge: appendDistinct(batches.map((batch) => batch.additionalKnowledge)),
+    knowledge: {
+      facts: Array.from(facts.values()),
+      coverage,
+      unresolvedQuestions: appendDistinct(batches.flatMap((batch) => batch.knowledge.unresolvedQuestions)).split("\n\n").filter(Boolean),
+    },
+  };
+}
+
 function errorResponse(status: number, code: string, message: string) {
   return NextResponse.json({ ok: false, error: { code, message } }, { status });
 }
@@ -252,6 +356,9 @@ export async function POST(request: Request) {
       let model = process.env.AI_BUILDER_CRAWLER_MODEL?.trim() || "gpt-5-mini";
       let usage: AiTokenUsage | undefined;
       let aiCalls = 0;
+      let estimatedInputCostUsd = 0;
+      let estimatedOutputCostUsd = 0;
+      let hasCostEstimate = false;
       let aiExtractionStarted: number | undefined;
       let aiExtractionDurationMs = 0;
       let crawlDiagnostics: BusinessWebsiteCrawlError["diagnostics"] | undefined;
@@ -278,75 +385,93 @@ export async function POST(request: Request) {
     send({ type: "progress", percent: 70 });
     const client = new OpenAI({ apiKey });
 
-    const source = crawl.pages
-      .map(
-        (page, index) =>
-          [
-            `PAGE ${index + 1}`,
-            `URL: ${page.url}`,
-            `TYPE: ${page.pageType}`,
-            page.title ? `TITLE: ${page.title}` : "",
-            "CONTENT:",
-            page.text,
-          ]
-            .filter(Boolean)
-            .join("\n"),
-      )
-      .join("\n\n---\n\n");
-
-    send({ type: "progress", percent: 75 });
-    const aiStarted = performance.now();
-    aiExtractionStarted = aiStarted;
-    aiCalls += 1;
-    const response = await client.responses.create({
-      model,
-      instructions: [
-        "Extract structured business intake information from the supplied public website pages.",
-        "Use only information explicitly supported by the pages.",
-        "Do not invent pricing, policies, guarantees, customers, industries, locations, or claims.",
-        "The five flat fields are editable intake summaries that a business owner can review and edit.",
-        "Products/services should explain the main offers and outcomes.",
-        "Ideal customers should describe only clearly supported audiences. Leave it brief when the audience is unclear.",
-        "Additional knowledge may include FAQs, processes, policies, differentiators, guarantees, contact methods, locations, or other supported details.",
-        "Return an empty string for any field that cannot be supported.",
-        "Knowledge is the evidence-backed permanent knowledge representation.",
-        "Every knowledge fact must include one or more direct evidence entries with a crawled page URL and a short, direct supporting excerpt from that page.",
-        "Do not use the requested website URL as evidence unless it is one of the crawled page URLs.",
-        "Omit unsupported facts rather than guessing or inferring them.",
-        "Set coverage scores according to how much clearly supported information is available for each topic, not according to the number of pages crawled.",
-        "Put important information that is unclear or unsupported in unresolvedQuestions.",
-        "Determine businessName from the canonical homepage identity and business content, never from an internal page title such as Contact, About, or Services.",
-      ].join(" "),
-      input: source,
-      text: {
-        format: {
-          type: "json_schema",
-          name: "ai_builder_website_import",
-          strict: true,
-          schema: extractionSchema,
-        },
-      },
-    });
-    model = response.model || model;
-    usage = response.usage ? {
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-      totalTokens: response.usage.total_tokens,
-    } : undefined;
-
-    const extracted = JSON.parse(response.output_text.trim()) as {
-      businessName: string;
-      industry: string;
-      productsServices: string;
-      idealCustomers: string;
-      additionalKnowledge: string;
-      knowledge: unknown;
-    };
+    const extractionUnits = crawl.pages.map((page, index) => ({
+      pageNumber: index + 1,
+      url: page.url,
+      pageType: page.pageType,
+      title: page.title,
+      text: page.text,
+    }));
     const crawledPages = new Map(crawl.pages.map((page) => [
       canonicalizeUrl(page.url),
       normalizeText(page.text),
     ]));
-    const knowledge = normalizeKnowledge(extracted.knowledge, crawledPages);
+
+    send({ type: "progress", percent: 75 });
+    const aiStarted = performance.now();
+    aiExtractionStarted = aiStarted;
+    const pendingBatches: ExtractionUnit[][] = [extractionUnits];
+    const extractedBatches: ExtractedWebsiteBatch[] = [];
+    while (pendingBatches.length > 0) {
+      const units = pendingBatches.shift()!;
+      try {
+        aiCalls += 1;
+        const response = await client.responses.create({
+          model,
+          instructions: [
+            "Extract structured business intake information from the supplied public website pages.",
+            "These pages may be one batch from a larger crawl; extract all supported information in this batch without assuming that absent information is absent from the website.",
+            "Use only information explicitly supported by the pages.",
+            "Do not invent pricing, policies, guarantees, customers, industries, locations, or claims.",
+            "The five flat fields are editable intake summaries that a business owner can review and edit.",
+            "Products/services should explain the main offers and outcomes.",
+            "Ideal customers should describe only clearly supported audiences. Leave it brief when the audience is unclear.",
+            "Additional knowledge may include FAQs, processes, policies, differentiators, guarantees, contact methods, locations, or other supported details.",
+            "Return an empty string for any field that cannot be supported.",
+            "Knowledge is the evidence-backed permanent knowledge representation.",
+            "Every knowledge fact must include one or more direct evidence entries with a crawled page URL and a short, direct supporting excerpt from that page.",
+            "Do not use the requested website URL as evidence unless it is one of the crawled page URLs.",
+            "Omit unsupported facts rather than guessing or inferring them.",
+            "Set coverage scores according to how much clearly supported information is available for each topic, not according to the number of pages crawled.",
+            "Put important information that is unclear or unsupported in unresolvedQuestions.",
+            "Determine businessName from the canonical homepage identity and business content, never from an internal page title such as Contact, About, or Services.",
+          ].join(" "),
+          input: renderExtractionBatch(units),
+          text: {
+            format: {
+              type: "json_schema",
+              name: "ai_builder_website_import",
+              strict: true,
+              schema: extractionSchema,
+            },
+          },
+        });
+        model = response.model || model;
+        if (response.usage) {
+          const batchUsage = {
+            inputTokens: response.usage.input_tokens,
+            outputTokens: response.usage.output_tokens,
+            totalTokens: response.usage.total_tokens,
+          };
+          usage = {
+            inputTokens: (usage?.inputTokens ?? 0) + batchUsage.inputTokens,
+            outputTokens: (usage?.outputTokens ?? 0) + batchUsage.outputTokens,
+            totalTokens: (usage?.totalTokens ?? 0) + batchUsage.totalTokens,
+          };
+          const batchCost = estimateAiTokenCost(response.model || model, batchUsage);
+          if (batchCost) {
+            hasCostEstimate = true;
+            estimatedInputCostUsd += batchCost.inputCostUsd;
+            estimatedOutputCostUsd += batchCost.outputCostUsd;
+          }
+        }
+        if (response.incomplete_details?.reason === "max_output_tokens") {
+          const split = splitExtractionUnits(units);
+          if (!split) throw new Error("AI extraction could not produce a complete response for a single content unit.");
+          pendingBatches.unshift(split[0], split[1]);
+          continue;
+        }
+        const batch = JSON.parse(response.output_text.trim()) as Omit<ExtractedWebsiteBatch, "knowledge"> & { knowledge: unknown };
+        extractedBatches.push({ ...batch, knowledge: normalizeKnowledge(batch.knowledge, crawledPages) });
+      } catch (error) {
+        if (!isContextWindowError(error)) throw error;
+        const split = splitExtractionUnits(units);
+        if (!split) throw error;
+        pendingBatches.unshift(split[0], split[1]);
+      }
+    }
+    const extracted = mergeExtractedBatches(extractedBatches);
+    const knowledge = extracted.knowledge;
     const aiKnowledgeExtractionMs = performance.now() - aiStarted;
     aiExtractionDurationMs = aiKnowledgeExtractionMs;
     const timings = {
@@ -399,7 +524,11 @@ export async function POST(request: Request) {
         });
       } finally {
         if (aiExtractionStarted !== undefined && aiExtractionDurationMs === 0) aiExtractionDurationMs = performance.now() - aiExtractionStarted;
-        const cost = usage ? estimateAiTokenCost(model, usage) : undefined;
+        const cost = hasCostEstimate ? {
+          inputCostUsd: estimatedInputCostUsd,
+          outputCostUsd: estimatedOutputCostUsd,
+          totalCostUsd: estimatedInputCostUsd + estimatedOutputCostUsd,
+        } : undefined;
         const pagesProcessed = crawlDiagnostics?.pagesProcessed ?? 0;
         console.info("AI_BUILDER_CRAWL_DIAGNOSTICS", {
           attemptId,
