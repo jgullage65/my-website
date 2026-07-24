@@ -100,7 +100,7 @@ async function loadCanonicalRuntimeKnowledge(projectId: string) {
     return persisted.projection;
   } catch (cause) {
     await client.query("ROLLBACK").catch(() => undefined);
-    if (cause instanceof Error && cause.message.startsWith("assistant_projection_")) { await writeRuntimeAuthorityMismatchAfterRollback(projectId,cause.message,artifactFingerprint); throw cause; }
+    if (cause instanceof Error && (cause.message === "assistant_projection_migration_required" || cause.message.startsWith("assistant_projection_runtime_unavailable"))) { await writeRuntimeAuthorityMismatchAfterRollback(projectId,cause.message,artifactFingerprint); throw cause; }
     const publicError = new Error("assistant_projection_runtime_unavailable_validation_failure");
     await writeRuntimeAuthorityMismatchAfterRollback(projectId,publicError.message,artifactFingerprint);
     throw publicError;

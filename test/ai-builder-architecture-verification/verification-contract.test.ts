@@ -13,6 +13,10 @@ test("the focused verification runner has an explicit architecture-only allow-li
   assert.match(runner, /assistant-projection\/parity\.test\.ts/);
   assert.match(runner, /cutoverActivation\.test\.ts/);
   assert.match(runner, /operational-events\.test\.ts/);
+  assert.match(runner, /synchronization-concurrency\.integration\.test\.ts/);
+  assert.match(runner, /synchronization-telemetry\.integration\.test\.ts/);
+  assert.match(runner, /operations-persistence\.integration\.test\.ts/);
+  assert.match(runner, /canonical-runtime-request\.integration\.test\.ts/);
   assert.doesNotMatch(runner, /app\/.*\*\.test/);
 });
 

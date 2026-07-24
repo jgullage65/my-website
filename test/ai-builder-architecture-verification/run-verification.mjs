@@ -15,6 +15,10 @@ const tests = [
   "app/lib/ai-engine/chat/structuredCanonicalRetrieval.test.ts",
   "app/lib/ai-engine/operations/operational-events.test.ts",
   "app/lib/ai-engine/runtime-authority/projectRuntimeAuthority.test.ts",
+  "test/ai-builder-architecture-verification/synchronization-concurrency.integration.test.ts",
+  "test/ai-builder-architecture-verification/synchronization-telemetry.integration.test.ts",
+  "test/ai-builder-architecture-verification/operations-persistence.integration.test.ts",
+  "test/ai-builder-architecture-verification/canonical-runtime-request.integration.test.ts",
   "test/ai-builder-architecture-verification/verification-contract.test.ts",
 ];
 

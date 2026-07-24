@@ -11,6 +11,7 @@ test("only an exact canonical MATCH permits cutover", () => {
   assert.equal(check({ runtimeAuthority: "legacy" }), "assistant_projection_migration_required");
   assert.equal(check({ evidence: null }), "assistant_projection_runtime_unavailable_parity_evidence_unavailable");
   for (const status of ["MINOR_DIFFERENCE", "MAJOR_DIFFERENCE", "COMPARISON_FAILURE"]) assert.equal(check({ evidence: { ...evidence, status } }), "assistant_projection_runtime_unavailable_parity_status_unacceptable");
+  assert.equal(check({ evidence: { ...evidence, activeRuntimeAuthority: "legacy" } }), "assistant_projection_runtime_unavailable_parity_authority_mismatch");
 });
 
 test("cutover evidence is bound to the current projection artifact", () => {

@@ -2,7 +2,12 @@ import { readFile } from "node:fs/promises";
 import ts from "typescript";
 import { resolve as resolveAliases } from "../node-alias-loader.mjs";
 
-export const resolve = resolveAliases;
+export function resolve(specifier, context, nextResolve) {
+  if (specifier === "@/app/lib/auth/clerk") {
+    return { shortCircuit: true, url: "data:text/javascript,export const requireClerkUserId=async()=>\"architecture-verification-user\";export const requireClerkIdentity=async()=>({userId:\"architecture-verification-user\",displayName:\"Verification User\",email:\"verification@example.test\"});" };
+  }
+  return resolveAliases(specifier, context, nextResolve);
+}
 
 export async function load(url, context, nextLoad) {
   if (!url.startsWith("file:") || (!url.endsWith(".ts") && !url.endsWith(".tsx"))) {

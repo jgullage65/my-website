@@ -34,6 +34,7 @@ export function cutoverEligibilityFailure(input: {
   if (input.runtimeAuthority !== "canonical") return "assistant_projection_migration_required";
   if (!input.evidence) return "assistant_projection_runtime_unavailable_parity_evidence_unavailable";
   if (input.evidence.status !== "MATCH") return "assistant_projection_runtime_unavailable_parity_status_unacceptable";
+  if (input.evidence.activeRuntimeAuthority !== input.runtimeAuthority) return "assistant_projection_runtime_unavailable_parity_authority_mismatch";
   if (input.artifact.invalidationState !== undefined && input.artifact.invalidationState !== "valid") return `assistant_projection_runtime_unavailable_${input.artifact.invalidationState}`;
   if (input.evidence.projectionVersion !== input.artifact.projectionVersion || input.evidence.schemaVersion !== input.artifact.schemaVersion) return "assistant_projection_runtime_unavailable_parity_evidence_stale";
   // Version numbers describe a contract, not the immutable artifact. Historical
