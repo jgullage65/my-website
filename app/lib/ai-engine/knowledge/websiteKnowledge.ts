@@ -171,6 +171,11 @@ export function websiteFactIdentity(fact: WebsiteKnowledgeFact): string {
   return `website_fact_${(hash >>> 0).toString(16)}`;
 }
 
+/** Project-owned review row identity; prevents global child-key collisions. */
+export function websiteFactReviewIdentity(projectId: string, fact: WebsiteKnowledgeFact): string {
+  return `website_fact_${normalizeFactIdentityValue(projectId)}_${websiteFactIdentity(fact).slice("website_fact_".length)}`;
+}
+
 /** Stable FAQ identity derived from the same canonical website observation. */
 export function websiteFaqIdentity(fact: WebsiteKnowledgeFact): string {
   return `website_faq_${websiteFactIdentity(fact).slice("website_fact_".length)}`;
@@ -204,8 +209,10 @@ export function reconcileStructuredWebsiteKnowledge(
   const createdAt = session.createdAt;
 
   const structuredEntries = knowledge.facts.flatMap((fact) => {
-    const id = websiteFactIdentity(fact);
-    if (existingEntries.has(id)) return [];
+    const id = websiteFactReviewIdentity(session.id, fact);
+    // Recognize historical unscoped rows so reopening an older project does
+    // not create a second review item for the same observation.
+    if (existingEntries.has(id) || existingEntries.has(websiteFactIdentity(fact))) return [];
 
     const evidence = fact.evidence[0];
     return [{

@@ -11,7 +11,12 @@ import type {
 } from "./AiBuilderClient";
 import type {
   StructuredWebsiteKnowledge,
+  WebsiteKnowledgeFact,
   WebsiteKnowledgePage,
+} from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import {
+  WEBSITE_KNOWLEDGE_SECTION_LABELS,
+  WEBSITE_KNOWLEDGE_SECTION_ORDER,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 
 type Props = {
@@ -592,6 +597,7 @@ function WebsiteKnowledgeModal({
   knowledge: WebsiteKnowledge;
   onClose: () => void;
 }) {
+  const canonicalSections = groupWebsiteKnowledgeSections(knowledge.knowledge);
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 639px)");
     const html = document.documentElement;
@@ -645,28 +651,23 @@ function WebsiteKnowledgeModal({
           </button>
         </div>
         <div className="grid gap-5 p-5 sm:p-8">
-          <ReadOnlyBlock
-            title="Company Summary"
-            content={[
-              knowledge.businessName && `Business: ${knowledge.businessName}`,
-              knowledge.industry && `Industry: ${knowledge.industry}`,
-              knowledge.website && `Website: ${knowledge.website}`,
-            ]
-              .filter(Boolean)
-              .join("\n")}
-          />
-          <ReadOnlyBlock
-            title="Products & Services"
-            content={knowledge.productsServices}
-          />
-          <ReadOnlyBlock
-            title="Ideal Customers"
-            content={knowledge.idealCustomers}
-          />
-          <ReadOnlyBlock
-            title="Additional Business Knowledge"
-            content={knowledge.additionalKnowledge}
-          />
+          {canonicalSections.length ? canonicalSections.map((section) => (
+            <ReadOnlyBlock key={section.key} title={section.label} content={section.content} />
+          )) : (
+            <>
+              <ReadOnlyBlock
+                title="Company Overview"
+                content={[
+                  knowledge.businessName && `Business: ${knowledge.businessName}`,
+                  knowledge.industry && `Industry: ${knowledge.industry}`,
+                  knowledge.website && `Website: ${knowledge.website}`,
+                ].filter(Boolean).join("\n")}
+              />
+              {knowledge.productsServices ? <ReadOnlyBlock title="Products & Services" content={knowledge.productsServices} /> : null}
+              {knowledge.idealCustomers ? <ReadOnlyBlock title="Customer Segments" content={knowledge.idealCustomers} /> : null}
+              {knowledge.additionalKnowledge ? <ReadOnlyBlock title="Additional Business Knowledge" content={knowledge.additionalKnowledge} /> : null}
+            </>
+          )}
           <p className="text-center text-xs leading-5 text-slate-500">
             Website knowledge is read-only. Re-import the website to refresh it.
             Your manual expertise is never overwritten.
@@ -678,6 +679,38 @@ function WebsiteKnowledgeModal({
 
   if (typeof document === "undefined") return null;
   return createPortal(node, document.body);
+}
+
+const LEGACY_SECTION_KEYS: Partial<Record<WebsiteKnowledgeFact["category"], (typeof WEBSITE_KNOWLEDGE_SECTION_ORDER)[number]>> = {
+  business_identity: "company_overview",
+  industry: "industry_served",
+  customer: "customer_segment",
+  pricing: "pricing_plan",
+  process: "support_onboarding",
+  differentiator: "competitive_differentiator",
+  guarantee: "policy",
+  location: "location_service_area",
+  contact: "contact_information",
+  other: "additional_business_knowledge",
+};
+
+function groupWebsiteKnowledgeSections(knowledge: StructuredWebsiteKnowledge | undefined) {
+  if (!knowledge?.facts.length) return [];
+  const order = new Map<string, number>(WEBSITE_KNOWLEDGE_SECTION_ORDER.map((key, index) => [key, index]));
+  const sections = new Map<string, { key: string; label: string; facts: WebsiteKnowledgeFact[] }>();
+  for (const fact of knowledge.facts) {
+    const key = LEGACY_SECTION_KEYS[fact.category] ?? fact.category;
+    const current = sections.get(key) ?? { key, label: WEBSITE_KNOWLEDGE_SECTION_LABELS[fact.category], facts: [] };
+    current.facts.push(fact);
+    sections.set(key, current);
+  }
+  return Array.from(sections.values())
+    .sort((left, right) => (order.get(left.key) ?? 1_000) - (order.get(right.key) ?? 1_000) || left.label.localeCompare(right.label))
+    .map((section) => ({
+      key: section.key,
+      label: section.label,
+      content: section.facts.map((fact) => `${fact.title}\n${fact.value}`).join("\n\n"),
+    }));
 }
 
 function ReadOnlyBlock({
