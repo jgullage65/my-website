@@ -16,7 +16,8 @@
     "reconcile:canonical-provenance": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs scripts/reconcile-canonical-provenance.ts",
     "reconcile:trusted-knowledge": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs scripts/reconcile-trusted-knowledge-projection.ts",
     "test:trusted-knowledge-db": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/db/trusted-knowledge-projection.test.ts",
-    "test:ai-builder-chat-orchestration": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/api/ai-builder/chat/route.orchestration.test.ts"
+    "test:ai-builder-chat-orchestration": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/api/ai-builder/chat/route.orchestration.test.ts",
+    "test:ai-builder-architecture-verification": "node test/ai-builder-architecture-verification/run-verification.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.6",
