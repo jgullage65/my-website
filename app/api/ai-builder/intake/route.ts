@@ -81,14 +81,14 @@ function normalizeSubmittedWebsiteKnowledge(value: unknown): StructuredWebsiteKn
 
   const raw = value as Record<string, unknown>;
   let hasValidValue = false;
-  const facts = (Array.isArray(raw.facts) ? raw.facts : []).slice(0, 100).flatMap((item) => {
+  const facts = (Array.isArray(raw.facts) ? raw.facts : []).slice(0, 2_000).flatMap((item) => {
     if (!item || typeof item !== "object" || Array.isArray(item)) return [];
     const fact = item as Record<string, unknown>;
     const category = normalizeBoundedText(fact.category, 64);
     const title = normalizeBoundedText(fact.title, 300);
     const factValue = normalizeBoundedText(fact.value, 4_000);
     const confidence = normalizeBoundedText(fact.confidence, 32);
-    const evidence = (Array.isArray(fact.evidence) ? fact.evidence : []).slice(0, 8).flatMap((entry) => {
+    const evidence = (Array.isArray(fact.evidence) ? fact.evidence : []).slice(0, 50).flatMap((entry) => {
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
       const item = entry as Record<string, unknown>;
       const url = normalizeWebsiteUrl(item.url);
@@ -131,7 +131,7 @@ function normalizePersistedWebsiteKnowledge(params: {
   const knowledge = normalizeSubmittedWebsiteKnowledge(params.knowledge);
   if (!knowledge) return null;
 
-  const pages = (Array.isArray(params.pages) ? params.pages : []).slice(0, 20).flatMap((page) => {
+  const pages = (Array.isArray(params.pages) ? params.pages : []).slice(0, 2_000).flatMap((page) => {
     if (!page || typeof page !== "object" || Array.isArray(page)) return [];
     const item = page as Record<string, unknown>;
     const url = normalizeWebsiteUrl(item.url);

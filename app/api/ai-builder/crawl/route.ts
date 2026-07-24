@@ -5,6 +5,10 @@ import { finishCrawlTelemetry, startCrawlTelemetry } from "@/app/lib/telemetry/a
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import { estimateAiTokenCost } from "@/app/lib/telemetry/ai-pricing";
 import type { AiTokenUsage } from "@/app/lib/telemetry/ai-pricing";
+import {
+  WEBSITE_KNOWLEDGE_CATEGORIES,
+  WEBSITE_KNOWLEDGE_COVERAGE_FIELDS,
+} from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,25 +42,7 @@ const extractionSchema = {
             additionalProperties: false,
             required: ["category", "title", "value", "confidence", "evidence"],
             properties: {
-              category: {
-                type: "string",
-                enum: [
-                  "business_identity",
-                  "industry",
-                  "product",
-                  "service",
-                  "customer",
-                  "pricing",
-                  "policy",
-                  "process",
-                  "faq",
-                  "differentiator",
-                  "guarantee",
-                  "location",
-                  "contact",
-                  "other",
-                ],
-              },
+              category: { type: "string", enum: WEBSITE_KNOWLEDGE_CATEGORIES },
               title: { type: "string" },
               value: { type: "string" },
               confidence: { type: "string", enum: ["high", "medium", "low"] },
@@ -79,28 +65,8 @@ const extractionSchema = {
         coverage: {
           type: "object",
           additionalProperties: false,
-          required: [
-            "businessIdentity",
-            "offers",
-            "customers",
-            "pricing",
-            "policies",
-            "processes",
-            "faq",
-            "contact",
-            "overall",
-          ],
-          properties: {
-            businessIdentity: { type: "number", minimum: 0, maximum: 100 },
-            offers: { type: "number", minimum: 0, maximum: 100 },
-            customers: { type: "number", minimum: 0, maximum: 100 },
-            pricing: { type: "number", minimum: 0, maximum: 100 },
-            policies: { type: "number", minimum: 0, maximum: 100 },
-            processes: { type: "number", minimum: 0, maximum: 100 },
-            faq: { type: "number", minimum: 0, maximum: 100 },
-            contact: { type: "number", minimum: 0, maximum: 100 },
-            overall: { type: "number", minimum: 0, maximum: 100 },
-          },
+          required: WEBSITE_KNOWLEDGE_COVERAGE_FIELDS,
+          properties: Object.fromEntries(WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.map((field) => [field, { type: "number", minimum: 0, maximum: 100 }])),
         },
         unresolvedQuestions: {
           type: "array",
@@ -111,36 +77,11 @@ const extractionSchema = {
   },
 } as const;
 
-const factCategories = new Set([
-  "business_identity",
-  "industry",
-  "product",
-  "service",
-  "customer",
-  "pricing",
-  "policy",
-  "process",
-  "faq",
-  "differentiator",
-  "guarantee",
-  "location",
-  "contact",
-  "other",
-]);
+const factCategories = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
 
 const confidenceLevels = new Set(["high", "medium", "low"]);
 
-const coverageFields = [
-  "businessIdentity",
-  "offers",
-  "customers",
-  "pricing",
-  "policies",
-  "processes",
-  "faq",
-  "contact",
-  "overall",
-] as const;
+const coverageFields = WEBSITE_KNOWLEDGE_COVERAGE_FIELDS;
 
 function normalizeText(value: unknown): string {
   return String(value ?? "")
@@ -419,6 +360,9 @@ export async function POST(request: Request) {
             "Additional knowledge may include FAQs, processes, policies, differentiators, guarantees, contact methods, locations, or other supported details.",
             "Return an empty string for any field that cannot be supported.",
             "Knowledge is the evidence-backed permanent knowledge representation.",
+            "Classify every fact into the most specific canonical section: company_overview, mission_value_proposition, product, service, feature_capability, pricing_plan, customer_segment, industry_served, primary_use_case, integration, ai_automation, technical_capability, security_compliance, certification, support_onboarding, partnership, location_service_area, contact_information, brand_voice_terminology, faq, policy, competitive_differentiator, or additional_business_knowledge.",
+            "Populate each canonical section intentionally when supported. Keep distinct products, services, plans, features, integrations, certifications, locations, contacts, policies, use cases, and FAQ answers as independently reviewable facts instead of compressing them into a general summary.",
+            "Use additional_business_knowledge only when no more specific canonical section applies.",
             "Every knowledge fact must include one or more direct evidence entries with a crawled page URL and a short, direct supporting excerpt from that page.",
             "Do not use the requested website URL as evidence unless it is one of the crawled page URLs.",
             "Omit unsupported facts rather than guessing or inferring them.",

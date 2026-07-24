@@ -10,6 +10,12 @@ import type {
   GeneratedFaqEntry,
 } from "@/app/lib/ai-engine/contracts";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
+import {
+  WEBSITE_KNOWLEDGE_CATEGORIES,
+  WEBSITE_KNOWLEDGE_SECTION_LABELS,
+  WEBSITE_KNOWLEDGE_SECTION_ORDER,
+  type WebsiteKnowledgeFact,
+} from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 
 type Props = {
@@ -32,6 +38,23 @@ const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
   behavior_rule: "Assistant Rules",
   prohibited_claim: "Prohibited Claims",
 };
+
+const websiteCategorySet = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
+const sectionOrder = new Map<string, number>(WEBSITE_KNOWLEDGE_SECTION_ORDER.map((section, index) => [section, index]));
+
+function reviewSection(entry: BusinessContextEntry): { key: string; label: string; order: number } {
+  const websiteCategory = entry.metadata.tags.find((tag) => websiteCategorySet.has(tag)) as WebsiteKnowledgeFact["category"] | undefined;
+  if (websiteCategory) {
+    const canonicalKey = ({
+      business_identity: "company_overview", industry: "industry_served", customer: "customer_segment",
+      pricing: "pricing_plan", process: "support_onboarding", differentiator: "competitive_differentiator",
+      guarantee: "policy", location: "location_service_area", contact: "contact_information",
+      other: "additional_business_knowledge",
+    } as Partial<Record<WebsiteKnowledgeFact["category"], string>>)[websiteCategory] ?? websiteCategory;
+    return { key: canonicalKey, label: WEBSITE_KNOWLEDGE_SECTION_LABELS[websiteCategory], order: sectionOrder.get(canonicalKey) ?? 1_000 };
+  }
+  return { key: `legacy:${entry.category}`, label: CATEGORY_LABELS[entry.category], order: 2_000 + Object.keys(CATEGORY_LABELS).indexOf(entry.category) };
+}
 
 const primaryButtonClassName =
   "rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_34px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
@@ -65,12 +88,13 @@ export default function AiBuilderReview({
   const faqEntries = session.faqEntries;
 
   const grouped = useMemo(() => {
-    const map = new Map<
-      BusinessContextCategory,
-      Array<{ entry: BusinessContextEntry }>
-    >();
+    const map = new Map<string, { label: string; order: number; entries: Array<{ entry: BusinessContextEntry }> }>();
+    const faqBackedContextIds = new Set(faqEntries.flatMap((faq) => faq.sourceEntryIds));
 
     contextEntries.forEach((entry) => {
+      // Website FAQ observations have a canonical FAQ review item. Do not also
+      // render their evidence-link context row as a second review card.
+      if (faqBackedContextIds.has(entry.id)) return;
       if (
         filter === "all"
           ? entry.status !== "archived"
@@ -78,13 +102,14 @@ export default function AiBuilderReview({
             ? entry.status === "approved" || entry.status === "corrected"
             : entry.status === filter
       ) {
-        const current = map.get(entry.category) ?? [];
-        map.set(entry.category, current.concat({ entry }));
+        const section = reviewSection(entry);
+        const current = map.get(section.key) ?? { label: section.label, order: section.order, entries: [] };
+        map.set(section.key, { ...current, entries: current.entries.concat({ entry }) });
       }
     });
 
-    return Array.from(map.entries());
-  }, [contextEntries, filter]);
+    return Array.from(map.entries()).sort(([, left], [, right]) => left.order - right.order || left.label.localeCompare(right.label));
+  }, [contextEntries, faqEntries, filter]);
 
   const visibleFaqEntries = useMemo(
     () =>
@@ -102,7 +127,7 @@ export default function AiBuilderReview({
 
   const visibleItemKeys = useMemo(
     () => [
-      ...grouped.flatMap(([, entries]) => entries.map(({ entry }) => `context_entry:${entry.id}`)),
+      ...grouped.flatMap(([, section]) => section.entries.map(({ entry }) => `context_entry:${entry.id}`)),
       ...visibleFaqEntries.map(({ faq }) => `faq:${faq.id}`),
     ],
     [grouped, visibleFaqEntries],
@@ -217,24 +242,24 @@ export default function AiBuilderReview({
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
+      {grouped.length ? <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <SectionHeading
           eyebrow="Business knowledge"
           title={<>Review every <span className="text-amber-300">important business fact.</span></>}
           description="Each item can be approved, corrected, or removed before your assistant uses it."
         />
 
-        {grouped.map(([category, categoryEntries]) => (
-          <section key={category} className="mx-auto max-w-4xl">
+        {grouped.map(([sectionKey, section]) => (
+          <section key={sectionKey} className="mx-auto max-w-4xl">
             <div className="mx-auto grid max-w-3xl gap-3 md:grid-cols-2">
-              {categoryEntries.map(({ entry }, index) => {
+              {section.entries.map(({ entry }, index) => {
                 const entryRenderKey = `context_entry:${entry.id}`;
                 const editing = editingEntry === entryRenderKey;
                 const pending = isPending("context_entry", entry.id);
                 const shouldSpanFull =
-                  categoryEntries.length === 1 ||
-                  (categoryEntries.length % 2 === 1 &&
-                    index === categoryEntries.length - 1);
+                  section.entries.length === 1 ||
+                  (section.entries.length % 2 === 1 &&
+                    index === section.entries.length - 1);
 
                 return (
                   <article
@@ -245,7 +270,7 @@ export default function AiBuilderReview({
                     }`}
                   >
                     <p className="mb-3 text-xl font-bold text-amber-300 sm:text-2xl">
-                      {CATEGORY_LABELS[category]}
+                      {section.label}
                     </p>
 
                     {editing ? (
@@ -323,9 +348,9 @@ export default function AiBuilderReview({
             </div>
           </section>
         ))}
-      </section>
+      </section> : null}
 
-      <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
+      {visibleFaqEntries.length ? <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
         <SectionHeading
           eyebrow="Generated Q&A"
           title={<>Questions your <span className="text-amber-300">AI is ready</span> to answer.</>}
@@ -423,7 +448,14 @@ export default function AiBuilderReview({
             );
           })}
         </div>
-      </section>
+      </section> : null}
+
+      {!grouped.length && !visibleFaqEntries.length ? (
+        <section className="mx-auto max-w-3xl rounded-[24px] border border-white/[0.09] bg-[#030713] px-5 py-10 text-center shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
+          <p className="text-lg font-semibold text-white">No knowledge matches this review filter.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-400">Choose another status to continue reviewing business knowledge.</p>
+        </section>
+      ) : null}
     </div>
   );
 }

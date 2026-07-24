@@ -87,14 +87,14 @@ function normalizeWebsiteKnowledge(value: unknown): PersistedWebsiteKnowledge | 
   if (!rawKnowledge || typeof rawKnowledge !== "object" || Array.isArray(rawKnowledge)) return null;
   const knowledgeRecord = rawKnowledge as Record<string, unknown>;
   let hasKnowledge = false;
-  const facts = (Array.isArray(knowledgeRecord.facts) ? knowledgeRecord.facts : []).slice(0, 100).flatMap((entry) => {
+  const facts = (Array.isArray(knowledgeRecord.facts) ? knowledgeRecord.facts : []).slice(0, 2_000).flatMap((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
     const fact = entry as Record<string, unknown>;
     const category = normalizeText(fact.category, 64);
     const title = normalizeText(fact.title, 300);
     const factValue = normalizeText(fact.value, 4_000);
     const confidence = normalizeText(fact.confidence, 32);
-    const evidence = (Array.isArray(fact.evidence) ? fact.evidence : []).slice(0, 8).flatMap((item) => {
+    const evidence = (Array.isArray(fact.evidence) ? fact.evidence : []).slice(0, 50).flatMap((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return [];
       const record = item as Record<string, unknown>;
       const url = normalizeWebsiteUrl(record.url);
@@ -122,7 +122,7 @@ function normalizeWebsiteKnowledge(value: unknown): PersistedWebsiteKnowledge | 
   if (unresolvedQuestions.length) hasKnowledge = true;
   if (!hasKnowledge) return null;
 
-  const pages = (Array.isArray(document.pages) ? document.pages : []).slice(0, 20).flatMap((entry) => {
+  const pages = (Array.isArray(document.pages) ? document.pages : []).slice(0, 2_000).flatMap((entry) => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
     const page = entry as Record<string, unknown>;
     const url = normalizeWebsiteUrl(page.url);

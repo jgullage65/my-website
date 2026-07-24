@@ -1,15 +1,57 @@
 export const WEBSITE_KNOWLEDGE_CATEGORIES = [
+  "company_overview", "mission_value_proposition",
   "business_identity", "industry", "product", "service", "customer", "pricing",
   "policy", "process", "faq", "differentiator", "guarantee", "location",
-  "contact", "other",
+  "contact", "other", "feature_capability", "pricing_plan", "customer_segment",
+  "industry_served", "primary_use_case", "integration", "ai_automation",
+  "technical_capability", "security_compliance", "certification",
+  "support_onboarding", "partnership", "location_service_area",
+  "contact_information", "brand_voice_terminology",
+  "competitive_differentiator", "additional_business_knowledge",
 ] as const;
 
 export const WEBSITE_KNOWLEDGE_CONFIDENCE_LEVELS = ["high", "medium", "low"] as const;
 
 export const WEBSITE_KNOWLEDGE_COVERAGE_FIELDS = [
   "businessIdentity", "offers", "customers", "pricing", "policies", "processes",
-  "faq", "contact", "overall",
+  "faq", "contact", "overall", "companyOverview", "missionValueProposition",
+  "products", "services", "featuresCapabilities", "pricingPlans",
+  "customerSegments", "industriesServed", "primaryUseCases", "integrations",
+  "aiFeaturesAutomation", "technicalCapabilities", "securityCompliance",
+  "certifications", "supportOnboarding", "partnerships",
+  "locationsServiceAreas", "contactInformation", "brandVoiceTerminology",
+  "frequentlyAskedQuestions", "competitiveDifferentiators",
+  "additionalBusinessKnowledge",
 ] as const;
+
+export const WEBSITE_KNOWLEDGE_SECTION_ORDER = [
+  "company_overview", "mission_value_proposition", "product", "service",
+  "feature_capability", "pricing_plan", "customer_segment", "industry_served",
+  "primary_use_case", "integration", "ai_automation", "technical_capability",
+  "security_compliance", "certification", "support_onboarding", "partnership",
+  "location_service_area", "contact_information", "brand_voice_terminology",
+  "faq", "policy", "competitive_differentiator",
+  "additional_business_knowledge",
+] as const;
+
+export const WEBSITE_KNOWLEDGE_SECTION_LABELS: Record<(typeof WEBSITE_KNOWLEDGE_CATEGORIES)[number], string> = {
+  company_overview: "Company Overview", mission_value_proposition: "Mission / Value Proposition",
+  product: "Products", service: "Services", feature_capability: "Features & Capabilities",
+  pricing_plan: "Pricing & Plans", customer_segment: "Customer Segments",
+  industry_served: "Industries Served", primary_use_case: "Primary Use Cases",
+  integration: "Integrations", ai_automation: "AI Features / Automation",
+  technical_capability: "Technical Capabilities", security_compliance: "Security & Compliance",
+  certification: "Certifications", support_onboarding: "Support & Onboarding",
+  partnership: "Partnerships", location_service_area: "Locations / Service Areas",
+  contact_information: "Contact Information", brand_voice_terminology: "Brand Voice / Terminology",
+  faq: "Frequently Asked Questions", policy: "Policies",
+  competitive_differentiator: "Competitive Differentiators",
+  additional_business_knowledge: "Additional Business Knowledge",
+  business_identity: "Company Overview", industry: "Industries Served", customer: "Customer Segments",
+  pricing: "Pricing & Plans", process: "Support & Onboarding", differentiator: "Competitive Differentiators",
+  guarantee: "Policies", location: "Locations / Service Areas", contact: "Contact Information",
+  other: "Additional Business Knowledge",
+};
 
 export type WebsiteKnowledgeEvidence = { url: string; excerpt: string };
 
@@ -57,6 +99,8 @@ const WEBSITE_FACT_CATEGORIES: Record<
   WebsiteKnowledgeFact["category"],
   BusinessContextCategory
 > = {
+  company_overview: "business_profile",
+  mission_value_proposition: "business_profile",
   business_identity: "business_profile",
   industry: "business_profile",
   product: "service",
@@ -71,6 +115,23 @@ const WEBSITE_FACT_CATEGORIES: Record<
   location: "business_profile",
   contact: "business_profile",
   other: "business_profile",
+  feature_capability: "service",
+  pricing_plan: "pricing",
+  customer_segment: "audience",
+  industry_served: "audience",
+  primary_use_case: "service",
+  integration: "service",
+  ai_automation: "service",
+  technical_capability: "service",
+  security_compliance: "policy",
+  certification: "business_profile",
+  support_onboarding: "process",
+  partnership: "business_profile",
+  location_service_area: "business_profile",
+  contact_information: "business_profile",
+  brand_voice_terminology: "business_profile",
+  competitive_differentiator: "differentiator",
+  additional_business_knowledge: "business_profile",
 };
 
 function normalizeFactIdentityValue(value: string): string {
@@ -137,9 +198,6 @@ export function reconcileStructuredWebsiteKnowledge(
   const existingEntries = new Map(
     session.contextEntries.map((entry) => [entry.id, entry]),
   );
-  const existingFaqEntries = new Map(
-    session.faqEntries.map((entry) => [entry.id, entry]),
-  );
   // Never remove a persisted website row here: an archived/removed legacy row
   // is a review decision, not a cue to recreate or discard state.
   const retainedEntries = session.contextEntries;
@@ -178,28 +236,15 @@ export function reconcileStructuredWebsiteKnowledge(
   });
 
   const contextEntries = retainedEntries.concat(structuredEntries);
-  const structuredFaqEntries = knowledge.facts.flatMap((fact) => {
-    if (fact.category !== "faq") return [];
-    const id = websiteFaqIdentity(fact);
-    if (existingFaqEntries.has(id)) return [];
-    return [{
-      id,
-      sessionId: session.id,
-      question: fact.title,
-      answer: fact.value,
-      confidence: fact.confidence,
-      confidenceScore: confidenceScore(fact.confidence),
-      // The matching website context row preserves the canonical evidence link.
-      sourceEntryIds: [websiteFactIdentity(fact)],
-      status: options.defaultStatus,
-      metadata: { provenanceClassification: "website" as const, upstreamSourceEntryIds: [websiteFactIdentity(fact)], mixedSourceProvenance: false },
-      createdAt,
-      updatedAt: createdAt,
-    }];
-  });
+  // Website FAQs are already independently reviewable context facts with full
+  // evidence. Creating a second FAQ row would duplicate the review decision,
+  // counters, Business Memory assertion, and runtime rendering.
+  const structuredFaqEntries: AiBuilderSession["faqEntries"] = [];
   const faqEntries = session.faqEntries.concat(structuredFaqEntries);
+  const faqSupportIds = new Set(faqEntries.flatMap((faq) => faq.sourceEntryIds));
+  const reviewContextEntries = contextEntries.filter((entry) => !faqSupportIds.has(entry.id));
   const byCategory: AiBuilderSession["contextCounts"]["byCategory"] = {};
-  contextEntries.forEach((entry) => {
+  reviewContextEntries.forEach((entry) => {
     byCategory[entry.category] = (byCategory[entry.category] ?? 0) + 1;
   });
 
@@ -208,13 +253,13 @@ export function reconcileStructuredWebsiteKnowledge(
     contextEntries,
     faqEntries,
     contextCounts: {
-      total: contextEntries.length + faqEntries.length,
-      approved: contextEntries.filter(
+      total: reviewContextEntries.length + faqEntries.length,
+      approved: reviewContextEntries.filter(
         (entry) => entry.status === "approved" || entry.status === "corrected",
       ).length + faqEntries.filter((entry) => entry.status === "approved" || entry.status === "corrected").length,
-      proposed: contextEntries.filter((entry) => entry.status === "proposed").length + faqEntries.filter((entry) => entry.status === "proposed").length,
+      proposed: reviewContextEntries.filter((entry) => entry.status === "proposed").length + faqEntries.filter((entry) => entry.status === "proposed").length,
       archived:
-        contextEntries.filter((entry) => entry.status === "archived").length +
+        reviewContextEntries.filter((entry) => entry.status === "archived").length +
         faqEntries.filter((entry) => entry.status === "archived").length,
       byCategory,
     },
