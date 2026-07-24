@@ -12,6 +12,7 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 800;
 
 const extractionSchema = {
   type: "object",
@@ -257,10 +258,14 @@ function errorResponse(status: number, code: string, message: string) {
 }
 
 export async function POST(request: Request) {
-  try {
-    await requireClerkUserId();
-  } catch {
-    return NextResponse.json({ ok: false, error: { code: "authentication_required", message: "Sign in to use AI Builder." } }, { status: 401 });
+  const workerSecret = process.env.CRON_SECRET?.trim();
+  const internalWorker = Boolean(workerSecret && request.headers.get("authorization") === `Bearer ${workerSecret}`);
+  if (!internalWorker) {
+    try {
+      await requireClerkUserId();
+    } catch {
+      return NextResponse.json({ ok: false, error: { code: "authentication_required", message: "Sign in to use AI Builder." } }, { status: 401 });
+    }
   }
   let body: { website?: unknown };
 
@@ -306,16 +311,8 @@ export async function POST(request: Request) {
       try {
     send({ type: "progress", percent: 5 });
     crawlStartedAt = new Date().toISOString();
-    let crawlProgress = 10;
-    const crawl = await crawlBusinessWebsite(website, () => {
-      crawlProgress = Math.min(
-        65,
-        crawlProgress + Math.max(1, Math.round((65 - crawlProgress) * 0.15)),
-      );
-      send({
-        type: "progress",
-        percent: crawlProgress,
-      });
+    const crawl = await crawlBusinessWebsite(website, (pagesCrawled, pagesDiscovered) => {
+      send({ type: "crawl_progress", pagesCrawled, pagesDiscovered });
     });
     crawlDiagnostics = crawl.diagnostics;
     const crawlCompletedAt = new Date().toISOString();
@@ -323,6 +320,7 @@ export async function POST(request: Request) {
     await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
     persistenceMs += performance.now() - telemetryFinish;
     crawlRecorded = true;
+    send({ type: "crawl_complete", pagesCrawled: crawl.pages.length, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
     send({ type: "progress", percent: 70 });
     const client = new OpenAI({ apiKey });
 

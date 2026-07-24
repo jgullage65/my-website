@@ -413,7 +413,7 @@ function discoverInternalLinks(
 
 export async function crawlBusinessWebsite(
   websiteUrl: string,
-  onPage?: (completedPages: number) => void,
+  onPage?: (completedPages: number, discoveredPages: number) => void,
   dependencies: {
     fetchPage?: typeof fetchHtml;
     assertSafe?: typeof assertSafeDestination;
@@ -484,7 +484,6 @@ export async function crawlBusinessWebsite(
         pageType: inferPageType(fetched.resolvedUrl, title),
         text,
       });
-      onPage?.(pages.length);
       const discoveryStarted = now();
       const discoveredLinks = discoverInternalLinks(
         fetched.html,
@@ -493,6 +492,7 @@ export async function crawlBusinessWebsite(
       );
       timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
       for (const discovered of discoveredLinks.reverse()) enqueue(discovered, true);
+      onPage?.(pages.length, visited.size + queued.size + 1);
   };
 
   if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });

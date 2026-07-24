@@ -44,10 +44,7 @@ type WebsiteImportPayload = {
   error?: { message?: string };
 };
 
-type WebsiteImportEvent =
-  | { type: "progress"; percent: number }
-  | ({ type: "result" } & WebsiteImportPayload)
-  | { type: "error"; error?: { message?: string }; crawlAttemptId?: string };
+type CrawlJobPayload = { ok?: boolean; job?: { id: string; state: "queued" | "crawling" | "processing" | "completed" | "failed"; pagesDiscovered: number; pagesCrawled: number; crawlComplete: boolean; processingPercent?: number | null; result?: WebsiteImportPayload | null; errorMessage?: string | null }; error?: { message?: string } };
 
 const inputClassName =
   "w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3.5 text-center text-[15px] text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
@@ -58,6 +55,8 @@ const bottomCardClassName =
 export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [crawlPages, setCrawlPages] = useState(0);
+  const [importStage, setImportStage] = useState<"crawl" | "processing">("crawl");
   const [importError, setImportError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [showWebsiteKnowledge, setShowWebsiteKnowledge] = useState(false);
@@ -98,45 +97,29 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
     setImporting(true);
     setImportProgress(0);
+    setCrawlPages(0);
+    setImportStage("crawl");
     setImportError(null);
     setImportMessage(null);
 
     try {
-      const response = await fetch("/api/ai-builder/crawl", {
+      const response = await fetch("/api/ai-builder/crawl/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ website }),
       });
-      if (!response.ok || !response.body) {
-        const payload = (await response.json()) as WebsiteImportPayload;
-        throw new Error(payload.error?.message || "The website could not be imported.");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+      const created = await response.json() as CrawlJobPayload;
+      if (!response.ok || !created.job) throw new Error(created.error?.message || "The website crawl could not be started.");
       let payload: WebsiteImportPayload | null = null;
-
-      while (true) {
-        const { done, value: chunk } = await reader.read();
-        buffer += decoder.decode(chunk, { stream: !done });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const event = JSON.parse(line) as WebsiteImportEvent;
-          if (event.type === "progress") {
-            setImportProgress((current) => Math.max(current, event.percent));
-          } else if (event.type === "error") {
-            if (event.crawlAttemptId && !value.crawlAttemptIds.includes(event.crawlAttemptId)) onChange({ ...value, crawlAttemptIds: [...value.crawlAttemptIds, event.crawlAttemptId] });
-            throw new Error(event.error?.message || "The website could not be imported.");
-          } else if (event.type === "result") {
-            payload = event;
-          }
-        }
-
-        if (done) break;
+      while (!payload) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1_500));
+        const statusResponse = await fetch(`/api/ai-builder/crawl/jobs/${encodeURIComponent(created.job.id)}`, { cache: "no-store" });
+        const status = await statusResponse.json() as CrawlJobPayload;
+        if (!statusResponse.ok || !status.job) throw new Error(status.error?.message || "The website crawl status could not be loaded.");
+        setCrawlPages(status.job.pagesCrawled);
+        if (status.job.crawlComplete || status.job.state === "processing") { setImportStage("processing"); setImportProgress(status.job.processingPercent ?? 70); }
+        if (status.job.state === "failed") throw new Error(status.job.errorMessage || "The website could not be imported.");
+        if (status.job.state === "completed") payload = status.job.result ?? null;
       }
 
       if (!payload?.ok || !payload.import) {
@@ -290,7 +273,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-[rgba(212,175,55,0.18)] disabled:bg-[#030713] disabled:text-white disabled:shadow-none disabled:[border-width:0.5px] disabled:hover:translate-y-0 disabled:hover:border-[rgba(212,175,55,0.18)] disabled:hover:bg-[#030713]"
               >
                 {importing
-                  ? `Importing… ${importProgress}%`
+                  ? importStage === "crawl" ? `${crawlPages} page${crawlPages === 1 ? "" : "s"} crawled` : `Importing… ${importProgress}%`
                   : value.websiteKnowledge
                     ? "Re-import Website"
                     : "Import Website"}

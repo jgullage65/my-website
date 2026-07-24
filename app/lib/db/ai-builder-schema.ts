@@ -453,6 +453,27 @@ async function createAiBuilderSchema() {
   `;
 
   await sql`
+    CREATE TABLE IF NOT EXISTS ai_builder_crawl_jobs (
+      id TEXT PRIMARY KEY,
+      clerk_user_id TEXT NOT NULL,
+      requested_url TEXT NOT NULL,
+      state TEXT NOT NULL CHECK (state IN ('queued','crawling','processing','completed','failed')),
+      pages_discovered INTEGER NOT NULL DEFAULT 0,
+      pages_crawled INTEGER NOT NULL DEFAULT 0,
+      crawl_complete BOOLEAN NOT NULL DEFAULT FALSE,
+      processing_percent INTEGER,
+      result JSONB,
+      error_message TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      started_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_at TIMESTAMPTZ
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_jobs_queue_idx ON ai_builder_crawl_jobs(state, created_at)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_jobs_owner_idx ON ai_builder_crawl_jobs(clerk_user_id, created_at DESC)`;
+
+  await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_generation_telemetry (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
