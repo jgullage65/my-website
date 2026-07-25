@@ -21,6 +21,7 @@ const JG_ASSISTANT_VISIBILITY_KEY = "jg-assistant-visibility-v1";
 
 export default function JGChatWidget() {
   const pathname = usePathname();
+  const suppressForAiBuilder = pathname.startsWith("/ai-builder");
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -35,7 +36,7 @@ export default function JGChatWidget() {
     const isDesktop = window.matchMedia("(min-width: 1200px)").matches;
     const storedVisibility = window.localStorage.getItem(JG_ASSISTANT_VISIBILITY_KEY);
 
-    if (!isDesktop) {
+    if (!isDesktop || suppressForAiBuilder) {
       setOpen(false);
     } else if (storedVisibility === "closed") {
       setOpen(false);
@@ -46,7 +47,7 @@ export default function JGChatWidget() {
     }
 
     setHydrated(true);
-  }, []);
+  }, [pathname, suppressForAiBuilder]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -107,6 +108,8 @@ export default function JGChatWidget() {
     }
     return null;
   }, [session.messages]);
+
+  if (suppressForAiBuilder) return null;
 
   return (
     <>
