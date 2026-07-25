@@ -121,9 +121,9 @@ export default function AiBuilderProjects() {
         </div>
 
         {error ? <div className="mt-6 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
-        {loading ? <div className="mt-10 border-y border-amber-300/20 bg-[#030713] p-12 text-center text-slate-400 min-[1200px]:rounded-[30px] min-[1200px]:border">Loading your projects…</div> : null}
+        {loading ? <div className="mt-10 rounded-[30px] border border-amber-300/20 bg-[#030713] p-12 text-center text-slate-400">Loading your projects…</div> : null}
         {isSignedIn && !loading && !projects.length ? (
-          <div className="mt-10 border-y border-amber-300/20 bg-[#030713] px-6 py-16 text-center min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:shadow-[0_24px_90px_rgba(0,0,0,.34)]">
+          <div className="mt-10 rounded-[30px] border border-amber-300/20 bg-[#030713] px-6 py-16 text-center shadow-[0_24px_90px_rgba(0,0,0,.34)]">
             <h2 className="text-2xl font-black tracking-[-.035em]">Build your first business AI</h2>
             <p className="mx-auto mt-3 max-w-lg text-slate-400">Create a project and your work will be saved here whenever you return.</p>
             <button type="button" onClick={() => void beginProjectCreation()} className="mt-7 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">Create Your First AI Builder Project</button>
@@ -151,9 +151,9 @@ function ProjectSection({ title, children }: { title: string; children: React.Re
 }
 
 function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArchive, onRestore }: { projects: Project[]; archived: boolean; menu: string | null; busy: string | null; setMenu: (id: string | null) => void; onRename: (project: Project) => void; onArchive: (project: Project) => void; onRestore: (project: Project) => void }) {
-  if (!projects.length) return <div className="border-y border-amber-300/20 bg-[#030713] px-6 py-10 text-center min-[1200px]:rounded-3xl min-[1200px]:border"><p className="text-sm text-slate-400">No {archived ? "archived" : "open"} projects.</p></div>;
+  if (!projects.length) return <div className="rounded-3xl border border-amber-300/20 bg-[#030713] px-6 py-10 text-center"><p className="text-sm text-slate-400">No {archived ? "archived" : "open"} projects.</p></div>;
   const singleProject = projects.length === 1;
-  return <div className={`grid gap-5 md:grid-cols-2 xl:grid-cols-2 ${singleProject ? "md:justify-items-center" : ""}`}>{projects.map((project) => <article key={project.id} className={`group relative border-y border-amber-300/25 bg-[#030713] p-6 transition-colors hover:border-amber-300/40 min-[1200px]:rounded-3xl min-[1200px]:border ${singleProject ? "md:col-span-2 md:w-full md:max-w-[420px]" : ""}`}>
+  return <div className={`grid gap-5 md:grid-cols-2 xl:grid-cols-2 ${singleProject ? "md:justify-items-center" : ""}`}>{projects.map((project) => <article key={project.id} className={`group relative rounded-3xl border border-amber-300/25 bg-[#030713] p-6 transition-colors hover:border-amber-300/40 ${singleProject ? "md:col-span-2 md:w-full md:max-w-[420px]" : ""}`}>
     <div className="absolute right-4 top-4"><div className="relative">
       <button type="button" aria-label={`Actions for ${project.businessName}`} aria-haspopup="menu" aria-expanded={menu === project.id} onClick={() => setMenu(menu === project.id ? null : project.id)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-300/15 bg-[#030713] text-xl text-slate-300 hover:border-amber-300/30">•••</button>
       {menu === project.id ? <div role="menu" className="absolute right-0 top-11 z-20 min-w-[160px] rounded-xl border border-[rgba(212,175,55,.2)] bg-[#030713] p-1.5 shadow-2xl">
