@@ -130,7 +130,7 @@ export default function AiBuilderProjects() {
           </div>
         ) : null}
 
-        {isSignedIn && !loading && projects.length ? <div className="mt-10 space-y-12">
+        {isSignedIn && !loading && projects.length ? <div className="mt-10 grid gap-10 xl:grid-cols-2 xl:gap-8">
           <ProjectSection title="Open Projects">
             <ProjectGrid projects={openProjects} archived={false} menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
           </ProjectSection>
@@ -144,7 +144,7 @@ export default function AiBuilderProjects() {
 }
 
 function ProjectSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section>
+  return <section className="min-w-0">
     <h2 className="mb-5 text-center text-xl font-black tracking-[-.025em] text-white sm:text-2xl">{title}</h2>
     {children}
   </section>;
@@ -152,7 +152,7 @@ function ProjectSection({ title, children }: { title: string; children: React.Re
 
 function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArchive, onRestore }: { projects: Project[]; archived: boolean; menu: string | null; busy: string | null; setMenu: (id: string | null) => void; onRename: (project: Project) => void; onArchive: (project: Project) => void; onRestore: (project: Project) => void }) {
   if (!projects.length) return <div className="rounded-3xl border border-amber-300/20 bg-[#030713] px-6 py-10 text-center"><p className="text-sm text-slate-400">No {archived ? "archived" : "open"} projects.</p></div>;
-  return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{projects.map((project) => <article key={project.id} className="group relative rounded-3xl border border-amber-300/25 bg-[#030713] p-6 transition-colors hover:border-amber-300/40">
+  return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-2">{projects.map((project) => <article key={project.id} className="group relative rounded-3xl border border-amber-300/25 bg-[#030713] p-6 transition-colors hover:border-amber-300/40">
     <div className="absolute right-4 top-4"><div className="relative">
       <button type="button" aria-label={`Actions for ${project.businessName}`} aria-haspopup="menu" aria-expanded={menu === project.id} onClick={() => setMenu(menu === project.id ? null : project.id)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-300/15 bg-[#030713] text-xl text-slate-300 hover:border-amber-300/30">•••</button>
       {menu === project.id ? <div role="menu" className="absolute right-0 top-11 z-20 min-w-[160px] rounded-xl border border-[rgba(212,175,55,.2)] bg-[#030713] p-1.5 shadow-2xl">
