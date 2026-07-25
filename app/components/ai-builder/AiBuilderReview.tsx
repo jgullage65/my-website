@@ -580,15 +580,9 @@ export default function AiBuilderReview({
 
       {visibleFaqEntries.length ? (
         <section className="space-y-5 border-t border-white/[0.075] pt-7">
-          <SectionHeading
-            eyebrow="Generated Q&A"
-            title={
-              <>
-                Questions your <span className="text-amber-300">AI is ready</span> to answer.
-              </>
-            }
-            description="Review the generated answers before they become part of the live assistant."
-          />
+          <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
+            Generated Q&amp;A
+          </p>
 
           <div className="columns-1 gap-4 md:columns-2">
             {visibleFaqEntries.map(({ faq }) => {
@@ -774,30 +768,6 @@ function SectionDivider({ label }: { label: string }) {
         {label}
       </h3>
       <div className="h-px flex-1 bg-amber-300/12" />
-    </div>
-  );
-}
-
-function SectionHeading({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: ReactNode;
-  description: string;
-}) {
-  return (
-    <div className="mx-auto max-w-3xl text-center">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
-        {eyebrow}
-      </p>
-      <h2 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-white sm:text-3xl">
-        {title}
-      </h2>
-      <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-        {description}
-      </p>
     </div>
   );
 }
