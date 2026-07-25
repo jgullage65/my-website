@@ -20,7 +20,7 @@ const pendingSteps = [
 ];
 
 const shellClassName =
-  "relative overflow-hidden bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-amber-300/20 min-[1200px]:px-8 min-[1200px]:py-9 min-[1200px]:shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]";
+  "relative overflow-hidden bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-amber-300/20 min-[1200px]:px-6 min-[1200px]:py-6 min-[1200px]:shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]";
 
 export default function AiBuilderProgress({
   builder,
@@ -42,18 +42,18 @@ export default function AiBuilderProgress({
             {complete ? "Your AI is ready" : "Building your AI system"}
           </p>
 
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
+          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl min-[1200px]:mt-2 min-[1200px]:text-4xl">
             {builder.businessName}
           </h1>
 
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg min-[1200px]:mt-2 min-[1200px]:text-base min-[1200px]:leading-6">
             {complete
               ? "Your business knowledge has been organized and is ready for review."
               : "Teaching your AI about the business and preparing its knowledge."}
           </p>
         </div>
 
-        <div className="relative mt-8 grid gap-4">
+        <div className="relative mt-8 grid gap-4 min-[1200px]:mt-5 min-[1200px]:grid-cols-3 min-[1200px]:gap-3">
           {(complete ? progress : pendingSteps).map((item, index) => {
             const message = typeof item === "string" ? item : item.message;
             const count = typeof item === "string" ? null : item.count;
@@ -65,10 +65,10 @@ export default function AiBuilderProgress({
             return (
               <article
                 key={`${message}-${index}`}
-                className="rounded-[22px] border border-amber-300/25 bg-black/20 p-5 shadow-inner shadow-black/20"
+                className="rounded-[22px] border border-amber-300/25 bg-black/20 p-5 shadow-inner shadow-black/20 min-[1200px]:rounded-2xl min-[1200px]:p-4"
               >
-                <div className="flex flex-col items-center justify-center gap-2 text-center">
-                  <span className="text-sm font-semibold text-white sm:text-base">
+                <div className="flex flex-col items-center justify-center gap-2 text-center min-[1200px]:gap-1.5">
+                  <span className="text-sm font-semibold text-white sm:text-base min-[1200px]:text-sm">
                     {completed ? <span className="text-amber-300">✓ </span> : null}
                     {message}
                   </span>
@@ -82,7 +82,7 @@ export default function AiBuilderProgress({
                   ) : null}
                 </div>
 
-                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/[0.08]">
+                <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/[0.08] min-[1200px]:mt-3 min-[1200px]:h-2">
                   <div className="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.35)] transition-[width] duration-300" style={{ width: `${stepPercent}%` }} />
                 </div>
               </article>
@@ -91,17 +91,17 @@ export default function AiBuilderProgress({
         </div>
 
         {complete && session ? (
-          <div className="relative mt-7">
-            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="relative mt-7 min-[1200px]:mt-4">
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 min-[1200px]:gap-3">
               <Stat value={session.contextCounts.total} label="Facts" />
               <Stat value={session.faqEntries.length} label="Q&A" />
               <Stat value={session.conflicts.length} label="Conflicts" />
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 min-[1200px]:mt-4 min-[1200px]:gap-3">
               <Link
                 href="/ai-builder"
-                className="flex min-h-[56px] items-center justify-center rounded-2xl border border-amber-300/15 bg-[#081226] px-3 py-4 text-center text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.14)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:px-5 sm:text-base"
+                className="flex min-h-[56px] items-center justify-center rounded-2xl border border-amber-300/15 bg-[#081226] px-3 py-4 text-center text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.14)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:px-5 sm:text-base min-[1200px]:min-h-[46px] min-[1200px]:rounded-xl min-[1200px]:py-3 min-[1200px]:text-sm"
               >
                 Return to Projects
               </Link>
@@ -109,7 +109,7 @@ export default function AiBuilderProgress({
               <button
                 type="button"
                 onClick={onReview}
-                className="min-h-[56px] rounded-2xl border border-amber-300/15 bg-[#081226] px-3 py-4 text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:px-5 sm:text-base"
+                className="min-h-[56px] rounded-2xl border border-amber-300/15 bg-[#081226] px-3 py-4 text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:px-5 sm:text-base min-[1200px]:min-h-[46px] min-[1200px]:rounded-xl min-[1200px]:py-3 min-[1200px]:text-sm"
               >
                 Review business knowledge
               </button>
@@ -123,11 +123,11 @@ export default function AiBuilderProgress({
 
 function Stat({ value, label }: { value: number; label: string }) {
   return (
-    <div className="rounded-2xl border border-amber-300/25 bg-black/20 px-3 py-4 text-center sm:px-5">
-      <div className="text-2xl font-semibold text-amber-300 sm:text-3xl">
+    <div className="rounded-2xl border border-amber-300/25 bg-black/20 px-3 py-4 text-center sm:px-5 min-[1200px]:rounded-xl min-[1200px]:px-3 min-[1200px]:py-2.5">
+      <div className="text-2xl font-semibold text-amber-300 sm:text-3xl min-[1200px]:text-xl">
         {value}
       </div>
-      <div className="mt-1 text-xs font-medium text-slate-400 sm:text-sm">
+      <div className="mt-1 text-xs font-medium text-slate-400 sm:text-sm min-[1200px]:mt-0.5 min-[1200px]:text-xs">
         {label}
       </div>
     </div>
