@@ -275,20 +275,9 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
                 {value.websiteKnowledge ? (
                   <div className="mt-5 grid grid-cols-3 gap-3">
-                    <Metric
-                      label="Pages"
-                      value={String(value.websiteKnowledge.pages.length)}
-                    />
-                    <Metric
-                      label="Warnings"
-                      value={String(value.websiteKnowledge.warnings.length)}
-                    />
-                    <Metric
-                      label="Updated"
-                      value={new Date(
-                        value.websiteKnowledge.importedAt,
-                      ).toLocaleDateString()}
-                    />
+                    <Metric label="Pages" value={String(value.websiteKnowledge.pages.length)} />
+                    <Metric label="Warnings" value={String(value.websiteKnowledge.warnings.length)} />
+                    <Metric label="Updated" value={new Date(value.websiteKnowledge.importedAt).toLocaleDateString()} />
                   </div>
                 ) : null}
 
@@ -298,9 +287,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                     className={inputClassName}
                     placeholder="https://yourbusiness.com"
                     value={value.website}
-                    onChange={(event) =>
-                      updateProfile("website", event.target.value)
-                    }
+                    onChange={(event) => updateProfile("website", event.target.value)}
                   />
                   <button
                     type="button"
@@ -319,9 +306,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 </div>
 
                 {importError ? <Status tone="error">{importError}</Status> : null}
-                {importMessage ? (
-                  <Status tone="success">{importMessage}</Status>
-                ) : null}
+                {importMessage ? <Status tone="success">{importMessage}</Status> : null}
 
                 {value.websiteKnowledge ? (
                   <button
@@ -338,99 +323,39 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
           <section className="min-w-0 space-y-4">
             <div className="mx-auto max-w-3xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
-                Your expertise
-              </p>
-              <h2 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">
-                Add what only you know.
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-400">
-                Your answers stay separate from the website import and take priority when sources conflict.
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Your expertise</p>
+              <h2 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Add what only you know.</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Your answers stay separate from the website import and take priority when sources conflict.</p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <KnowledgeCard title="Business profile">
                 <Field label="Business name" required>
-                  <input
-                    className={inputClassName}
-                    placeholder="JG Creative Studio"
-                    value={value.businessName}
-                    onChange={(event) =>
-                      updateProfile("businessName", event.target.value)
-                    }
-                  />
+                  <input className={inputClassName} placeholder="JG Creative Studio" value={value.businessName} onChange={(event) => updateProfile("businessName", event.target.value)} />
                 </Field>
                 <Field label="Industry / business type" required>
-                  <input
-                    className={inputClassName}
-                    placeholder="Web design and AI automation agency"
-                    value={value.industry}
-                    onChange={(event) =>
-                      updateProfile("industry", event.target.value)
-                    }
-                  />
+                  <input className={inputClassName} placeholder="Web design and AI automation agency" value={value.industry} onChange={(event) => updateProfile("industry", event.target.value)} />
                 </Field>
               </KnowledgeCard>
 
               <KnowledgeCard title="Products & Services">
-                <textarea
-                  rows={6}
-                  className={`${inputClassName} resize-y`}
-                  placeholder={
-                    value.websiteKnowledge?.productsServices
-                      ? "Add private details, corrections, packages, pricing, or anything your website does not explain."
-                      : "Describe your services, packages, deliverables, pricing structure, and what each option is for."
-                  }
-                  value={value.userKnowledge.productsServices}
-                  onChange={(event) =>
-                    updateUserKnowledge("productsServices", event.target.value)
-                  }
-                />
+                <textarea rows={6} className={`${inputClassName} resize-y`} placeholder={value.websiteKnowledge?.productsServices ? "Add private details, corrections, packages, pricing, or anything your website does not explain." : "Describe your services, packages, deliverables, pricing structure, and what each option is for."} value={value.userKnowledge.productsServices} onChange={(event) => updateUserKnowledge("productsServices", event.target.value)} />
               </KnowledgeCard>
 
               <KnowledgeCard title="Ideal Customers">
-                <textarea
-                  rows={6}
-                  className={`${inputClassName} resize-y`}
-                  placeholder={
-                    value.websiteKnowledge?.idealCustomers
-                      ? "Add more specific customer details or correct anything the website got wrong."
-                      : "Describe your best-fit customers, industries, company sizes, locations, needs, and goals."
-                  }
-                  value={value.userKnowledge.idealCustomers}
-                  onChange={(event) =>
-                    updateUserKnowledge("idealCustomers", event.target.value)
-                  }
-                />
+                <textarea rows={6} className={`${inputClassName} resize-y`} placeholder={value.websiteKnowledge?.idealCustomers ? "Add more specific customer details or correct anything the website got wrong." : "Describe your best-fit customers, industries, company sizes, locations, needs, and goals."} value={value.userKnowledge.idealCustomers} onChange={(event) => updateUserKnowledge("idealCustomers", event.target.value)} />
               </KnowledgeCard>
 
               <KnowledgeCard title="Additional Business Knowledge">
-                <textarea
-                  rows={6}
-                  className={`${inputClassName} resize-y`}
-                  placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know."
-                  value={value.userKnowledge.additionalKnowledge}
-                  onChange={(event) =>
-                    updateUserKnowledge("additionalKnowledge", event.target.value)
-                  }
-                />
+                <textarea rows={6} className={`${inputClassName} resize-y`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} />
               </KnowledgeCard>
             </div>
 
             <div className="grid gap-4 md:grid-cols-[0.8fr_1.2fr]">
               <section className={`${cardClassName} text-center`}>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-                  Communication style
-                </p>
-                <h3 className="mt-2 text-xl font-semibold text-white">
-                  How should your AI sound?
-                </h3>
-                <select
-                  className={`${inputClassName} mt-4`}
-                  value={value.tone}
-                  onChange={(event) => updateProfile("tone", event.target.value)}
-                >
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Communication style</p>
+                <h3 className="mt-2 text-xl font-semibold text-white">How should your AI sound?</h3>
+                <select className={`${inputClassName} mt-4`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
                   <option>Professional</option>
                   <option>Friendly</option>
                   <option>Consultative</option>
@@ -442,25 +367,10 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <section className={`${cardClassName} relative overflow-hidden text-center`}>
                 <div className="absolute inset-x-0 bottom-[-7rem] mx-auto h-40 max-w-xl rounded-full bg-amber-400/12 blur-[80px]" />
                 <div className="relative">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-                    Final step
-                  </p>
-                  <h3 className="mt-2 text-2xl font-semibold text-white">
-                    Ready to build your AI?
-                  </h3>
-                  <button
-                    type="button"
-                    disabled={!valid || importing}
-                    onClick={onBuild}
-                    className="mt-5 min-w-52 rounded-2xl border border-amber-300/15 bg-[#081226] px-6 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
-                  >
-                    Build My AI
-                  </button>
-                  <p className="mt-3 text-xs leading-5 text-slate-500">
-                    {valid
-                      ? "Everything required is ready."
-                      : "Add your business name, industry, products or services, and ideal customers to continue."}
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Final step</p>
+                  <h3 className="mt-2 text-2xl font-semibold text-white">Ready to build your AI?</h3>
+                  <button type="button" disabled={!valid || importing} onClick={onBuild} className="mt-5 min-w-52 rounded-2xl border border-amber-300/15 bg-[#081226] px-6 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0">Build My AI</button>
+                  <p className="mt-3 text-xs leading-5 text-slate-500">{valid ? "Everything required is ready." : "Add your business name, industry, products or services, and ideal customers to continue."}</p>
                 </div>
               </section>
             </div>
@@ -469,47 +379,25 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
       </div>
 
       {showWebsiteKnowledge && value.websiteKnowledge ? (
-        <WebsiteKnowledgeModal
-          knowledge={value.websiteKnowledge}
-          onClose={() => setShowWebsiteKnowledge(false)}
-        />
+        <WebsiteKnowledgeModal knowledge={value.websiteKnowledge} onClose={() => setShowWebsiteKnowledge(false)} />
       ) : null}
     </div>
   );
 }
 
-function KnowledgeCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function KnowledgeCard({ title, children }: { title: string; children: ReactNode }) {
   return (
     <article className={cardClassName}>
-      <h3 className="text-center text-lg font-semibold text-amber-300">
-        {title}
-      </h3>
+      <h3 className="text-center text-lg font-semibold text-amber-300">{title}</h3>
       <div className="mt-4 grid gap-4">{children}</div>
     </article>
   );
 }
 
-function Field({
-  label,
-  required = false,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  children: ReactNode;
-}) {
+function Field({ label, required = false, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="grid gap-2 text-center">
-      <span className="text-sm font-semibold text-slate-200">
-        {label}
-        {required ? <span className="text-amber-300"> *</span> : null}
-      </span>
+      <span className="text-sm font-semibold text-slate-200">{label}{required ? <span className="text-amber-300"> *</span> : null}</span>
       {children}
     </label>
   );
@@ -524,67 +412,30 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Status({
-  tone,
-  children,
-}: {
-  tone: "success" | "error";
-  children: ReactNode;
-}) {
+function Status({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
   return (
-    <div
-      className={`mx-auto mt-4 rounded-xl border px-4 py-3 text-sm ${
-        tone === "success"
-          ? "border-amber-300/15 bg-amber-300/[0.06] text-white"
-          : "border-red-400/20 bg-red-400/[0.07] text-red-200"
-      }`}
-    >
+    <div className={`mx-auto mt-4 rounded-xl border px-4 py-3 text-sm ${tone === "success" ? "border-amber-300/15 bg-amber-300/[0.06] text-white" : "border-red-400/20 bg-red-400/[0.07] text-red-200"}`}>
       {children}
     </div>
   );
 }
 
-function WebsiteKnowledgeModal({
-  knowledge,
-  onClose,
-}: {
-  knowledge: WebsiteKnowledge;
-  onClose: () => void;
-}) {
-  const canonicalSections = useMemo(
+function WebsiteKnowledgeModal({ knowledge, onClose }: { knowledge: WebsiteKnowledge; onClose: () => void }) {
+  const canonicalSections: Array<[WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]> = useMemo(
     () => groupWebsiteKnowledgeFacts(knowledge.knowledge),
     [knowledge.knowledge],
   );
 
   const modal = (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Imported website knowledge"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Imported website knowledge" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] shadow-[0_30px_120px_rgba(0,0,0,0.7)]">
         <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5 sm:p-7">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
-              Website knowledge
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Website knowledge</p>
             <h2 className="mt-2 text-2xl font-semibold text-white">Imported source details</h2>
-            <p className="mt-2 text-sm text-slate-400">
-              This source is preserved separately from the information you enter manually.
-            </p>
+            <p className="mt-2 text-sm text-slate-400">This source is preserved separately from the information you enter manually.</p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close imported website knowledge"
-            className="grid h-10 w-10 flex-none place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 transition hover:border-amber-300/30 hover:text-white"
-          >
-            ×
-          </button>
+          <button type="button" onClick={onClose} aria-label="Close imported website knowledge" className="grid h-10 w-10 flex-none place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 transition hover:border-amber-300/30 hover:text-white">×</button>
         </div>
 
         <div className="max-h-[calc(92vh-130px)] overflow-y-auto p-5 sm:p-7">
@@ -603,9 +454,7 @@ function WebsiteKnowledgeModal({
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               {canonicalSections.map(([section, facts]) => (
                 <section key={section} className="rounded-2xl border border-white/10 bg-black/10 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-                    {WEBSITE_KNOWLEDGE_SECTION_LABELS[section]}
-                  </p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">{WEBSITE_KNOWLEDGE_SECTION_LABELS[section]}</p>
                   <div className="mt-3 space-y-3">
                     {facts.map((fact, index) => (
                       <article key={`${section}-${fact.label}-${index}`}>
@@ -629,9 +478,7 @@ function WebsiteKnowledgeModal({
             <section className="mt-5 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Warnings</p>
               <ul className="mt-3 space-y-2 text-sm text-slate-400">
-                {knowledge.warnings.map((warning) => (
-                  <li key={warning}>• {warning}</li>
-                ))}
+                {knowledge.warnings.map((warning) => <li key={warning}>• {warning}</li>)}
               </ul>
             </section>
           ) : null}
@@ -653,8 +500,10 @@ function LegacyKnowledgeSection({ title, value }: { title: string; value: string
   );
 }
 
-function groupWebsiteKnowledgeFacts(knowledge?: StructuredWebsiteKnowledge) {
-  if (!knowledge?.facts?.length) return [] as Array<[WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]>;
+function groupWebsiteKnowledgeFacts(
+  knowledge?: StructuredWebsiteKnowledge,
+): Array<[WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]> {
+  if (!knowledge?.facts?.length) return [];
   const grouped = new Map<WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]>();
   for (const fact of knowledge.facts) {
     const current = grouped.get(fact.section) ?? [];
@@ -663,6 +512,8 @@ function groupWebsiteKnowledgeFacts(knowledge?: StructuredWebsiteKnowledge) {
   }
   return WEBSITE_KNOWLEDGE_SECTION_ORDER.flatMap((section) => {
     const facts = grouped.get(section);
-    return facts?.length ? [[section, facts] as [WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]] : [];
+    return facts?.length
+      ? [[section, facts] as [WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]]
+      : [];
   });
 }
