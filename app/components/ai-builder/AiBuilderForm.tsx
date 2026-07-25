@@ -261,15 +261,9 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                   {value.websiteKnowledge ? "Active" : "Optional"}
                 </span>
 
-                <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-xl">
-                  🌐
-                </div>
-                <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
-                  Website knowledge
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold text-white">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
                   {value.websiteKnowledge ? "Website connected" : "Connect your website"}
-                </h2>
+                </p>
                 <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-400">
                   We safely crawl public pages and organize the useful information into a read-only source.
                 </p>
@@ -337,7 +331,6 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           <section className="min-w-0 space-y-5 min-[1200px]:space-y-7">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Your expertise</p>
-              <h2 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Add what only you know.</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">Your answers stay separate from the website import and take priority when sources conflict.</p>
             </div>
 
