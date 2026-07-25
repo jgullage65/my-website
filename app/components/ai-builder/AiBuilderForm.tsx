@@ -233,15 +233,9 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
       <div className="relative rounded-[28px] border border-white/[0.09] bg-[#030713] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:p-7 xl:p-8">
         <AiBuilderAuthCta />
 
-        <header className="mx-auto max-w-4xl text-center">
+        <header className="text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
             AI Builder
-          </p>
-          <h1 className="mt-2 text-balance text-3xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
-            Build Your <span className="text-amber-300">Business AI</span>
-          </h1>
-          <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
-            Import your website, add the knowledge only you know, choose the right voice, and build from one workspace.
           </p>
           <Link
             href="/ai-builder"
@@ -343,7 +337,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           </section>
 
           <section className="min-w-0 space-y-4">
-            <div className="text-center xl:text-left">
+            <div className="mx-auto max-w-3xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
                 Your expertise
               </p>
