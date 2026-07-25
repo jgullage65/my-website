@@ -20,7 +20,7 @@ const pendingSteps = [
 ];
 
 const shellClassName =
-  "relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] px-5 py-7 shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8 sm:py-9";
+  "relative overflow-hidden bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-amber-300/20 min-[1200px]:px-8 min-[1200px]:py-9 min-[1200px]:shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]";
 
 export default function AiBuilderProgress({
   builder,
@@ -32,7 +32,7 @@ export default function AiBuilderProgress({
   const progress = session?.buildProgress ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl">
       <section className={shellClassName}>
         <AiBuilderAuthCta />
         <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
