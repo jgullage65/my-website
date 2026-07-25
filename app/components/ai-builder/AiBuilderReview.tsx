@@ -39,6 +39,16 @@ const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
   prohibited_claim: "Prohibited Claims",
 };
 
+const NARRATIVE_SECTION_KEYS = new Set([
+  "company_overview",
+  "product_service",
+  "pricing_plan",
+  "policy",
+  "support_onboarding",
+  "competitive_differentiator",
+  "additional_business_knowledge",
+]);
+
 const websiteCategorySet = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
 const sectionOrder = new Map<string, number>(
   WEBSITE_KNOWLEDGE_SECTION_ORDER.map((section, index) => [section, index]),
@@ -363,164 +373,176 @@ export default function AiBuilderReview({
             Business knowledge
           </p>
 
-          {grouped.map(([sectionKey, section]) => (
-            <section key={sectionKey}>
-              <SectionDivider label={section.label} />
+          {grouped.map(([sectionKey, section]) => {
+            const isNarrativeSection = NARRATIVE_SECTION_KEYS.has(sectionKey);
 
-              <div className="columns-1 gap-4 md:columns-2">
-                {section.entries.map(({ entry }) => {
-                  const entryRenderKey = `context_entry:${entry.id}`;
-                  const editing = editingEntry === entryRenderKey;
-                  const pending = isPending("context_entry", entry.id);
+            return (
+              <section key={sectionKey}>
+                <SectionDivider label={section.label} />
 
-                  return (
-                    <article
-                      key={entryRenderKey}
-                      onClick={() => setSelectedItem(entryRenderKey)}
-                      className={`${panelClassName} mb-4`}
-                    >
-                      <div className="px-5 py-4 sm:px-6 sm:py-5">
-                        {editing ? (
-                          <div className="space-y-3">
-                            <input
-                              value={entryDrafts[entryRenderKey]?.title ?? entry.title}
-                              onChange={(event) =>
-                                setEntryDrafts((drafts) => ({
-                                  ...drafts,
-                                  [entryRenderKey]: {
-                                    ...(drafts[entryRenderKey] ?? {
-                                      title: entry.title,
-                                      content: entry.content,
-                                    }),
-                                    title: event.target.value,
-                                  },
-                                }))
-                              }
-                              className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
-                            />
-                            <textarea
-                              rows={5}
-                              value={entryDrafts[entryRenderKey]?.content ?? entry.content}
-                              onChange={(event) =>
-                                setEntryDrafts((drafts) => ({
-                                  ...drafts,
-                                  [entryRenderKey]: {
-                                    ...(drafts[entryRenderKey] ?? {
-                                      title: entry.title,
-                                      content: entry.content,
-                                    }),
-                                    content: event.target.value,
-                                  },
-                                }))
-                              }
-                              className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
-                            />
-                          </div>
-                        ) : (
-                          <>
-                            <h4 className="text-center text-base font-semibold leading-6 text-amber-300">
-                              {entry.title}
-                            </h4>
-                            <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-left text-sm leading-6 text-slate-300">
-                              {entry.content}
-                            </p>
-                          </>
-                        )}
-                      </div>
+                <div
+                  className={
+                    isNarrativeSection
+                      ? "grid grid-cols-1 gap-4"
+                      : "columns-1 gap-4 md:columns-2"
+                  }
+                >
+                  {section.entries.map(({ entry }) => {
+                    const entryRenderKey = `context_entry:${entry.id}`;
+                    const editing = editingEntry === entryRenderKey;
+                    const pending = isPending("context_entry", entry.id);
 
-                      <ItemActions>
-                        {entry.status === "proposed" ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void submit({
-                                itemId: entry.id,
-                                itemKind: "context_entry",
-                                expectedCurrentState: entry.status,
-                                kind: "approve",
-                              })
-                            }
-                            className={approveActionClassName}
-                            disabled={pending}
-                          >
-                            Approve
-                          </button>
-                        ) : null}
-
-                        {entry.status === "archived" ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void submit({
-                                itemId: entry.id,
-                                itemKind: "context_entry",
-                                expectedCurrentState: entry.status,
-                                kind: "restore",
-                              })
-                            }
-                            className={approveActionClassName}
-                            disabled={pending}
-                          >
-                            Restore
-                          </button>
-                        ) : null}
-
-                        {entry.status !== "archived" ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (editing) {
-                                const draft = entryDrafts[entryRenderKey];
-                                if (
-                                  !draft ||
-                                  (draft.title === entry.title &&
-                                    draft.content === entry.content)
-                                ) {
-                                  setEditingEntry(null);
-                                  return;
+                    return (
+                      <article
+                        key={entryRenderKey}
+                        onClick={() => setSelectedItem(entryRenderKey)}
+                        className={`${panelClassName} ${
+                          isNarrativeSection ? "w-full" : "mb-4"
+                        }`}
+                      >
+                        <div className="px-5 py-4 sm:px-6 sm:py-5">
+                          {editing ? (
+                            <div className="space-y-3">
+                              <input
+                                value={entryDrafts[entryRenderKey]?.title ?? entry.title}
+                                onChange={(event) =>
+                                  setEntryDrafts((drafts) => ({
+                                    ...drafts,
+                                    [entryRenderKey]: {
+                                      ...(drafts[entryRenderKey] ?? {
+                                        title: entry.title,
+                                        content: entry.content,
+                                      }),
+                                      title: event.target.value,
+                                    },
+                                  }))
                                 }
+                                className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                              />
+                              <textarea
+                                rows={5}
+                                value={entryDrafts[entryRenderKey]?.content ?? entry.content}
+                                onChange={(event) =>
+                                  setEntryDrafts((drafts) => ({
+                                    ...drafts,
+                                    [entryRenderKey]: {
+                                      ...(drafts[entryRenderKey] ?? {
+                                        title: entry.title,
+                                        content: entry.content,
+                                      }),
+                                      content: event.target.value,
+                                    },
+                                  }))
+                                }
+                                className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <h4 className="text-center text-base font-semibold leading-6 text-amber-300">
+                                {entry.title}
+                              </h4>
+                              <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-left text-sm leading-6 text-slate-300">
+                                {entry.content}
+                              </p>
+                            </>
+                          )}
+                        </div>
+
+                        <ItemActions>
+                          {entry.status === "proposed" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
                                 void submit({
                                   itemId: entry.id,
                                   itemKind: "context_entry",
                                   expectedCurrentState: entry.status,
-                                  kind: "correct",
-                                  correction: {
-                                    itemKind: "context_entry",
-                                    title: draft.title,
-                                    content: draft.content,
-                                    category: entry.category,
-                                  },
+                                  kind: "approve",
                                 })
-                                  .then(() => setEditingEntry(null))
-                                  .catch(() => undefined);
-                              } else {
-                                setEditingEntry(entryRenderKey);
                               }
-                            }}
-                            className={itemActionClassName}
-                            disabled={pending}
-                          >
-                            {editing ? "Save" : "Edit"}
-                          </button>
-                        ) : null}
+                              className={approveActionClassName}
+                              disabled={pending}
+                            >
+                              Approve
+                            </button>
+                          ) : null}
 
-                        {entry.status !== "archived" ? (
-                          <button
-                            type="button"
-                            onClick={() => void removeEntry("knowledge", entry)}
-                            className={itemActionClassName}
-                            disabled={pending}
-                          >
-                            Remove
-                          </button>
-                        ) : null}
-                      </ItemActions>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
+                          {entry.status === "archived" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void submit({
+                                  itemId: entry.id,
+                                  itemKind: "context_entry",
+                                  expectedCurrentState: entry.status,
+                                  kind: "restore",
+                                })
+                              }
+                              className={approveActionClassName}
+                              disabled={pending}
+                            >
+                              Restore
+                            </button>
+                          ) : null}
+
+                          {entry.status !== "archived" ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (editing) {
+                                  const draft = entryDrafts[entryRenderKey];
+                                  if (
+                                    !draft ||
+                                    (draft.title === entry.title &&
+                                      draft.content === entry.content)
+                                  ) {
+                                    setEditingEntry(null);
+                                    return;
+                                  }
+                                  void submit({
+                                    itemId: entry.id,
+                                    itemKind: "context_entry",
+                                    expectedCurrentState: entry.status,
+                                    kind: "correct",
+                                    correction: {
+                                      itemKind: "context_entry",
+                                      title: draft.title,
+                                      content: draft.content,
+                                      category: entry.category,
+                                    },
+                                  })
+                                    .then(() => setEditingEntry(null))
+                                    .catch(() => undefined);
+                                } else {
+                                  setEditingEntry(entryRenderKey);
+                                }
+                              }}
+                              className={itemActionClassName}
+                              disabled={pending}
+                            >
+                              {editing ? "Save" : "Edit"}
+                            </button>
+                          ) : null}
+
+                          {entry.status !== "archived" ? (
+                            <button
+                              type="button"
+                              onClick={() => void removeEntry("knowledge", entry)}
+                              className={itemActionClassName}
+                              disabled={pending}
+                            >
+                              Remove
+                            </button>
+                          ) : null}
+                        </ItemActions>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
         </section>
       ) : null}
 
