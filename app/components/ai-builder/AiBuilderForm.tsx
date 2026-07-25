@@ -331,7 +331,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           <section className="min-w-0 space-y-5 min-[1200px]:space-y-7">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Your expertise</p>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Your answers stay separate from the website import and take priority when sources conflict.</p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Your answers always take priority over imported website knowledge.</p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-5 min-[1200px]:gap-x-6 min-[1200px]:gap-y-8">
@@ -344,16 +344,16 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 </Field>
               </KnowledgeCard>
 
-              <KnowledgeCard title="Products & Services">
-                <textarea rows={6} className={`${inputClassName} resize-y`} placeholder={value.websiteKnowledge?.productsServices ? "Add private details, corrections, packages, pricing, or anything your website does not explain." : "Describe your services, packages, deliverables, pricing structure, and what each option is for."} value={value.userKnowledge.productsServices} onChange={(event) => updateUserKnowledge("productsServices", event.target.value)} />
+              <KnowledgeCard title="Products & Services" fill>
+                <textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder={value.websiteKnowledge?.productsServices ? "Add private details, corrections, packages, pricing, or anything your website does not explain." : "Describe your services, packages, deliverables, pricing structure, and what each option is for."} value={value.userKnowledge.productsServices} onChange={(event) => updateUserKnowledge("productsServices", event.target.value)} />
               </KnowledgeCard>
 
-              <KnowledgeCard title="Ideal Customers">
-                <textarea rows={6} className={`${inputClassName} resize-y`} placeholder={value.websiteKnowledge?.idealCustomers ? "Add more specific customer details or correct anything the website got wrong." : "Describe your best-fit customers, industries, company sizes, locations, needs, and goals."} value={value.userKnowledge.idealCustomers} onChange={(event) => updateUserKnowledge("idealCustomers", event.target.value)} />
+              <KnowledgeCard title="Ideal Customers" fill>
+                <textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder={value.websiteKnowledge?.idealCustomers ? "Add more specific customer details or correct anything the website got wrong." : "Describe your best-fit customers, industries, company sizes, locations, needs, and goals."} value={value.userKnowledge.idealCustomers} onChange={(event) => updateUserKnowledge("idealCustomers", event.target.value)} />
               </KnowledgeCard>
 
-              <KnowledgeCard title="Additional Business Knowledge">
-                <textarea rows={6} className={`${inputClassName} resize-y`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} />
+              <KnowledgeCard title="Additional Business Knowledge" fill>
+                <textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} />
               </KnowledgeCard>
 
               <section className={`${cardClassName} relative overflow-hidden text-center`}>
@@ -377,11 +377,11 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   );
 }
 
-function KnowledgeCard({ title, children }: { title: string; children: ReactNode }) {
+function KnowledgeCard({ title, children, fill = false }: { title: string; children: ReactNode; fill?: boolean }) {
   return (
-    <article className={cardClassName}>
+    <article className={`${cardClassName} ${fill ? "min-[1200px]:flex min-[1200px]:h-full min-[1200px]:flex-col" : ""}`}>
       <h3 className="text-center text-lg font-semibold text-amber-300">{title}</h3>
-      <div className="mt-4 grid gap-4">{children}</div>
+      <div className={`${fill ? "min-[1200px]:mt-2 min-[1200px]:flex min-[1200px]:flex-1 min-[1200px]:flex-col" : "mt-4 grid gap-4"}`}>{children}</div>
     </article>
   );
 }
