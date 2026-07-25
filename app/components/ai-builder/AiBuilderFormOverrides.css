@@ -40,6 +40,27 @@
     min-height: 0;
   }
 
+  .ai-builder-shell:has(.ai-builder-form) {
+    height: auto;
+    min-height: calc(100dvh - 56px);
+    overflow: visible;
+  }
+
+  .ai-builder-shell__content:has(.ai-builder-form) {
+    height: auto;
+    min-height: calc(100dvh - 56px);
+    overflow: visible;
+    padding: 0;
+  }
+
+  .ai-builder-form > div {
+    padding-bottom: 3rem;
+  }
+
+  .ai-builder-form > div > section {
+    margin-top: 2rem !important;
+  }
+
   .ai-builder-shell__content > div.hidden {
     width: 100%;
     height: calc(100dvh - 112px);
