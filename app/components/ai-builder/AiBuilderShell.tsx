@@ -41,7 +41,7 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
         }
       `}</style>
 
-      <section className="ai-builder-shell relative min-h-screen bg-[#030713] text-white xl:h-[calc(100dvh-56px)] xl:min-h-0 xl:overflow-hidden xl:rounded-none xl:bg-transparent">
+      <section className="ai-builder-shell relative min-h-screen text-white xl:h-[calc(100dvh-56px)] xl:min-h-0 xl:overflow-hidden xl:rounded-none">
         <div className="ai-builder-shell__content mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-20 xl:h-full xl:max-w-none xl:overflow-hidden xl:rounded-none xl:px-0 xl:py-0">
           <ImpersonationBanner />
           {children}
