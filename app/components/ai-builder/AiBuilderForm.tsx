@@ -229,7 +229,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   );
 
   return (
-    <div className="w-full pb-10 min-[1200px]:mx-auto min-[1200px]:max-w-[1500px] min-[1200px]:px-8">
+    <div className="w-full pb-10 min-[1200px]:px-8">
       <div className="relative bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[28px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:p-8 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
         <AiBuilderAuthCta />
 
@@ -328,7 +328,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <p className="mt-2 text-sm leading-6 text-slate-400">Your answers stay separate from the website import and take priority when sources conflict.</p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-6">
               <KnowledgeCard title="Business profile">
                 <Field label="Business name" required>
                   <input className={inputClassName} placeholder="JG Creative Studio" value={value.businessName} onChange={(event) => updateProfile("businessName", event.target.value)} />
@@ -349,9 +349,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <KnowledgeCard title="Additional Business Knowledge">
                 <textarea rows={6} className={`${inputClassName} resize-y`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} />
               </KnowledgeCard>
-            </div>
 
-            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-2">
               <section className={`${cardClassName} text-center`}>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Communication style</p>
                 <h3 className="mt-2 text-xl font-semibold text-white">How should your AI sound?</h3>
@@ -369,7 +367,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 <div className="relative">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Final step</p>
                   <h3 className="mt-2 text-2xl font-semibold text-white">Ready to build your AI?</h3>
-                  <button type="button" disabled={!valid || importing} onClick={onBuild} className="mt-5 min-w-52 rounded-2xl border border-amber-300/15 bg-[#081226] px-6 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0">Build My AI</button>
+                  <button type="button" disabled={!valid || importing} onClick={onBuild} className="mt-5 min-w-0 rounded-2xl border border-amber-300/15 bg-[#081226] px-4 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0">Build My AI</button>
                   <p className="mt-3 text-xs leading-5 text-slate-500">{valid ? "Everything required is ready." : "Add your business name, industry, products or services, and ideal customers to continue."}</p>
                 </div>
               </section>
