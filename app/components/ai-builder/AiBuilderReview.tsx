@@ -92,13 +92,13 @@ const secondaryButtonClassName =
   "rounded-xl border border-white/[0.09] bg-white/[0.025] px-4 py-2.5 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:bg-white/[0.045] hover:text-white";
 
 const itemActionClassName =
-  "rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 py-2 text-[0.72rem] font-semibold text-slate-300 transition hover:border-amber-300/25 hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-lg border border-amber-300/16 bg-[#07101f] px-3 py-2 text-[0.72rem] font-semibold text-slate-200 transition hover:border-amber-300/30 hover:bg-[#0a1628] hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
 
 const approveActionClassName =
-  "rounded-lg border border-amber-300/20 bg-amber-300/[0.055] px-3 py-2 text-[0.72rem] font-bold text-amber-300 transition hover:border-amber-300/35 hover:bg-amber-300/[0.09] disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-lg border border-amber-300/24 bg-amber-300/[0.055] px-3 py-2 text-[0.72rem] font-bold text-amber-300 transition hover:border-amber-300/38 hover:bg-amber-300/[0.09] disabled:cursor-not-allowed disabled:opacity-40";
 
 const panelClassName =
-  "break-inside-avoid overflow-hidden rounded-[16px] border border-white/[0.075] bg-[#050a16]/82 shadow-[0_12px_34px_rgba(0,0,0,0.16)] transition hover:border-amber-300/15";
+  "break-inside-avoid overflow-hidden rounded-[14px] border border-amber-300/20 bg-[#050a16]/88 shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition hover:border-amber-300/30 hover:bg-[#07101d]/92";
 
 export default function AiBuilderReview({
   session,
@@ -371,12 +371,7 @@ export default function AiBuilderReview({
 
           {grouped.map(([sectionKey, section]) => (
             <section key={sectionKey}>
-              <div className="mb-3 flex items-center gap-3 px-1">
-                <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
-                  {section.label}
-                </h3>
-                <div className="h-px flex-1 bg-white/[0.06]" />
-              </div>
+              <SectionDivider label={section.label} />
 
               <div className="columns-1 gap-4 md:columns-2">
                 {section.entries.map(({ entry }) => {
@@ -407,7 +402,7 @@ export default function AiBuilderReview({
                                   },
                                 }))
                               }
-                              className="w-full rounded-xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                              className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
                             />
                             <textarea
                               rows={5}
@@ -424,7 +419,7 @@ export default function AiBuilderReview({
                                   },
                                 }))
                               }
-                              className="w-full resize-y rounded-xl border border-white/10 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                              className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
                             />
                           </div>
                         ) : (
@@ -576,7 +571,7 @@ export default function AiBuilderReview({
                               },
                             }))
                           }
-                          className="w-full rounded-xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                          className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
                         />
                         <textarea
                           rows={5}
@@ -593,7 +588,7 @@ export default function AiBuilderReview({
                               },
                             }))
                           }
-                          className="w-full resize-y rounded-xl border border-white/10 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                          className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
                         />
                       </div>
                     ) : (
@@ -702,7 +697,7 @@ export default function AiBuilderReview({
       ) : null}
 
       {!grouped.length && !visibleFaqEntries.length ? (
-        <section className="rounded-2xl border border-white/[0.075] bg-[#050a16]/82 px-5 py-10 text-center">
+        <section className="rounded-2xl border border-amber-300/18 bg-[#050a16]/88 px-5 py-10 text-center">
           <p className="text-lg font-semibold text-white">
             No knowledge matches this review filter.
           </p>
@@ -717,8 +712,20 @@ export default function AiBuilderReview({
 
 function ItemActions({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-wrap justify-center gap-2 border-t border-white/[0.06] bg-black/10 px-4 py-3">
+    <div className="mx-5 flex flex-wrap justify-center gap-2 border-t border-amber-300/12 px-0 py-3 sm:mx-6">
       {children}
+    </div>
+  );
+}
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="mb-4 flex items-center gap-4 px-1" aria-label={label}>
+      <div className="h-px flex-1 bg-amber-300/12" />
+      <h3 className="text-center text-sm font-semibold tracking-[-0.01em] text-white sm:text-base">
+        {label}
+      </h3>
+      <div className="h-px flex-1 bg-amber-300/12" />
     </div>
   );
 }
