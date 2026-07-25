@@ -245,8 +245,8 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           </Link>
         </header>
 
-        <div className="mt-8 grid items-start gap-6 xl:grid-cols-[0.88fr_1.12fr]">
-          <section className="xl:sticky xl:top-4">
+        <div className="mt-8 space-y-6">
+          <section className="min-[1200px]:mx-auto min-[1200px]:w-[42%] min-[1200px]:min-w-[32rem] min-[1200px]:max-w-[40rem]">
             <article className={`${cardClassName} relative overflow-hidden text-center`}>
               <div className="absolute right-[-5rem] top-[-5rem] h-44 w-44 rounded-full bg-amber-400/10 blur-3xl" />
               <div className="relative">
@@ -328,7 +328,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <p className="mt-2 text-sm leading-6 text-slate-400">Your answers stay separate from the website import and take priority when sources conflict.</p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-4">
               <KnowledgeCard title="Business profile">
                 <Field label="Business name" required>
                   <input className={inputClassName} placeholder="JG Creative Studio" value={value.businessName} onChange={(event) => updateProfile("businessName", event.target.value)} />
@@ -351,7 +351,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               </KnowledgeCard>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-[0.8fr_1.2fr]">
+            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-2">
               <section className={`${cardClassName} text-center`}>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Communication style</p>
                 <h3 className="mt-2 text-xl font-semibold text-white">How should your AI sound?</h3>
