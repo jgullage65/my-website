@@ -269,6 +269,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
 
   useEffect(() => {
     if (!initialProjectId) return;
+    const projectId = initialProjectId;
     let cancelled = false;
 
     async function loadProject() {
@@ -277,7 +278,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       setSaveStatus("idle");
       setStep("loading");
       try {
-        const payload = await fetchProject(initialProjectId);
+        const payload = await fetchProject(projectId);
         if (cancelled || !payload.session) return;
         setBuilder((current) => ({
           ...current,
