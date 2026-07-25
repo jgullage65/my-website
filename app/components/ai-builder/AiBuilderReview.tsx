@@ -40,33 +40,65 @@ const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
 };
 
 const websiteCategorySet = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
-const sectionOrder = new Map<string, number>(WEBSITE_KNOWLEDGE_SECTION_ORDER.map((section, index) => [section, index]));
+const sectionOrder = new Map<string, number>(
+  WEBSITE_KNOWLEDGE_SECTION_ORDER.map((section, index) => [section, index]),
+);
 
-function reviewSection(entry: BusinessContextEntry): { key: string; label: string; order: number } {
-  const websiteCategory = entry.metadata.tags.find((tag) => websiteCategorySet.has(tag)) as WebsiteKnowledgeFact["category"] | undefined;
+function reviewSection(entry: BusinessContextEntry): {
+  key: string;
+  label: string;
+  order: number;
+} {
+  const websiteCategory = entry.metadata.tags.find((tag) =>
+    websiteCategorySet.has(tag),
+  ) as WebsiteKnowledgeFact["category"] | undefined;
+
   if (websiteCategory) {
-    const canonicalKey = ({
-      business_identity: "company_overview", industry: "industry_served", customer: "customer_segment",
-      pricing: "pricing_plan", process: "support_onboarding", differentiator: "competitive_differentiator",
-      guarantee: "policy", location: "location_service_area", contact: "contact_information",
-      other: "additional_business_knowledge",
-    } as Partial<Record<WebsiteKnowledgeFact["category"], string>>)[websiteCategory] ?? websiteCategory;
-    return { key: canonicalKey, label: WEBSITE_KNOWLEDGE_SECTION_LABELS[websiteCategory], order: sectionOrder.get(canonicalKey) ?? 1_000 };
+    const canonicalKey =
+      ({
+        business_identity: "company_overview",
+        industry: "industry_served",
+        customer: "customer_segment",
+        pricing: "pricing_plan",
+        process: "support_onboarding",
+        differentiator: "competitive_differentiator",
+        guarantee: "policy",
+        location: "location_service_area",
+        contact: "contact_information",
+        other: "additional_business_knowledge",
+      } as Partial<Record<WebsiteKnowledgeFact["category"], string>>)[
+        websiteCategory
+      ] ?? websiteCategory;
+
+    return {
+      key: canonicalKey,
+      label: WEBSITE_KNOWLEDGE_SECTION_LABELS[websiteCategory],
+      order: sectionOrder.get(canonicalKey) ?? 1_000,
+    };
   }
-  return { key: `legacy:${entry.category}`, label: CATEGORY_LABELS[entry.category], order: 2_000 + Object.keys(CATEGORY_LABELS).indexOf(entry.category) };
+
+  return {
+    key: `legacy:${entry.category}`,
+    label: CATEGORY_LABELS[entry.category],
+    order:
+      2_000 + Object.keys(CATEGORY_LABELS).indexOf(entry.category),
+  };
 }
 
 const primaryButtonClassName =
-  "rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-bold text-white shadow-[0_14px_34px_rgba(245,158,11,0.18)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
+  "rounded-xl border border-amber-300/20 bg-[#081226] px-4 py-2.5 text-xs font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
 
 const secondaryButtonClassName =
-  "rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830]";
+  "rounded-xl border border-white/[0.09] bg-white/[0.025] px-4 py-2.5 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:bg-white/[0.045] hover:text-white";
 
 const itemActionClassName =
-  "rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830]";
+  "rounded-lg border border-white/[0.09] bg-white/[0.025] px-3 py-2 text-[0.72rem] font-semibold text-slate-300 transition hover:border-amber-300/25 hover:bg-white/[0.05] hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
 
 const approveActionClassName =
-  "rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#0b1830]";
+  "rounded-lg border border-amber-300/20 bg-amber-300/[0.055] px-3 py-2 text-[0.72rem] font-bold text-amber-300 transition hover:border-amber-300/35 hover:bg-amber-300/[0.09] disabled:cursor-not-allowed disabled:opacity-40";
+
+const panelClassName =
+  "break-inside-avoid overflow-hidden rounded-[16px] border border-white/[0.075] bg-[#050a16]/82 shadow-[0_12px_34px_rgba(0,0,0,0.16)] transition hover:border-amber-300/15";
 
 export default function AiBuilderReview({
   session,
@@ -77,10 +109,18 @@ export default function AiBuilderReview({
 }: Props) {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editingFaq, setEditingFaq] = useState<string | null>(null);
-  const [entryDrafts, setEntryDrafts] = useState<Record<string, { title: string; content: string }>>({});
-  const [faqDrafts, setFaqDrafts] = useState<Record<string, { question: string; answer: string }>>({});
-  const [bulkFailureMessage, setBulkFailureMessage] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "proposed" | "approved" | "archived">("all");
+  const [entryDrafts, setEntryDrafts] = useState<
+    Record<string, { title: string; content: string }>
+  >({});
+  const [faqDrafts, setFaqDrafts] = useState<
+    Record<string, { question: string; answer: string }>
+  >({});
+  const [bulkFailureMessage, setBulkFailureMessage] = useState<string | null>(
+    null,
+  );
+  const [filter, setFilter] = useState<
+    "all" | "proposed" | "approved" | "archived"
+  >("all");
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
@@ -88,46 +128,67 @@ export default function AiBuilderReview({
   const faqEntries = session.faqEntries;
 
   const grouped = useMemo(() => {
-    const map = new Map<string, { label: string; order: number; entries: Array<{ entry: BusinessContextEntry }> }>();
-    const faqBackedContextIds = new Set(faqEntries.flatMap((faq) => faq.sourceEntryIds));
+    const map = new Map<
+      string,
+      {
+        label: string;
+        order: number;
+        entries: Array<{ entry: BusinessContextEntry }>;
+      }
+    >();
+    const faqBackedContextIds = new Set(
+      faqEntries.flatMap((faq) => faq.sourceEntryIds),
+    );
 
     contextEntries.forEach((entry) => {
-      // Website FAQ observations have a canonical FAQ review item. Do not also
-      // render their evidence-link context row as a second review card.
       if (faqBackedContextIds.has(entry.id)) return;
-      if (
+
+      const visible =
         filter === "all"
           ? entry.status !== "archived"
           : filter === "approved"
             ? entry.status === "approved" || entry.status === "corrected"
-            : entry.status === filter
-      ) {
-        const section = reviewSection(entry);
-        const current = map.get(section.key) ?? { label: section.label, order: section.order, entries: [] };
-        map.set(section.key, { ...current, entries: current.entries.concat({ entry }) });
-      }
+            : entry.status === filter;
+
+      if (!visible) return;
+
+      const section = reviewSection(entry);
+      const current = map.get(section.key) ?? {
+        label: section.label,
+        order: section.order,
+        entries: [],
+      };
+      map.set(section.key, {
+        ...current,
+        entries: current.entries.concat({ entry }),
+      });
     });
 
-    return Array.from(map.entries()).sort(([, left], [, right]) => left.order - right.order || left.label.localeCompare(right.label));
+    return Array.from(map.entries()).sort(
+      ([, left], [, right]) =>
+        left.order - right.order || left.label.localeCompare(right.label),
+    );
   }, [contextEntries, faqEntries, filter]);
 
   const visibleFaqEntries = useMemo(
     () =>
-      faqEntries.flatMap((faq) =>
-        (filter === "all"
-          ? faq.status !== "archived"
-          : filter === "approved"
-            ? faq.status === "approved" || faq.status === "corrected"
-            : faq.status === filter)
-          ? [{ faq }]
-          : [],
-      ),
+      faqEntries.flatMap((faq) => {
+        const visible =
+          filter === "all"
+            ? faq.status !== "archived"
+            : filter === "approved"
+              ? faq.status === "approved" || faq.status === "corrected"
+              : faq.status === filter;
+        return visible ? [{ faq }] : [];
+      }),
     [faqEntries, filter],
   );
 
   const visibleItemKeys = useMemo(
     () => [
-      ...grouped.flatMap(([, section]) => section.entries.map(({ entry }) => `context_entry:${entry.id}`)),
+      ...grouped.flatMap(([, section]) =>
+        section.entries.map(({ entry }) => `context_entry:${entry.id}`),
+      ),
       ...visibleFaqEntries.map(({ faq }) => `faq:${faq.id}`),
     ],
     [grouped, visibleFaqEntries],
@@ -139,12 +200,15 @@ export default function AiBuilderReview({
     }
   }, [selectedItem, visibleItemKeys]);
 
-  const commandId = () => crypto.randomUUID();
-
-  const submit = (request: Omit<ReviewCommandRequest, "commandId" | "projectId" | "clientRevision">) =>
+  const submit = (
+    request: Omit<
+      ReviewCommandRequest,
+      "commandId" | "projectId" | "clientRevision"
+    >,
+  ) =>
     onReviewCommand({
       ...request,
-      commandId: commandId(),
+      commandId: crypto.randomUUID(),
       projectId: session.id,
       clientRevision: session.governanceRevision ?? 0,
     } as ReviewCommandRequest);
@@ -152,310 +216,509 @@ export default function AiBuilderReview({
   const isPending = (itemKind: "context_entry" | "faq", itemId: string) =>
     pendingReviewItems.has(`${itemKind}:${itemId}`);
 
-  const removeEntry = async (kind: "knowledge" | "faq", entry: BusinessContextEntry | GeneratedFaqEntry) => {
+  const removeEntry = async (
+    kind: "knowledge" | "faq",
+    entry: BusinessContextEntry | GeneratedFaqEntry,
+  ) => {
     const confirmed = await showConfirm({
       title: "Remove information?",
-      message: "This information will be removed from the review list and will not be used by your assistant.",
+      message:
+        "This information will be removed from the review list and will not be used by your assistant.",
       confirmLabel: "Remove",
       cancelLabel: "Cancel",
     });
+
     if (!confirmed) return;
-    await submit({ itemId: entry.id, itemKind: kind === "knowledge" ? "context_entry" : "faq", expectedCurrentState: entry.status, kind: entry.status === "proposed" ? "reject" : "archive" });
+
+    await submit({
+      itemId: entry.id,
+      itemKind: kind === "knowledge" ? "context_entry" : "faq",
+      expectedCurrentState: entry.status,
+      kind: entry.status === "proposed" ? "reject" : "archive",
+    });
   };
 
   const approveAll = async () => {
-    // Commands remain item-scoped. This preserves the existing bulk UX while
-    // ensuring every persisted decision has its own auditable command.
     setBulkFailureMessage(null);
-    const decisions = [...contextEntries, ...faqEntries].filter((entry) => entry.status === "proposed");
+    const decisions = [...contextEntries, ...faqEntries].filter(
+      (entry) => entry.status === "proposed",
+    );
     const outcomes: PromiseSettledResult<void>[] = [];
-    // Keep requests ordered so each request uses the latest authoritative
-    // revision cached by the command client. A failure does not block later
-    // decisions; successful commands stay committed independently.
+
     for (const entry of decisions) {
-      outcomes.push(await Promise.resolve(submit({ itemId: entry.id, itemKind: "category" in entry ? "context_entry" : "faq", expectedCurrentState: entry.status, kind: "approve" })).then(() => ({ status: "fulfilled", value: undefined } as const), (reason) => ({ status: "rejected", reason } as const)));
+      outcomes.push(
+        await Promise.resolve(
+          submit({
+            itemId: entry.id,
+            itemKind: "category" in entry ? "context_entry" : "faq",
+            expectedCurrentState: entry.status,
+            kind: "approve",
+          }),
+        ).then(
+          () => ({ status: "fulfilled", value: undefined }) as const,
+          (reason) => ({ status: "rejected", reason }) as const,
+        ),
+      );
     }
-    const failed = outcomes.filter((outcome) => outcome.status === "rejected").length;
-    if (failed) setBulkFailureMessage(`${failed} item${failed === 1 ? "" : "s"} could not be approved. Review and retry those items.`);
+
+    const failed = outcomes.filter(
+      (outcome) => outcome.status === "rejected",
+    ).length;
+
+    if (failed) {
+      setBulkFailureMessage(
+        `${failed} item${failed === 1 ? "" : "s"} could not be approved. Review and retry those items.`,
+      );
+    }
   };
 
   const canLaunchChat =
     session.status === "ready" && session.contextCounts.approved > 0;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-10">
+    <div className="mx-auto w-full max-w-[92rem] space-y-6 px-4 pb-10 sm:px-6 xl:px-8">
       {confirmDialogNode}
-      {bulkFailureMessage ? <p className="mx-auto max-w-5xl rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200" role="alert">{bulkFailureMessage}</p> : null}
-      <section className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] px-5 py-8 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8 sm:py-10">
-        <AiBuilderAuthCta />
-        <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
-        <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300 sm:text-sm">
-            Your AI is ready
-          </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
-            Review what your <span className="text-amber-300">AI learned.</span>
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
-            Approve, correct, or remove anything before it becomes trusted
-            business knowledge.
-          </p>
 
-          <div className="mx-auto mt-7 flex max-w-3xl flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
+      {bulkFailureMessage ? (
+        <p
+          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200"
+          role="alert"
+        >
+          {bulkFailureMessage}
+        </p>
+      ) : null}
+
+      <section className="border-b border-white/[0.075] px-1 pb-5 pt-2">
+        <AiBuilderAuthCta />
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
+              Business memory review
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
+              Review what your <span className="text-amber-300">AI learned.</span>
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
+              Approve, correct, or remove anything before it becomes trusted business knowledge.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2 xl:justify-end">
             <button type="button" onClick={onBack} className={secondaryButtonClassName}>
               Back to results
             </button>
-
             <button type="button" onClick={approveAll} className={primaryButtonClassName}>
-              Approve all knowledge
+              Approve all
             </button>
-
             <button
               type="button"
               onClick={onLaunchChat}
               disabled={!canLaunchChat}
               className={primaryButtonClassName}
             >
-              Test live assistant
+              Test assistant
             </button>
           </div>
+        </div>
 
-          {!canLaunchChat ? (
-            <p className="mt-4 text-xs text-slate-500">
-              Approve the business knowledge before opening the live assistant.
-            </p>
-          ) : null}
-
-          <div className="mx-auto mt-7 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
             <Stat label="Total" value={session.contextCounts.total} />
             <Stat label="Approved" value={session.contextCounts.approved} />
             <Stat label="Pending" value={session.contextCounts.proposed} />
             <Stat label="Removed" value={session.contextCounts.archived} />
           </div>
-          <div className="mx-auto mt-5 flex flex-wrap justify-center gap-2" aria-label="Review filter">
-            {(["all", "proposed", "approved", "archived"] as const).map((nextFilter) => (
-              <button key={nextFilter} type="button" onClick={() => setFilter(nextFilter)} className={secondaryButtonClassName} aria-pressed={filter === nextFilter}>
-                {nextFilter === "all" ? "All" : nextFilter === "archived" ? "Removed" : nextFilter === "proposed" ? "Pending" : "Approved"}
-              </button>
-            ))}
+
+          <div className="flex flex-wrap gap-2" aria-label="Review filter">
+            {(["all", "proposed", "approved", "archived"] as const).map(
+              (nextFilter) => (
+                <button
+                  key={nextFilter}
+                  type="button"
+                  onClick={() => setFilter(nextFilter)}
+                  className={`${secondaryButtonClassName} ${
+                    filter === nextFilter
+                      ? "border-amber-300/30 bg-amber-300/[0.075] text-amber-200"
+                      : ""
+                  }`}
+                  aria-pressed={filter === nextFilter}
+                >
+                  {nextFilter === "all"
+                    ? "All"
+                    : nextFilter === "archived"
+                      ? "Removed"
+                      : nextFilter === "proposed"
+                        ? "Pending"
+                        : "Approved"}
+                </button>
+              ),
+            )}
           </div>
         </div>
       </section>
 
-      {grouped.length ? <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
-        <SectionHeading
-          eyebrow="Business knowledge"
-          title={<>Review every <span className="text-amber-300">important business fact.</span></>}
-          description="Each item can be approved, corrected, or removed before your assistant uses it."
-        />
+      {grouped.length ? (
+        <section className="space-y-7">
+          <SectionHeading
+            eyebrow="Business knowledge"
+            title={
+              <>
+                Review every <span className="text-amber-300">important business fact.</span>
+              </>
+            }
+            description="Each item stays compact, expands naturally with its content, and can be approved, corrected, or removed."
+          />
 
-        {grouped.map(([sectionKey, section]) => (
-          <section key={sectionKey} className="mx-auto max-w-4xl">
-            <div className="mx-auto grid max-w-3xl gap-3 md:grid-cols-2">
-              {section.entries.map(({ entry }, index) => {
-                const entryRenderKey = `context_entry:${entry.id}`;
-                const editing = editingEntry === entryRenderKey;
-                const pending = isPending("context_entry", entry.id);
-                const shouldSpanFull =
-                  section.entries.length === 1 ||
-                  (section.entries.length % 2 === 1 &&
-                    index === section.entries.length - 1);
+          {grouped.map(([sectionKey, section]) => (
+            <section key={sectionKey}>
+              <div className="mb-3 flex items-center gap-3 px-1">
+                <h3 className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">
+                  {section.label}
+                </h3>
+                <div className="h-px flex-1 bg-white/[0.06]" />
+              </div>
 
-                return (
-                  <article
-                    key={entryRenderKey}
-                    onClick={() => setSelectedItem(entryRenderKey)}
-                    className={`flex min-h-[190px] flex-col items-center justify-center rounded-[20px] border border-amber-300/25 bg-black/15 px-4 py-5 text-center ${
-                      shouldSpanFull ? "md:col-span-2" : ""
-                    }`}
-                  >
-                    <p className="mb-3 text-xl font-bold text-amber-300 sm:text-2xl">
-                      {section.label}
-                    </p>
+              <div className="columns-1 gap-4 md:columns-2">
+                {section.entries.map(({ entry }) => {
+                  const entryRenderKey = `context_entry:${entry.id}`;
+                  const editing = editingEntry === entryRenderKey;
+                  const pending = isPending("context_entry", entry.id);
 
+                  return (
+                    <article
+                      key={entryRenderKey}
+                      onClick={() => setSelectedItem(entryRenderKey)}
+                      className={`${panelClassName} mb-4`}
+                    >
+                      <div className="px-5 py-4 sm:px-6 sm:py-5">
+                        {editing ? (
+                          <div className="space-y-3">
+                            <input
+                              value={entryDrafts[entryRenderKey]?.title ?? entry.title}
+                              onChange={(event) =>
+                                setEntryDrafts((drafts) => ({
+                                  ...drafts,
+                                  [entryRenderKey]: {
+                                    ...(drafts[entryRenderKey] ?? {
+                                      title: entry.title,
+                                      content: entry.content,
+                                    }),
+                                    title: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="w-full rounded-xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                            />
+                            <textarea
+                              rows={5}
+                              value={entryDrafts[entryRenderKey]?.content ?? entry.content}
+                              onChange={(event) =>
+                                setEntryDrafts((drafts) => ({
+                                  ...drafts,
+                                  [entryRenderKey]: {
+                                    ...(drafts[entryRenderKey] ?? {
+                                      title: entry.title,
+                                      content: entry.content,
+                                    }),
+                                    content: event.target.value,
+                                  },
+                                }))
+                              }
+                              className="w-full resize-y rounded-xl border border-white/10 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <h4 className="text-center text-base font-semibold leading-6 text-amber-300">
+                              {entry.title}
+                            </h4>
+                            <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-left text-sm leading-6 text-slate-300">
+                              {entry.content}
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      <ItemActions>
+                        {entry.status === "proposed" ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void submit({
+                                itemId: entry.id,
+                                itemKind: "context_entry",
+                                expectedCurrentState: entry.status,
+                                kind: "approve",
+                              })
+                            }
+                            className={approveActionClassName}
+                            disabled={pending}
+                          >
+                            Approve
+                          </button>
+                        ) : null}
+
+                        {entry.status === "archived" ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              void submit({
+                                itemId: entry.id,
+                                itemKind: "context_entry",
+                                expectedCurrentState: entry.status,
+                                kind: "restore",
+                              })
+                            }
+                            className={approveActionClassName}
+                            disabled={pending}
+                          >
+                            Restore
+                          </button>
+                        ) : null}
+
+                        {entry.status !== "archived" ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (editing) {
+                                const draft = entryDrafts[entryRenderKey];
+                                if (
+                                  !draft ||
+                                  (draft.title === entry.title &&
+                                    draft.content === entry.content)
+                                ) {
+                                  setEditingEntry(null);
+                                  return;
+                                }
+                                void submit({
+                                  itemId: entry.id,
+                                  itemKind: "context_entry",
+                                  expectedCurrentState: entry.status,
+                                  kind: "correct",
+                                  correction: {
+                                    itemKind: "context_entry",
+                                    title: draft.title,
+                                    content: draft.content,
+                                    category: entry.category,
+                                  },
+                                })
+                                  .then(() => setEditingEntry(null))
+                                  .catch(() => undefined);
+                              } else {
+                                setEditingEntry(entryRenderKey);
+                              }
+                            }}
+                            className={itemActionClassName}
+                            disabled={pending}
+                          >
+                            {editing ? "Save" : "Edit"}
+                          </button>
+                        ) : null}
+
+                        {entry.status !== "archived" ? (
+                          <button
+                            type="button"
+                            onClick={() => void removeEntry("knowledge", entry)}
+                            className={itemActionClassName}
+                            disabled={pending}
+                          >
+                            Remove
+                          </button>
+                        ) : null}
+                      </ItemActions>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </section>
+      ) : null}
+
+      {visibleFaqEntries.length ? (
+        <section className="space-y-5 border-t border-white/[0.075] pt-7">
+          <SectionHeading
+            eyebrow="Generated Q&A"
+            title={
+              <>
+                Questions your <span className="text-amber-300">AI is ready</span> to answer.
+              </>
+            }
+            description="Review the generated answers before they become part of the live assistant."
+          />
+
+          <div className="columns-1 gap-4 md:columns-2">
+            {visibleFaqEntries.map(({ faq }) => {
+              const faqRenderKey = `faq:${faq.id}`;
+              const editing = editingFaq === faqRenderKey;
+              const pending = isPending("faq", faq.id);
+
+              return (
+                <article
+                  key={faqRenderKey}
+                  onClick={() => setSelectedItem(faqRenderKey)}
+                  className={`${panelClassName} mb-4`}
+                >
+                  <div className="px-5 py-4 sm:px-6 sm:py-5">
                     {editing ? (
-                      <div className="w-full max-w-2xl space-y-3">
+                      <div className="space-y-3">
                         <input
-                          value={entryDrafts[entryRenderKey]?.title ?? entry.title}
-                          onChange={(event) => setEntryDrafts((drafts) => ({ ...drafts, [entryRenderKey]: { ...(drafts[entryRenderKey] ?? { title: entry.title, content: entry.content }), title: event.target.value } }))}
-                          className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
+                          value={faqDrafts[faqRenderKey]?.question ?? faq.question}
+                          onChange={(event) =>
+                            setFaqDrafts((drafts) => ({
+                              ...drafts,
+                              [faqRenderKey]: {
+                                ...(drafts[faqRenderKey] ?? {
+                                  question: faq.question,
+                                  answer: faq.answer,
+                                }),
+                                question: event.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full rounded-xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
                         />
-
                         <textarea
-                          rows={4}
-                          value={entryDrafts[entryRenderKey]?.content ?? entry.content}
-                          onChange={(event) => setEntryDrafts((drafts) => ({ ...drafts, [entryRenderKey]: { ...(drafts[entryRenderKey] ?? { title: entry.title, content: entry.content }), content: event.target.value } }))}
-                          className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
+                          rows={5}
+                          value={faqDrafts[faqRenderKey]?.answer ?? faq.answer}
+                          onChange={(event) =>
+                            setFaqDrafts((drafts) => ({
+                              ...drafts,
+                              [faqRenderKey]: {
+                                ...(drafts[faqRenderKey] ?? {
+                                  question: faq.question,
+                                  answer: faq.answer,
+                                }),
+                                answer: event.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full resize-y rounded-xl border border-white/10 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
                         />
                       </div>
                     ) : (
                       <>
-                        <h3 className="text-sm font-semibold text-white">{entry.title}</h3>
-                        <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-                          {entry.content}
+                        <h3 className="text-center text-base font-semibold leading-6 text-amber-300">
+                          {faq.question}
+                        </h3>
+                        <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-left text-sm leading-6 text-slate-300">
+                          {faq.answer}
                         </p>
                       </>
                     )}
+                  </div>
 
-                    <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
-                      {entry.status === "proposed" ? <button
+                  <ItemActions>
+                    {faq.status === "proposed" ? (
+                      <button
                         type="button"
-                        onClick={() => void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: "approve" })}
+                        onClick={() =>
+                          void submit({
+                            itemId: faq.id,
+                            itemKind: "faq",
+                            expectedCurrentState: faq.status,
+                            kind: "approve",
+                          })
+                        }
                         className={approveActionClassName}
                         disabled={pending}
                       >
                         Approve
-                      </button> : null}
+                      </button>
+                    ) : null}
 
-                      {entry.status === "archived" ? <button
+                    {faq.status === "archived" ? (
+                      <button
                         type="button"
-                        onClick={() => void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: "restore" })}
+                        onClick={() =>
+                          void submit({
+                            itemId: faq.id,
+                            itemKind: "faq",
+                            expectedCurrentState: faq.status,
+                            kind: "restore",
+                          })
+                        }
                         className={approveActionClassName}
                         disabled={pending}
                       >
                         Restore
-                      </button> : null}
+                      </button>
+                    ) : null}
 
-                      {entry.status !== "archived" ? <button
+                    {faq.status !== "archived" ? (
+                      <button
                         type="button"
                         onClick={() => {
                           if (editing) {
-                            const draft = entryDrafts[entryRenderKey];
-                            if (!draft || (draft.title === entry.title && draft.content === entry.content)) { setEditingEntry(null); return; }
-                            void submit({ itemId: entry.id, itemKind: "context_entry", expectedCurrentState: entry.status, kind: "correct", correction: { itemKind: "context_entry", title: draft.title, content: draft.content, category: entry.category } }).then(() => setEditingEntry(null)).catch(() => undefined);
-                          } else setEditingEntry(entryRenderKey);
+                            const draft = faqDrafts[faqRenderKey];
+                            if (
+                              !draft ||
+                              (draft.question === faq.question &&
+                                draft.answer === faq.answer)
+                            ) {
+                              setEditingFaq(null);
+                              return;
+                            }
+                            void submit({
+                              itemId: faq.id,
+                              itemKind: "faq",
+                              expectedCurrentState: faq.status,
+                              kind: "correct",
+                              correction: {
+                                itemKind: "faq",
+                                question: draft.question,
+                                answer: draft.answer,
+                              },
+                            })
+                              .then(() => setEditingFaq(null))
+                              .catch(() => undefined);
+                          } else {
+                            setEditingFaq(faqRenderKey);
+                          }
                         }}
                         className={itemActionClassName}
                         disabled={pending}
                       >
-                        {editing ? "Done" : "Edit"}
-                      </button> : null}
+                        {editing ? "Save" : "Edit"}
+                      </button>
+                    ) : null}
 
-                      {entry.status !== "archived" ? <button
+                    {faq.status !== "archived" ? (
+                      <button
                         type="button"
-                        onClick={() =>
-                          void removeEntry("knowledge", entry)
-                        }
+                        onClick={() => void removeEntry("faq", faq)}
                         className={itemActionClassName}
                         disabled={pending}
                       >
-                        Remove Information
-                      </button> : null}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </section> : null}
-
-      {visibleFaqEntries.length ? <section className="mx-auto max-w-5xl space-y-7 rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
-        <SectionHeading
-          eyebrow="Generated Q&A"
-          title={<>Questions your <span className="text-amber-300">AI is ready</span> to answer.</>}
-          description="Review the generated answers before they become part of the live assistant."
-        />
-
-        <div className="mx-auto grid max-w-4xl gap-3 md:grid-cols-2">
-          {visibleFaqEntries.map(({ faq }, index) => {
-            const faqRenderKey = `faq:${faq.id}`;
-            const editing = editingFaq === faqRenderKey;
-            const pending = isPending("faq", faq.id);
-            const shouldSpanFull =
-              visibleFaqEntries.length === 1 ||
-              (visibleFaqEntries.length % 2 === 1 &&
-                index === visibleFaqEntries.length - 1);
-
-            return (
-              <article
-                key={faqRenderKey}
-                onClick={() => setSelectedItem(faqRenderKey)}
-                className={`flex min-h-[210px] flex-col items-center justify-center rounded-[22px] border border-amber-300/25 bg-[#030713] px-5 py-6 text-center shadow-[0_18px_60px_rgba(0,0,0,0.18)] ${
-                  shouldSpanFull ? "md:col-span-2" : ""
-                }`}
-              >
-                {editing ? (
-                  <div className="w-full max-w-2xl space-y-3">
-                    <input
-                      value={faqDrafts[faqRenderKey]?.question ?? faq.question}
-                      onChange={(event) => setFaqDrafts((drafts) => ({ ...drafts, [faqRenderKey]: { ...(drafts[faqRenderKey] ?? { question: faq.question, answer: faq.answer }), question: event.target.value } }))}
-                      className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
-                    />
-
-                    <textarea
-                      rows={4}
-                      value={faqDrafts[faqRenderKey]?.answer ?? faq.answer}
-                      onChange={(event) => setFaqDrafts((drafts) => ({ ...drafts, [faqRenderKey]: { ...(drafts[faqRenderKey] ?? { question: faq.question, answer: faq.answer }), answer: event.target.value } }))}
-                      className="w-full rounded-2xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-white outline-none focus:border-amber-300/50"
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <h3 className="text-lg font-semibold text-amber-300">
-                      {faq.question}
-                    </h3>
-                    <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-300">
-                      {faq.answer}
-                    </p>
-                  </>
-                )}
-
-                <div className="mt-auto flex flex-wrap justify-center gap-2 pt-5">
-                  {faq.status === "proposed" ? <button
-                    type="button"
-                    onClick={() => void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: "approve" })}
-                    className={approveActionClassName}
-                    disabled={pending}
-                  >
-                    Approve
-                  </button> : null}
-
-                  {faq.status === "archived" ? <button
-                    type="button"
-                    onClick={() => void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: "restore" })}
-                    className={approveActionClassName}
-                    disabled={pending}
-                  >
-                    Restore
-                  </button> : null}
-
-                  {faq.status !== "archived" ? <button
-                    type="button"
-                    onClick={() => {
-                      if (editing) {
-                        const draft = faqDrafts[faqRenderKey];
-                        if (!draft || (draft.question === faq.question && draft.answer === faq.answer)) { setEditingFaq(null); return; }
-                        void submit({ itemId: faq.id, itemKind: "faq", expectedCurrentState: faq.status, kind: "correct", correction: { itemKind: "faq", question: draft.question, answer: draft.answer } }).then(() => setEditingFaq(null)).catch(() => undefined);
-                      } else setEditingFaq(faqRenderKey);
-                    }}
-                    className={itemActionClassName}
-                    disabled={pending}
-                  >
-                    {editing ? "Done" : "Edit"}
-                  </button> : null}
-
-                  {faq.status !== "archived" ? <button
-                    type="button"
-                    onClick={() => void removeEntry("faq", faq)}
-                    className={itemActionClassName}
-                    disabled={pending}
-                  >
-                    Remove Information
-                  </button> : null}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section> : null}
-
-      {!grouped.length && !visibleFaqEntries.length ? (
-        <section className="mx-auto max-w-3xl rounded-[24px] border border-white/[0.09] bg-[#030713] px-5 py-10 text-center shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
-          <p className="text-lg font-semibold text-white">No knowledge matches this review filter.</p>
-          <p className="mt-2 text-sm leading-6 text-slate-400">Choose another status to continue reviewing business knowledge.</p>
+                        Remove
+                      </button>
+                    ) : null}
+                  </ItemActions>
+                </article>
+              );
+            })}
+          </div>
         </section>
       ) : null}
+
+      {!grouped.length && !visibleFaqEntries.length ? (
+        <section className="rounded-2xl border border-white/[0.075] bg-[#050a16]/82 px-5 py-10 text-center">
+          <p className="text-lg font-semibold text-white">
+            No knowledge matches this review filter.
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            Choose another status to continue reviewing business knowledge.
+          </p>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function ItemActions({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap justify-center gap-2 border-t border-white/[0.06] bg-black/10 px-4 py-3">
+      {children}
     </div>
   );
 }
@@ -471,15 +734,13 @@ function SectionHeading({
 }) {
   return (
     <div className="mx-auto max-w-3xl text-center">
-      <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-300">
+      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
         {eyebrow}
       </p>
-
-      <h2 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl">
+      <h2 className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-white sm:text-3xl">
         {title}
       </h2>
-
-      <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400">
+      <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">
         {description}
       </p>
     </div>
@@ -488,12 +749,9 @@ function SectionHeading({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-amber-300/25 bg-[#030713] px-3 py-4 text-center shadow-[0_14px_44px_rgba(0,0,0,0.18)] sm:px-5">
-      <div className="text-2xl font-semibold text-amber-300 sm:text-3xl">
-        {value}
-      </div>
-
-      <div className="mt-1 text-xs font-medium text-slate-400 sm:text-sm">
+    <div className="min-w-[76px] rounded-xl border border-white/[0.075] bg-white/[0.025] px-3 py-2 text-center">
+      <div className="text-lg font-semibold text-amber-300">{value}</div>
+      <div className="mt-0.5 text-[0.64rem] font-semibold uppercase tracking-[0.1em] text-slate-500">
         {label}
       </div>
     </div>
