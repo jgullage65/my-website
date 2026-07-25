@@ -475,7 +475,7 @@ export default function AiBuilderReview({
                             <h4 className="text-center text-base font-semibold leading-6 text-amber-300">
                               {entry.title}
                             </h4>
-                            <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-left text-sm leading-6 text-slate-300">
+                            <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-center text-sm leading-6 text-slate-300">
                               {entry.content}
                             </p>
                           </>
@@ -638,7 +638,7 @@ export default function AiBuilderReview({
                         <h3 className="text-center text-base font-semibold leading-6 text-amber-300">
                           {faq.question}
                         </h3>
-                        <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-left text-sm leading-6 text-slate-300">
+                        <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-center text-sm leading-6 text-slate-300">
                           {faq.answer}
                         </p>
                       </>
