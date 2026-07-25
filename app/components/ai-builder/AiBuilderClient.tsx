@@ -50,14 +50,8 @@ export type BuilderState = {
   crawlAttemptIds: string[];
 };
 
-type BuilderStep =
-  | "form"
-  | "loading"
-  | "building"
-  | "results"
-  | "review"
-  | "chat";
-
+type BuilderStep = "form" | "loading" | "building" | "results" | "review" | "chat";
+type WorkspaceTab = "overview" | "knowledge" | "sources" | "settings";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export type ReviewCommandPending = ReadonlySet<string>;
@@ -88,10 +82,7 @@ type ProjectResponse = {
   };
   websiteKnowledge?: PersistedWebsiteKnowledge | null;
   chatThread?: ChatThread | null;
-  error?: {
-    code?: string;
-    message?: string;
-  };
+  error?: { code?: string; message?: string };
 };
 
 type Props = {
@@ -112,95 +103,107 @@ const initial: BuilderState = {
   crawlAttemptIds: [],
 };
 
-async function fetchProject(
-  projectId: string,
-): Promise<ProjectResponse> {
+async function fetchProject(projectId: string): Promise<ProjectResponse> {
   const response = await fetch(
     `/api/ai-builder/projects/${encodeURIComponent(projectId)}`,
-    {
-      cache: "no-store",
-    },
+    { cache: "no-store" },
   );
-
   const payload = (await response.json()) as ProjectResponse;
-
   if (!response.ok || !payload.ok || !payload.session) {
-    throw new Error(
-      payload.error?.message ||
-        "The AI Builder project could not be loaded.",
-    );
+    throw new Error(payload.error?.message || "The AI Builder project could not be loaded.");
   }
-
   return payload;
 }
 
-
-export default function AiBuilderClient({
-  initialProjectId = null,
-}: Props) {
-  const [step, setStep] = useState<BuilderStep>(
-    initialProjectId ? "loading" : "form",
-  );
+export default function AiBuilderClient({ initialProjectId = null }: Props) {
+  const [step, setStep] = useState<BuilderStep>(initialProjectId ? "loading" : "form");
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("knowledge");
   const [builder, setBuilder] = useState(initial);
-  const [session, setSession] = useState<AiBuilderSession | null>(
-    null,
-  );
-  const [chatThread, setChatThread] =
-    useState<ChatThread | null>(null);
+  const [session, setSession] = useState<AiBuilderSession | null>(null);
+  const [chatThread, setChatThread] = useState<ChatThread | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [pendingReviewItems, setPendingReviewItems] = useState<ReviewCommandPending>(
-    new Set(),
-  );
+  const [pendingReviewItems, setPendingReviewItems] = useState<ReviewCommandPending>(new Set());
   const [buildPercent, setBuildPercent] = useState(0);
-  // This is only a cache of the last server response; it never advances a
-  // revision locally or derives a transition.
   const authoritativeRevisionRef = useRef(0);
   const pendingReviewItemsRef = useRef(new Set<string>());
-  // This chain serializes network requests while keeping the UI interactive.
-  // Each item retains its own pending state until its queued command settles.
   const reviewCommandQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const submitReviewCommand = useCallback((command: ReviewCommandRequest) => {
     const pendingKey = `${command.itemKind}:${command.itemId}`;
-    // Reject duplicate clicks while allowing commands for other items to queue.
     if (pendingReviewItemsRef.current.has(pendingKey)) {
-      return Promise.reject(
-        new Error("A review command is already pending for this item."),
-      );
+      return Promise.reject(new Error("A review command is already pending for this item."));
     }
+
     pendingReviewItemsRef.current.add(pendingKey);
     setPendingReviewItems(new Set(pendingReviewItemsRef.current));
     setSaveStatus("saving");
     setSaveError(null);
+
     const queuedCommand = reviewCommandQueueRef.current.then(async () => {
       try {
-        setSaveStatus("saving");
-        setSaveError(null);
-        // Build the request at execution time, after every preceding command
-        // has applied its canonical governance revision.
         const authoritativeCommand = {
           ...command,
           clientRevision: authoritativeRevisionRef.current,
         };
-        const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(command.projectId)}/review-commands`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(authoritativeCommand) });
-        const payload = await response.json() as { ok?: boolean; item?: Record<string, unknown>; governanceRevision?: number; contextCounts?: AiBuilderSession["contextCounts"]; status?: AiBuilderSession["status"]; error?: { message?: string } };
-        if (!response.ok || !payload.ok || !payload.item) throw new Error(payload.error?.message || "The review command could not be saved.");
-        authoritativeRevisionRef.current = payload.governanceRevision ?? authoritativeCommand.clientRevision;
+        const response = await fetch(
+          `/api/ai-builder/projects/${encodeURIComponent(command.projectId)}/review-commands`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(authoritativeCommand),
+          },
+        );
+        const payload = (await response.json()) as {
+          ok?: boolean;
+          item?: Record<string, unknown>;
+          governanceRevision?: number;
+          contextCounts?: AiBuilderSession["contextCounts"];
+          status?: AiBuilderSession["status"];
+          error?: { message?: string };
+        };
+        if (!response.ok || !payload.ok || !payload.item) {
+          throw new Error(payload.error?.message || "The review command could not be saved.");
+        }
+
+        authoritativeRevisionRef.current =
+          payload.governanceRevision ?? authoritativeCommand.clientRevision;
+
         setSession((current) => {
           if (!current) return current;
           const item = payload.item!;
-          const updated = { ...current, governanceRevision: payload.governanceRevision ?? current.governanceRevision, contextCounts: payload.contextCounts ?? current.contextCounts, status: payload.status ?? current.status };
+          const updated = {
+            ...current,
+            governanceRevision: payload.governanceRevision ?? current.governanceRevision,
+            contextCounts: payload.contextCounts ?? current.contextCounts,
+            status: payload.status ?? current.status,
+          };
+
           if (command.itemKind === "context_entry") {
-            const canonicalEntry = { ...current.contextEntries.find((entry) => entry.id === command.itemId), id: command.itemId, category: String(item.category) as AiBuilderSession["contextEntries"][number]["category"], title: String(item.title), content: String(item.content), status: String(item.status) as AiBuilderSession["contextEntries"][number]["status"], updatedAt: new Date(String(item.updated_at)).toISOString() } as AiBuilderSession["contextEntries"][number];
+            const canonicalEntry = {
+              ...current.contextEntries.find((entry) => entry.id === command.itemId),
+              id: command.itemId,
+              category: String(item.category) as AiBuilderSession["contextEntries"][number]["category"],
+              title: String(item.title),
+              content: String(item.content),
+              status: String(item.status) as AiBuilderSession["contextEntries"][number]["status"],
+              updatedAt: new Date(String(item.updated_at)).toISOString(),
+            } as AiBuilderSession["contextEntries"][number];
             const position = current.contextEntries.findIndex((entry) => entry.id === command.itemId);
-            updated.contextEntries = [...current.contextEntries.filter((entry) => entry.id !== command.itemId)];
+            updated.contextEntries = current.contextEntries.filter((entry) => entry.id !== command.itemId);
             updated.contextEntries.splice(position < 0 ? updated.contextEntries.length : position, 0, canonicalEntry);
           } else {
-            const canonicalEntry = { ...current.faqEntries.find((entry) => entry.id === command.itemId), id: command.itemId, question: String(item.question), answer: String(item.answer), status: String(item.status) as AiBuilderSession["faqEntries"][number]["status"], updatedAt: new Date(String(item.updated_at)).toISOString() } as AiBuilderSession["faqEntries"][number];
+            const canonicalEntry = {
+              ...current.faqEntries.find((entry) => entry.id === command.itemId),
+              id: command.itemId,
+              question: String(item.question),
+              answer: String(item.answer),
+              status: String(item.status) as AiBuilderSession["faqEntries"][number]["status"],
+              updatedAt: new Date(String(item.updated_at)).toISOString(),
+            } as AiBuilderSession["faqEntries"][number];
             const position = current.faqEntries.findIndex((entry) => entry.id === command.itemId);
-            updated.faqEntries = [...current.faqEntries.filter((entry) => entry.id !== command.itemId)];
+            updated.faqEntries = current.faqEntries.filter((entry) => entry.id !== command.itemId);
             updated.faqEntries.splice(position < 0 ? updated.faqEntries.length : position, 0, canonicalEntry);
           }
           return updated;
@@ -208,11 +211,15 @@ export default function AiBuilderClient({
         setSaveStatus("saved");
       } catch (commandError) {
         setSaveStatus("error");
-        setSaveError(commandError instanceof Error ? commandError.message : "The review command could not be saved.");
+        setSaveError(
+          commandError instanceof Error
+            ? commandError.message
+            : "The review command could not be saved.",
+        );
         throw commandError;
       }
     });
-    // Keep the queue live after failures so later actions still execute.
+
     reviewCommandQueueRef.current = queuedCommand.catch(() => undefined);
     return queuedCommand.finally(() => {
       pendingReviewItemsRef.current.delete(pendingKey);
@@ -226,17 +233,11 @@ export default function AiBuilderClient({
 
   const navigateToStep = useCallback((nextStep: BuilderStep) => {
     setStep(nextStep);
-
-    if (
-      nextStep === "results" ||
-      nextStep === "review" ||
-      nextStep === "chat"
-    ) {
+    if (nextStep === "results" || nextStep === "review" || nextStep === "chat") {
       const url = new URL(window.location.href);
       url.searchParams.set("step", nextStep);
       window.history.replaceState(null, "", url.toString());
     }
-
     window.requestAnimationFrame(() => {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     });
@@ -244,7 +245,6 @@ export default function AiBuilderClient({
 
   useEffect(() => {
     if (step !== "building") return;
-
     const timer = window.setInterval(() => {
       setBuildPercent((current) => {
         if (current >= 75) return current;
@@ -253,17 +253,14 @@ export default function AiBuilderClient({
         return current + 0.5;
       });
     }, 700);
-
     return () => window.clearInterval(timer);
   }, [step]);
 
   const knowledgePack = useMemo(
-    () =>
-      session?.status === "ready"
-        ? buildKnowledgePack(session)
-        : null,
+    () => (session?.status === "ready" ? buildKnowledgePack(session) : null),
     [session],
   );
+
   const reviewSaveStatus: SaveStatus = saveError
     ? "error"
     : pendingReviewItems.size > 0
@@ -272,8 +269,6 @@ export default function AiBuilderClient({
 
   useEffect(() => {
     if (!initialProjectId) return;
-
-    const projectId = initialProjectId;
     let cancelled = false;
 
     async function loadProject() {
@@ -281,12 +276,9 @@ export default function AiBuilderClient({
       setSaveError(null);
       setSaveStatus("idle");
       setStep("loading");
-
       try {
-        const payload = await fetchProject(projectId);
-
+        const payload = await fetchProject(initialProjectId);
         if (cancelled || !payload.session) return;
-
         setBuilder((current) => ({
           ...current,
           businessName: payload.builder?.businessName ?? "",
@@ -302,8 +294,13 @@ export default function AiBuilderClient({
                   payload.websiteKnowledge.requested_url ??
                   payload.builder?.website ??
                   "",
-                requestedUrl: payload.websiteKnowledge.requested_url ?? payload.builder?.website ?? "",
-                resolvedUrl: payload.websiteKnowledge.resolved_url ?? payload.websiteKnowledge.requested_url ?? payload.builder?.website ?? "",
+                requestedUrl:
+                  payload.websiteKnowledge.requested_url ?? payload.builder?.website ?? "",
+                resolvedUrl:
+                  payload.websiteKnowledge.resolved_url ??
+                  payload.websiteKnowledge.requested_url ??
+                  payload.builder?.website ??
+                  "",
                 productsServices: "",
                 idealCustomers: "",
                 additionalKnowledge: "",
@@ -321,18 +318,10 @@ export default function AiBuilderClient({
         }));
         setSession(payload.session);
         setChatThread(payload.chatThread ?? null);
-
-        const requestedStep = new URL(
-          window.location.href,
-        ).searchParams.get("step");
-        setStep(
-          requestedStep === "review" || requestedStep === "chat"
-            ? requestedStep
-            : "results",
-        );
+        const requestedStep = new URL(window.location.href).searchParams.get("step");
+        setStep(requestedStep === "review" || requestedStep === "chat" ? requestedStep : "results");
       } catch (loadError) {
         if (cancelled) return;
-
         setSession(null);
         setChatThread(null);
         setError(
@@ -345,7 +334,6 @@ export default function AiBuilderClient({
     }
 
     void loadProject();
-
     return () => {
       cancelled = true;
     };
@@ -363,12 +351,9 @@ export default function AiBuilderClient({
     try {
       const response = await fetch("/api/ai-builder/intake", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(builder),
       });
-
       if (!response.ok || !response.body) {
         const payload = (await response.json()) as { error?: { message?: string } };
         throw new Error(payload.error?.message || "The AI builder could not process this information.");
@@ -381,10 +366,7 @@ export default function AiBuilderClient({
         ok?: boolean;
         projectId?: string;
         session?: AiBuilderSession;
-        error?: {
-          code?: string;
-          message?: string;
-        };
+        error?: { code?: string; message?: string };
       } | null = null;
 
       while (true) {
@@ -403,29 +385,23 @@ export default function AiBuilderClient({
             error?: { message?: string };
           };
           if (event.type === "progress") {
-            setBuildPercent((current) =>
-              Math.max(current, event.percent ?? 0),
-            );
+            setBuildPercent((current) => Math.max(current, event.percent ?? 0));
           }
-          if (event.type === "error") throw new Error(event.error?.message || "The AI builder could not process this information.");
+          if (event.type === "error") {
+            throw new Error(event.error?.message || "The AI builder could not process this information.");
+          }
           if (event.type === "result") payload = event;
         }
         if (done) break;
       }
 
       if (!payload?.ok || !payload.session) {
-        throw new Error(
-          payload?.error?.message ||
-            "The AI builder could not process this information.",
-        );
+        throw new Error(payload?.error?.message || "The AI builder could not process this information.");
       }
 
-      const projectId =
-        payload.projectId ?? payload.session.id;
-
+      const projectId = payload.projectId ?? payload.session.id;
       setSession(payload.session);
       setStep("results");
-
       const url = new URL(window.location.href);
       url.searchParams.set("projectId", projectId);
       url.searchParams.set("step", "results");
@@ -433,21 +409,14 @@ export default function AiBuilderClient({
 
       try {
         const savedProject = await fetchProject(projectId);
-
         setSession(savedProject.session ?? payload.session);
         setChatThread(savedProject.chatThread ?? null);
       } catch (projectLoadError) {
-        console.error(
-          "AI_BUILDER_NEW_PROJECT_RELOAD_FAILED",
-          {
-            projectId,
-            message:
-              projectLoadError instanceof Error
-                ? projectLoadError.message
-                : "unknown_error",
-          },
-        );
-
+        console.error("AI_BUILDER_NEW_PROJECT_RELOAD_FAILED", {
+          projectId,
+          message:
+            projectLoadError instanceof Error ? projectLoadError.message : "unknown_error",
+        });
         setChatThread(null);
       }
     } catch (buildError) {
@@ -462,97 +431,179 @@ export default function AiBuilderClient({
     }
   };
 
+  const desktopWorkspace = session && knowledgePack ? (
+    <div className="hidden min-h-[760px] overflow-hidden rounded-[28px] border border-white/10 bg-[#020611] shadow-[0_26px_90px_rgba(0,0,0,0.38)] xl:grid xl:grid-cols-[220px_minmax(0,1fr)_390px]">
+      <aside className="border-r border-white/10 bg-[#040a16] p-4">
+        <button
+          type="button"
+          onClick={() => setWorkspaceTab("overview")}
+          className="mb-6 text-sm font-semibold text-slate-400 transition hover:text-white"
+        >
+          ← All Projects
+        </button>
+        <p className="px-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Project</p>
+        <nav className="mt-3 space-y-1">
+          {([
+            ["overview", "Overview"],
+            ["knowledge", "Business Knowledge"],
+            ["sources", "Sources"],
+            ["settings", "Settings"],
+          ] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setWorkspaceTab(value)}
+              className={`w-full rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
+                workspaceTab === value
+                  ? "border border-amber-300/25 bg-amber-300/10 text-amber-200"
+                  : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="mt-8 rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">AI Builder Tips</p>
+          <p className="mt-2 text-xs leading-5 text-slate-400">
+            Review and approve knowledge before testing the assistant.
+          </p>
+        </div>
+      </aside>
+
+      <main className="min-w-0 bg-[#020713]">
+        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
+          <div>
+            <h1 className="text-lg font-bold text-white">{builder.businessName || "AI Builder Project"}</h1>
+            <p className="mt-1 text-xs text-slate-500">{builder.website || builder.industry}</p>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              ["Total", session.contextCounts.total],
+              ["Approved", session.contextCounts.approved],
+              ["Pending", session.contextCounts.proposed],
+              ["Removed", session.contextCounts.archived],
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-[76px] rounded-xl border border-white/10 bg-[#07101f] px-3 py-2 text-center">
+                <div className="text-lg font-bold text-amber-300">{value}</div>
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+              </div>
+            ))}
+          </div>
+        </header>
+
+        <div className="h-[700px] overflow-y-auto p-5">
+          {workspaceTab === "knowledge" ? (
+            <>
+              {reviewSaveStatus !== "idle" || saveError ? (
+                <div
+                  className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${
+                    reviewSaveStatus === "error"
+                      ? "border-red-500/30 bg-red-500/10 text-red-200"
+                      : "border-amber-300/20 bg-[#030713] text-slate-400"
+                  }`}
+                  role={reviewSaveStatus === "error" ? "alert" : "status"}
+                  aria-live="polite"
+                >
+                  {reviewSaveStatus === "saving"
+                    ? "Applying review command..."
+                    : reviewSaveStatus === "saved"
+                      ? "Review command applied."
+                      : saveError}
+                </div>
+              ) : null}
+              <div className="[&>div]:max-w-none [&>div>section:first-of-type]:hidden [&>div]:space-y-5">
+                <AiBuilderReview
+                  session={session}
+                  onReviewCommand={submitReviewCommand}
+                  pendingReviewItems={pendingReviewItems}
+                  onBack={() => setWorkspaceTab("overview")}
+                  onLaunchChat={() => undefined}
+                />
+              </div>
+            </>
+          ) : workspaceTab === "overview" ? (
+            <AiBuilderProgress
+              builder={builder}
+              session={session}
+              complete
+              percent={100}
+              onReview={() => setWorkspaceTab("knowledge")}
+            />
+          ) : (
+            <div className="flex min-h-[560px] items-center justify-center rounded-3xl border border-white/10 bg-[#030713] p-8 text-center">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-300">{workspaceTab}</p>
+                <h2 className="mt-3 text-2xl font-bold text-white">This workspace is ready for its next module.</h2>
+                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">
+                  The permanent desktop shell is in place without changing the existing backend flow.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      <aside className="border-l border-white/10 bg-[#040a16] p-4">
+        <div className="mb-4">
+          <p className="text-sm font-bold text-white">Test Your AI Assistant</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">Uses the project’s approved business knowledge.</p>
+        </div>
+        <div className="[&>div]:max-w-none [&>div]:space-y-0 [&>div>section:first-of-type]:hidden [&>div>section:last-of-type]:rounded-2xl [&>div>section:last-of-type]:border-white/10 [&_.ai-builder-chat-scrollbar]:min-h-[455px] [&_.ai-builder-chat-scrollbar]:max-h-[455px]">
+          <AiBuilderDemoChat
+            knowledge={knowledgePack}
+            projectId={session.id}
+            chatThread={chatThread}
+            onBack={() => undefined}
+          />
+        </div>
+      </aside>
+    </div>
+  ) : null;
+
   return (
     <AiBuilderShell>
       {step === "loading" ? (
         <div className="relative mx-auto max-w-3xl rounded-[30px] border border-amber-300/20 bg-[#030713] px-6 py-12 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]">
           <AiBuilderAuthCta />
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-300">
-            Loading AI project
-          </p>
-
-          <p className="mt-4 text-base text-slate-400">
-            Restoring your saved business knowledge.
-          </p>
+          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-300">Loading AI project</p>
+          <p className="mt-4 text-base text-slate-400">Restoring your saved business knowledge.</p>
         </div>
       ) : null}
 
-      {step === "form" && (
+      {step === "form" ? (
         <div className="ai-builder-form">
-          {error ? (
-            <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              {error}
-            </div>
-          ) : null}
-
-          <AiBuilderForm
-            value={builder}
-            onChange={setBuilder}
-            onBuild={buildAi}
-          />
+          {error ? <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
+          <AiBuilderForm value={builder} onChange={setBuilder} onBuild={buildAi} />
         </div>
-      )}
-
-      {step === "building" && (
-        <AiBuilderProgress
-          builder={builder}
-          session={null}
-          complete={false}
-          percent={buildPercent}
-          onReview={() => undefined}
-        />
-      )}
-
-      {step === "results" && session ? (
-        <AiBuilderProgress
-          builder={builder}
-          session={session}
-          complete
-          percent={100}
-          onReview={() => navigateToStep("review")}
-        />
       ) : null}
 
-      {step === "review" && session ? (
-        <>
-          {reviewSaveStatus !== "idle" || saveError ? (
-            <div
-              className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${
-                reviewSaveStatus === "error"
-                  ? "border-red-500/30 bg-red-500/10 text-red-200"
-                  : "border-amber-300/20 bg-[#030713] text-slate-400"
-              }`}
-              role={
-                reviewSaveStatus === "error" ? "alert" : "status"
-              }
-              aria-live="polite"
-            >
-              {reviewSaveStatus === "saving"
-                ? "Applying review command..."
-                : reviewSaveStatus === "saved"
-                  ? "Review command applied."
-                  : saveError}
-            </div>
-          ) : null}
-
-          <AiBuilderReview
-            session={session}
-            onReviewCommand={submitReviewCommand}
-            pendingReviewItems={pendingReviewItems}
-            onBack={() => navigateToStep("results")}
-            onLaunchChat={() => navigateToStep("chat")}
-          />
-        </>
+      {step === "building" ? (
+        <AiBuilderProgress builder={builder} session={null} complete={false} percent={buildPercent} onReview={() => undefined} />
       ) : null}
 
-      {step === "chat" && knowledgePack && session ? (
-        <AiBuilderDemoChat
-          knowledge={knowledgePack}
-          projectId={session.id}
-          chatThread={chatThread}
-          onBack={() => navigateToStep("review")}
-        />
-      ) : null}
+      {session && (step === "results" || step === "review" || step === "chat") ? desktopWorkspace : null}
+
+      <div className="xl:hidden">
+        {step === "results" && session ? (
+          <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={() => navigateToStep("review")} />
+        ) : null}
+
+        {step === "review" && session ? (
+          <>
+            {reviewSaveStatus !== "idle" || saveError ? (
+              <div className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-amber-300/20 bg-[#030713] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">
+                {reviewSaveStatus === "saving" ? "Applying review command..." : reviewSaveStatus === "saved" ? "Review command applied." : saveError}
+              </div>
+            ) : null}
+            <AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={() => navigateToStep("results")} onLaunchChat={() => navigateToStep("chat")} />
+          </>
+        ) : null}
+
+        {step === "chat" && knowledgePack && session ? (
+          <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => navigateToStep("review")} />
+        ) : null}
+      </div>
     </AiBuilderShell>
   );
 }
