@@ -433,7 +433,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   };
 
   const desktopWorkspace = session && knowledgePack ? (
-    <div className="hidden h-[calc(100dvh-112px)] min-h-[680px] overflow-hidden rounded-[20px] border border-white/10 bg-[#020611] shadow-[0_26px_90px_rgba(0,0,0,0.38)] xl:grid xl:grid-cols-[190px_minmax(0,1fr)_430px]">
+    <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/10 bg-[#020611] xl:grid xl:grid-cols-[190px_minmax(0,1fr)_430px]">
       <aside className="border-r border-white/10 bg-[#040a16] p-4">
         <button
           type="button"
