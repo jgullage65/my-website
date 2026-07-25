@@ -30,6 +30,10 @@ export default function AiBuilderProgress({
   onReview,
 }: Props) {
   const progress = session?.buildProgress ?? [];
+  const awaitingApprovalCount = session
+    ? session.contextEntries.filter((entry) => entry.status === "proposed").length +
+      session.faqEntries.filter((entry) => entry.status === "proposed").length
+    : 0;
 
   return (
     <div className="w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl">
@@ -56,7 +60,11 @@ export default function AiBuilderProgress({
         <div className="relative mt-8 grid gap-4 min-[1200px]:mt-5 min-[1200px]:grid-cols-3 min-[1200px]:gap-3">
           {(complete ? progress : pendingSteps).map((item, index) => {
             const message = typeof item === "string" ? item : item.message;
-            const count = typeof item === "string" ? null : item.count;
+            const itemCount = typeof item === "string" ? null : item.count;
+            const count =
+              complete && message === "Waiting for user approval"
+                ? awaitingApprovalCount
+                : itemCount;
             const stepPercent = complete
               ? 100
               : Math.max(0, Math.min(100, (percent - index * 20) * 5));
