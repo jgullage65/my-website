@@ -239,7 +239,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           </p>
           <Link
             href="/ai-builder"
-            className="mt-5 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
+            className="mt-8 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
           >
             ← All Projects
           </Link>
@@ -306,7 +306,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                     type="button"
                     disabled={!value.website.trim() || importing}
                     onClick={importWebsite}
-                    className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0"
+                    className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-[rgba(212,175,55,0.18)] disabled:bg-[#030713] disabled:text-white disabled:shadow-none disabled:[border-width:0.5px] disabled:hover:translate-y-0 disabled:hover:border-[rgba(212,175,55,0.18)] disabled:hover:bg-[#030713]"
                   >
                     {importing
                       ? importStage === "crawl"
@@ -327,7 +327,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                   <button
                     type="button"
                     onClick={() => setShowWebsiteKnowledge(true)}
-                    className="mt-4 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#0b1830]"
+                    className="cta-raised mt-4 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#0b1830]"
                   >
                     View imported knowledge →
                   </button>
@@ -452,7 +452,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                     type="button"
                     disabled={!valid || importing}
                     onClick={onBuild}
-                    className="mt-4 min-w-52 rounded-xl border border-amber-300/15 bg-[#081226] px-6 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
+                    className="mt-5 min-w-52 rounded-2xl border border-amber-300/15 bg-[#081226] px-6 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0"
                   >
                     Build My AI
                   </button>
