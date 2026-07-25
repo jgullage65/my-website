@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
 function normalizePreferred(raw: string) {
   const v = decodeURIComponent(raw || "").trim().toLowerCase();
   if (["text", "sms"].includes(v)) return "Text";
@@ -51,10 +52,10 @@ export default function ContactPageClient() {
 
   const field = "contact-field mt-1 w-full rounded-xl border border-[rgba(212,175,55,.18)] bg-[#050b18] px-4 py-3 text-center text-white placeholder:text-center placeholder:text-white outline-none transition focus:border-[var(--gold)] focus:ring-2 focus:ring-[rgba(212,175,55,.18)]";
   const label = "block text-center text-sm font-semibold text-[var(--gold)]";
-  const card = "flex min-h-0 w-full flex-1 flex-col rounded-none border-0 bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] p-6 shadow-[0_30px_90px_rgba(0,0,0,.58),inset_0_1px_0_rgba(255,255,255,0.05)] sm:block sm:rounded-3xl sm:border sm:border-[rgba(212,175,55,.16)] sm:bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] sm:p-8 sm:shadow-[0_24px_70px_rgba(0,0,0,.34)]";
+  const card = "flex min-h-0 w-full flex-1 flex-col rounded-none border-0 bg-[linear-gradient(180deg,rgba(8,14,34,0.99),rgba(3,7,19,0.99))] p-6 shadow-[0_30px_90px_rgba(0,0,0,.58),inset_0_1px_0_rgba(255,255,255,0.05)] min-[1200px]:block min-[1200px]:rounded-3xl min-[1200px]:border min-[1200px]:border-[rgba(212,175,55,.16)] min-[1200px]:bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] min-[1200px]:p-8 min-[1200px]:shadow-[0_24px_70px_rgba(0,0,0,.34)]";
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const mediaQuery = window.matchMedia("(max-width: 1199.99px)");
     const html = document.documentElement;
     const { overflow: htmlOverflow, height: htmlHeight } = html.style;
     const { overflow: bodyOverflow, height: bodyHeight } = document.body.style;
@@ -80,7 +81,7 @@ export default function ContactPageClient() {
   }, []);
 
   return (
-    <main className="fixed inset-0 z-[81] flex h-[100dvh] w-screen touch-none flex-col overflow-hidden overscroll-none bg-[#030713] text-white sm:static sm:block sm:min-h-screen sm:w-auto sm:touch-auto sm:overflow-visible sm:overscroll-auto">
+    <main className="fixed inset-0 z-[81] flex h-[100dvh] w-screen touch-none flex-col overflow-hidden overscroll-none bg-[#030713] text-white min-[1200px]:static min-[1200px]:block min-[1200px]:min-h-screen min-[1200px]:w-auto min-[1200px]:touch-auto min-[1200px]:overflow-visible min-[1200px]:overscroll-auto">
       <style jsx global>{`
         .contact-field:-webkit-autofill,
         .contact-field:-webkit-autofill:hover,
@@ -92,7 +93,7 @@ export default function ContactPageClient() {
           transition: background-color 9999s ease-out 0s;
         }
 
-        @media (max-width: 767px) {
+        @media (max-width: 1199.99px) {
           .contact-form-scroll {
             -ms-overflow-style: none;
             scrollbar-width: none;
@@ -113,27 +114,27 @@ export default function ContactPageClient() {
         }
       `}</style>
 
-      <section className="flex min-h-0 w-full flex-1 flex-col sm:mx-auto sm:max-w-5xl sm:px-6 sm:py-16">
+      <section className="flex min-h-0 w-full flex-1 flex-col min-[1200px]:mx-auto min-[1200px]:max-w-5xl min-[1200px]:px-6 min-[1200px]:py-16">
         <section className={card}>
           <header className="relative mb-10 space-y-3 text-center">
             <button
               type="button"
               onClick={() => router.back()}
               aria-label="Close contact form"
-              className="absolute right-0 top-0 text-xl text-white/80 hover:text-white sm:hidden"
+              className="absolute right-0 top-0 text-xl text-white/80 hover:text-white min-[1200px]:hidden"
             >
               ✕
             </button>
-            <h1 className="text-4xl font-black tracking-[-.045em] text-[var(--gold)] sm:text-5xl">Contact</h1>
+            <h1 className="text-4xl font-black tracking-[-.045em] text-[var(--gold)] min-[1200px]:text-5xl">Contact</h1>
             <p className="mx-auto max-w-2xl text-lg leading-8 text-[var(--muted)]">
               Ready to get started? Send a message and I’ll respond as soon as possible.
             </p>
           </header>
 
-          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="contact-form-scroll grid min-h-0 flex-1 touch-pan-y gap-5 overflow-y-auto overscroll-contain pr-1 sm:touch-auto sm:overflow-visible sm:overscroll-auto sm:pr-0">
+          <form action="https://formspree.io/f/mlgldrnk" method="POST" className="contact-form-scroll grid min-h-0 flex-1 touch-pan-y gap-5 overflow-y-auto overscroll-contain pr-1 min-[1200px]:touch-auto min-[1200px]:overflow-visible min-[1200px]:overscroll-auto min-[1200px]:pr-0">
             <input type="hidden" name="form_type" value="Project Request" />
 
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5 min-[1200px]:grid-cols-2">
               <div>
                 <label className={label}>Your Name</label>
                 <input type="text" name="name" required placeholder="John Smith" className={field} />
@@ -145,7 +146,7 @@ export default function ContactPageClient() {
               </div>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5 min-[1200px]:grid-cols-2">
               <div>
                 <label className={label}>Phone (optional)</label>
                 <input type="tel" name="phone" defaultValue={prePhone} placeholder="(555) 123-4567" className={field} />
@@ -161,7 +162,7 @@ export default function ContactPageClient() {
               </div>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5 min-[1200px]:grid-cols-2">
               <div>
                 <label className={label}>Business Name (optional)</label>
                 <input type="text" name="business" placeholder="Your business" className={field} />
@@ -173,7 +174,7 @@ export default function ContactPageClient() {
               </div>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5 min-[1200px]:grid-cols-2">
               <div>
                 <label className={label}>What do you need?</label>
                 <select name="service" required className={`${field} contact-mobile-select`} defaultValue={preService}>
