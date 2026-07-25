@@ -1,13 +1,37 @@
-import { ReactNode } from "react";
+"use client";
+
+import { ReactNode, useEffect } from "react";
 import ImpersonationBanner from "./ImpersonationBanner";
 
 export default function AiBuilderShell({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    document.body.dataset.aiBuilderWorkspace = "true";
+
+    return () => {
+      delete document.body.dataset.aiBuilderWorkspace;
+    };
+  }, []);
+
   return (
-    <section className="ai-builder-shell relative min-h-screen text-white xl:fixed xl:inset-x-0 xl:bottom-0 xl:top-[74px] xl:z-40 xl:min-h-0 xl:overflow-hidden xl:rounded-none xl:bg-[#020611]">
-      <div className="ai-builder-shell__content mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-20 xl:h-full xl:max-w-none xl:overflow-hidden xl:rounded-none xl:px-0 xl:py-0">
-        <ImpersonationBanner />
-        {children}
-      </div>
-    </section>
+    <>
+      <style jsx global>{`
+        @media (min-width: 1280px) {
+          body[data-ai-builder-workspace="true"] footer {
+            display: none;
+          }
+
+          body[data-ai-builder-workspace="true"] .site-page-shell {
+            min-height: 0;
+          }
+        }
+      `}</style>
+
+      <section className="ai-builder-shell relative min-h-screen text-white xl:h-[calc(100dvh-56px)] xl:min-h-0 xl:overflow-hidden xl:rounded-none">
+        <div className="ai-builder-shell__content mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-20 xl:h-full xl:max-w-none xl:overflow-hidden xl:rounded-none xl:px-0 xl:py-0">
+          <ImpersonationBanner />
+          {children}
+        </div>
+      </section>
+    </>
   );
 }
