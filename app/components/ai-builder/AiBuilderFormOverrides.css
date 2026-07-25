@@ -31,6 +31,17 @@
   display: none;
 }
 
+@media (min-width: 1200px) and (max-width: 1279.98px) {
+  div[class~="hidden"][class~="xl:grid"][class~="xl:grid-cols-[220px_minmax(0,1fr)_390px]"] {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) 390px;
+  }
+
+  div[class="xl:hidden"] {
+    display: none;
+  }
+}
+
 @media (max-width: 639px) {
   .ai-builder-form select {
     text-align: center;
