@@ -229,8 +229,8 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   );
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-4 pb-10 sm:px-6 xl:px-8">
-      <div className="relative rounded-[28px] border border-white/[0.09] bg-[#030713] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:p-7 xl:p-8">
+    <div className="w-full pb-10 min-[1200px]:mx-auto min-[1200px]:max-w-[1500px] min-[1200px]:px-8">
+      <div className="relative bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[28px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:p-8 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
         <AiBuilderAuthCta />
 
         <header className="text-center">
@@ -552,169 +552,117 @@ function WebsiteKnowledgeModal({
   onClose: () => void;
 }) {
   const canonicalSections = useMemo(
-    () => groupWebsiteKnowledgeSections(knowledge.knowledge),
+    () => groupWebsiteKnowledgeFacts(knowledge.knowledge),
     [knowledge.knowledge],
   );
 
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
-
-  if (typeof document === "undefined") return null;
-
-  return createPortal(
+  const modal = (
     <div
-      className="fixed inset-0 z-[240] flex items-center justify-center bg-black/70 p-0 backdrop-blur-sm sm:p-6"
-      onMouseDown={onClose}
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Imported website knowledge"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
-      <div
-        className="h-[100dvh] w-full overflow-y-auto bg-[#030713] shadow-2xl sm:max-h-[92vh] sm:max-w-4xl sm:rounded-[28px] sm:border sm:border-white/10"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
-        <div className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#030713]/95 px-16 py-5 text-center backdrop-blur">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
-            Website knowledge
-          </p>
-          <h2 className="mt-1 text-2xl font-semibold text-white">
-            Imported business information
-          </h2>
+      <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] shadow-[0_30px_120px_rgba(0,0,0,0.7)]">
+        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5 sm:p-7">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">
+              Website knowledge
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-white">Imported source details</h2>
+            <p className="mt-2 text-sm text-slate-400">
+              This source is preserved separately from the information you enter manually.
+            </p>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close website knowledge"
-            className="absolute right-4 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-amber-300/15 bg-[#081226] text-xl text-slate-300 hover:border-amber-300/30 hover:bg-[#0b1830] sm:right-6"
+            aria-label="Close imported website knowledge"
+            className="grid h-10 w-10 flex-none place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 transition hover:border-amber-300/30 hover:text-white"
           >
             ×
           </button>
         </div>
-        <div className="grid gap-5 p-5 sm:p-8">
+
+        <div className="max-h-[calc(92vh-130px)] overflow-y-auto p-5 sm:p-7">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Metric label="Pages" value={String(knowledge.pages.length)} />
+            <Metric label="Warnings" value={String(knowledge.warnings.length)} />
+            <Metric label="Imported" value={new Date(knowledge.importedAt).toLocaleString()} />
+          </div>
+
+          <section className="mt-5 rounded-2xl border border-white/10 bg-black/10 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Resolved website</p>
+            <p className="mt-2 break-all text-sm text-slate-200">{knowledge.resolvedUrl}</p>
+          </section>
+
           {canonicalSections.length ? (
-            canonicalSections.map((section) => (
-              <ReadOnlyBlock
-                key={section.key}
-                title={section.label}
-                content={section.content}
-              />
-            ))
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              {canonicalSections.map(([section, facts]) => (
+                <section key={section} className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                    {WEBSITE_KNOWLEDGE_SECTION_LABELS[section]}
+                  </p>
+                  <div className="mt-3 space-y-3">
+                    {facts.map((fact, index) => (
+                      <article key={`${section}-${fact.label}-${index}`}>
+                        <p className="text-sm font-semibold text-white">{fact.label}</p>
+                        <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-400">{fact.value}</p>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
           ) : (
-            <>
-              <ReadOnlyBlock
-                title="Company Overview"
-                content={[
-                  knowledge.businessName && `Business: ${knowledge.businessName}`,
-                  knowledge.industry && `Industry: ${knowledge.industry}`,
-                  knowledge.website && `Website: ${knowledge.website}`,
-                ]
-                  .filter(Boolean)
-                  .join("\n")}
-              />
-              {knowledge.productsServices ? (
-                <ReadOnlyBlock
-                  title="Products & Services"
-                  content={knowledge.productsServices}
-                />
-              ) : null}
-              {knowledge.idealCustomers ? (
-                <ReadOnlyBlock
-                  title="Customer Segments"
-                  content={knowledge.idealCustomers}
-                />
-              ) : null}
-              {knowledge.additionalKnowledge ? (
-                <ReadOnlyBlock
-                  title="Additional Business Knowledge"
-                  content={knowledge.additionalKnowledge}
-                />
-              ) : null}
-            </>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <LegacyKnowledgeSection title="Products & Services" value={knowledge.productsServices} />
+              <LegacyKnowledgeSection title="Ideal Customers" value={knowledge.idealCustomers} />
+              <LegacyKnowledgeSection title="Additional Knowledge" value={knowledge.additionalKnowledge} />
+            </div>
           )}
-          <p className="text-center text-xs leading-5 text-slate-500">
-            Website knowledge is read-only. Re-import the website to refresh it. Your manual expertise is never overwritten.
-          </p>
+
+          {knowledge.warnings.length ? (
+            <section className="mt-5 rounded-2xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Warnings</p>
+              <ul className="mt-3 space-y-2 text-sm text-slate-400">
+                {knowledge.warnings.map((warning) => (
+                  <li key={warning}>• {warning}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </div>
       </div>
-    </div>,
-    document.body,
+    </div>
   );
+
+  return typeof document === "undefined" ? null : createPortal(modal, document.body);
 }
 
-const LEGACY_SECTION_KEYS: Partial<
-  Record<
-    WebsiteKnowledgeFact["category"],
-    (typeof WEBSITE_KNOWLEDGE_SECTION_ORDER)[number]
-  >
-> = {
-  business_identity: "company_overview",
-  industry: "industry_served",
-  customer: "customer_segment",
-  pricing: "pricing_plan",
-  process: "support_onboarding",
-  differentiator: "competitive_differentiator",
-  guarantee: "policy",
-  location: "location_service_area",
-  contact: "contact_information",
-  other: "additional_business_knowledge",
-};
-
-function groupWebsiteKnowledgeSections(
-  knowledge: StructuredWebsiteKnowledge | undefined,
-) {
-  if (!knowledge?.facts.length) return [];
-
-  const order = new Map<string, number>(
-    WEBSITE_KNOWLEDGE_SECTION_ORDER.map((key, index) => [key, index]),
-  );
-  const sections = new Map<
-    string,
-    { key: string; label: string; facts: WebsiteKnowledgeFact[] }
-  >();
-
-  for (const fact of knowledge.facts) {
-    const key = LEGACY_SECTION_KEYS[fact.category] ?? fact.category;
-    const current = sections.get(key) ?? {
-      key,
-      label: WEBSITE_KNOWLEDGE_SECTION_LABELS[fact.category],
-      facts: [],
-    };
-    current.facts.push(fact);
-    sections.set(key, current);
-  }
-
-  return Array.from(sections.values())
-    .sort(
-      (left, right) =>
-        (order.get(left.key) ?? 1_000) -
-          (order.get(right.key) ?? 1_000) ||
-        left.label.localeCompare(right.label),
-    )
-    .map((section) => ({
-      key: section.key,
-      label: section.label,
-      content: section.facts
-        .map((fact) => `${fact.title}\n${fact.value}`)
-        .join("\n\n"),
-    }));
-}
-
-function ReadOnlyBlock({
-  title,
-  content,
-}: {
-  title: string;
-  content: string;
-}) {
+function LegacyKnowledgeSection({ title, value }: { title: string; value: string }) {
+  if (!value) return null;
   return (
-    <section className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-5">
-      <h3 className="text-center text-sm font-semibold text-amber-300">
-        {title}
-      </h3>
-      <p className="mt-3 whitespace-pre-wrap text-center text-sm leading-7 text-slate-300">
-        {content || "No information found."}
-      </p>
+    <section className="rounded-2xl border border-white/10 bg-black/10 p-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">{title}</p>
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-400">{value}</p>
     </section>
   );
+}
+
+function groupWebsiteKnowledgeFacts(knowledge?: StructuredWebsiteKnowledge) {
+  if (!knowledge?.facts?.length) return [] as Array<[WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]>;
+  const grouped = new Map<WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]>();
+  for (const fact of knowledge.facts) {
+    const current = grouped.get(fact.section) ?? [];
+    current.push(fact);
+    grouped.set(fact.section, current);
+  }
+  return WEBSITE_KNOWLEDGE_SECTION_ORDER.flatMap((section) => {
+    const facts = grouped.get(section);
+    return facts?.length ? [[section, facts] as [WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]] : [];
+  });
 }
