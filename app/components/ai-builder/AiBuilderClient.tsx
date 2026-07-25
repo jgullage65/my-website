@@ -437,7 +437,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       <aside className="border-r border-white/10 bg-[#040a16] p-4">
         <button
           type="button"
-          onClick={() => setWorkspaceTab("overview")}
+          onClick={() => window.location.assign("/ai-builder")}
           className="mb-6 text-sm font-semibold text-slate-400 transition hover:text-white"
         >
           ← All Projects
@@ -467,23 +467,14 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       </aside>
 
       <main className="flex min-h-0 min-w-0 flex-col bg-[#020713]">
-        <header className="flex flex-none flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-3">
-          <div>
-            <h1 className="text-lg font-bold text-white">{builder.businessName || "AI Builder Project"}</h1>
-            <p className="mt-1 text-xs text-slate-500">{builder.website || builder.industry}</p>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              ["Total", session.contextCounts.total],
-              ["Approved", session.contextCounts.approved],
-              ["Pending", session.contextCounts.proposed],
-              ["Removed", session.contextCounts.archived],
-            ].map(([label, value]) => (
-              <div key={label} className="min-w-[76px] rounded-xl border border-white/10 bg-[#07101f] px-3 py-2 text-center">
-                <div className="text-lg font-bold text-amber-300">{value}</div>
-                <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-              </div>
-            ))}
+        <header className="flex flex-none justify-center border-b border-white/10 px-5 py-3 text-center">
+          <div className="min-w-0 max-w-full">
+            <h1 className="text-lg font-bold text-amber-300">
+              {builder.businessName || "AI Builder Project"}
+            </h1>
+            <p className="mt-1 break-all text-xs leading-5 text-slate-500">
+              {builder.website || builder.industry}
+            </p>
           </div>
         </header>
 
@@ -540,9 +531,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       </main>
 
       <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#040a16] p-4">
-        <div className="mb-4 flex-none">
+        <div className="mb-4 flex-none text-center">
           <p className="text-sm font-bold text-white">Test Your AI Assistant</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">Uses the project’s approved business knowledge.</p>
         </div>
         <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:first-of-type]:hidden [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-2xl [&>div>section:last-of-type]:border-white/10 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
           <AiBuilderDemoChat
