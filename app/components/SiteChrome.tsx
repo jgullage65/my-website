@@ -64,7 +64,7 @@ export default function SiteChrome({ children, year }: { children: ReactNode; ye
         </div>
 
         <nav className="border-t border-white/[0.05] px-3 py-2 min-[1200px]:hidden">
-          <div className="mx-auto flex w-full items-center justify-between overflow-hidden text-[0.6rem] font-semibold text-slate-300 min-[390px]:text-[0.66rem]">
+          <div className="mx-auto flex w-full items-center justify-between overflow-hidden text-[0.6rem] font-semibold text-slate-300 min-[390px]:text-[0.66rem] sm:w-auto sm:justify-center sm:gap-6">
             <SiteNavLinks mobile />
           </div>
         </nav>
