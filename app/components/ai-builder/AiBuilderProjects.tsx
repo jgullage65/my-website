@@ -16,7 +16,6 @@ type Project = {
 };
 
 const PROJECT_LIMIT = 3;
-const sectionClassName = "overflow-hidden rounded-[24px] border-[1.5px] border-[rgba(245,158,11,0.2)] border-t-2 border-t-amber-300/70 bg-[#030713] shadow-[0_18px_48px_rgba(0,0,0,.28)]";
 
 function date(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -30,8 +29,6 @@ export default function AiBuilderProjects() {
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [openExpanded, setOpenExpanded] = useState(true);
-  const [archivedExpanded, setArchivedExpanded] = useState(false);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
   const openProjects = useMemo(() => projects.filter((project) => !project.archivedAt), [projects]);
   const archivedProjects = useMemo(() => projects.filter((project) => project.archivedAt), [projects]);
@@ -115,7 +112,7 @@ export default function AiBuilderProjects() {
   return (
     <AiBuilderShell>
       {confirmDialogNode}
-      <div className="relative mx-auto max-w-6xl rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10">
+      <div className="relative mx-auto w-full rounded-[30px] border border-white/[0.09] bg-[#030713] px-4 py-8 shadow-[0_18px_60px_rgba(0,0,0,0.2)] sm:px-6 sm:py-10 xl:px-10">
         <AiBuilderAuthCta />
         <div className="text-center">
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
@@ -133,11 +130,11 @@ export default function AiBuilderProjects() {
           </div>
         ) : null}
 
-        {isSignedIn && !loading && projects.length ? <div className="mt-10 space-y-5">
-          <ProjectSection title="Open Projects" expanded={openExpanded} onToggle={() => setOpenExpanded((value) => !value)}>
+        {isSignedIn && !loading && projects.length ? <div className="mt-10 space-y-12">
+          <ProjectSection title="Open Projects">
             <ProjectGrid projects={openProjects} archived={false} menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
           </ProjectSection>
-          <ProjectSection title="Archived Projects" expanded={archivedExpanded} onToggle={() => setArchivedExpanded((value) => !value)}>
+          <ProjectSection title="Archived Projects">
             <ProjectGrid projects={archivedProjects} archived menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
           </ProjectSection>
         </div> : null}
@@ -146,19 +143,16 @@ export default function AiBuilderProjects() {
   );
 }
 
-function ProjectSection({ title, expanded, onToggle, children }: { title: string; expanded: boolean; onToggle: () => void; children: React.ReactNode }) {
-  return <section className={sectionClassName}>
-    <button type="button" onClick={onToggle} aria-expanded={expanded} className="grid w-full grid-cols-[1fr_auto_1fr] items-center px-5 py-4 text-white sm:px-6">
-      <h2 className="col-start-2 text-center text-lg font-black tracking-[-.025em] sm:text-xl">{title}</h2>
-      <span aria-hidden="true" className={`col-start-3 justify-self-end text-sm text-[var(--gold)] transition-transform duration-300 ${expanded ? "rotate-90" : ""}`}>▶</span>
-    </button>
-    <div className={`grid transition-[grid-template-rows] duration-300 ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}><div className="overflow-hidden"><div className="border-t border-amber-300/20 p-5 sm:p-6">{children}</div></div></div>
+function ProjectSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section>
+    <h2 className="mb-5 text-center text-xl font-black tracking-[-.025em] text-white sm:text-2xl">{title}</h2>
+    {children}
   </section>;
 }
 
 function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArchive, onRestore }: { projects: Project[]; archived: boolean; menu: string | null; busy: string | null; setMenu: (id: string | null) => void; onRename: (project: Project) => void; onArchive: (project: Project) => void; onRestore: (project: Project) => void }) {
-  if (!projects.length) return <p className="py-5 text-center text-sm text-slate-400">No {archived ? "archived" : "open"} projects.</p>;
-  return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{projects.map((project) => <article key={project.id} className="group relative rounded-3xl border border-amber-300/25 bg-[#030713] p-6 transition-colors hover:border-amber-300/40">
+  if (!projects.length) return <div className="rounded-3xl border border-amber-300/20 bg-[#030713] px-6 py-10 text-center"><p className="text-sm text-slate-400">No {archived ? "archived" : "open"} projects.</p></div>;
+  return <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{projects.map((project) => <article key={project.id} className="group relative rounded-3xl border border-amber-300/25 bg-[#030713] p-6 transition-colors hover:border-amber-300/40">
     <div className="absolute right-4 top-4"><div className="relative">
       <button type="button" aria-label={`Actions for ${project.businessName}`} aria-haspopup="menu" aria-expanded={menu === project.id} onClick={() => setMenu(menu === project.id ? null : project.id)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-300/15 bg-[#030713] text-xl text-slate-300 hover:border-amber-300/30">•••</button>
       {menu === project.id ? <div role="menu" className="absolute right-0 top-11 z-20 min-w-[160px] rounded-xl border border-[rgba(212,175,55,.2)] bg-[#030713] p-1.5 shadow-2xl">
