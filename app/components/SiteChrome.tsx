@@ -23,7 +23,7 @@ export default function SiteChrome({ children, year }: { children: ReactNode; ye
   return (
     <div className={`relative z-10 overflow-x-hidden ${isAiBuilder ? "xl:h-dvh xl:min-h-0 xl:overflow-hidden" : "min-h-screen"}`}>
       <header className="sticky top-0 z-50 border-b border-[rgba(212,175,55,0.16)] bg-[rgba(3,7,19,0.78)] backdrop-blur-xl">
-        <div className="relative mx-auto flex min-h-14 w-[calc(100%-1.5rem)] max-w-[90rem] items-center justify-between gap-5 px-4 py-2 sm:w-[calc(100%-3rem)] sm:px-5 lg:px-6">
+        <div className="relative mx-auto flex min-h-14 w-[calc(100%-1.5rem)] max-w-[90rem] items-center justify-between gap-5 px-4 py-2 min-[1200px]:w-[calc(100%-3rem)] min-[1200px]:px-6">
           <Link href="/" className="group flex min-w-0 items-center gap-3">
             <Image
               src="/apple-touch-icon.png"
@@ -32,38 +32,38 @@ export default function SiteChrome({ children, year }: { children: ReactNode; ye
               height={40}
               className="h-10 w-10 shrink-0 rounded-lg shadow-[0_10px_26px_rgba(0,0,0,0.34)] transition-transform duration-200 group-hover:-translate-y-0.5"
             />
-            <span className="absolute left-1/2 top-1/2 min-w-0 -translate-x-1/2 -translate-y-1/2 text-center sm:static sm:translate-x-0 sm:translate-y-0 sm:text-left">
-              <span className="block truncate text-xs font-black uppercase tracking-[0.16em] text-white sm:text-sm">
+            <span className="absolute left-1/2 top-1/2 min-w-0 -translate-x-1/2 -translate-y-1/2 text-center min-[1200px]:static min-[1200px]:translate-x-0 min-[1200px]:translate-y-0 min-[1200px]:text-left">
+              <span className="block truncate text-xs font-black uppercase tracking-[0.16em] text-white min-[1200px]:text-sm">
                 JG Creative Studio
               </span>
-              <span className="hidden text-[0.68rem] font-medium tracking-wide text-[var(--muted)] sm:block">
+              <span className="hidden text-[0.68rem] font-medium tracking-wide text-[var(--muted)] min-[1200px]:block">
                 Websites · AI Systems · Growth Technology
               </span>
             </span>
           </Link>
 
-          <nav className="hidden -translate-x-10 items-center gap-7 text-xs font-bold text-slate-300 lg:flex xl:-translate-x-14">
+          <nav className="hidden -translate-x-14 items-center gap-7 text-xs font-bold text-slate-300 min-[1200px]:flex">
             <SiteNavLinks />
           </nav>
 
           <div className="flex shrink-0 items-center gap-3">
             <Link
               href="/contact"
-              className="hidden rounded-lg border border-amber-300/15 bg-[#081226] px-4 py-2 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:inline-flex"
+              className="hidden rounded-lg border border-amber-300/15 bg-[#081226] px-4 py-2 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] min-[1200px]:inline-flex"
             >
               Start a Project
             </Link>
             <Link
               href="/contact"
               aria-label="Contact JG Creative Studio"
-              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-amber-300/15 bg-[#081226] text-lg font-black text-white shadow-[0_12px_26px_rgba(212,175,55,0.2),inset_0_1px_0_rgba(255,255,255,0.38)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:hidden"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-amber-300/15 bg-[#081226] text-lg font-black text-white shadow-[0_12px_26px_rgba(212,175,55,0.2),inset_0_1px_0_rgba(255,255,255,0.38)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] min-[1200px]:hidden"
             >
               ↗
             </Link>
           </div>
         </div>
 
-        <nav className="border-t border-white/[0.05] px-3 py-2 lg:hidden">
+        <nav className="border-t border-white/[0.05] px-3 py-2 min-[1200px]:hidden">
           <div className="mx-auto flex w-full items-center justify-between overflow-hidden text-[0.6rem] font-semibold text-slate-300 min-[390px]:text-[0.66rem]">
             <SiteNavLinks mobile />
           </div>
