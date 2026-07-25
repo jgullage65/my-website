@@ -108,8 +108,7 @@ function reviewSection(entry: BusinessContextEntry): {
   return {
     key: `legacy:${entry.category}`,
     label: CATEGORY_LABELS[entry.category],
-    order:
-      2_000 + Object.keys(CATEGORY_LABELS).indexOf(entry.category),
+    order: 2_000 + Object.keys(CATEGORY_LABELS).indexOf(entry.category),
   };
 }
 
@@ -136,11 +135,11 @@ function entryLayout(entry: BusinessContextEntry): "compact" | "narrative" {
   return "compact";
 }
 
-const primaryButtonClassName =
-  "rounded-xl border border-amber-300/20 bg-[#081226] px-4 py-2.5 text-xs font-bold text-white shadow-[0_10px_24px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
+const canonicalButtonClassName =
+  "cta-raised inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
 
-const secondaryButtonClassName =
-  "rounded-xl border border-white/[0.09] bg-white/[0.025] px-4 py-2.5 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:bg-white/[0.045] hover:text-white";
+const filterButtonClassName =
+  "cta-raised inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-2.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]";
 
 const itemActionClassName =
   "rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
@@ -327,88 +326,76 @@ export default function AiBuilderReview({
     session.status === "ready" && session.contextCounts.approved > 0;
 
   return (
-    <div className="w-full space-y-6 bg-[#030713] pb-10 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:px-8">
+    <div className="relative w-full space-y-6 bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
       {confirmDialogNode}
+      <AiBuilderAuthCta />
 
       {bulkFailureMessage ? (
         <p
-          className="mx-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200 sm:mx-6 min-[1200px]:mx-0"
+          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200"
           role="alert"
         >
           {bulkFailureMessage}
         </p>
       ) : null}
 
-      <section className="border-b border-white/[0.075] px-4 pb-5 pt-2 sm:px-6 min-[1200px]:px-1">
-        <AiBuilderAuthCta />
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
-              Business memory review
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
-              Review what your <span className="text-amber-300">AI learned.</span>
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
-              Approve, correct, or remove anything before it becomes trusted business knowledge.
-            </p>
-          </div>
+      <section className="border-b border-white/[0.075] pb-6 pt-10 sm:pt-4">
+        <p className="text-center text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">
+          Business memory review
+        </p>
 
-          <div className="flex flex-wrap gap-2 xl:justify-end">
-            <button type="button" onClick={onBack} className={secondaryButtonClassName}>
-              Back to results
-            </button>
-            <button type="button" onClick={approveAll} className={primaryButtonClassName}>
-              Approve all
-            </button>
-            <button
-              type="button"
-              onClick={onLaunchChat}
-              disabled={!canLaunchChat}
-              className={primaryButtonClassName}
-            >
-              Test assistant
-            </button>
-          </div>
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <button type="button" onClick={onBack} className={canonicalButtonClassName}>
+            Back to results
+          </button>
+          <button type="button" onClick={approveAll} className={canonicalButtonClassName}>
+            Approve all
+          </button>
+          <button
+            type="button"
+            onClick={onLaunchChat}
+            disabled={!canLaunchChat}
+            className={canonicalButtonClassName}
+          >
+            Test assistant
+          </button>
         </div>
 
-        <div className="mt-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
-            <Stat label="Total" value={session.contextCounts.total} />
-            <Stat label="Approved" value={session.contextCounts.approved} />
-            <Stat label="Pending" value={session.contextCounts.proposed} />
-            <Stat label="Removed" value={session.contextCounts.archived} />
-          </div>
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Stat label="Total" value={session.contextCounts.total} />
+          <Stat label="Approved" value={session.contextCounts.approved} />
+          <Stat label="Pending" value={session.contextCounts.proposed} />
+          <Stat label="Removed" value={session.contextCounts.archived} />
+        </div>
 
-          <div className="flex flex-wrap gap-2" aria-label="Review filter">
-            {(["all", "proposed", "approved", "archived"] as const).map(
-              (nextFilter) => (
-                <button
-                  key={nextFilter}
-                  type="button"
-                  onClick={() => setFilter(nextFilter)}
-                  className={`${secondaryButtonClassName} ${
-                    filter === nextFilter
-                      ? "border-amber-300/30 bg-amber-300/[0.075] text-amber-200"
-                      : ""
-                  }`}
-                  aria-pressed={filter === nextFilter}
-                >
-                  {nextFilter === "all"
-                    ? "All"
-                    : nextFilter === "archived"
-                      ? "Removed"
-                      : nextFilter === "proposed"
-                        ? "Pending"
-                        : "Approved"}
-                </button>
-              ),
-            )}
-          </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-3" aria-label="Review filter">
+          {(["all", "proposed", "approved", "archived"] as const).map(
+            (nextFilter) => (
+              <button
+                key={nextFilter}
+                type="button"
+                onClick={() => setFilter(nextFilter)}
+                className={`${filterButtonClassName} ${
+                  filter === nextFilter
+                    ? "border-amber-300/35 bg-[#0b1830] text-amber-200"
+                    : ""
+                }`}
+                aria-pressed={filter === nextFilter}
+              >
+                {nextFilter === "all"
+                  ? "All"
+                  : nextFilter === "archived"
+                    ? "Removed"
+                    : nextFilter === "proposed"
+                      ? "Pending"
+                      : "Approved"}
+              </button>
+            ),
+          )}
         </div>
       </section>
 
-      <div className="px-4 sm:px-6 min-[1200px]:px-0">
+      <div>
         {grouped.length ? (
           <section className="space-y-7">
             <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
@@ -740,9 +727,7 @@ export default function AiBuilderReview({
 
         {!grouped.length && !visibleFaqEntries.length ? (
           <section className="rounded-[16px] border border-amber-300/20 bg-[#050a16]/88 p-8 text-center shadow-[0_12px_30px_rgba(0,0,0,0.14)]">
-            <p className="text-sm text-slate-400">
-              No items match this filter.
-            </p>
+            <p className="text-sm text-slate-400">No items match this filter.</p>
           </section>
         ) : null}
       </div>
@@ -752,9 +737,9 @@ export default function AiBuilderReview({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-0 rounded-xl border border-amber-300/20 bg-[#050a16]/88 px-3 py-3 text-center sm:min-w-[92px] sm:px-4">
-      <p className="text-lg font-semibold text-white">{value}</p>
-      <p className="mt-1 truncate text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
+    <div className="min-w-0 rounded-xl border border-amber-300/25 bg-[#030713] px-3 py-4 text-center shadow-[0_10px_24px_rgba(0,0,0,0.18)] sm:px-4">
+      <p className="text-2xl font-semibold text-white">{value}</p>
+      <p className="mt-2 whitespace-nowrap text-[0.68rem] font-black uppercase tracking-[0.12em] text-amber-300">
         {label}
       </p>
     </div>
