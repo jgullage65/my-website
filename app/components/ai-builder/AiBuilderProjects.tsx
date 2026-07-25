@@ -132,7 +132,7 @@ export default function AiBuilderProjects() {
             </SignUpButton>
           </div>
         )}
-        <div className="text-center">
+        <div className={`${!isSignedIn ? "pt-14 sm:pt-0" : ""} text-center`}>
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
           <p className="mx-auto mt-3 max-w-2xl text-slate-400">Continue building and refining your business AI systems.</p>
           {isSignedIn && !loading && projects.length ? <button type="button" onClick={() => void beginProjectCreation()} className="mt-6 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">New AI Builder Project</button> : null}
