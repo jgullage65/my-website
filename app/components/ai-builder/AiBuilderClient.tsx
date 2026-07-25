@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
@@ -134,7 +135,6 @@ async function fetchProject(
   return payload;
 }
 
-
 export default function AiBuilderClient({
   initialProjectId = null,
 }: Props) {
@@ -154,17 +154,12 @@ export default function AiBuilderClient({
     new Set(),
   );
   const [buildPercent, setBuildPercent] = useState(0);
-  // This is only a cache of the last server response; it never advances a
-  // revision locally or derives a transition.
   const authoritativeRevisionRef = useRef(0);
   const pendingReviewItemsRef = useRef(new Set<string>());
-  // This chain serializes network requests while keeping the UI interactive.
-  // Each item retains its own pending state until its queued command settles.
   const reviewCommandQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const submitReviewCommand = useCallback((command: ReviewCommandRequest) => {
     const pendingKey = `${command.itemKind}:${command.itemId}`;
-    // Reject duplicate clicks while allowing commands for other items to queue.
     if (pendingReviewItemsRef.current.has(pendingKey)) {
       return Promise.reject(
         new Error("A review command is already pending for this item."),
@@ -178,8 +173,6 @@ export default function AiBuilderClient({
       try {
         setSaveStatus("saving");
         setSaveError(null);
-        // Build the request at execution time, after every preceding command
-        // has applied its canonical governance revision.
         const authoritativeCommand = {
           ...command,
           clientRevision: authoritativeRevisionRef.current,
@@ -212,7 +205,6 @@ export default function AiBuilderClient({
         throw commandError;
       }
     });
-    // Keep the queue live after failures so later actions still execute.
     reviewCommandQueueRef.current = queuedCommand.catch(() => undefined);
     return queuedCommand.finally(() => {
       pendingReviewItemsRef.current.delete(pendingKey);
@@ -237,9 +229,11 @@ export default function AiBuilderClient({
       window.history.replaceState(null, "", url.toString());
     }
 
-    window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-    });
+    if (!window.matchMedia("(min-width: 1200px)").matches) {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -462,6 +456,78 @@ export default function AiBuilderClient({
     }
   };
 
+  const renderReview = () => (
+    <>
+      {reviewSaveStatus !== "idle" || saveError ? (
+        <div
+          className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${
+            reviewSaveStatus === "error"
+              ? "border-red-500/30 bg-red-500/10 text-red-200"
+              : "border-amber-300/20 bg-[#030713] text-slate-400"
+          }`}
+          role={reviewSaveStatus === "error" ? "alert" : "status"}
+          aria-live="polite"
+        >
+          {reviewSaveStatus === "saving"
+            ? "Applying review command..."
+            : reviewSaveStatus === "saved"
+              ? "Review command applied."
+              : saveError}
+        </div>
+      ) : null}
+
+      <AiBuilderReview
+        session={session!}
+        onReviewCommand={submitReviewCommand}
+        pendingReviewItems={pendingReviewItems}
+        onBack={() => navigateToStep("results")}
+        onLaunchChat={() => navigateToStep("chat")}
+      />
+    </>
+  );
+
+  const renderProjectView = () => {
+    if (!session) return null;
+
+    if (step === "review") return renderReview();
+
+    if (step === "chat" && knowledgePack) {
+      return (
+        <AiBuilderDemoChat
+          knowledge={knowledgePack}
+          projectId={session.id}
+          chatThread={chatThread}
+          onBack={() => navigateToStep("review")}
+        />
+      );
+    }
+
+    return (
+      <AiBuilderProgress
+        builder={builder}
+        session={session}
+        complete
+        percent={100}
+        onReview={() => navigateToStep("review")}
+      />
+    );
+  };
+
+  const workspaceNav = [
+    { label: "Overview", step: "results" as const },
+    { label: "Knowledge", step: "review" as const },
+    { label: "Test", step: "chat" as const },
+  ];
+
+  const saveLabel =
+    reviewSaveStatus === "saving"
+      ? "Saving changes"
+      : reviewSaveStatus === "error"
+        ? "Save issue"
+        : reviewSaveStatus === "saved"
+          ? "All changes saved"
+          : "Ready";
+
   return (
     <AiBuilderShell>
       {step === "loading" ? (
@@ -503,55 +569,95 @@ export default function AiBuilderClient({
         />
       )}
 
-      {step === "results" && session ? (
-        <AiBuilderProgress
-          builder={builder}
-          session={session}
-          complete
-          percent={100}
-          onReview={() => navigateToStep("review")}
-        />
-      ) : null}
-
-      {step === "review" && session ? (
+      {session && (step === "results" || step === "review" || step === "chat") ? (
         <>
-          {reviewSaveStatus !== "idle" || saveError ? (
-            <div
-              className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${
-                reviewSaveStatus === "error"
-                  ? "border-red-500/30 bg-red-500/10 text-red-200"
-                  : "border-amber-300/20 bg-[#030713] text-slate-400"
-              }`}
-              role={
-                reviewSaveStatus === "error" ? "alert" : "status"
-              }
-              aria-live="polite"
-            >
-              {reviewSaveStatus === "saving"
-                ? "Applying review command..."
-                : reviewSaveStatus === "saved"
-                  ? "Review command applied."
-                  : saveError}
+          <div className="hidden min-[1200px]:block">
+            <div className="overflow-hidden rounded-[30px] border border-amber-300/15 bg-[linear-gradient(180deg,rgba(3,7,19,0.98),rgba(2,6,16,0.96))] shadow-[0_28px_100px_rgba(0,0,0,0.4),0_0_60px_rgba(245,158,11,0.05)]">
+              <header className="flex items-center justify-between gap-6 border-b border-white/8 px-7 py-5">
+                <div className="min-w-0">
+                  <Link
+                    href="/ai-builder/projects"
+                    className="inline-flex items-center text-xs font-semibold uppercase tracking-[0.2em] text-amber-300 transition hover:text-amber-200"
+                  >
+                    Back to projects
+                  </Link>
+                  <div className="mt-3 flex items-end gap-4">
+                    <div className="min-w-0">
+                      <h1 className="truncate text-2xl font-semibold text-white">
+                        {builder.businessName || "AI Builder Project"}
+                      </h1>
+                      {builder.website ? (
+                        <p className="mt-1 truncate text-sm text-slate-400">
+                          {builder.website}
+                        </p>
+                      ) : null}
+                    </div>
+                    <span className="rounded-full border border-amber-300/20 bg-amber-300/8 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">
+                      {session.status}
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  className={`rounded-full border px-4 py-2 text-xs font-medium ${
+                    reviewSaveStatus === "error"
+                      ? "border-red-400/30 bg-red-500/10 text-red-200"
+                      : "border-white/10 bg-white/[0.03] text-slate-300"
+                  }`}
+                >
+                  {saveLabel}
+                </div>
+              </header>
+
+              <div className="grid grid-cols-[220px_minmax(0,1fr)]">
+                <aside className="border-r border-white/8 bg-black/10 p-4">
+                  <nav className="sticky top-6 space-y-2" aria-label="AI Builder workspace">
+                    {workspaceNav.map((item) => {
+                      const active = step === item.step;
+
+                      return (
+                        <button
+                          key={item.step}
+                          type="button"
+                          onClick={() => navigateToStep(item.step)}
+                          className={`flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-semibold transition ${
+                            active
+                              ? "border border-amber-300/20 bg-amber-300/10 text-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                              : "border border-transparent text-slate-400 hover:border-white/8 hover:bg-white/[0.03] hover:text-white"
+                          }`}
+                        >
+                          <span>{item.label}</span>
+                          {active ? <span aria-hidden="true">•</span> : null}
+                        </button>
+                      );
+                    })}
+
+                    <div className="my-4 border-t border-white/8" />
+
+                    {["Sources", "Settings"].map((label) => (
+                      <div
+                        key={label}
+                        className="flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-semibold text-slate-600"
+                        aria-disabled="true"
+                      >
+                        <span>{label}</span>
+                        <span className="text-[10px] uppercase tracking-[0.16em]">Soon</span>
+                      </div>
+                    ))}
+                  </nav>
+                </aside>
+
+                <main className="min-w-0 p-6 xl:p-8">
+                  {renderProjectView()}
+                </main>
+              </div>
             </div>
-          ) : null}
+          </div>
 
-          <AiBuilderReview
-            session={session}
-            onReviewCommand={submitReviewCommand}
-            pendingReviewItems={pendingReviewItems}
-            onBack={() => navigateToStep("results")}
-            onLaunchChat={() => navigateToStep("chat")}
-          />
+          <div className="min-[1200px]:hidden">
+            {renderProjectView()}
+          </div>
         </>
-      ) : null}
-
-      {step === "chat" && knowledgePack && session ? (
-        <AiBuilderDemoChat
-          knowledge={knowledgePack}
-          projectId={session.id}
-          chatThread={chatThread}
-          onBack={() => navigateToStep("review")}
-        />
       ) : null}
     </AiBuilderShell>
   );
