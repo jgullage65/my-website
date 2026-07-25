@@ -125,6 +125,7 @@ export default function AiBuilderDemoChat({
   onBack,
 }: Props) {
   const retrySubmissionRef = useRef<{message:string;idempotencyKey:string}|null>(null);
+  const modalRootRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     createInitialMessages(knowledge, chatThread),
   );
@@ -150,6 +151,33 @@ export default function AiBuilderDemoChat({
     scrollTop: number;
   } | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
+
+  useEffect(() => {
+    const root = modalRootRef.current;
+    if (
+      !root ||
+      root.getClientRects().length === 0 ||
+      !window.matchMedia("(max-width: 1199.99px)").matches
+    ) {
+      return;
+    }
+
+    const html = document.documentElement;
+    const body = document.body;
+    const previousHtmlOverflow = html.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    const previousBodyOverscroll = body.style.overscrollBehavior;
+
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "none";
+
+    return () => {
+      html.style.overflow = previousHtmlOverflow;
+      body.style.overflow = previousBodyOverflow;
+      body.style.overscrollBehavior = previousBodyOverscroll;
+    };
+  }, []);
 
   const chatUnavailable = !chatThread?.id;
   const messageLimitReached =
@@ -499,7 +527,7 @@ export default function AiBuilderDemoChat({
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#030713] xl:static xl:z-auto xl:h-full xl:bg-transparent">
+    <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#030713] xl:static xl:z-auto xl:h-full xl:bg-transparent">
       <header className="relative flex flex-none items-center justify-center border-b border-white/10 px-5 py-5 sm:px-8 xl:hidden">
         <p className="text-center text-sm font-black uppercase tracking-[0.28em] text-amber-300">
           Live assistant test
@@ -518,7 +546,8 @@ export default function AiBuilderDemoChat({
         <div className="relative min-h-0 flex-1">
           <div
             ref={chatScrollRef}
-            className="ai-builder-chat-scrollbar h-full min-h-0 space-y-5 overflow-y-scroll p-4 pr-7 sm:p-6 sm:pr-9"
+            style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
+            className="ai-builder-chat-scrollbar h-full min-h-0 touch-pan-y space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-6 [&::-webkit-scrollbar]:hidden"
           >
           {messages.map((item) => (
             <div
@@ -548,7 +577,7 @@ export default function AiBuilderDemoChat({
 
           <div
             ref={scrollbarTrackRef}
-            className="pointer-events-none absolute inset-y-3 right-2 z-10 w-3 rounded-full bg-[#050b18]"
+            className="hidden"
             aria-hidden="true"
           >
             <div
@@ -556,11 +585,7 @@ export default function AiBuilderDemoChat({
               onPointerMove={dragScrollbar}
               onPointerUp={stopScrollbarDrag}
               onPointerCancel={stopScrollbarDrag}
-              className={`pointer-events-auto absolute left-[2px] right-[2px] touch-none rounded-full bg-[#d4af37] hover:bg-amber-300 ${
-                scrollbarDragging
-                  ? "cursor-grabbing"
-                  : "cursor-grab"
-              }`}
+              className={`absolute ${scrollbarDragging ? "cursor-grabbing" : "cursor-grab"}`}
               style={{
                 height: `${scrollbarMetrics.height}px`,
                 transform: `translateY(${scrollbarMetrics.top}px)`,
