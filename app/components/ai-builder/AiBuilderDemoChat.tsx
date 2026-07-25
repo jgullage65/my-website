@@ -14,7 +14,6 @@ import type {
   ChatDiagnostics,
   ChatResponse,
 } from "@/app/lib/ai-engine/chat";
-import AiBuilderAuthCta from "./AiBuilderAuthCta";
 
 const PROJECT_USER_MESSAGE_LIMIT = 20;
 
@@ -57,7 +56,6 @@ type ScrollbarMetrics = {
   height: number;
   top: number;
 };
-
 
 type PurchaseInterestPayload = {
   ok?: boolean;
@@ -501,40 +499,26 @@ export default function AiBuilderDemoChat({
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <section className="relative overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] px-5 py-7 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)] sm:px-8 sm:py-9">
-        <AiBuilderAuthCta />
-        <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
+    <div className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#030713] xl:static xl:z-auto xl:h-full xl:bg-transparent">
+      <header className="relative flex flex-none items-center justify-center border-b border-white/10 px-5 py-5 sm:px-8 xl:hidden">
+        <p className="text-center text-sm font-black uppercase tracking-[0.28em] text-amber-300">
+          Live assistant test
+        </p>
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Close live assistant test"
+          className="absolute right-5 top-1/2 -translate-y-1/2 text-3xl font-light leading-none text-slate-300 transition hover:text-white"
+        >
+          ×
+        </button>
+      </header>
 
-        <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300 sm:text-sm">
-            Live assistant preview
-          </p>
-
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl">
-            Test {knowledge.assistantName}
-          </h1>
-
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">
-            Ask real questions and see how your AI responds
-            using only approved business knowledge.
-          </p>
-
-          <button
-            type="button"
-            onClick={onBack}
-            className="mt-6 rounded-2xl border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830]"
-          >
-            Back to knowledge
-          </button>
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-[30px] border border-white/10 bg-[#030713] shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
-        <div className="relative">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#030713] xl:rounded-[30px] xl:border xl:border-white/10 xl:shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
+        <div className="relative min-h-0 flex-1">
           <div
             ref={chatScrollRef}
-            className="ai-builder-chat-scrollbar max-h-[620px] min-h-[500px] space-y-5 overflow-y-scroll p-4 pr-7 sm:p-6 sm:pr-9"
+            className="ai-builder-chat-scrollbar h-full min-h-0 space-y-5 overflow-y-scroll p-4 pr-7 sm:p-6 sm:pr-9"
           >
           {messages.map((item) => (
             <div
@@ -587,7 +571,7 @@ export default function AiBuilderDemoChat({
 
         <form
           onSubmit={sendMessage}
-          className="border-t border-white/[0.08] p-4 sm:p-5"
+          className="flex-none border-t border-white/[0.08] p-4 sm:p-5"
         >
           {chatUnavailable ? (
             <div className="mb-3 rounded-xl border border-red-400/20 bg-red-400/[0.07] px-4 py-3 text-sm text-red-200">
