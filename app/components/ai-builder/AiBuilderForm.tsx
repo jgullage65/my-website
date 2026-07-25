@@ -233,19 +233,20 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
       <div className="relative bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[28px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:p-8 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
         <AiBuilderAuthCta />
 
-        <header className="text-center">
+        <Link
+          href="/ai-builder"
+          className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] min-[1200px]:absolute min-[1200px]:left-8 min-[1200px]:top-8"
+        >
+          ← All Projects
+        </Link>
+
+        <header className="mt-8 text-center min-[1200px]:mt-0">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
             AI Builder
           </p>
-          <Link
-            href="/ai-builder"
-            className="mt-8 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]"
-          >
-            ← All Projects
-          </Link>
         </header>
 
-        <div className="mt-8 space-y-6">
+        <div className="mt-5 space-y-6 min-[1200px]:mt-4">
           <section className="min-[1200px]:mx-auto min-[1200px]:w-[42%] min-[1200px]:min-w-[32rem] min-[1200px]:max-w-[40rem]">
             <article className={`${cardClassName} relative overflow-hidden text-center`}>
               <div className="absolute right-[-5rem] top-[-5rem] h-44 w-44 rounded-full bg-amber-400/10 blur-3xl" />
@@ -321,14 +322,26 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
             </article>
           </section>
 
-          <section className="min-w-0 space-y-4">
+          <section className={`${cardClassName} mx-auto text-center min-[1200px]:w-[42%] min-[1200px]:min-w-[32rem] min-[1200px]:max-w-[40rem] min-[1200px]:py-4`}>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Communication style</p>
+            <h3 className="mt-2 text-xl font-semibold text-white">How should your AI sound?</h3>
+            <select className={`${inputClassName} mt-4`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
+              <option>Professional</option>
+              <option>Friendly</option>
+              <option>Consultative</option>
+              <option>Direct</option>
+              <option>Warm</option>
+            </select>
+          </section>
+
+          <section className="min-w-0 space-y-5 min-[1200px]:space-y-7">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Your expertise</p>
               <h2 className="mt-1 text-2xl font-semibold text-white sm:text-3xl">Add what only you know.</h2>
               <p className="mt-2 text-sm leading-6 text-slate-400">Your answers stay separate from the website import and take priority when sources conflict.</p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-6">
+            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-5 min-[1200px]:gap-x-6 min-[1200px]:gap-y-8">
               <KnowledgeCard title="Business profile">
                 <Field label="Business name" required>
                   <input className={inputClassName} placeholder="JG Creative Studio" value={value.businessName} onChange={(event) => updateProfile("businessName", event.target.value)} />
@@ -349,18 +362,6 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <KnowledgeCard title="Additional Business Knowledge">
                 <textarea rows={6} className={`${inputClassName} resize-y`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} />
               </KnowledgeCard>
-
-              <section className={`${cardClassName} text-center`}>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Communication style</p>
-                <h3 className="mt-2 text-xl font-semibold text-white">How should your AI sound?</h3>
-                <select className={`${inputClassName} mt-4`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
-                  <option>Professional</option>
-                  <option>Friendly</option>
-                  <option>Consultative</option>
-                  <option>Direct</option>
-                  <option>Warm</option>
-                </select>
-              </section>
 
               <section className={`${cardClassName} relative overflow-hidden text-center`}>
                 <div className="absolute inset-x-0 bottom-[-7rem] mx-auto h-40 max-w-xl rounded-full bg-amber-400/12 blur-[80px]" />
