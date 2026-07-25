@@ -421,7 +421,7 @@ function Status({ tone, children }: { tone: "success" | "error"; children: React
 }
 
 function WebsiteKnowledgeModal({ knowledge, onClose }: { knowledge: WebsiteKnowledge; onClose: () => void }) {
-  const canonicalSections: Array<[WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]> = useMemo(
+  const canonicalSections: Array<[WebsiteKnowledgeFact["category"], WebsiteKnowledgeFact[]]> = useMemo(
     () => groupWebsiteKnowledgeFacts(knowledge.knowledge),
     [knowledge.knowledge],
   );
@@ -452,13 +452,13 @@ function WebsiteKnowledgeModal({ knowledge, onClose }: { knowledge: WebsiteKnowl
 
           {canonicalSections.length ? (
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              {canonicalSections.map(([section, facts]) => (
-                <section key={section} className="rounded-2xl border border-white/10 bg-black/10 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">{WEBSITE_KNOWLEDGE_SECTION_LABELS[section]}</p>
+              {canonicalSections.map(([category, facts]) => (
+                <section key={category} className="rounded-2xl border border-white/10 bg-black/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">{WEBSITE_KNOWLEDGE_SECTION_LABELS[category]}</p>
                   <div className="mt-3 space-y-3">
                     {facts.map((fact, index) => (
-                      <article key={`${section}-${fact.label}-${index}`}>
-                        <p className="text-sm font-semibold text-white">{fact.label}</p>
+                      <article key={`${category}-${fact.title}-${index}`}>
+                        <p className="text-sm font-semibold text-white">{fact.title}</p>
                         <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-400">{fact.value}</p>
                       </article>
                     ))}
@@ -502,18 +502,18 @@ function LegacyKnowledgeSection({ title, value }: { title: string; value: string
 
 function groupWebsiteKnowledgeFacts(
   knowledge?: StructuredWebsiteKnowledge,
-): Array<[WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]> {
+): Array<[WebsiteKnowledgeFact["category"], WebsiteKnowledgeFact[]]> {
   if (!knowledge?.facts?.length) return [];
-  const grouped = new Map<WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]>();
+  const grouped = new Map<WebsiteKnowledgeFact["category"], WebsiteKnowledgeFact[]>();
   for (const fact of knowledge.facts) {
-    const current = grouped.get(fact.section) ?? [];
+    const current = grouped.get(fact.category) ?? [];
     current.push(fact);
-    grouped.set(fact.section, current);
+    grouped.set(fact.category, current);
   }
-  return WEBSITE_KNOWLEDGE_SECTION_ORDER.flatMap((section) => {
-    const facts = grouped.get(section);
+  return WEBSITE_KNOWLEDGE_SECTION_ORDER.flatMap((category) => {
+    const facts = grouped.get(category);
     return facts?.length
-      ? [[section, facts] as [WebsiteKnowledgeFact["section"], WebsiteKnowledgeFact[]]]
+      ? [[category, facts] as [WebsiteKnowledgeFact["category"], WebsiteKnowledgeFact[]]]
       : [];
   });
 }
