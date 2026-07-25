@@ -536,7 +536,10 @@ export default function AiBuilderReview({
                                     itemKind: "context_entry",
                                     expectedCurrentState: entry.status,
                                     kind: "correct",
-                                    correction: draft,
+                                    correction: {
+                                      itemKind: "context_entry",
+                                      ...draft,
+                                    },
                                   });
                                   setEditingEntry(null);
                                 } else {
@@ -695,7 +698,10 @@ export default function AiBuilderReview({
                                 itemKind: "faq",
                                 expectedCurrentState: faq.status,
                                 kind: "correct",
-                                correction: draft,
+                                correction: {
+                                  itemKind: "faq",
+                                  ...draft,
+                                },
                               });
                               setEditingFaq(null);
                             } else {
