@@ -327,7 +327,7 @@ export default function AiBuilderReview({
     session.status === "ready" && session.contextCounts.approved > 0;
 
   return (
-    <div className="w-full space-y-6 pb-10 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:px-8">
+    <div className="w-full space-y-6 bg-[#030713] pb-10 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:px-8">
       {confirmDialogNode}
 
       {bulkFailureMessage ? (
