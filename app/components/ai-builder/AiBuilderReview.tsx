@@ -139,7 +139,7 @@ const canonicalButtonClassName =
   "cta-raised inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
 
 const filterButtonClassName =
-  "cta-raised inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-2.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]";
+  "cta-raised inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-2.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]";
 
 const itemActionClassName =
   "rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
@@ -326,7 +326,7 @@ export default function AiBuilderReview({
     session.status === "ready" && session.contextCounts.approved > 0;
 
   return (
-    <div className="relative w-full space-y-6 bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
+    <div className="relative w-full space-y-6 bg-[#030713] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
       {confirmDialogNode}
       <AiBuilderAuthCta />
 
@@ -339,7 +339,7 @@ export default function AiBuilderReview({
         </p>
       ) : null}
 
-      <section className="border-b border-white/[0.075] pb-6 pt-10 sm:pt-4">
+      <section className="border-b border-white/[0.075] pb-6 pt-4 sm:pt-2">
         <p className="text-center text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">
           Business memory review
         </p>
@@ -368,7 +368,7 @@ export default function AiBuilderReview({
           <Stat label="Removed" value={session.contextCounts.archived} />
         </div>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-3" aria-label="Review filter">
+        <div className="mt-6 grid grid-cols-2 gap-3" aria-label="Review filter">
           {(["all", "proposed", "approved", "archived"] as const).map(
             (nextFilter) => (
               <button
