@@ -119,7 +119,6 @@ export default function AiBuilderProjects() {
         <AiBuilderAuthCta />
         <div className="text-center">
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
-          <h1 className="mt-3 text-3xl font-black tracking-[-.045em] text-white sm:text-5xl">Your <span className="text-[var(--gold)]">Projects</span></h1>
           <p className="mx-auto mt-3 max-w-2xl text-slate-400">Continue building and refining your business AI systems.</p>
           {isSignedIn && !loading && projects.length ? <button type="button" onClick={() => void beginProjectCreation()} className="mt-6 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]">New AI Builder Project</button> : null}
         </div>
@@ -169,7 +168,6 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
     <div className="block pt-5 text-center">
       <h3 className="mx-auto max-w-[85%] text-2xl font-black tracking-[-.035em] text-[var(--gold)]">{project.businessName}</h3>
       <p className="mt-3 truncate text-sm text-slate-400">{project.website || "No website added"}</p>
-      <p className="mx-auto mt-5 line-clamp-3 max-w-sm text-sm font-medium leading-6 text-slate-300">{project.industry}</p>
       <dl className="mt-6 space-y-2 border-t border-white/10 pt-4 text-xs text-slate-400"><div className="flex justify-between gap-3"><dt>Updated</dt><dd className="text-right text-slate-300">{date(project.updatedAt)}</dd></div><div className="flex justify-between gap-3"><dt>Created</dt><dd className="text-right text-slate-300">{date(project.createdAt)}</dd></div><div className="flex justify-between gap-3"><dt>Chat messages</dt><dd className="font-bold text-slate-300">{project.messageCount}</dd></div></dl>
     </div>
   </article>)}</div>;
