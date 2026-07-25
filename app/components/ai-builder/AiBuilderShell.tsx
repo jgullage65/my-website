@@ -15,6 +15,21 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
   return (
     <>
       <style jsx global>{`
+        @media (max-width: 1199.99px) {
+          body[data-ai-builder-workspace="true"] .ai-builder-shell {
+            width: 100vw;
+            min-height: calc(100dvh - 56px);
+          }
+
+          body[data-ai-builder-workspace="true"] .ai-builder-shell__content {
+            width: 100%;
+            max-width: none;
+            min-height: calc(100dvh - 56px);
+            margin: 0;
+            padding: 0;
+          }
+        }
+
         @media (min-width: 1280px) {
           body[data-ai-builder-workspace="true"] footer {
             display: none;
