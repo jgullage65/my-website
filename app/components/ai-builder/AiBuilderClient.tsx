@@ -433,7 +433,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   };
 
   const desktopWorkspace = session && knowledgePack ? (
-    <div className="hidden min-h-[760px] overflow-hidden rounded-[28px] border border-white/10 bg-[#020611] shadow-[0_26px_90px_rgba(0,0,0,0.38)] xl:grid xl:grid-cols-[220px_minmax(0,1fr)_390px]">
+    <div className="hidden h-[calc(100dvh-112px)] min-h-[680px] overflow-hidden rounded-[20px] border border-white/10 bg-[#020611] shadow-[0_26px_90px_rgba(0,0,0,0.38)] xl:grid xl:grid-cols-[190px_minmax(0,1fr)_430px]">
       <aside className="border-r border-white/10 bg-[#040a16] p-4">
         <button
           type="button"
@@ -464,16 +464,10 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
             </button>
           ))}
         </nav>
-        <div className="mt-8 rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">AI Builder Tips</p>
-          <p className="mt-2 text-xs leading-5 text-slate-400">
-            Review and approve knowledge before testing the assistant.
-          </p>
-        </div>
       </aside>
 
-      <main className="min-w-0 bg-[#020713]">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 px-6 py-4">
+      <main className="flex min-h-0 min-w-0 flex-col bg-[#020713]">
+        <header className="flex flex-none flex-wrap items-center justify-between gap-4 border-b border-white/10 px-5 py-3">
           <div>
             <h1 className="text-lg font-bold text-white">{builder.businessName || "AI Builder Project"}</h1>
             <p className="mt-1 text-xs text-slate-500">{builder.website || builder.industry}</p>
@@ -493,7 +487,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           </div>
         </header>
 
-        <div className="h-[700px] overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {workspaceTab === "knowledge" ? (
             <>
               {reviewSaveStatus !== "idle" || saveError ? (
@@ -513,7 +507,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                       : saveError}
                 </div>
               ) : null}
-              <div className="[&>div]:max-w-none [&>div>section:first-of-type]:hidden [&>div]:space-y-5">
+              <div className="[&>div]:max-w-none [&>div]:space-y-5 [&>div>section:first-of-type]:hidden [&_.max-w-3xl]:max-w-none [&_.max-w-4xl]:max-w-none [&_.max-w-5xl]:max-w-none">
                 <AiBuilderReview
                   session={session}
                   onReviewCommand={submitReviewCommand}
@@ -532,7 +526,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
               onReview={() => setWorkspaceTab("knowledge")}
             />
           ) : (
-            <div className="flex min-h-[560px] items-center justify-center rounded-3xl border border-white/10 bg-[#030713] p-8 text-center">
+            <div className="flex min-h-full items-center justify-center rounded-3xl border border-white/10 bg-[#030713] p-8 text-center">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-300">{workspaceTab}</p>
                 <h2 className="mt-3 text-2xl font-bold text-white">This workspace is ready for its next module.</h2>
@@ -545,12 +539,12 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         </div>
       </main>
 
-      <aside className="border-l border-white/10 bg-[#040a16] p-4">
-        <div className="mb-4">
+      <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#040a16] p-4">
+        <div className="mb-4 flex-none">
           <p className="text-sm font-bold text-white">Test Your AI Assistant</p>
           <p className="mt-1 text-xs leading-5 text-slate-500">Uses the project’s approved business knowledge.</p>
         </div>
-        <div className="[&>div]:max-w-none [&>div]:space-y-0 [&>div>section:first-of-type]:hidden [&>div>section:last-of-type]:rounded-2xl [&>div>section:last-of-type]:border-white/10 [&_.ai-builder-chat-scrollbar]:min-h-[455px] [&_.ai-builder-chat-scrollbar]:max-h-[455px]">
+        <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:first-of-type]:hidden [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-2xl [&>div>section:last-of-type]:border-white/10 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
           <AiBuilderDemoChat
             knowledge={knowledgePack}
             projectId={session.id}
