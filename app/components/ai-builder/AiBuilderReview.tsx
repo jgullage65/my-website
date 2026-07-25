@@ -327,19 +327,19 @@ export default function AiBuilderReview({
     session.status === "ready" && session.contextCounts.approved > 0;
 
   return (
-    <div className="mx-auto w-full max-w-[92rem] space-y-6 px-4 pb-10 sm:px-6 xl:px-8">
+    <div className="w-full space-y-6 pb-10 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:px-8">
       {confirmDialogNode}
 
       {bulkFailureMessage ? (
         <p
-          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200"
+          className="mx-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200 sm:mx-6 min-[1200px]:mx-0"
           role="alert"
         >
           {bulkFailureMessage}
         </p>
       ) : null}
 
-      <section className="border-b border-white/[0.075] px-1 pb-5 pt-2">
+      <section className="border-b border-white/[0.075] px-4 pb-5 pt-2 sm:px-6 min-[1200px]:px-1">
         <AiBuilderAuthCta />
         <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
@@ -408,377 +408,369 @@ export default function AiBuilderReview({
         </div>
       </section>
 
-      {grouped.length ? (
-        <section className="space-y-7">
-          <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
-            Business knowledge
-          </p>
+      <div className="px-4 sm:px-6 min-[1200px]:px-0">
+        {grouped.length ? (
+          <section className="space-y-7">
+            <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
+              Business knowledge
+            </p>
 
-          {grouped.map(([sectionKey, section]) => (
-            <section key={sectionKey}>
-              <SectionDivider label={section.label} />
+            {grouped.map(([sectionKey, section]) => (
+              <section key={sectionKey}>
+                <SectionDivider label={section.label} />
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {section.entries.map(({ entry }) => {
-                  const entryRenderKey = `context_entry:${entry.id}`;
-                  const editing = editingEntry === entryRenderKey;
-                  const pending = isPending("context_entry", entry.id);
-                  const layout = entryLayout(entry);
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {section.entries.map(({ entry }) => {
+                    const entryRenderKey = `context_entry:${entry.id}`;
+                    const editing = editingEntry === entryRenderKey;
+                    const pending = isPending("context_entry", entry.id);
+                    const layout = entryLayout(entry);
 
-                  return (
-                    <article
-                      key={entryRenderKey}
-                      onClick={() => setSelectedItem(entryRenderKey)}
-                      className={`${panelClassName} ${
-                        layout === "narrative" ? "md:col-span-2" : ""
-                      }`}
-                    >
-                      <div className="px-5 py-4 sm:px-6 sm:py-5">
-                        {editing ? (
-                          <div className="space-y-3">
-                            <input
-                              value={entryDrafts[entryRenderKey]?.title ?? entry.title}
-                              onChange={(event) =>
-                                setEntryDrafts((drafts) => ({
-                                  ...drafts,
-                                  [entryRenderKey]: {
-                                    ...(drafts[entryRenderKey] ?? {
-                                      title: entry.title,
-                                      content: entry.content,
-                                    }),
-                                    title: event.target.value,
-                                  },
-                                }))
-                              }
-                              className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
-                            />
-                            <textarea
-                              rows={5}
-                              value={entryDrafts[entryRenderKey]?.content ?? entry.content}
-                              onChange={(event) =>
-                                setEntryDrafts((drafts) => ({
-                                  ...drafts,
-                                  [entryRenderKey]: {
-                                    ...(drafts[entryRenderKey] ?? {
-                                      title: entry.title,
-                                      content: entry.content,
-                                    }),
-                                    content: event.target.value,
-                                  },
-                                }))
-                              }
-                              className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
-                            />
-                          </div>
-                        ) : (
-                          <>
-                            <h4 className="text-center text-base font-semibold leading-6 text-amber-300">
-                              {entry.title}
-                            </h4>
-                            <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-center text-sm leading-6 text-slate-300">
-                              {entry.content}
-                            </p>
-                          </>
-                        )}
-                      </div>
-
-                      <ItemActions>
-                        {entry.status === "proposed" ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void submit({
-                                itemId: entry.id,
-                                itemKind: "context_entry",
-                                expectedCurrentState: entry.status,
-                                kind: "approve",
-                              })
-                            }
-                            className={approveActionClassName}
-                            disabled={pending}
-                          >
-                            Approve
-                          </button>
-                        ) : null}
-
-                        {entry.status === "archived" ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void submit({
-                                itemId: entry.id,
-                                itemKind: "context_entry",
-                                expectedCurrentState: entry.status,
-                                kind: "restore",
-                              })
-                            }
-                            className={approveActionClassName}
-                            disabled={pending}
-                          >
-                            Restore
-                          </button>
-                        ) : null}
-
-                        {entry.status !== "archived" ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (editing) {
-                                const draft = entryDrafts[entryRenderKey];
-                                if (
-                                  !draft ||
-                                  (draft.title === entry.title &&
-                                    draft.content === entry.content)
-                                ) {
-                                  setEditingEntry(null);
-                                  return;
+                    return (
+                      <article
+                        key={entryRenderKey}
+                        onClick={() => setSelectedItem(entryRenderKey)}
+                        className={`${panelClassName} ${
+                          layout === "narrative" ? "md:col-span-2" : ""
+                        }`}
+                      >
+                        <div className="px-5 py-4 sm:px-6 sm:py-5">
+                          {editing ? (
+                            <div className="space-y-3">
+                              <input
+                                value={entryDrafts[entryRenderKey]?.title ?? entry.title}
+                                onChange={(event) =>
+                                  setEntryDrafts((drafts) => ({
+                                    ...drafts,
+                                    [entryRenderKey]: {
+                                      ...(drafts[entryRenderKey] ?? {
+                                        title: entry.title,
+                                        content: entry.content,
+                                      }),
+                                      title: event.target.value,
+                                    },
+                                  }))
                                 }
+                                className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                              />
+                              <textarea
+                                rows={5}
+                                value={entryDrafts[entryRenderKey]?.content ?? entry.content}
+                                onChange={(event) =>
+                                  setEntryDrafts((drafts) => ({
+                                    ...drafts,
+                                    [entryRenderKey]: {
+                                      ...(drafts[entryRenderKey] ?? {
+                                        title: entry.title,
+                                        content: entry.content,
+                                      }),
+                                      content: event.target.value,
+                                    },
+                                  }))
+                                }
+                                className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <h4 className="text-center text-base font-semibold leading-6 text-amber-300">
+                                {entry.title}
+                              </h4>
+                              <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-center text-sm leading-6 text-slate-300">
+                                {entry.content}
+                              </p>
+                            </>
+                          )}
+                        </div>
+
+                        <ItemActions>
+                          {entry.status === "proposed" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
                                 void submit({
                                   itemId: entry.id,
                                   itemKind: "context_entry",
                                   expectedCurrentState: entry.status,
-                                  kind: "correct",
-                                  correction: {
-                                    itemKind: "context_entry",
-                                    title: draft.title,
-                                    content: draft.content,
-                                    category: entry.category,
-                                  },
+                                  kind: "approve",
                                 })
-                                  .then(() => setEditingEntry(null))
-                                  .catch(() => undefined);
-                              } else {
-                                setEditingEntry(entryRenderKey);
                               }
-                            }}
-                            className={itemActionClassName}
-                            disabled={pending}
-                          >
-                            {editing ? "Save" : "Edit"}
-                          </button>
-                        ) : null}
+                              className={approveActionClassName}
+                              disabled={pending}
+                            >
+                              Approve
+                            </button>
+                          ) : null}
 
-                        {entry.status !== "archived" ? (
-                          <button
-                            type="button"
-                            onClick={() => void removeEntry("knowledge", entry)}
-                            className={itemActionClassName}
-                            disabled={pending}
-                          >
-                            Remove
-                          </button>
-                        ) : null}
-                      </ItemActions>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </section>
-      ) : null}
+                          {entry.status === "archived" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void submit({
+                                  itemId: entry.id,
+                                  itemKind: "context_entry",
+                                  expectedCurrentState: entry.status,
+                                  kind: "restore",
+                                })
+                              }
+                              className={approveActionClassName}
+                              disabled={pending}
+                            >
+                              Restore
+                            </button>
+                          ) : null}
 
-      {visibleFaqEntries.length ? (
-        <section className="space-y-5 border-t border-white/[0.075] pt-7">
-          <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
-            Generated Q&amp;A
-          </p>
+                          {entry.status !== "archived" ? (
+                            <button
+                              type="button"
+                              className={itemActionClassName}
+                              disabled={pending}
+                              onClick={() => {
+                                if (editing) {
+                                  const draft = entryDrafts[entryRenderKey] ?? {
+                                    title: entry.title,
+                                    content: entry.content,
+                                  };
+                                  void submit({
+                                    itemId: entry.id,
+                                    itemKind: "context_entry",
+                                    expectedCurrentState: entry.status,
+                                    kind: "correct",
+                                    correction: draft,
+                                  });
+                                  setEditingEntry(null);
+                                } else {
+                                  setEntryDrafts((drafts) => ({
+                                    ...drafts,
+                                    [entryRenderKey]: {
+                                      title: entry.title,
+                                      content: entry.content,
+                                    },
+                                  }));
+                                  setEditingEntry(entryRenderKey);
+                                }
+                              }}
+                            >
+                              {editing ? "Save" : "Edit"}
+                            </button>
+                          ) : null}
 
-          <div className="columns-1 gap-4 md:columns-2">
-            {visibleFaqEntries.map(({ faq }) => {
-              const faqRenderKey = `faq:${faq.id}`;
-              const editing = editingFaq === faqRenderKey;
-              const pending = isPending("faq", faq.id);
+                          {entry.status !== "archived" ? (
+                            <button
+                              type="button"
+                              className={itemActionClassName}
+                              disabled={pending}
+                              onClick={() => void removeEntry("knowledge", entry)}
+                            >
+                              Remove
+                            </button>
+                          ) : null}
+                        </ItemActions>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </section>
+        ) : null}
 
-              return (
-                <article
-                  key={faqRenderKey}
-                  onClick={() => setSelectedItem(faqRenderKey)}
-                  className={`${panelClassName} mb-4 break-inside-avoid`}
-                >
-                  <div className="px-5 py-4 sm:px-6 sm:py-5">
-                    {editing ? (
-                      <div className="space-y-3">
-                        <input
-                          value={faqDrafts[faqRenderKey]?.question ?? faq.question}
-                          onChange={(event) =>
-                            setFaqDrafts((drafts) => ({
-                              ...drafts,
-                              [faqRenderKey]: {
-                                ...(drafts[faqRenderKey] ?? {
-                                  question: faq.question,
-                                  answer: faq.answer,
-                                }),
-                                question: event.target.value,
-                              },
-                            }))
-                          }
-                          className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
-                        />
-                        <textarea
-                          rows={5}
-                          value={faqDrafts[faqRenderKey]?.answer ?? faq.answer}
-                          onChange={(event) =>
-                            setFaqDrafts((drafts) => ({
-                              ...drafts,
-                              [faqRenderKey]: {
-                                ...(drafts[faqRenderKey] ?? {
-                                  question: faq.question,
-                                  answer: faq.answer,
-                                }),
-                                answer: event.target.value,
-                              },
-                            }))
-                          }
-                          className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
-                        />
-                      </div>
-                    ) : (
-                      <>
-                        <h3 className="text-center text-base font-semibold leading-6 text-amber-300">
-                          {faq.question}
-                        </h3>
-                        <p className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-center text-sm leading-6 text-slate-300">
-                          {faq.answer}
-                        </p>
-                      </>
-                    )}
-                  </div>
+        {visibleFaqEntries.length ? (
+          <section className="mt-8 space-y-4">
+            <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
+              Generated Q&amp;A
+            </p>
 
-                  <ItemActions>
-                    {faq.status === "proposed" ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void submit({
-                            itemId: faq.id,
-                            itemKind: "faq",
-                            expectedCurrentState: faq.status,
-                            kind: "approve",
-                          })
-                        }
-                        className={approveActionClassName}
-                        disabled={pending}
-                      >
-                        Approve
-                      </button>
-                    ) : null}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {visibleFaqEntries.map(({ faq }) => {
+                const faqRenderKey = `faq:${faq.id}`;
+                const editing = editingFaq === faqRenderKey;
+                const pending = isPending("faq", faq.id);
 
-                    {faq.status === "archived" ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          void submit({
-                            itemId: faq.id,
-                            itemKind: "faq",
-                            expectedCurrentState: faq.status,
-                            kind: "restore",
-                          })
-                        }
-                        className={approveActionClassName}
-                        disabled={pending}
-                      >
-                        Restore
-                      </button>
-                    ) : null}
-
-                    {faq.status !== "archived" ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (editing) {
-                            const draft = faqDrafts[faqRenderKey];
-                            if (
-                              !draft ||
-                              (draft.question === faq.question &&
-                                draft.answer === faq.answer)
-                            ) {
-                              setEditingFaq(null);
-                              return;
+                return (
+                  <article
+                    key={faqRenderKey}
+                    onClick={() => setSelectedItem(faqRenderKey)}
+                    className={panelClassName}
+                  >
+                    <div className="px-5 py-4 sm:px-6 sm:py-5">
+                      {editing ? (
+                        <div className="space-y-3">
+                          <input
+                            value={faqDrafts[faqRenderKey]?.question ?? faq.question}
+                            onChange={(event) =>
+                              setFaqDrafts((drafts) => ({
+                                ...drafts,
+                                [faqRenderKey]: {
+                                  ...(drafts[faqRenderKey] ?? {
+                                    question: faq.question,
+                                    answer: faq.answer,
+                                  }),
+                                  question: event.target.value,
+                                },
+                              }))
                             }
+                            className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                          />
+                          <textarea
+                            rows={5}
+                            value={faqDrafts[faqRenderKey]?.answer ?? faq.answer}
+                            onChange={(event) =>
+                              setFaqDrafts((drafts) => ({
+                                ...drafts,
+                                [faqRenderKey]: {
+                                  ...(drafts[faqRenderKey] ?? {
+                                    question: faq.question,
+                                    answer: faq.answer,
+                                  }),
+                                  answer: event.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <h4 className="text-center text-base font-semibold leading-6 text-amber-300">
+                            {faq.question}
+                          </h4>
+                          <p className="mt-3 whitespace-pre-wrap text-center text-sm leading-6 text-slate-300">
+                            {faq.answer}
+                          </p>
+                        </>
+                      )}
+                    </div>
+
+                    <ItemActions>
+                      {faq.status === "proposed" ? (
+                        <button
+                          type="button"
+                          className={approveActionClassName}
+                          disabled={pending}
+                          onClick={() =>
                             void submit({
                               itemId: faq.id,
                               itemKind: "faq",
                               expectedCurrentState: faq.status,
-                              kind: "correct",
-                              correction: {
-                                itemKind: "faq",
-                                question: draft.question,
-                                answer: draft.answer,
-                              },
+                              kind: "approve",
                             })
-                              .then(() => setEditingFaq(null))
-                              .catch(() => undefined);
-                          } else {
-                            setEditingFaq(faqRenderKey);
                           }
-                        }}
-                        className={itemActionClassName}
-                        disabled={pending}
-                      >
-                        {editing ? "Save" : "Edit"}
-                      </button>
-                    ) : null}
+                        >
+                          Approve
+                        </button>
+                      ) : null}
 
-                    {faq.status !== "archived" ? (
-                      <button
-                        type="button"
-                        onClick={() => void removeEntry("faq", faq)}
-                        className={itemActionClassName}
-                        disabled={pending}
-                      >
-                        Remove
-                      </button>
-                    ) : null}
-                  </ItemActions>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
+                      {faq.status === "archived" ? (
+                        <button
+                          type="button"
+                          className={approveActionClassName}
+                          disabled={pending}
+                          onClick={() =>
+                            void submit({
+                              itemId: faq.id,
+                              itemKind: "faq",
+                              expectedCurrentState: faq.status,
+                              kind: "restore",
+                            })
+                          }
+                        >
+                          Restore
+                        </button>
+                      ) : null}
 
-      {!grouped.length && !visibleFaqEntries.length ? (
-        <section className="rounded-2xl border border-amber-300/18 bg-[#050a16]/88 px-5 py-10 text-center">
-          <p className="text-lg font-semibold text-white">
-            No knowledge matches this review filter.
-          </p>
-          <p className="mt-2 text-sm leading-6 text-slate-400">
-            Choose another status to continue reviewing business knowledge.
-          </p>
-        </section>
-      ) : null}
-    </div>
-  );
-}
+                      {faq.status !== "archived" ? (
+                        <button
+                          type="button"
+                          className={itemActionClassName}
+                          disabled={pending}
+                          onClick={() => {
+                            if (editing) {
+                              const draft = faqDrafts[faqRenderKey] ?? {
+                                question: faq.question,
+                                answer: faq.answer,
+                              };
+                              void submit({
+                                itemId: faq.id,
+                                itemKind: "faq",
+                                expectedCurrentState: faq.status,
+                                kind: "correct",
+                                correction: draft,
+                              });
+                              setEditingFaq(null);
+                            } else {
+                              setFaqDrafts((drafts) => ({
+                                ...drafts,
+                                [faqRenderKey]: {
+                                  question: faq.question,
+                                  answer: faq.answer,
+                                },
+                              }));
+                              setEditingFaq(faqRenderKey);
+                            }
+                          }}
+                        >
+                          {editing ? "Save" : "Edit"}
+                        </button>
+                      ) : null}
 
-function ItemActions({ children }: { children: ReactNode }) {
-  return (
-    <div className="mx-5 flex flex-wrap justify-center gap-2 border-t border-amber-300/10 px-0 py-3 sm:mx-6">
-      {children}
-    </div>
-  );
-}
+                      {faq.status !== "archived" ? (
+                        <button
+                          type="button"
+                          className={itemActionClassName}
+                          disabled={pending}
+                          onClick={() => void removeEntry("faq", faq)}
+                        >
+                          Remove
+                        </button>
+                      ) : null}
+                    </ItemActions>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
-function SectionDivider({ label }: { label: string }) {
-  return (
-    <div className="mb-4 flex items-center gap-4 px-1" aria-label={label}>
-      <div className="h-px flex-1 bg-amber-300/12" />
-      <h3 className="text-center text-sm font-semibold tracking-[-0.01em] text-white sm:text-base">
-        {label}
-      </h3>
-      <div className="h-px flex-1 bg-amber-300/12" />
+        {!grouped.length && !visibleFaqEntries.length ? (
+          <section className="rounded-[16px] border border-amber-300/20 bg-[#050a16]/88 p-8 text-center shadow-[0_12px_30px_rgba(0,0,0,0.14)]">
+            <p className="text-sm text-slate-400">
+              No items match this filter.
+            </p>
+          </section>
+        ) : null}
+      </div>
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-[76px] rounded-xl border border-white/[0.075] bg-white/[0.025] px-3 py-2 text-center">
-      <div className="text-lg font-semibold text-amber-300">{value}</div>
-      <div className="mt-0.5 text-[0.64rem] font-semibold uppercase tracking-[0.1em] text-slate-500">
+    <div className="min-w-0 rounded-xl border border-amber-300/20 bg-[#050a16]/88 px-3 py-3 text-center sm:min-w-[92px] sm:px-4">
+      <p className="text-lg font-semibold text-white">{value}</p>
+      <p className="mt-1 truncate text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-slate-500">
         {label}
-      </div>
+      </p>
+    </div>
+  );
+}
+
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-3">
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-300/20" />
+      <h3 className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
+        {label}
+      </h3>
+      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-300/20" />
+    </div>
+  );
+}
+
+function ItemActions({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/[0.065] bg-black/10 px-4 py-3">
+      {children}
     </div>
   );
 }
