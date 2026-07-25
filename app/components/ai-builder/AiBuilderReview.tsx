@@ -92,10 +92,10 @@ const secondaryButtonClassName =
   "rounded-xl border border-white/[0.09] bg-white/[0.025] px-4 py-2.5 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:bg-white/[0.045] hover:text-white";
 
 const itemActionClassName =
-  "rounded-lg border border-amber-300/16 bg-[#07101f] px-3 py-2 text-[0.72rem] font-semibold text-slate-200 transition hover:border-amber-300/30 hover:bg-[#0a1628] hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
 
 const approveActionClassName =
-  "rounded-lg border border-amber-300/24 bg-amber-300/[0.055] px-3 py-2 text-[0.72rem] font-bold text-amber-300 transition hover:border-amber-300/38 hover:bg-amber-300/[0.09] disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
 
 const panelClassName =
   "break-inside-avoid overflow-hidden rounded-[14px] border border-amber-300/20 bg-[#050a16]/88 shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition hover:border-amber-300/30 hover:bg-[#07101d]/92";
@@ -359,15 +359,9 @@ export default function AiBuilderReview({
 
       {grouped.length ? (
         <section className="space-y-7">
-          <SectionHeading
-            eyebrow="Business knowledge"
-            title={
-              <>
-                Review every <span className="text-amber-300">important business fact.</span>
-              </>
-            }
-            description="Each item stays compact, expands naturally with its content, and can be approved, corrected, or removed."
-          />
+          <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
+            Business knowledge
+          </p>
 
           {grouped.map(([sectionKey, section]) => (
             <section key={sectionKey}>
@@ -712,7 +706,7 @@ export default function AiBuilderReview({
 
 function ItemActions({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-5 flex flex-wrap justify-center gap-2 border-t border-amber-300/12 px-0 py-3 sm:mx-6">
+    <div className="mx-5 flex flex-wrap justify-center gap-2 border-t border-amber-300/10 px-0 py-3 sm:mx-6">
       {children}
     </div>
   );
