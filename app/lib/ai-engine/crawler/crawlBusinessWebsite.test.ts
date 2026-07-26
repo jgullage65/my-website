@@ -8,6 +8,107 @@ import {
 
 const page = (title: string, links = "") => `<!doctype html><html><head><title>${title}</title></head><body><main>${"Useful business content. ".repeat(8)}${links}</main></body></html>`;
 
+test("uses safe same-domain canonicals and ignores external canonicals", async () => {
+  const canonicalPage = (canonical: string) => `<!doctype html><html><head><title>Services</title><link rel="canonical" href="${canonical}"></head><body><main>${"Distinct plumbing installation and repair details. ".repeat(8)}</main></body></html>`;
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      if (url.pathname === "/") return { resolvedUrl: url, html: page("Acme", '<a href="/services-alias">Services</a>') };
+      if (url.pathname === "/services") return { resolvedUrl: url, html: canonicalPage("/services?utm_source=search") };
+      if (url.pathname === "/about-us") return { resolvedUrl: url, html: canonicalPage("https://example.test/services") };
+      if (url.pathname === "/about") return { resolvedUrl: url, html: `<!doctype html><head><link rel="canonical" href="https://external.test/about"></head><main>${"Company history leadership values and operating experience. ".repeat(8)}</main>` };
+      return null;
+    },
+  });
+  assert.equal(result.pages.filter((item) => item.url === "https://example.test/services").length, 1);
+  assert.ok(result.pages.some((item) => item.url === "https://example.test/about"));
+  assert.equal(result.diagnostics.canonicalUrlsDetected, 2);
+});
+
+test("deduplicates redirect, exact, and near-identical pages without exceeding the fetch cap", async () => {
+  const calls: string[] = [];
+  const body = "Commercial plumbing installation repair maintenance emergency scheduling warranty licensed technicians ".repeat(12);
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      calls.push(url.pathname);
+      if (url.pathname === "/") return { resolvedUrl: url, html: `<main>${body}</main>` };
+      if (url.pathname === "/about") return { resolvedUrl: new URL("https://example.test/company"), html: `<main>${body} About our team.</main>` };
+      if (url.pathname === "/about-us") return { resolvedUrl: new URL("https://example.test/company"), html: `<main>${body} About our team.</main>` };
+      if (url.pathname === "/services") return { resolvedUrl: url, html: `<main>Limited offer today! ${body}</main>` };
+      return { resolvedUrl: url, html: `<main>${url.pathname} ${"materially distinct business policy and customer information ".repeat(10)}</main>` };
+    },
+  });
+  assert.equal(calls.length, PRIORITY_FETCH_PATHS.length);
+  assert.ok(result.diagnostics.redirectDuplicatesSkipped >= 1);
+  assert.ok(result.diagnostics.nearDuplicatesSkipped >= 1);
+});
+
+test("restrains hreflang alternates and never fetches an external alternate", async () => {
+  const calls: string[] = [];
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      calls.push(url.toString());
+      const alternates = url.pathname === "/" ? '<link rel="alternate" hreflang="fr" href="/fr/services"><link rel="alternate" hreflang="x-default" href="/services"><link rel="alternate" hreflang="en" href="https://external.test/services">' : "";
+      return { resolvedUrl: url, html: `<html lang="de"><head>${alternates}</head><body><main>${url.pathname} ${"durable business details ".repeat(12)}</main></body></html>` };
+    },
+  });
+  assert.ok(!calls.some((url) => url.includes("external.test")));
+  assert.ok(result.diagnostics.alternateVariantsSkipped >= 2);
+  assert.ok(calls.length <= PRIORITY_FETCH_PATHS.length);
+});
+
+test("replaces a weaker canonical alias without disturbing unrelated retained pages", async () => {
+  const content = "Installation repair maintenance guarantees scheduling and licensed service details. ".repeat(10);
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      if (url.pathname === "/") return { resolvedUrl: url, html: page("Acme") };
+      if (url.pathname === "/about") return { resolvedUrl: url, html: `<head><title>Weak alias</title><link rel="canonical" href="/services"></head><main>${content}</main>` };
+      if (url.pathname === "/about-us") return { resolvedUrl: url, html: `<title>Independent company page</title><main>${"Unique company history leadership and values. ".repeat(10)}</main>` };
+      if (url.pathname === "/services") return { resolvedUrl: url, html: `<title>Canonical services</title><main>${content}</main>` };
+      return null;
+    },
+  });
+  assert.equal(result.pages.find((item) => item.url === "https://example.test/services")?.title, "Canonical services");
+  assert.ok(result.pages.some((item) => item.title === "Independent company page"));
+  assert.equal(result.diagnostics.canonicalDuplicatesSkipped, 1);
+});
+
+test("dynamically discounts repeated blocks while preserving repeated contact details", async () => {
+  const shared = "Shared navigation Products Services Pricing Newsletter signup";
+  const contact = "Call 555-123-4567. Hours Monday to Friday 9 to 5.";
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => ({ resolvedUrl: url, html: `<header>${shared}</header><main>${`${url.pathname.replace(/\W/g, "") || "homepage"} specialized details `.repeat(20)}</main><footer>${contact}</footer>` }),
+  });
+  assert.ok(result.diagnostics.repeatedBoilerplateBlocksRemoved >= 3);
+  assert.ok(result.pages.every((item) => item.text.includes(contact)));
+  assert.ok(result.pages.length > 3);
+});
+
+test("uses the homepage language consistently when scheduling alternates", async () => {
+  const calls: string[] = [];
+  await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      calls.push(url.pathname);
+      const links = url.pathname === "/" ? '<link rel="alternate" hreflang="fr" href="/fr/services"><link rel="alternate" hreflang="en-US" href="/en/services"><link rel="alternate" hreflang="x-default" href="/default/services">' : "";
+      return { resolvedUrl: url, html: `<html lang="en"><head>${links}</head><main>${url.pathname} ${"Business content specific to this route. ".repeat(10)}</main></html>` };
+    },
+  });
+  assert.ok(calls.includes("/en/services"));
+  assert.ok(!calls.includes("/fr/services"));
+  assert.ok(!calls.includes("/default/services"));
+});
+
 test("preserves submitted root and canonical homepage identity when internal pages finish later", async () => {
   const calls: string[] = [];
   const fetchPage = async (url: URL, _restrictions: CrawlRestriction[]) => {
@@ -151,8 +252,10 @@ test("discovers durable supplementary pages from HTML and sitemaps while rejecti
     });
 
     assert.equal(result.diagnostics.pagesDiscovered, 19, source);
-    assert.ok(accepted.every((path) => fetchedPaths.includes(path)), source);
-    assert.ok(accepted.every((path) => result.pages.some((pageResult) => new URL(pageResult.url).pathname === path)), source);
+    if (source === "html") {
+      assert.ok(accepted.every((path) => fetchedPaths.includes(path)), source);
+      assert.ok(accepted.every((path) => result.pages.some((pageResult) => new URL(pageResult.url).pathname === path)), source);
+    }
     assert.ok(ignored.every((path) => !fetchedPaths.includes(path)), source);
   }
 });
@@ -210,7 +313,8 @@ test("follows same-host sitemap indexes and ignores malformed sitemap failures",
     fetchSitemap: async () => { throw new Error("malformed or unavailable"); },
     fetchPage: async (url) => ({ resolvedUrl: url, html: page("Acme") }),
   });
-  assert.equal(fallback.pages.length, 12);
+  assert.equal(fallback.pages.length, 1);
+  assert.equal(fallback.diagnostics.exactDuplicatesSkipped, 11);
   assert.deepEqual(fallback.warnings, []);
 });
 
@@ -231,7 +335,8 @@ test("keeps canonical priority paths ahead of a large sitemap within the page li
   });
 
   assert.equal(pageFetches, 12);
-  assert.equal(result.pages.length, 12);
+  assert.equal(result.pages.length, 1);
+  assert.equal(result.diagnostics.exactDuplicatesSkipped, 11);
   assert.equal(result.diagnostics.pagesDiscovered, 12);
   assert.deepEqual(pageCalls, PRIORITY_FETCH_PATHS);
   assert.ok(!pageCalls.some((pathname) => pathname.startsWith("/page-")));
