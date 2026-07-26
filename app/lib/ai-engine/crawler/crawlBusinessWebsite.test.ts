@@ -145,14 +145,38 @@ test("discovers durable supplementary pages from HTML and sitemaps while rejecti
       } : null,
       fetchPage: async (url) => {
         fetchedPaths.push(url.pathname);
+        if (url.pathname !== "/" && PRIORITY_FETCH_PATHS.includes(url.pathname)) return null;
         return { resolvedUrl: url, html: page(url.pathname === "/" ? "Acme" : url.pathname, source === "html" && url.pathname === "/" ? links : "") };
       },
     });
 
     assert.equal(result.diagnostics.pagesDiscovered, 19, source);
-    assert.deepEqual(fetchedPaths, PRIORITY_FETCH_PATHS, source);
+    assert.ok(accepted.every((path) => fetchedPaths.includes(path)), source);
+    assert.ok(accepted.every((path) => result.pages.some((pageResult) => new URL(pageResult.url).pathname === path)), source);
     assert.ok(ignored.every((path) => !fetchedPaths.includes(path)), source);
   }
+});
+
+test("rejects chronological editorial paths without rejecting business pages ending in a year", async () => {
+  const accepted = ["/awards/2025", "/pricing/2026", "/company-history/1998", "/annual-report/2024"];
+  const ignored = ["/2025/07/25/post", "/2025/07/post", "/2025/post-title", "/blog/2025/post", "/news/2024/update"];
+  const links = [...accepted, ...ignored]
+    .map((path) => `<a href="${path}">Customer information</a>`)
+    .join("");
+  const fetchedPaths: string[] = [];
+
+  await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      fetchedPaths.push(url.pathname);
+      if (url.pathname !== "/" && PRIORITY_FETCH_PATHS.includes(url.pathname)) return null;
+      return { resolvedUrl: url, html: page("Acme", url.pathname === "/" ? links : "") };
+    },
+  });
+
+  assert.ok(accepted.every((path) => fetchedPaths.includes(path)));
+  assert.ok(ignored.every((path) => !fetchedPaths.includes(path)));
 });
 
 const PRIORITY_FETCH_PATHS = [

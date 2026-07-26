@@ -111,7 +111,7 @@ const DISCOVERY_KEYWORDS = [
 ] as const;
 
 const EDITORIAL_PATH_SEGMENT = /^(?:blogs?|news|articles?|posts?|authors?|tags?|categories?|archives?)$/;
-const DATED_PATH_SEGMENT = /^(?:19|20)\d{2}$/;
+const YEAR_PATH_SEGMENT = /^(?:19|20)\d{2}$/;
 
 const IGNORED_EXTENSIONS = new Set([
   "css",
@@ -252,7 +252,7 @@ function isDiscoverableBusinessUrl(url: URL, discoveryText = ""): boolean {
   const path = normalizeDiscoveryPath(url);
   const segments = path.split("/").filter(Boolean);
   if (segments.some((segment) => EDITORIAL_PATH_SEGMENT.test(segment))) return false;
-  if (segments.some((segment) => DATED_PATH_SEGMENT.test(segment))) return false;
+  if (segments.length > 1 && YEAR_PATH_SEGMENT.test(segments[0] ?? "")) return false;
 
   const normalizedMetadata = discoveryText.toLowerCase();
   return DISCOVERY_KEYWORDS.some((keyword) =>
@@ -644,12 +644,12 @@ export async function crawlBusinessWebsite(
   timings.pageDiscoveryMs += Math.max(0, now() - sitemapStarted);
   for (const sitemapPage of sitemapPages) enqueue(sitemapPage);
 
-  while (queue.length > 0 && visited.size < MAX_PAGES - 1) {
+  while (queue.length > 0 && finalUrls.size < MAX_PAGES) {
     const batch: URL[] = [];
     while (
       queue.length &&
       batch.length < MAX_CONCURRENT_FETCHES &&
-      visited.size < MAX_PAGES - 1
+      batch.length < MAX_PAGES - finalUrls.size
     ) {
       const nextUrl = queue.shift()!;
       queued.delete(nextUrl);
