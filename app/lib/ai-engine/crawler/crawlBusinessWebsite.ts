@@ -437,27 +437,52 @@ function semanticHtml(html: string): { text:string; h1:string; diagnostics:Seman
   const hidden=(node:HtmlNode)=>/(?:^|\s)(?:hidden|inert)(?:\s|=|$)/i.test(node.attrs)||attr(node,"aria-hidden").toLowerCase()==="true"||/(?:display\s*:\s*none|visibility\s*:\s*hidden)/i.test(attr(node,"style"));
   const ignored=new Set(["script","style","svg","template","canvas","noscript"]);
   const plain=(node:HtmlNode, depth=0):string => depth>SEMANTIC_LIMITS.depth||hidden(node)||ignored.has(node.tag)?"":node.tag==="#"?node.text:node.children.map(child=>plain(child,depth+1)).join(" ").replace(/\s+/g," ").trim();
-  const blocks:string[]=[]; const keys=new Set<string>(); let h1=""; let lists=0,totalItems=0,tables=0,definitions=0,faqs=0;
-  const add=(value:string, kind?:"heading"|"paragraph"|"list"|"table"|"definition"|"faq")=>{ value=value.replace(/\s+/g," ").trim(); if(!value||blocks.length>=SEMANTIC_LIMITS.blocks)return; const key=normalizeText(value); if(keys.has(key)){diagnostics.semanticBlocksDeduplicated++;return;} keys.add(key); blocks.push(value); if(kind==="heading")diagnostics.headingsRetained++; if(kind==="paragraph")diagnostics.paragraphsRetained++; };
+  const blocks:string[]=[]; const keys=new Set<string>(); const faqKeys=new Set<string>(); let h1=""; let lists=0,totalItems=0,tables=0,definitions=0,faqs=0;
+  const add=(value:string, kind?:"heading"|"paragraph"|"list"|"table"|"definition"|"faq")=>{const indent=kind==="list"&&/^\s{2}/.test(value)?"  ":"";value=indent+value.replace(/\s+/g," ").trim();if(!value.trim())return false;if(blocks.length>=SEMANTIC_LIMITS.blocks){diagnostics.extractionOutputTruncated=1;return false;} const key=normalizeText(value); if(keys.has(key)){diagnostics.semanticBlocksDeduplicated++;return false;} keys.add(key); blocks.push(value); if(kind==="heading")diagnostics.headingsRetained++; if(kind==="paragraph")diagnostics.paragraphsRetained++;return true;};
+  const listText=(node:HtmlNode)=>node.children.filter(child=>child.tag!=="ul"&&child.tag!=="ol").map(child=>plain(child)).join(" ").replace(/\s+/g," ").trim();
+  const emitFaq=(question:string,answer:string)=>{question=question.replace(/^question\s*:\s*/i,"").trim();answer=answer.replace(/^answer\s*:\s*/i,"").trim();const key=`${normalizeText(question)}|${normalizeText(answer)}`;if(!question||!answer||faqKeys.has(key))return false;if(faqs>=SEMANTIC_LIMITS.faqs||blocks.length>SEMANTIC_LIMITS.blocks-2){diagnostics.extractionOutputTruncated=1;return false;}faqKeys.add(key);add(`Question: ${question}`,"faq");add(`Answer: ${answer}`,"faq");faqs++;diagnostics.visibleFaqsRetained++;return true;};
+  const emitList=(node:HtmlNode,level=0):number=>{
+    const items=node.children.filter(child=>child.tag==="li");
+    const nav=/^(nav|navigation|menu)$/i.test(attr(node,"role"))||(items.length>3&&items.every(li=>li.children.some(child=>child.tag==="a")&&listText(li).split(" ").length<6));
+    if(nav)return 0;
+    if(lists>=SEMANTIC_LIMITS.lists){diagnostics.extractionOutputTruncated=1;return 0;}
+    lists++; let emitted=0; let number=Number.parseInt(attr(node,"start"),10); if(!Number.isFinite(number))number=1; const local=new Set<string>();
+    for(const li of items){
+      if(emitted>=SEMANTIC_LIMITS.itemsPerList||totalItems>=SEMANTIC_LIMITS.listItems){diagnostics.extractionOutputTruncated=1;break;}
+      const explicit=Number.parseInt(attr(li,"value"),10);if(node.tag==="ol"&&Number.isFinite(explicit))number=explicit;
+      const value=listText(li),key=normalizeText(value);if(value&&!local.has(key)){local.add(key);if(add(`${level?"  ":""}${node.tag==="ol"?`${number}.`:"-"} ${value}`,"list")){emitted++;totalItems++;diagnostics.listItemsRetained++;}}
+      if(node.tag==="ol")number++;
+      for(const nested of li.children.filter(child=>child.tag==="ul"||child.tag==="ol"))emitted+=emitList(nested,Math.min(1,level+1));
+    }
+    return emitted;
+  };
+  const tableRows=(node:HtmlNode):{rows:string[];truncated:boolean}=>{
+    const grid:string[]=[];const spans=new Map<string,string>();const sourceRows=find(node,"tr");let truncated=sourceRows.length>SEMANTIC_LIMITS.tableRows;
+    for(let rowIndex=0;rowIndex<Math.min(sourceRows.length,SEMANTIC_LIMITS.tableRows);rowIndex++){
+      const row:string[]=[];let column=0;const fillSpans=()=>{while(column<SEMANTIC_LIMITS.tableColumns){const span=spans.get(`${rowIndex}:${column}`);if(!span)break;row[column++]=span;}};fillSpans();
+      const cells=sourceRows[rowIndex]!.children.filter(child=>child.tag==="th"||child.tag==="td");if(cells.length>SEMANTIC_LIMITS.tableColumns)truncated=true;
+      for(const cell of cells){fillSpans();if(column>=SEMANTIC_LIMITS.tableColumns)break;const value=plain(cell).slice(0,SEMANTIC_LIMITS.cell);const colspan=Math.min(SEMANTIC_LIMITS.tableColumns-column,Math.max(1,Number.parseInt(attr(cell,"colspan"),10)||1));const rowspan=Math.min(SEMANTIC_LIMITS.tableRows-rowIndex,Math.max(1,Number.parseInt(attr(cell,"rowspan"),10)||1));for(let offset=0;offset<colspan;offset++){row[column+offset]=value;if(rowspan>1)for(let down=1;down<rowspan;down++)spans.set(`${rowIndex+down}:${column+offset}`,value);}column+=colspan;}
+      fillSpans();if(row.some(Boolean))grid.push(row.slice(0,SEMANTIC_LIMITS.tableColumns).map(value=>value??"").join(" | ").replace(/(?: \| )+$/,""));
+    }return {rows:grid,truncated};
+  };
   const walk=(node:HtmlNode,depth=0,inSpecial=false):void=>{
     if(depth>SEMANTIC_LIMITS.depth){diagnostics.extractionOutputTruncated=1;return;} if(hidden(node)){diagnostics.hiddenElementsIgnored++;return;} if(ignored.has(node.tag))return;
-    if (/^h[1-6]$/.test(node.tag)) { const value=plain(node); if(node.tag==="h1"&&!h1)h1=value; if(diagnostics.headingsRetained<SEMANTIC_LIMITS.headings)add(value,"heading"); return; }
-    if(node.tag==="p" && diagnostics.paragraphsRetained<SEMANTIC_LIMITS.paragraphs){add(plain(node),"paragraph");return;}
-    if((node.tag==="ul"||node.tag==="ol")&&!inSpecial&&lists++<SEMANTIC_LIMITS.lists){
-      const nav=/^(nav|navigation|menu)$/i.test(attr(node,"role"))||node.children.filter(x=>x.tag==="li").every(li=>li.children.some(x=>x.tag==="a")&&plain(li).split(" ").length<6); let count=0; const local=new Set<string>();
-      if(!nav) for(const li of node.children.filter(x=>x.tag==="li")){if(count>=SEMANTIC_LIMITS.itemsPerList||totalItems>=SEMANTIC_LIMITS.listItems)break; const value=plain(li);const key=normalizeText(value);if(!value||local.has(key))continue;local.add(key);add(`${node.tag==="ol"?`${count+1}.`:"-"} ${value}`,"list");count++;totalItems++;diagnostics.listItemsRetained++;} return;
-    }
-    if(node.tag==="table"&&!inSpecial&&tables++<SEMANTIC_LIMITS.tables){ const rows: string[]=[]; for(const tr of find(node,"tr").slice(0,SEMANTIC_LIMITS.tableRows)){const cells=tr.children.filter(x=>x.tag==="th"||x.tag==="td").slice(0,SEMANTIC_LIMITS.tableColumns).map(x=>plain(x).slice(0,SEMANTIC_LIMITS.cell));if(cells.some(Boolean))rows.push(cells.join(" | "));} const meaningful=rows.length>=2||(/(?:hours?|price|fee|plan|service|specification|location)/i.test(rows.join(" "))&&rows.length); if(meaningful){for(const row of rows)add(row,"table");diagnostics.tablesRetained++;diagnostics.tableRowsRetained+=rows.length;} return; }
-    if(node.tag==="dl"&&!inSpecial){let term="";for(const child of node.children){if(child.tag==="dt")term=plain(child);else if(child.tag==="dd"&&term&&definitions<SEMANTIC_LIMITS.definitions){const desc=plain(child);if(desc){add(`${term}: ${desc}`,"definition");definitions++;diagnostics.definitionEntriesRetained++;}}}return;}
-    if(node.tag==="details"&&!inSpecial&&faqs<SEMANTIC_LIMITS.faqs){const summary=node.children.find(x=>x.tag==="summary");const question=summary?plain(summary):"";const answer=node.children.filter(x=>x!==summary).map(x=>plain(x)).join(" ").trim();if(question&&answer){add(`Question: ${question}`,"faq");add(`Answer: ${answer}`,"faq");faqs++;diagnostics.visibleFaqsRetained++;}return;}
-    if(!inSpecial&&faqs<SEMANTIC_LIMITS.faqs){
+    if(/cookie|consent/i.test(`${attr(node,"id")} ${attr(node,"class")}`)&&/(?:button|dialog|banner|controls?)/i.test(`${node.tag} ${attr(node,"role")} ${attr(node,"class")}`))return;
+    if (/^h[1-6]$/.test(node.tag)) { const value=plain(node); if(node.tag==="h1"&&!h1)h1=value; if(diagnostics.headingsRetained>=SEMANTIC_LIMITS.headings)diagnostics.extractionOutputTruncated=1;else add(value,"heading"); return; }
+    if(node.tag==="p"){if(diagnostics.paragraphsRetained>=SEMANTIC_LIMITS.paragraphs)diagnostics.extractionOutputTruncated=1;else add(plain(node),"paragraph");return;}
+    if((node.tag==="ul"||node.tag==="ol")&&!inSpecial){emitList(node);return;}
+    if(node.tag==="table"&&!inSpecial){const extracted=tableRows(node),rows=extracted.rows;const combined=rows.join(" ");const hasHeaders=find(node,"th").some(cell=>Boolean(plain(cell)));const business=/(?:hours?|price|cost|fee|plan|service|feature|specification|model|location|address|policy|availability|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\$|€|£)/i.test(combined);const comparison=hasHeaders&&rows.length>=2&&rows.some(row=>/\d|yes|no|included|available/i.test(row));const rejected=/^(?:presentation|none)$/i.test(attr(node,"role"))||rows.length===0||(!business&&!comparison);if(!rejected){if(tables>=SEMANTIC_LIMITS.tables)diagnostics.extractionOutputTruncated=1;else{tables++;if(extracted.truncated)diagnostics.extractionOutputTruncated=1;let retainedRows=0;for(const row of rows)if(add(row,"table"))retainedRows++;if(retainedRows){diagnostics.tablesRetained++;diagnostics.tableRowsRetained+=retainedRows;}}}return;}
+    if(node.tag==="dl"&&!inSpecial){let term="";for(const child of node.children){if(child.tag==="dt")term=plain(child);else if(child.tag==="dd"&&term){const desc=plain(child);if(!desc)continue;if(/\?$/.test(term)||/faq/i.test(attr(node,"class")))emitFaq(term,desc);else if(definitions>=SEMANTIC_LIMITS.definitions)diagnostics.extractionOutputTruncated=1;else if(add(`${term}: ${desc}`,"definition")){definitions++;diagnostics.definitionEntriesRetained++;}}}return;}
+    if(node.tag==="details"&&!inSpecial){const summary=node.children.find(x=>x.tag==="summary");const question=summary?plain(summary):"";const answer=node.children.filter(x=>x!==summary).map(x=>plain(x)).join(" ").trim();emitFaq(question,answer);return;}
+    if(!inSpecial){
       const questionNode=node.children.find(child=>/(?:^|[-_\s])(?:faq-?)?question(?:[-_\s]|$)/i.test(attr(child,"class")));
       const answerNode=node.children.find(child=>/(?:^|[-_\s])(?:faq-?)?answer(?:[-_\s]|$)/i.test(attr(child,"class")));
-      if(questionNode&&answerNode){const question=plain(questionNode),answer=plain(answerNode);if(question&&answer){add(`Question: ${question}`,"faq");add(`Answer: ${answer}`,"faq");faqs++;diagnostics.visibleFaqsRetained++;return;}}
+      if(questionNode&&answerNode&&emitFaq(plain(questionNode),plain(answerNode)))return;
+      for(let index=0;index<node.children.length-1;index++){const question=node.children[index]!,answer=node.children[index+1]!;if(/^h[2-6]$/.test(question.tag)&&/\?\s*$/.test(plain(question))&&/^(?:p|div|section)$/.test(answer.tag)&&emitFaq(plain(question),plain(answer)))return;}
     }
     if (/^(?:div|section|article|main|header|footer|nav|aside|body)$/.test(node.tag)) {
       const hasSemanticDescendant=find(node,"p").length+find(node,"ul").length+find(node,"ol").length+find(node,"table").length+find(node,"dl").length+find(node,"details").length+find(node,"h1").length+find(node,"h2").length+find(node,"h3").length>0;
-      if(!hasSemanticDescendant&&diagnostics.paragraphsRetained<SEMANTIC_LIMITS.paragraphs){add(plain(node),"paragraph");return;}
+      if(!hasSemanticDescendant){if(diagnostics.paragraphsRetained>=SEMANTIC_LIMITS.paragraphs)diagnostics.extractionOutputTruncated=1;else add(plain(node),"paragraph");return;}
     }
     for(const child of node.children)walk(child,depth+1,inSpecial);
   };
@@ -654,7 +679,7 @@ function textBlocks(text: string): { text: string; key: string; protected: boole
   return text.split(/\n+/).map((block) => block.trim()).filter(Boolean).map((text) => ({
     text,
     key: normalizeText(text),
-    protected: /(?:\b(?:mon|tue|wed|thu|fri|sat|sun)(?:day)?\b|\b(?:hours|address)\b|mailto:|tel:|\+?\d[\d\s().-]{6,})/i.test(text),
+    protected: /(?:\b(?:mon|tue|wed|thu|fri|sat|sun)(?:day)?\b|\b(?:hours|address|emergency|after-hours?|contact)\b|mailto:|tel:|[\w.+-]+@[\w.-]+\.\w{2,}|\+?\d[\d\s().-]{6,})/i.test(text),
   })).filter((block) => Boolean(block.key));
 }
 
@@ -675,7 +700,16 @@ function similarity(left: Set<string>, right: Set<string>): number {
 function extractTitle(html: string, h1: string, url: URL): string {
   const clean=(value:string)=>decodeHtml(value.replace(/<[^>]+>/g," ")).replace(/\s+/g," ").trim().slice(0,200);
   const meaningful=(value:string)=>value&&!/^(?:home|welcome|untitled|new page)$/i.test(value);
-  const metadata=(name:string)=>{for(const match of html.matchAll(/<meta\b([^>]+)>/gi)){const attrs=match[1]??"";const key=attrs.match(/(?:property|name)\s*=\s*(["'])(.*?)\1/i)?.[2]?.toLowerCase();if(key===name)return clean(attrs.match(/content\s*=\s*(["'])(.*?)\1/i)?.[2]??"");}return"";};
+  const metadata=(name:string)=>{
+    const pattern=/<meta\b([^>]+)>/gi;
+    let match:RegExpExecArray|null;
+    while((match=pattern.exec(html))!==null){
+      const attrs=match[1]??"";
+      const key=attrs.match(/(?:property|name)\s*=\s*(["'])(.*?)\1/i)?.[2]?.toLowerCase();
+      if(key===name)return clean(attrs.match(/content\s*=\s*(["'])(.*?)\1/i)?.[2]??"");
+    }
+    return"";
+  };
   const candidates=[clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??""),clean(h1),metadata("og:title"),metadata("twitter:title")];
   const selected=candidates.find(meaningful); if(selected)return selected;
   const segment=decodeURIComponent(url.pathname.split("/").filter(Boolean).at(-1)??"").replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase());

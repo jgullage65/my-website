@@ -15,7 +15,9 @@ test("retains bounded semantic sections while ignoring statically hidden content
     <table><thead><tr><th>Plan</th><th>Price</th></tr></thead><tbody><tr><td>Starter</td><td>$99/month</td></tr></tbody></table>
     <dl><dt>Service area</dt><dd>Dallas</dd><dd>Fort Worth</dd></dl>
     <details><summary>Do you offer emergency service?</summary><p>Yes, emergency service is available 24 hours.</p></details>
-    <p hidden>Hidden offer</p><p aria-hidden="true">Technical label</p><p style="display:none">Invisible payload</p></main>`;
+    <p hidden>Hidden offer</p><p aria-hidden="true">Technical label</p><p inert>Inert payload</p><p style="display:none">Invisible payload</p>
+    <p style="visibility:hidden">Visually hidden payload</p><script>Analytics payload</script><style>Technical CSS</style><svg>Vector internals</svg><template>Hydration template</template>
+    <div class="cookie-consent-banner"><button>Accept tracking cookies</button></div></main>`;
   const result = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe: async () => undefined, fetchSitemap: async () => null,
     fetchPage: async (url) => url.pathname === "/" ? { resolvedUrl:url, html } : null,
@@ -27,10 +29,104 @@ test("retains bounded semantic sections while ignoring statically hidden content
   assert.match(retained.text,/Plan \| Price\nStarter \| \$99\/month/);
   assert.match(retained.text,/Service area: Dallas\nService area: Fort Worth/);
   assert.match(retained.text,/Question: Do you offer emergency service\?\nAnswer: Yes, emergency service is available 24 hours\./);
-  assert.doesNotMatch(retained.text,/Hidden offer|Technical label|Invisible payload/);
+  assert.doesNotMatch(retained.text,/Hidden offer|Technical label|Inert payload|Invisible payload|Visually hidden payload|Analytics payload|Technical CSS|Vector internals|Hydration template|Accept tracking cookies/);
   assert.equal(result.diagnostics.tablesRetained,1);
   assert.equal(result.diagnostics.visibleFaqsRetained,1);
-  assert.equal(result.diagnostics.hiddenElementsIgnored,3);
+  assert.equal(result.diagnostics.hiddenElementsIgnored,5);
+});
+
+const crawlSingleSemanticPage = (html: string) => crawlBusinessWebsite("https://example.test", undefined, {
+  assertSafe: async () => undefined,
+  fetchSitemap: async () => null,
+  fetchPage: async (url) => url.pathname === "/" ? { resolvedUrl: url, html: `${html}<p>${"Durable business evidence. ".repeat(5)}</p>` } : null,
+});
+
+test("preserves nested lists and ordered start/value without charging rejected navigation", async () => {
+  const navigation=Array.from({length:35},(_,index)=>`<li><a href="/menu-${index}">Menu ${index}</a></li>`).join("");
+  const result=await crawlSingleSemanticPage(`<title>Services</title><nav><ul>${navigation}</ul></nav><main>
+    <ol start="4"><li>Assessment</li><li value="9">Installation<ul><li>Same-day scheduling</li></ul></li></ol>
+    <ul><li>Emergency repair</li><li>Preventive maintenance</li></ul></main>`);
+  assert.match(result.pages[0]!.text,/4\. Assessment\n9\. Installation\n  - Same-day scheduling/);
+  assert.match(result.pages[0]!.text,/- Emergency repair\n- Preventive maintenance/);
+  assert.doesNotMatch(result.pages[0]!.text,/Menu 0/);
+  assert.equal(result.diagnostics.listItemsRetained,5);
+});
+
+test("expands simple table spans and rejects layout tables without consuming table budget", async () => {
+  const layouts=Array.from({length:12},()=>`<table role="presentation"><tr><td>Left</td><td>Right</td></tr><tr><td>Top</td><td>Bottom</td></tr></table>`).join("");
+  const result=await crawlSingleSemanticPage(`<title>Pricing</title>${layouts}<table><tr><th rowspan="2">Plan</th><th colspan="2">Price</th></tr>
+    <tr><th>Monthly</th><th>Annual</th></tr><tr><td>Starter</td><td>$99</td><td>$999</td></tr></table>`);
+  assert.match(result.pages[0]!.text,/Plan \| Price \| Price\nPlan \| Monthly \| Annual\nStarter \| \$99 \| \$999/);
+  assert.doesNotMatch(result.pages[0]!.text,/Left \| Right/);
+  assert.equal(result.diagnostics.tablesRetained,1);
+  assert.equal(result.diagnostics.extractionOutputTruncated,0);
+});
+
+test("extracts common visible FAQ wrappers once and ignores incomplete pairs", async () => {
+  const result=await crawlSingleSemanticPage(`<title>FAQ</title><main>
+    <section><h2>Do you provide emergency support?</h2><p>Yes, every day.</p></section>
+    <div class="faq-card"><div class="question">Where are you located?</div><div class="answer"><div class="answer">Dallas and Fort Worth.</div></div></div>
+    <dl class="faq"><dt>Can I book online?</dt><dd>Yes, use our booking form.</dd></dl>
+    <div class="question">Unanswered question?</div><div class="answer"></div></main>`);
+  const text=result.pages[0]!.text;
+  assert.match(text,/Question: Do you provide emergency support\?\nAnswer: Yes, every day\./);
+  assert.equal((text.match(/Question: Where are you located\?/g)??[]).length,1);
+  assert.match(text,/Question: Can I book online\?\nAnswer: Yes, use our booking form\./);
+  assert.doesNotMatch(text,/Question: Unanswered question/);
+  assert.equal(result.diagnostics.visibleFaqsRetained,3);
+});
+
+test("marks semantic cap truncation and retains repeated footer contact and navigation hours", async () => {
+  const paragraphs=Array.from({length:310},(_,index)=>`<p>Policy condition ${index} applies to customer service requests.</p>`).join("");
+  const first=await crawlSingleSemanticPage(`<title>Policies</title>${paragraphs}`);
+  assert.equal(first.diagnostics.extractionOutputTruncated,1);
+  assert.equal(first.diagnostics.paragraphsRetained,300);
+
+  const contact=`<nav>Hours: Monday-Friday 08:00-17:00</nav><footer>Emergency contact: help@example.test, +1 (555) 123-4567, 100 Main Street</footer>`;
+  const result=await crawlBusinessWebsite("https://example.test",undefined,{assertSafe:async()=>undefined,fetchSitemap:async()=>null,fetchPage:async(url)=>({resolvedUrl:url,html:`<title>${url.pathname}</title><main>${Array.from({length:30},(_,index)=>`${url.pathname}-fact-${index}`).join(" ")}</main>${contact}`})});
+  assert.ok(result.pages.length>2);
+  assert.ok(result.pages.every(pageResult=>pageResult.text.includes("+1 (555) 123-4567")&&pageResult.text.includes("Monday-Friday")));
+});
+
+test("uses deterministic meaningful title and metadata fallbacks", async () => {
+  const cases:[string,string,string][]=[
+    ["meaningful title","<title>Acme &amp; Sons</title><h1>Ignored heading</h1>","Acme & Sons"],
+    ["h1","<title>Welcome</title><h1>Visible Services</h1><meta property=\"og:title\" content=\"Social title\">","Visible Services"],
+    ["Open Graph","<title>Untitled</title><meta property=\"og:title\" content=\"OG Services\">","OG Services"],
+    ["Twitter","<title>New Page</title><meta name=\"twitter:title\" content=\"Twitter Services\">","Twitter Services"],
+    ["URL path","<title>Home</title>","Emergency Plumbing"],
+  ];
+  for(const [label,head,expected] of cases){
+    const path=label==="URL path"?"/emergency-plumbing":"/";
+    const result=await crawlBusinessWebsite(`https://example.test${path}`,undefined,{assertSafe:async()=>undefined,fetchSitemap:async()=>null,fetchPage:async(url)=>url.pathname===path||path!=="/"&&url.pathname==="/"?{resolvedUrl:new URL(`https://example.test${path}`),html:`${head}<main>${"Meaningful durable business information. ".repeat(5)}</main>`}:null});
+    assert.equal(result.pages[0]!.title,expected,label);
+  }
+});
+
+test("bounds oversized and malformed semantic structures deterministically", async () => {
+  const list=Array.from({length:45},(_,index)=>`<li>Service option ${index}</li>`).join("");
+  const definitions=Array.from({length:90},(_,index)=>`<dt>Specification ${index}</dt>${index===2?"<dd></dd>":`<dd>Value ${index}</dd>`}`).join("");
+  const rows=Array.from({length:40},(_,index)=>`<tr><td>Plan ${index}<td>$${index}</tr>`).join("");
+  const deep=`${"<div>".repeat(70)}Deep bounded content${"</div>".repeat(70)}`;
+  const html=`<title>Services and specifications</title><ul>${list}</ul><dl>${definitions}</dl><table><tr><th>Plan</th><th>Price</th></tr>${rows}</table>${deep}`;
+  const first=await crawlSingleSemanticPage(html),second=await crawlSingleSemanticPage(html);
+  assert.equal(first.pages[0]!.text,second.pages[0]!.text);
+  assert.equal(first.diagnostics.listItemsRetained,30);
+  assert.equal(first.diagnostics.definitionEntriesRetained,80);
+  assert.equal(first.diagnostics.tableRowsRetained,30);
+  assert.equal(first.diagnostics.extractionOutputTruncated,1);
+  assert.doesNotMatch(first.pages[0]!.text,/Service option 44|Specification 89|Plan 39/);
+});
+
+test("normalizes equivalent paragraph and list meaning for duplicate comparison", async () => {
+  const meaning="Emergency plumbing installation repair maintenance scheduling warranty licensed technicians available throughout Dallas and Fort Worth";
+  const result=await crawlBusinessWebsite("https://example.test",undefined,{assertSafe:async()=>undefined,fetchSitemap:async()=>null,fetchPage:async(url)=>{
+    if(url.pathname==="/")return{resolvedUrl:url,html:`<main><p>${meaning}</p></main>`};
+    if(url.pathname==="/about")return{resolvedUrl:url,html:`<main><ul><li>${meaning}</li></ul></main>`};
+    return null;
+  }});
+  assert.equal(result.pages.length,1);
+  assert.ok(result.diagnostics.exactDuplicatesSkipped>=1);
 });
 
 test("appends readable JSON-LD business evidence and records parsing diagnostics", async () => {
