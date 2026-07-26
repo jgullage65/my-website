@@ -609,3 +609,52 @@ test("keeps canonical priority paths ahead of a large sitemap within the page li
   assert.deepEqual(pageCalls, PRIORITY_FETCH_PATHS);
   assert.ok(!pageCalls.some((pathname) => pathname.startsWith("/page-")));
 });
+
+test("discovers durable same-domain PDFs from HTML and sitemaps with an independent cap", async () => {
+  const pdfCalls: string[] = [];
+  const htmlCalls: string[] = [];
+  const links = [
+    '<a href="/brochure.pdf">Company brochure</a>',
+    '<a href="/menu.pdf">Dining menu</a>',
+    '<a href="/pricing-guide.pdf">Pricing guide</a>',
+    '<a href="/service-manual.pdf">Service manual</a>',
+    '<a href="https://external.test/catalog.pdf">Product catalog</a>',
+    '<a href="/newsletter.pdf">Newsletter</a>',
+    '<a href="/random.pdf">Download</a>',
+    '<a href="/service.docx">Service document</a>',
+  ].join("");
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchPage: async (url) => { htmlCalls.push(url.pathname); return url.pathname === "/" ? { resolvedUrl:url, html:page("Acme", links) } : null; },
+    fetchSitemap: async (url) => ({ resolvedUrl:url, xml:'<urlset><url><loc>https://example.test/brochure.pdf</loc></url><url><loc>https://example.test/policy.pdf</loc></url></urlset>' }),
+    fetchPdf: async (url) => { pdfCalls.push(url.pathname); return { resolvedUrl:url, bytes:new Uint8Array([37,80,68,70,45]), truncated:false }; },
+    parsePdf: async () => ({ text:"Durable service pricing policies and customer information. ".repeat(4), title:"Acme Reference", pagesParsed:2, truncated:false }),
+  });
+  assert.deepEqual(pdfCalls, ["/brochure.pdf", "/menu.pdf", "/pricing-guide.pdf"]);
+  assert.equal(result.diagnostics.pdfsDiscovered, 5);
+  assert.equal(result.diagnostics.pdfsProcessed, 1);
+  assert.equal(result.diagnostics.pdfsSkipped, 4);
+  assert.equal(result.diagnostics.pdfBytesDownloaded, 15);
+  assert.equal(result.diagnostics.pdfPagesParsed, 6);
+  assert.equal(result.diagnostics.pagesProcessed, 1);
+  assert.equal(result.pages[0]?.pageType, "home");
+  assert.equal(result.pages.at(-1)?.pageType, "document");
+  assert.ok(!htmlCalls.some((path) => path.endsWith(".pdf") || path.endsWith(".docx")));
+});
+
+test("retains normalized PDF text, uses filename titles, and isolates parser failures", async () => {
+  let parsed = 0;
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined, fetchSitemap:async()=>null,
+    fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:page("Acme",'<a href="/service-catalog.pdf">Catalog</a><a href="/policy-guide.pdf">Policy guide</a>')}:null,
+    fetchPdf:async(url)=>({resolvedUrl:url,bytes:new Uint8Array(100),truncated:false}),
+    parsePdf:async()=>{ parsed += 1; if(parsed===2) throw new Error("sensitive parser internals"); return {text:`  Service catalog\0   details\n\n\n${"pricing and capabilities ".repeat(5)}`,title:"Untitled",pagesParsed:75,truncated:true}; },
+  });
+  const document=result.pages.find(item=>item.pageType==="document")!;
+  assert.equal(document.title,"Service Catalog");
+  assert.doesNotMatch(document.text,/\0| {2}|\n{3}/);
+  assert.equal(result.diagnostics.pdfsProcessed,1);
+  assert.equal(result.diagnostics.pdfsFailed,1);
+  assert.equal(result.diagnostics.pdfDocumentsTruncated,1);
+  assert.deepEqual(result.warnings,["A PDF document could not be read."]);
+});
