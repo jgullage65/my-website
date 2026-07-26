@@ -38,7 +38,7 @@ export default function AiBuilderProgress({
   return (
     <div className="w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl">
       <section className={shellClassName}>
-        <AiBuilderAuthCta />
+        <AiBuilderAuthCta suppressSignOut={!complete} />
         <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
 
         <div className="relative text-center">
