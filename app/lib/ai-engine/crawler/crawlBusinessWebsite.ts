@@ -531,19 +531,20 @@ export async function crawlBusinessWebsite(
     const normalized = dedupeUrl(value);
     if (!visited.has(normalized) && !queued.has(normalized)) { queued.add(normalized); front ? queue.unshift(normalized) : queue.push(normalized); }
   };
-  const enqueueSitemapPage = (value: string, sitemapUrl: URL) => {
+  const normalizeSitemapPage = (value: string, sitemapUrl: URL): string | null => {
     let parsed: URL;
-    try { parsed = new URL(value, sitemapUrl); } catch { return; }
+    try { parsed = new URL(value, sitemapUrl); } catch { return null; }
     if (
       (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
       normalizeHost(parsed.hostname) !== baseHost ||
       isDocumentOrAsset(parsed)
-    ) return;
-    enqueue(parsed.toString());
+    ) return null;
+    return dedupeUrl(parsed.toString());
   };
   const discoverSitemapPages = async () => {
     const pending = [new URL("/sitemap.xml", homepageResolved.origin)];
     const seenSitemaps = new Set<string>();
+    const discoveredPages = new Set<string>();
 
     while (pending.length > 0 && seenSitemaps.size < MAX_SITEMAP_FETCHES) {
       const sitemapUrl = pending.shift()!;
@@ -558,7 +559,10 @@ export async function crawlBusinessWebsite(
         if (!parsed) continue;
 
         if (parsed.type === "urlset") {
-          for (const location of parsed.locations) enqueueSitemapPage(location, fetched.resolvedUrl);
+          for (const location of parsed.locations) {
+            const pageUrl = normalizeSitemapPage(location, fetched.resolvedUrl);
+            if (pageUrl) discoveredPages.add(pageUrl);
+          }
           continue;
         }
 
@@ -575,6 +579,7 @@ export async function crawlBusinessWebsite(
         // Sitemap discovery is opportunistic; HTML discovery remains the fallback.
       }
     }
+    return [...discoveredPages];
   };
   const processFetched = (fetched: { html: string; resolvedUrl: URL }) => {
       const finalUrl = dedupeUrl(fetched.resolvedUrl.toString());
@@ -608,8 +613,9 @@ export async function crawlBusinessWebsite(
   if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
   const sitemapStarted = now();
-  await discoverSitemapPages();
+  const sitemapPages = await discoverSitemapPages();
   timings.pageDiscoveryMs += Math.max(0, now() - sitemapStarted);
+  for (const sitemapPage of sitemapPages) enqueue(sitemapPage);
 
   while (queue.length > 0 && visited.size < MAX_PAGES - 1) {
     const batch: URL[] = [];
