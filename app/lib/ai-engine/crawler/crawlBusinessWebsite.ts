@@ -53,6 +53,13 @@ export type BusinessWebsiteCrawlDiagnostics = {
   pdfBytesDownloaded: number;
   pdfPagesParsed: number;
   pdfDocumentsTruncated: number;
+  browserPagesQueued: number;
+  browserPagesRendered: number;
+  browserPagesSkipped: number;
+  browserRenderFailures: number;
+  browserRenderTimeouts: number;
+  browserFallbacksUsed: number;
+  browserRenderDurationMs: number;
   finalUrls: string[];
   restrictions: CrawlRestriction[];
   timings: BusinessWebsiteCrawlTimings;
@@ -131,6 +138,42 @@ const PRIORITY_PATHS = [
 
 const MAX_PAGES = PRIORITY_PATHS.length;
 const MAX_SITEMAP_FETCHES = MAX_PAGES;
+
+const BROWSER_LIMITS = {
+  pages: 3,
+  renderTimeoutMs: 5_000,
+  totalTimeMs: 12_000,
+} as const;
+type BrowserLimits = { pages: number; renderTimeoutMs: number; totalTimeMs: number };
+
+type RenderedHtml = { html: string; resolvedUrl: URL };
+type BrowserRenderer = { render: (url: URL, timeoutMs: number) => Promise<RenderedHtml | null>; close: () => Promise<void> };
+
+async function createPlaywrightRenderer(assertSafe: typeof assertSafeDestination, baseHost: string): Promise<BrowserRenderer> {
+  // Browser code and process startup are deliberately deferred until a weak page exists.
+  // @ts-ignore Playwright is dynamically loaded so HTML-only crawls never initialize it.
+  const { chromium } = await import("playwright");
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ javaScriptEnabled: true });
+  const page = await context.newPage();
+  await page.route("**/*", async (route: { request: () => { isNavigationRequest: () => boolean; url: () => string }; abort: () => Promise<void>; continue: () => Promise<void> }) => {
+    const request = route.request();
+    if (!request.isNavigationRequest()) { await route.continue(); return; }
+    try {
+      const destination = new URL(request.url());
+      if ((destination.protocol !== "http:" && destination.protocol !== "https:") || normalizeHost(destination.hostname) !== baseHost) { await route.abort(); return; }
+      await assertSafe(destination);
+      await route.continue();
+    } catch { await route.abort(); }
+  });
+  return {
+    render: async (url, timeoutMs) => {
+      await page.goto(url.toString(), { waitUntil: "networkidle", timeout: timeoutMs });
+      return { html: await page.content(), resolvedUrl: new URL(page.url()) };
+    },
+    close: async () => { await browser.close(); },
+  };
+}
 
 const DISCOVERY_KEYWORDS = [
   "about",
@@ -396,7 +439,7 @@ async function parsePdf(bytes: Uint8Array): Promise<ParsedPdf> {
       for (let number = 1; number <= pageLimit && characters < PDF_LIMITS.characters; number += 1) {
         const page = await document.getPage(number);
         const content = await page.getTextContent();
-        const pageText = content.items.map((item) => "str" in item ? item.str : "").join(" ");
+        const pageText = content.items.map((item: { str?: string }) => item.str ?? "").join(" ");
         lines.push(pageText); characters += pageText.length + 2;
       }
       const metadata = await document.getMetadata().catch(() => null);
@@ -963,6 +1006,9 @@ export async function crawlBusinessWebsite(
     parsePdf?: typeof parsePdf;
     assertSafe?: typeof assertSafeDestination;
     now?: () => number;
+    renderPage?: (url: URL, timeoutMs: number) => Promise<RenderedHtml | null>;
+    createBrowserRenderer?: (assertSafe: typeof assertSafeDestination, baseHost: string) => Promise<BrowserRenderer>;
+    browserLimits?: Partial<BrowserLimits>;
   } = {},
 ): Promise<BusinessWebsiteCrawlResult> {
   const now = dependencies.now ?? (() => performance.now());
@@ -971,13 +1017,15 @@ export async function crawlBusinessWebsite(
   const fetchPdfDocument = dependencies.fetchPdf ?? fetchPdf;
   const parsePdfDocument = dependencies.parsePdf ?? parsePdf;
   const assertSafe = dependencies.assertSafe ?? assertSafeDestination;
+  const browserLimits: BrowserLimits = { ...BROWSER_LIMITS, ...dependencies.browserLimits };
   const totalStarted = now();
   const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
   const duplicateDiagnostics = { canonicalUrlsDetected: 0, canonicalDuplicatesSkipped: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, repeatedBoilerplateBlocksRemoved: 0 };
   const structuredDiagnostics = { jsonLdBlocksDetected: 0, jsonLdBlocksParsed: 0, malformedJsonLdBlocksIgnored: 0, supportedStructuredEntitiesDetected: 0, structuredFactsRetained: 0, structuredFactsDeduplicated: 0 };
   const semanticDiagnostics: SemanticDiagnostics = { headingsRetained:0, paragraphsRetained:0, listItemsRetained:0, tablesRetained:0, tableRowsRetained:0, definitionEntriesRetained:0, visibleFaqsRetained:0, hiddenElementsIgnored:0, semanticBlocksDeduplicated:0, extractionOutputTruncated:0 };
   const pdfDiagnostics = { pdfsDiscovered:0, pdfsProcessed:0, pdfsSkipped:0, pdfsFailed:0, pdfBytesDownloaded:0, pdfPagesParsed:0, pdfDocumentsTruncated:0 };
-  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...pdfDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
+  const browserDiagnostics = { browserPagesQueued:0, browserPagesRendered:0, browserPagesSkipped:0, browserRenderFailures:0, browserRenderTimeouts:0, browserFallbacksUsed:0, browserRenderDurationMs:0 };
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...pdfDiagnostics,...browserDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
   try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
@@ -1092,7 +1140,56 @@ export async function crawlBusinessWebsite(
     return Array.from(discoveredPages);
   };
   const protectedBlocks = new Set<string>();
+  let renderer: BrowserRenderer | undefined;
+  let browserAttempts = 0;
+  let browserTimeUsed = 0;
+  class BrowserRenderTimeout extends Error {}
+  const weakHtml = (html: string) => {
+    const semantic = semanticHtml(html);
+    const structured = extractJsonLd(html);
+    const blocks = semantic.diagnostics.headingsRetained + semantic.diagnostics.paragraphsRetained + semantic.diagnostics.listItemsRetained + semantic.diagnostics.tableRowsRetained + semantic.diagnostics.definitionEntriesRetained + semantic.diagnostics.visibleFaqsRetained;
+    return structured.factsRetained === 0 && semantic.text.length < 160 && blocks <= 3;
+  };
+  const materiallyImproves = (original: string, rendered: string) => {
+    const before = semanticHtml(original), after = semanticHtml(rendered);
+    const beforeFacts = extractJsonLd(original).factsRetained, afterFacts = extractJsonLd(rendered).factsRetained;
+    return after.text.length >= 80 && ((after.text.length >= before.text.length + 120 && after.text.length >= before.text.length * 1.5) || afterFacts >= beforeFacts + 2);
+  };
+  const maybeRender = async (fetched: RenderedHtml): Promise<RenderedHtml> => {
+    if (!weakHtml(fetched.html)) return fetched;
+    browserDiagnostics.browserPagesQueued += 1;
+    if (browserAttempts >= browserLimits.pages || browserTimeUsed >= browserLimits.totalTimeMs) { browserDiagnostics.browserPagesSkipped += 1; return fetched; }
+    browserAttempts += 1;
+    const remaining = browserLimits.totalTimeMs - browserTimeUsed;
+    const timeoutMs = Math.min(browserLimits.renderTimeoutMs, remaining);
+    const started = now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const render = dependencies.renderPage ?? (renderer ??= await (dependencies.createBrowserRenderer ?? createPlaywrightRenderer)(assertSafe, baseHost)).render;
+      const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new BrowserRenderTimeout()), timeoutMs); });
+      const rendered = await Promise.race([render(new URL(fetched.resolvedUrl), timeoutMs), timeout]);
+      if (!rendered) { browserDiagnostics.browserPagesSkipped += 1; return fetched; }
+      browserDiagnostics.browserPagesRendered += 1;
+      if ((rendered.resolvedUrl.protocol !== "http:" && rendered.resolvedUrl.protocol !== "https:") || normalizeHost(rendered.resolvedUrl.hostname) !== baseHost) throw new Error("Invalid rendered destination");
+      await assertSafe(rendered.resolvedUrl);
+      if (!materiallyImproves(fetched.html, rendered.html)) { browserDiagnostics.browserPagesSkipped += 1; return fetched; }
+      browserDiagnostics.browserFallbacksUsed += 1;
+      return rendered;
+    } catch (error) {
+      if (error instanceof BrowserRenderTimeout) browserDiagnostics.browserRenderTimeouts += 1;
+      else browserDiagnostics.browserRenderFailures += 1;
+      const warning = "A JavaScript-rendered page could not be processed.";
+      if (!warnings.includes(warning)) warnings.push(warning);
+      return fetched;
+    } finally {
+      if (timer) clearTimeout(timer);
+      const duration = Math.max(0, now() - started);
+      browserTimeUsed += duration;
+      browserDiagnostics.browserRenderDurationMs += duration;
+    }
+  };
   const processFetched = async (fetched: { html: string; resolvedUrl: URL }) => {
+      fetched = await maybeRender(fetched);
       const finalUrl = dedupeUrl(fetched.resolvedUrl.toString());
       if (finalUrls.has(finalUrl)) { pagesSkipped += 1; duplicateDiagnostics.redirectDuplicatesSkipped += 1; return; }
       finalUrls.add(finalUrl);
@@ -1275,13 +1372,15 @@ export async function crawlBusinessWebsite(
   }
   if (pdfCandidates.size > PDF_LIMITS.documents) pdfDiagnostics.pdfsSkipped += pdfCandidates.size - PDF_LIMITS.documents;
 
+  if (renderer) { try { await renderer.close(); } catch { /* Rendering cleanup cannot fail a crawl. */ } }
+
   timings.totalCrawlDurationMs = Math.max(0, now() - totalStarted);
   structuredDiagnostics.structuredFactsRetained = retained.reduce((total, record) => total + record.structuredFacts, 0);
   for(const key of Object.keys(semanticDiagnostics) as (keyof SemanticDiagnostics)[]) semanticDiagnostics[key]=retained.reduce((total,record)=>total+record.semantic[key],0);
 
   if (pages.length === 0) {
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
-      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...pdfDiagnostics, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics, finalUrls: [], restrictions, timings,
+      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...pdfDiagnostics, ...browserDiagnostics, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics, finalUrls: [], restrictions, timings,
     });
   }
 
@@ -1296,6 +1395,7 @@ export async function crawlBusinessWebsite(
       pagesSkipped,
       pagesFailed,
       ...pdfDiagnostics,
+      ...browserDiagnostics,
       ...duplicateDiagnostics,
       ...structuredDiagnostics,
       ...semanticDiagnostics,

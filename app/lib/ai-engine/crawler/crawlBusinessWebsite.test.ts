@@ -711,3 +711,93 @@ test("separates skipped PDF validation outcomes from eligible fetch failures", a
   assert.deepEqual(result.warnings,["A PDF document could not be read."]);
   assert.equal(result.pages.some((item)=>item.pageType==="home"),true);
 });
+
+test("keeps HTML authoritative and renders only deterministically weak pages", async () => {
+  const rendered: string[] = [];
+  const rich = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null,
+    fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:page("Acme")}:null,
+    renderPage:async(url)=>{ rendered.push(url.pathname); return null; },
+  });
+  assert.equal(rendered.length, 0);
+  assert.equal(rich.diagnostics.browserPagesQueued, 0);
+
+  const weak = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null,
+    fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:'<title>Loading</title><div id="root"></div>'}:null,
+    renderPage:async(url)=>{ rendered.push(url.pathname); return {resolvedUrl:url,html:`<title>Acme</title><main><h1>Acme Services</h1><p>${"Emergency repairs, installation, pricing, and service throughout Dallas. ".repeat(5)}</p></main>`}; },
+  });
+  assert.deepEqual(rendered, ["/"]);
+  assert.match(weak.pages[0]!.text, /Emergency repairs/);
+  assert.equal(weak.diagnostics.browserPagesQueued, 1);
+  assert.equal(weak.diagnostics.browserPagesRendered, 1);
+  assert.equal(weak.diagnostics.browserFallbacksUsed, 1);
+  assert.ok(weak.diagnostics.browserRenderDurationMs >= 0);
+  assert.equal(weak.diagnostics.headingsRetained, 1);
+  assert.equal(weak.diagnostics.paragraphsRetained, 1);
+});
+
+test("does not replace weak HTML with empty rendered output", async () => {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null,
+    fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:`<main>${"Original business details. ".repeat(4)}</main>`}:url.pathname==="/about"?{resolvedUrl:url,html:page("About")}:null,
+    renderPage:async(url)=>({resolvedUrl:url,html:'<div id="root"></div>'}),
+  });
+  assert.ok(result.pages.some(item=>item.text.includes("Original business details")));
+  assert.equal(result.diagnostics.browserFallbacksUsed, 0);
+  assert.equal(result.diagnostics.browserPagesSkipped, 1);
+});
+
+test("isolates browser timeouts and failures while continuing the crawl", async () => {
+  let calls = 0;
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null, browserLimits:{renderTimeoutMs:5},
+    fetchPage:async(url)=>url.pathname==="/"||url.pathname==="/about"||url.pathname==="/services"?{resolvedUrl:url,html:`<title>${url.pathname}</title><div id="app"></div>`}:null,
+    renderPage:async(url)=>{ calls += 1; if(url.pathname==="/") return await new Promise(()=>{}); if(url.pathname==="/about") throw new Error("secret browser failure"); return {resolvedUrl:url,html:`<main>${"Rendered service information. ".repeat(8)}</main>`}; },
+  });
+  assert.equal(calls, 3);
+  assert.equal(result.diagnostics.browserRenderTimeouts, 1);
+  assert.equal(result.diagnostics.browserRenderFailures, 1);
+  assert.equal(result.diagnostics.browserFallbacksUsed, 1);
+  assert.equal(result.warnings.filter(item=>item.includes("JavaScript-rendered")).length, 1);
+  assert.ok(!result.warnings.some(item=>item.includes("secret")));
+});
+
+test("enforces browser page and total-time budgets", async () => {
+  let pageLimited = 0;
+  const limited = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null, browserLimits:{pages:2},
+    fetchPage:async(url)=>({resolvedUrl:url,html:'<div id="app"></div>'}),
+    renderPage:async(url)=>{ pageLimited += 1; return {resolvedUrl:url,html:`<main>${url.pathname} ${"distinct rendered business information ".repeat(8)}</main>`}; },
+  });
+  assert.equal(pageLimited, 2);
+  assert.ok(limited.diagnostics.browserPagesSkipped > 0);
+
+  let clock = 0, timeLimited = 0;
+  const timed = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null, now:()=>clock, browserLimits:{pages:10,totalTimeMs:10},
+    fetchPage:async(url)=>({resolvedUrl:url,html:'<div id="app"></div>'}),
+    renderPage:async(url)=>{ timeLimited += 1; clock += 10; return {resolvedUrl:url,html:`<main>${url.pathname} ${"timed rendered company information ".repeat(8)}</main>`}; },
+  });
+  assert.equal(timeLimited, 1);
+  assert.equal(timed.diagnostics.browserRenderDurationMs, 10);
+  assert.ok(timed.diagnostics.browserPagesSkipped > 0);
+});
+
+test("runs canonical, JSON-LD, semantic, and duplicate handling after rendering", async () => {
+  const facts = JSON.stringify({"@type":"Organization",name:"Rendered Acme",telephone:"555-0100"});
+  const renderedHtml = `<link rel="canonical" href="https://example.test/services"><main><h1>Rendered Services</h1><p>${"Installation repair maintenance pricing warranty and scheduling. ".repeat(5)}</p></main><script type="application/ld+json">${facts}</script>`;
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null,
+    fetchPage:async(url)=>url.pathname==="/"||url.pathname==="/about"?{resolvedUrl:url,html:'<div id="root"></div>'}:null,
+    renderPage:async(url)=>({resolvedUrl:url,html:renderedHtml}),
+  });
+  assert.equal(result.pages.length, 1);
+  assert.equal(result.pages[0]!.url, "https://example.test/services");
+  assert.match(result.pages[0]!.text, /Rendered Services/);
+  assert.match(result.pages[0]!.text, /Business name: Rendered Acme/);
+  assert.equal(result.diagnostics.canonicalUrlsDetected, 2);
+  assert.equal(result.diagnostics.canonicalDuplicatesSkipped, 1);
+  assert.equal(result.diagnostics.jsonLdBlocksParsed, 2);
+  assert.equal(result.diagnostics.headingsRetained, 1);
+});
