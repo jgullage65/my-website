@@ -658,3 +658,56 @@ test("retains normalized PDF text, uses filename titles, and isolates parser fai
   assert.equal(result.diagnostics.pdfDocumentsTruncated,1);
   assert.deepEqual(result.warnings,["A PDF document could not be read."]);
 });
+
+test("discovers a PDF from weak HTML without retaining or budgeting the weak page", async () => {
+  const fetchedPaths: string[] = [];
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      fetchedPaths.push(url.pathname);
+      if (url.pathname === "/") return { resolvedUrl:url, html:'<a href="/downloads/service-catalog.pdf">Download our service catalog</a>' };
+      if (url.pathname === "/about") return { resolvedUrl:url, html:page("About Acme") };
+      return null;
+    },
+    fetchPdf: async (url) => ({ status:"success", document:{ resolvedUrl:url, bytes:new Uint8Array([37,80,68,70,45]), truncated:false } }),
+    parsePdf: async () => ({ text:"Service catalog pricing and capabilities. ".repeat(4), pagesParsed:1, truncated:false }),
+  });
+  assert.equal(result.pages.some((item) => item.url === "https://example.test/"), false);
+  assert.equal(result.pages.filter((item) => item.pageType === "document").length, 1);
+  assert.equal(result.diagnostics.pagesSkipped, 1);
+  assert.equal(result.diagnostics.pdfsProcessed, 1);
+  assert.equal(fetchedPaths.filter((path) => path === "/downloads/service-catalog.pdf").length, 0);
+});
+
+test("accepts strongly signaled PDF delivery URLs but rejects generic downloads", async () => {
+  const pdfCalls: string[] = [];
+  const links = [
+    '<a href="/download?file=pricing-guide.pdf">Pricing guide</a>',
+    '<a href="/documents/pricing-guide">View pricing guide PDF</a>',
+    '<a href="/assets/view?id=123">Brochure PDF</a>',
+    '<a href="/download?id=generic">Download document</a>',
+  ].join("");
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined, fetchSitemap:async()=>null,
+    fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:page("Acme",links)}:null,
+    fetchPdf:async(url)=>{ pdfCalls.push(`${url.pathname}${url.search}`); return { status:"success", document:{resolvedUrl:url,bytes:new Uint8Array(5),truncated:false} }; },
+    parsePdf:async()=>({text:"Distinct durable pricing policy and service details. ".repeat(4),pagesParsed:1,truncated:false}),
+  });
+  assert.deepEqual(pdfCalls,["/download?file=pricing-guide.pdf","/documents/pricing-guide","/assets/view?id=123"]);
+  assert.equal(result.diagnostics.pdfsDiscovered,3);
+});
+
+test("separates skipped PDF validation outcomes from eligible fetch failures", async () => {
+  let call = 0;
+  const links = '<a href="/pricing.pdf">Pricing</a><a href="/services.pdf">Services</a><a href="/policy.pdf">Policy</a>';
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null,
+    fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:page("Acme",links)}:null,
+    fetchPdf:async()=>{ call += 1; return call === 1 ? {status:"skipped"} : {status:"failed"}; },
+  });
+  assert.equal(result.diagnostics.pdfsSkipped,1);
+  assert.equal(result.diagnostics.pdfsFailed,2);
+  assert.deepEqual(result.warnings,["A PDF document could not be read."]);
+  assert.equal(result.pages.some((item)=>item.pageType==="home"),true);
+});
