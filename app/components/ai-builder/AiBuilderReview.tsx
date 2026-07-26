@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type {
@@ -99,6 +99,58 @@ const approveActionClassName =
 
 const panelClassName =
   "overflow-hidden rounded-[14px] border border-amber-300/20 bg-[#050a16]/88 shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition hover:border-amber-300/30 hover:bg-[#07101d]/92";
+
+function CollapsibleReviewText({
+  children,
+  expanded,
+  onToggle,
+  className = "",
+}: {
+  children: string;
+  expanded: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
+  const textRef = useRef<HTMLParagraphElement>(null);
+  const [canExpand, setCanExpand] = useState(false);
+
+  useEffect(() => {
+    const text = textRef.current;
+    if (!text || expanded) return;
+
+    const checkOverflow = () => {
+      setCanExpand(text.scrollHeight > text.clientHeight + 1);
+    };
+
+    checkOverflow();
+    const observer = new ResizeObserver(checkOverflow);
+    observer.observe(text);
+    return () => observer.disconnect();
+  }, [children, expanded]);
+
+  return (
+    <>
+      <p
+        ref={textRef}
+        className={`${className} ${!expanded ? "line-clamp-3" : ""}`}
+      >
+        {children}
+      </p>
+      {canExpand ? (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggle();
+          }}
+          className="mx-auto mt-2 block text-xs font-semibold text-amber-300 transition hover:text-amber-200"
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      ) : null}
+    </>
+  );
+}
 
 export default function AiBuilderReview({
   session,
@@ -333,7 +385,7 @@ export default function AiBuilderReview({
           <Stat label="Removed" value={session.contextCounts.archived} />
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-3" aria-label="Review filter">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Review filter">
           {(["all", "proposed", "approved", "archived"] as const).map(
             (nextFilter) => (
               <button
@@ -380,7 +432,6 @@ export default function AiBuilderReview({
                       const editing = editingEntry === entryRenderKey;
                       const pending = isPending("context_entry", entry.id);
                       const expanded = expandedItems.has(entryRenderKey);
-                      const canExpand = entry.content.length > 220 || entry.content.includes("\n");
 
                       return (
                         <article
@@ -432,25 +483,13 @@ export default function AiBuilderReview({
                                 <h4 className="text-center text-base font-semibold leading-6 text-amber-300">
                                   {entry.title}
                                 </h4>
-                                <p
-                                  className={`mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-center text-sm leading-6 text-slate-300 ${
-                                    !expanded && canExpand ? "line-clamp-4" : ""
-                                  }`}
+                                <CollapsibleReviewText
+                                  expanded={expanded}
+                                  onToggle={() => toggleExpanded(entryRenderKey)}
+                                  className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-center text-sm leading-6 text-slate-300"
                                 >
                                   {entry.content}
-                                </p>
-                                {canExpand ? (
-                                  <button
-                                    type="button"
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      toggleExpanded(entryRenderKey);
-                                    }}
-                                    className="mx-auto mt-2 block text-xs font-semibold text-amber-300 transition hover:text-amber-200"
-                                  >
-                                    {expanded ? "Show less" : "Show more"}
-                                  </button>
-                                ) : null}
+                                </CollapsibleReviewText>
                               </>
                             )}
                           </div>
@@ -563,7 +602,6 @@ export default function AiBuilderReview({
                 const editing = editingFaq === faqRenderKey;
                 const pending = isPending("faq", faq.id);
                 const expanded = expandedItems.has(faqRenderKey);
-                const canExpand = faq.answer.length > 220 || faq.answer.includes("\n");
 
                 return (
                   <article
@@ -613,25 +651,13 @@ export default function AiBuilderReview({
                           <h4 className="text-center text-base font-semibold leading-6 text-amber-300">
                             {faq.question}
                           </h4>
-                          <p
-                            className={`mt-3 whitespace-pre-wrap text-center text-sm leading-6 text-slate-300 ${
-                              !expanded && canExpand ? "line-clamp-4" : ""
-                            }`}
+                          <CollapsibleReviewText
+                            expanded={expanded}
+                            onToggle={() => toggleExpanded(faqRenderKey)}
+                            className="mt-3 whitespace-pre-wrap text-center text-sm leading-6 text-slate-300"
                           >
                             {faq.answer}
-                          </p>
-                          {canExpand ? (
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                toggleExpanded(faqRenderKey);
-                              }}
-                              className="mx-auto mt-2 block text-xs font-semibold text-amber-300 transition hover:text-amber-200"
-                            >
-                              {expanded ? "Show less" : "Show more"}
-                            </button>
-                          ) : null}
+                          </CollapsibleReviewText>
                         </>
                       )}
                     </div>
