@@ -75,7 +75,7 @@ function normalizeWebsiteUrl(value: unknown): string | null {
   }
 }
 
-function normalizeWebsiteKnowledge(value: unknown): PersistedWebsiteKnowledge | null {
+export function normalizeWebsiteKnowledge(value: unknown): PersistedWebsiteKnowledge | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
 
   const document = value as Record<string, unknown>;
@@ -92,13 +92,13 @@ function normalizeWebsiteKnowledge(value: unknown): PersistedWebsiteKnowledge | 
     const fact = entry as Record<string, unknown>;
     const category = normalizeText(fact.category, 64);
     const title = normalizeText(fact.title, 300);
-    const factValue = normalizeText(fact.value, 4_000);
+    const factValue = normalizeText(fact.value, 8_000);
     const confidence = normalizeText(fact.confidence, 32);
     const evidence = (Array.isArray(fact.evidence) ? fact.evidence : []).slice(0, 50).flatMap((item) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return [];
       const record = item as Record<string, unknown>;
       const url = normalizeWebsiteUrl(record.url);
-      const excerpt = normalizeText(record.excerpt, 1_000);
+      const excerpt = normalizeText(record.excerpt, 2_000);
       return url && excerpt ? [{ url, excerpt }] : [];
     });
     if (!websiteKnowledgeCategories.has(category) || !title || !factValue || !websiteKnowledgeConfidenceLevels.has(confidence) || !evidence.length) return [];

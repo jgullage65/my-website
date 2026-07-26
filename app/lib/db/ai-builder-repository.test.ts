@@ -5,12 +5,44 @@ import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import { websiteFactIdentity } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import {
   buildLegacyProjectPersistenceQueries,
+  normalizeWebsiteKnowledge,
   persistAiBuilderProjectWithDependencies,
 } from "./ai-builder-repository";
 import { buildCanonicalProvenanceShadowQueries } from "./canonical-provenance-shadow";
 import { buildExpectedCanonicalProjection } from "./canonical-provenance-reconciliation";
 
 const timestamp = "2026-07-20T10:00:00.000Z";
+
+function websiteKnowledgeWith(value: string, excerpt: string) {
+  return {
+    schema_version: 1,
+    document_version: 1,
+    knowledge: {
+      facts: [{ category: "service", title: "Planning", value, confidence: "high", evidence: [{ url: "https://acme.test/services", excerpt }] }],
+      coverage: {},
+      unresolvedQuestions: [],
+    },
+    pages: [],
+    warnings: [],
+  };
+}
+
+test("website knowledge persistence preserves fact values and evidence excerpts at their limits", () => {
+  const value = "v".repeat(8_000);
+  const excerpt = "e".repeat(2_000);
+  const normalized = normalizeWebsiteKnowledge(websiteKnowledgeWith(value, excerpt));
+
+  assert.equal(normalized?.knowledge.facts[0]?.value, value);
+  assert.equal(normalized?.knowledge.facts[0]?.evidence[0]?.excerpt, excerpt);
+});
+
+test("website knowledge persistence retains truncation above the fact and evidence limits", () => {
+  const normalized = normalizeWebsiteKnowledge(websiteKnowledgeWith("v".repeat(8_001), "e".repeat(2_001)));
+
+  assert.equal(normalized?.knowledge.facts[0]?.value, "v".repeat(8_000));
+  assert.equal(normalized?.knowledge.facts[0]?.evidence[0]?.excerpt, "e".repeat(2_000));
+});
+
 const input = (status = "review") => ({
   session: {
     id: "project-1", status, createdAt: timestamp, updatedAt: timestamp,
