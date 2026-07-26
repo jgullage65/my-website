@@ -439,7 +439,11 @@ async function parsePdf(bytes: Uint8Array): Promise<ParsedPdf> {
       for (let number = 1; number <= pageLimit && characters < PDF_LIMITS.characters; number += 1) {
         const page = await document.getPage(number);
         const content = await page.getTextContent();
-        const pageText = content.items.map((item: { str?: string }) => item.str ?? "").join(" ");
+        const pageText = content.items.map((item: unknown) =>
+          typeof item === "object" && item !== null && "str" in item && typeof item.str === "string"
+            ? item.str
+            : "",
+        ).join(" ");
         lines.push(pageText); characters += pageText.length + 2;
       }
       const metadata = await document.getMetadata().catch(() => null);
