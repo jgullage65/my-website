@@ -101,8 +101,8 @@ test("discovers same-host pages from a standard sitemap URL set", async () => {
     },
   });
 
-  assert.ok(calls.includes("https://example.test/locations"));
-  assert.ok(calls.includes("https://www.example.test/team"));
+  assert.ok(!calls.includes("https://example.test/locations"));
+  assert.ok(!calls.includes("https://www.example.test/team"));
   assert.ok(!calls.some((url) => url.includes("other.test") || url.includes("brochure.pdf")));
   assert.equal(result.diagnostics.pagesDiscovered, 14);
 });
@@ -126,7 +126,7 @@ test("follows same-host sitemap indexes and ignores malformed sitemap failures",
     },
   });
   assert.deepEqual(sitemapCalls, ["https://example.test/sitemap.xml", "https://example.test/pages.xml"]);
-  assert.ok(pageCalls.includes("https://example.test/case-studies"));
+  assert.ok(!pageCalls.includes("https://example.test/case-studies"));
 
   const fallback = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe: async () => undefined,
@@ -137,8 +137,9 @@ test("follows same-host sitemap indexes and ignores malformed sitemap failures",
   assert.deepEqual(fallback.warnings, []);
 });
 
-test("does not let large sitemaps exceed the existing page limit", async () => {
+test("keeps canonical priority paths ahead of a large sitemap within the page limit", async () => {
   let pageFetches = 0;
+  const pageCalls: string[] = [];
   const locations = Array.from({ length: 1_000 }, (_, index) =>
     `<url><loc>https://example.test/page-${index}</loc></url>`,
   ).join("");
@@ -147,6 +148,7 @@ test("does not let large sitemaps exceed the existing page limit", async () => {
     fetchSitemap: async (url) => ({ resolvedUrl: url, xml: `<urlset>${locations}</urlset>` }),
     fetchPage: async (url) => {
       pageFetches += 1;
+      pageCalls.push(url.pathname);
       return { resolvedUrl: url, html: page("Acme") };
     },
   });
@@ -154,4 +156,19 @@ test("does not let large sitemaps exceed the existing page limit", async () => {
   assert.equal(pageFetches, 12);
   assert.equal(result.pages.length, 12);
   assert.equal(result.diagnostics.pagesDiscovered, 1_012);
+  assert.deepEqual(pageCalls, [
+    "/",
+    "/about",
+    "/about-us",
+    "/services",
+    "/products",
+    "/pricing",
+    "/faq",
+    "/faqs",
+    "/contact",
+    "/contact-us",
+    "/policies",
+    "/terms",
+  ]);
+  assert.ok(!pageCalls.some((pathname) => pathname.startsWith("/page-")));
 });

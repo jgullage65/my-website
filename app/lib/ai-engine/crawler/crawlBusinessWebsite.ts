@@ -607,6 +607,9 @@ export async function crawlBusinessWebsite(
   timings.pageDiscoveryMs += Math.max(0, now() - sitemapDiscoveryStarted);
   if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
+  const sitemapDiscoveryStarted = now();
+  await discoverSitemapPages();
+  timings.pageDiscoveryMs += Math.max(0, now() - sitemapDiscoveryStarted);
 
   while (queue.length > 0 && visited.size < MAX_PAGES - 1) {
     const batch: URL[] = [];
