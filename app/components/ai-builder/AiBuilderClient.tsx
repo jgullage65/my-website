@@ -261,93 +261,44 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     [session],
   );
 
-  const reviewSaveStatus: SaveStatus = saveError
-    ? "error"
-    : pendingReviewItems.size > 0
-      ? "saving"
-      : saveStatus;
-
   useEffect(() => {
     if (!initialProjectId) return;
-    const projectId = initialProjectId;
-    let cancelled = false;
-
-    async function loadProject() {
-      setError(null);
-      setSaveError(null);
-      setSaveStatus("idle");
-      setStep("loading");
-      try {
-        const payload = await fetchProject(projectId);
-        if (cancelled || !payload.session) return;
-        setBuilder((current) => ({
-          ...current,
-          businessName: payload.builder?.businessName ?? "",
-          industry: payload.builder?.industry ?? "",
-          website: payload.builder?.website ?? "",
-          tone: payload.builder?.tone ?? "Professional",
-          websiteKnowledge: payload.websiteKnowledge
-            ? {
-                businessName: payload.builder?.businessName ?? "",
-                industry: payload.builder?.industry ?? "",
-                website:
-                  payload.websiteKnowledge.resolved_url ??
-                  payload.websiteKnowledge.requested_url ??
-                  payload.builder?.website ??
-                  "",
-                requestedUrl:
-                  payload.websiteKnowledge.requested_url ?? payload.builder?.website ?? "",
-                resolvedUrl:
-                  payload.websiteKnowledge.resolved_url ??
-                  payload.websiteKnowledge.requested_url ??
-                  payload.builder?.website ??
-                  "",
-                productsServices: "",
-                idealCustomers: "",
-                additionalKnowledge: "",
-                knowledge: payload.websiteKnowledge.knowledge,
-                pages: payload.websiteKnowledge.pages,
-                warnings: payload.websiteKnowledge.warnings,
-                importedAt: payload.websiteKnowledge.imported_at ?? "",
-                crawlAttemptId:
-                  payload.websiteKnowledge.current_crawl_attempt_id ?? undefined,
-              }
-            : null,
-          crawlAttemptIds: payload.websiteKnowledge?.current_crawl_attempt_id
-            ? [payload.websiteKnowledge.current_crawl_attempt_id]
-            : [],
-        }));
+    let active = true;
+    void fetchProject(initialProjectId)
+      .then((payload) => {
+        if (!active || !payload.session) return;
         setSession(payload.session);
         setChatThread(payload.chatThread ?? null);
+        setBuilder((current) => ({
+          ...current,
+          businessName: payload.builder?.businessName ?? current.businessName,
+          industry: payload.builder?.industry ?? current.industry,
+          website: payload.builder?.website ?? current.website,
+          tone: payload.builder?.tone ?? current.tone,
+        }));
         const requestedStep = new URL(window.location.href).searchParams.get("step");
-        setStep(requestedStep === "review" || requestedStep === "chat" ? requestedStep : "results");
-      } catch (loadError) {
-        if (cancelled) return;
-        setSession(null);
-        setChatThread(null);
-        setError(
-          loadError instanceof Error
-            ? loadError.message
-            : "The AI Builder project could not be loaded.",
+        setStep(
+          requestedStep === "chat" || requestedStep === "review" || requestedStep === "results"
+            ? requestedStep
+            : "results",
         );
+      })
+      .catch((loadError) => {
+        if (!active) return;
+        setError(loadError instanceof Error ? loadError.message : "The AI Builder project could not be loaded.");
         setStep("form");
-      }
-    }
-
-    void loadProject();
+      });
     return () => {
-      cancelled = true;
+      active = false;
     };
   }, [initialProjectId]);
 
+  const reviewSaveStatus = pendingReviewItems.size > 0 ? "saving" : saveStatus;
+
   const buildAi = async () => {
     setError(null);
-    setSaveError(null);
-    setSaveStatus("idle");
-    setSession(null);
-    setChatThread(null);
-    setBuildPercent(0);
-    navigateToStep("building");
+    setBuildPercent(5);
+    setStep("building");
 
     try {
       const response = await fetch("/api/ai-builder/intake", {
@@ -355,24 +306,16 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(builder),
       });
-      if (!response.ok || !response.body) {
-        const payload = (await response.json()) as { error?: { message?: string } };
-        throw new Error(payload.error?.message || "The AI builder could not process this information.");
-      }
 
+      if (!response.body) throw new Error("The AI builder did not return a response stream.");
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let payload: {
-        ok?: boolean;
-        projectId?: string;
-        session?: AiBuilderSession;
-        error?: { code?: string; message?: string };
-      } | null = null;
+      let payload: { ok?: boolean; projectId?: string; session?: AiBuilderSession; error?: { message?: string } } | null = null;
 
       while (true) {
-        const { done, value: chunk } = await reader.read();
-        buffer += decoder.decode(chunk, { stream: !done });
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
         const lines = buffer.split("\n");
         buffer = lines.pop() ?? "";
         for (const line of lines) {
@@ -478,7 +421,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        <div className="ai-builder-review-scrollbar min-h-0 flex-1 overflow-y-scroll overscroll-contain p-4 [scrollbar-color:rgba(251,191,36,0.95)_rgba(255,255,255,0.04)] [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-white/[0.04] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-300/90 [&::-webkit-scrollbar-thumb:hover]:bg-amber-200">
           {workspaceTab === "knowledge" ? (
             <>
               {reviewSaveStatus !== "idle" || saveError ? (
@@ -498,7 +441,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                       : saveError}
                 </div>
               ) : null}
-              <div className="[&>div]:max-w-none [&>div]:space-y-5 [&>div>section:first-of-type]:hidden [&_.max-w-3xl]:max-w-none [&_.max-w-4xl]:max-w-none [&_.max-w-5xl]:max-w-none">
+              <div className="[&>div]:max-w-none [&>div]:space-y-5 [&_.max-w-3xl]:max-w-none [&_.max-w-4xl]:max-w-none [&_.max-w-5xl]:max-w-none">
                 <AiBuilderReview
                   session={session}
                   onReviewCommand={submitReviewCommand}
