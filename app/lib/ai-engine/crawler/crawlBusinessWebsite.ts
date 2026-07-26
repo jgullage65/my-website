@@ -602,6 +602,9 @@ export async function crawlBusinessWebsite(
       onPage?.(pages.length, visited.size + queued.size + 1);
   };
 
+  const sitemapDiscoveryStarted = now();
+  await discoverSitemapPages();
+  timings.pageDiscoveryMs += Math.max(0, now() - sitemapDiscoveryStarted);
   if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
   const sitemapDiscoveryStarted = now();
