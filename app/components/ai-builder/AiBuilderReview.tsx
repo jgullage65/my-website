@@ -24,6 +24,7 @@ type Props = {
   pendingReviewItems: ReadonlySet<string>;
   onBack: () => void;
   onLaunchChat: () => void;
+  showLaunchChat?: boolean;
 };
 
 const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
@@ -91,10 +92,10 @@ const filterButtonClassName =
   "cta-raised inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-2.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]";
 
 const itemActionClassName =
-  "min-w-0 flex-1 rounded-xl border border-amber-300/15 bg-[#081226] px-3 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
+  "min-w-0 w-full rounded-xl border border-amber-300/15 bg-[#081226] px-3 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
 
 const approveActionClassName =
-  "min-w-0 flex-1 rounded-xl border border-amber-300/15 bg-[#081226] px-3 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
+  "min-w-0 w-full rounded-xl border border-amber-300/15 bg-[#081226] px-3 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
 
 const panelClassName =
   "overflow-hidden rounded-[14px] border border-amber-300/20 bg-[#050a16]/88 shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition hover:border-amber-300/30 hover:bg-[#07101d]/92";
@@ -105,6 +106,7 @@ export default function AiBuilderReview({
   pendingReviewItems,
   onBack,
   onLaunchChat,
+  showLaunchChat = true,
 }: Props) {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editingFaq, setEditingFaq] = useState<string | null>(null);
@@ -305,21 +307,23 @@ export default function AiBuilderReview({
           Business memory review
         </p>
 
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className={`mt-6 grid grid-cols-1 gap-3 ${showLaunchChat ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <button type="button" onClick={onBack} className={canonicalButtonClassName}>
             Back to results
           </button>
           <button type="button" onClick={approveAll} className={canonicalButtonClassName}>
             Approve all
           </button>
-          <button
-            type="button"
-            onClick={onLaunchChat}
-            disabled={!canLaunchChat}
-            className={canonicalButtonClassName}
-          >
-            Test assistant
-          </button>
+          {showLaunchChat ? (
+            <button
+              type="button"
+              onClick={onLaunchChat}
+              disabled={!canLaunchChat}
+              className={canonicalButtonClassName}
+            >
+              Test assistant
+            </button>
+          ) : null}
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -760,7 +764,7 @@ function SectionDivider({ label }: { label: string }) {
 
 function ItemActions({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-nowrap items-center justify-center gap-2 border-t border-white/[0.065] bg-black/10 px-4 py-3">
+    <div className="grid grid-flow-col auto-cols-fr items-center gap-2 border-t border-white/[0.065] bg-black/10 px-4 py-3">
       {children}
     </div>
   );
