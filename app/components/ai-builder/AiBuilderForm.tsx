@@ -57,6 +57,9 @@ const inputClassName =
 const cardClassName =
   "rounded-2xl border border-amber-300/20 bg-[#050a16]/88 p-5 shadow-[0_14px_42px_rgba(0,0,0,0.2)]";
 
+const websiteCtaClassName =
+  "cta-raised inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#0b1830]";
+
 export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -249,7 +252,6 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         <div className="mt-5 space-y-6 min-[1200px]:mt-4">
           <section className="min-[1200px]:mx-auto min-[1200px]:w-[42%] min-[1200px]:min-w-[32rem] min-[1200px]:max-w-[40rem]">
             <article className={`${cardClassName} relative overflow-hidden text-center`}>
-              <div className="absolute right-[-5rem] top-[-5rem] h-44 w-44 rounded-full bg-amber-400/10 blur-3xl" />
               <div className="relative">
                 <span
                   className={`absolute right-0 top-0 rounded-full border px-3 py-1 text-xs font-semibold max-[640px]:-right-2 max-[640px]:-top-2 ${
@@ -288,7 +290,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                     type="button"
                     disabled={!value.website.trim() || importing}
                     onClick={importWebsite}
-                    className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-[rgba(212,175,55,0.18)] disabled:bg-[#030713] disabled:text-white disabled:shadow-none disabled:[border-width:0.5px] disabled:hover:translate-y-0 disabled:hover:border-[rgba(212,175,55,0.18)] disabled:hover:bg-[#030713]"
+                    className={`${websiteCtaClassName} mx-auto w-full max-w-xs font-black disabled:cursor-not-allowed disabled:border-[rgba(212,175,55,0.18)] disabled:bg-[#030713] disabled:text-white disabled:shadow-none disabled:[border-width:0.5px] disabled:hover:translate-y-0 disabled:hover:border-[rgba(212,175,55,0.18)] disabled:hover:bg-[#030713]`}
                   >
                     {importing
                       ? importStage === "crawl"
@@ -307,7 +309,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                   <button
                     type="button"
                     onClick={() => setShowWebsiteKnowledge(true)}
-                    className="cta-raised mt-4 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#0b1830]"
+                    className={`${websiteCtaClassName} mt-4`}
                   >
                     View imported knowledge →
                   </button>
@@ -406,7 +408,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function Status({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
   return (
-    <div className={`mx-auto mt-4 rounded-xl border px-4 py-3 text-sm ${tone === "success" ? "border-amber-300/15 bg-amber-300/[0.06] text-white" : "border-red-400/20 bg-red-400/[0.07] text-red-200"}`}>
+    <div role="status" className={`mx-auto mt-4 px-4 py-3 text-sm ${tone === "success" ? `${websiteCtaClassName} w-full` : "rounded-xl border border-red-400/20 bg-red-400/[0.07] text-red-200"}`}>
       {children}
     </div>
   );
