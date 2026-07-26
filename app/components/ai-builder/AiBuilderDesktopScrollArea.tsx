@@ -127,6 +127,7 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
     <div className="relative min-h-0 flex-1 overflow-hidden">
       <div
         ref={scrollRef}
+        tabIndex={0}
         className="h-full overflow-y-auto overscroll-contain p-4 pr-7 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {children}
@@ -134,7 +135,7 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
 
       <div
         ref={trackRef}
-        className="absolute bottom-3 right-2 top-3 w-2 rounded-full bg-white/[0.05]"
+        className="absolute bottom-3 right-2 top-3 w-2 cursor-pointer rounded-full bg-white/[0.05]"
         onPointerDown={(event) => {
           if (event.target === event.currentTarget) scrollFromPointer(event.clientY);
         }}
@@ -148,7 +149,7 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
             onPointerMove={handleThumbPointerMove}
             onPointerUp={stopDragging}
             onPointerCancel={stopDragging}
-            className={`absolute left-0 w-2 rounded-full bg-amber-300/90 shadow-[0_0_12px_rgba(251,191,36,0.28)] transition-[background-color,box-shadow] hover:bg-amber-200 hover:shadow-[0_0_16px_rgba(251,191,36,0.4)] ${
+            className={`absolute left-0 w-2 touch-none rounded-full bg-amber-300/90 shadow-[0_0_12px_rgba(251,191,36,0.28)] transition-[background-color,box-shadow] hover:bg-amber-200 hover:shadow-[0_0_16px_rgba(251,191,36,0.4)] ${
               dragging ? "cursor-grabbing" : "cursor-grab"
             }`}
             style={{ height: metrics.thumbHeight, transform: `translateY(${metrics.thumbTop}px)` }}

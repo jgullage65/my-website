@@ -764,7 +764,7 @@ function SectionDivider({ label }: { label: string }) {
 
 function ItemActions({ children }: { children: ReactNode }) {
   return (
-    <div className="grid grid-flow-col auto-cols-fr items-center gap-2 border-t border-white/[0.065] bg-black/10 px-4 py-3">
+    <div className="flex flex-nowrap items-center gap-2 border-t border-white/[0.065] bg-black/10 px-4 py-3 [&>*]:min-w-0 [&>*]:flex-1">
       {children}
     </div>
   );
