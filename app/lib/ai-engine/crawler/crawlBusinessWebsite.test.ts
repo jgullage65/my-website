@@ -84,17 +84,21 @@ test("crawls all eligible pages with bounded concurrency", async () => {
 
 test("discovers same-host pages from a standard sitemap URL set", async () => {
   const calls: string[] = [];
+  let sitemapFetches = 0;
   const result = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe: async () => undefined,
-    fetchSitemap: async (url) => ({
-      resolvedUrl: url,
-      xml: `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-        <url><loc>https://example.test/locations</loc></url>
-        <url><loc>https://www.example.test/team?source=sitemap</loc></url>
-        <url><loc>https://other.test/services</loc></url>
-        <url><loc>https://example.test/brochure.pdf</loc></url>
-      </urlset>`,
-    }),
+    fetchSitemap: async (url) => {
+      sitemapFetches += 1;
+      return {
+        resolvedUrl: url,
+        xml: `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+          <url><loc>https://example.test/locations</loc></url>
+          <url><loc>https://www.example.test/team?source=sitemap</loc></url>
+          <url><loc>https://other.test/services</loc></url>
+          <url><loc>https://example.test/brochure.pdf</loc></url>
+        </urlset>`,
+      };
+    },
     fetchPage: async (url) => {
       calls.push(url.toString());
       return { resolvedUrl: url, html: page(url.pathname === "/" ? "Acme" : url.pathname) };
@@ -104,6 +108,7 @@ test("discovers same-host pages from a standard sitemap URL set", async () => {
   assert.ok(!calls.includes("https://example.test/locations"));
   assert.ok(!calls.includes("https://www.example.test/team"));
   assert.ok(!calls.some((url) => url.includes("other.test") || url.includes("brochure.pdf")));
+  assert.equal(sitemapFetches, 1);
   assert.equal(result.diagnostics.pagesDiscovered, 14);
 });
 
@@ -116,7 +121,7 @@ test("follows same-host sitemap indexes and ignores malformed sitemap failures",
       sitemapCalls.push(url.toString());
       if (url.pathname === "/sitemap.xml") return {
         resolvedUrl: url,
-        xml: `<sitemapindex><sitemap><loc>/pages.xml</loc></sitemap><sitemap><loc>https://other.test/private.xml</loc></sitemap></sitemapindex>`,
+        xml: `<sitemapindex><sitemap><loc>/pages.xml</loc></sitemap><sitemap><loc>/pages.xml</loc></sitemap><sitemap><loc>https://other.test/private.xml</loc></sitemap></sitemapindex>`,
       };
       return { resolvedUrl: url, xml: `<urlset><url><loc>https://example.test/case-studies</loc></url></urlset>` };
     },
