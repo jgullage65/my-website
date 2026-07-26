@@ -36,6 +36,16 @@ export type BusinessWebsiteCrawlDiagnostics = {
   structuredFactsRetained: number;
   /** Repeated facts removed during all bounded extraction attempts, including pages later discarded. */
   structuredFactsDeduplicated: number;
+  headingsRetained: number;
+  paragraphsRetained: number;
+  listItemsRetained: number;
+  tablesRetained: number;
+  tableRowsRetained: number;
+  definitionEntriesRetained: number;
+  visibleFaqsRetained: number;
+  hiddenElementsIgnored: number;
+  semanticBlocksDeduplicated: number;
+  extractionOutputTruncated: number;
   finalUrls: string[];
   restrictions: CrawlRestriction[];
   timings: BusinessWebsiteCrawlTimings;
@@ -81,6 +91,12 @@ const MAX_STRUCTURED_VALUE = 500;
 const MAX_JSON_LD_DEPTH = 8;
 const MAX_JSON_LD_ITEMS = 250;
 const MAX_STRUCTURED_URLS = 10;
+
+const SEMANTIC_LIMITS = {
+  text: 50_000, nodes: 12_000, depth: 60, headings: 80, paragraphs: 300,
+  lists: 30, listItems: 180, itemsPerList: 30, tables: 10, tableRows: 30,
+  tableColumns: 8, cell: 300, definitions: 80, faqs: 40, blocks: 500,
+} as const;
 
 const PRIORITY_PATHS = [
   "/",
@@ -399,25 +415,79 @@ function decodeHtml(value: string): string {
     );
 }
 
-function stripHtmlToText(html: string): string {
-  return decodeHtml(
-    html
-      .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-      .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
-      .replace(/<svg\b[\s\S]*?<\/svg>/gi, " ")
-      .replace(/<!--([\s\S]*?)-->/g, " ")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(
-        /<\/(p|div|section|article|nav|header|footer|li|h1|h2|h3|h4|h5|h6)>/gi,
-        "\n",
-      )
-      .replace(/<[^>]+>/g, " "),
-  )
-    .replace(/[ \t]+/g, " ")
-    .replace(/ *\n */g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+type SemanticDiagnostics = { headingsRetained:number; paragraphsRetained:number; listItemsRetained:number; tablesRetained:number; tableRowsRetained:number; definitionEntriesRetained:number; visibleFaqsRetained:number; hiddenElementsIgnored:number; semanticBlocksDeduplicated:number; extractionOutputTruncated:number };
+type HtmlNode = { tag:string; attrs:string; children:HtmlNode[]; text:string };
+
+/** A deliberately small HTML tree builder: extraction needs document relationships, not browser layout. */
+function semanticHtml(html: string): { text:string; h1:string; diagnostics:SemanticDiagnostics } {
+  const diagnostics: SemanticDiagnostics = { headingsRetained:0, paragraphsRetained:0, listItemsRetained:0, tablesRetained:0, tableRowsRetained:0, definitionEntriesRetained:0, visibleFaqsRetained:0, hiddenElementsIgnored:0, semanticBlocksDeduplicated:0, extractionOutputTruncated:0 };
+  const root:HtmlNode={tag:"root",attrs:"",children:[],text:""}; const stack=[root]; let nodes=0;
+  const voidTags=new Set(["br","hr","img","meta","link","input","source","area","base","embed","param","track","wbr"]);
+  for (const token of html.match(/<!--[\s\S]*?-->|<![^>]*>|<[^>]*>|[^<]+/g) ?? []) {
+    if (++nodes > SEMANTIC_LIMITS.nodes) { diagnostics.extractionOutputTruncated=1; break; }
+    if (token.startsWith("<!--") || /^<!/i.test(token)) continue;
+    if (token.startsWith("</")) { const tag=token.match(/^<\/\s*([\w:-]+)/)?.[1]?.toLowerCase(); if (!tag) continue; for(let i=stack.length-1;i>0;i--) if(stack[i]?.tag===tag){stack.length=i;break;} continue; }
+    if (token.startsWith("<")) {
+      const match=token.match(/^<\s*([\w:-]+)([\s\S]*?)\/?\s*>$/); if(!match) continue;
+      const node:HtmlNode={tag:(match[1]??"").toLowerCase(),attrs:match[2]??"",children:[],text:""}; stack.at(-1)!.children.push(node);
+      if(!voidTags.has(node.tag)&&!token.endsWith("/>")&&stack.length<=SEMANTIC_LIMITS.depth) stack.push(node); else if(stack.length>SEMANTIC_LIMITS.depth) diagnostics.extractionOutputTruncated=1;
+    } else stack.at(-1)!.children.push({tag:"#",attrs:"",children:[],text:decodeHtml(token)});
+  }
+  const attr=(node:HtmlNode,name:string)=>decodeHtml(node.attrs.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:(["'])(.*?)\\1|([^\\s>]+))`,"i"))?.[2] ?? node.attrs.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(?:(["'])(.*?)\\1|([^\\s>]+))`,"i"))?.[3] ?? "");
+  const hidden=(node:HtmlNode)=>/(?:^|\s)(?:hidden|inert)(?:\s|=|$)/i.test(node.attrs)||attr(node,"aria-hidden").toLowerCase()==="true"||/(?:display\s*:\s*none|visibility\s*:\s*hidden)/i.test(attr(node,"style"));
+  const ignored=new Set(["script","style","svg","template","canvas","noscript"]);
+  const plain=(node:HtmlNode, depth=0):string => depth>SEMANTIC_LIMITS.depth||hidden(node)||ignored.has(node.tag)?"":node.tag==="#"?node.text:node.children.map(child=>plain(child,depth+1)).join(" ").replace(/\s+/g," ").trim();
+  const blocks:string[]=[]; const keys=new Set<string>(); const faqKeys=new Set<string>(); let h1=""; let lists=0,totalItems=0,tables=0,definitions=0,faqs=0;
+  const add=(value:string, kind?:"heading"|"paragraph"|"list"|"table"|"definition"|"faq")=>{const indent=kind==="list"&&/^\s{2}/.test(value)?"  ":"";value=indent+value.replace(/\s+/g," ").trim();if(!value.trim())return false;if(blocks.length>=SEMANTIC_LIMITS.blocks){diagnostics.extractionOutputTruncated=1;return false;} const key=normalizeText(value); if(keys.has(key)){diagnostics.semanticBlocksDeduplicated++;return false;} keys.add(key); blocks.push(value); if(kind==="heading")diagnostics.headingsRetained++; if(kind==="paragraph")diagnostics.paragraphsRetained++;return true;};
+  const listText=(node:HtmlNode)=>node.children.filter(child=>child.tag!=="ul"&&child.tag!=="ol").map(child=>plain(child)).join(" ").replace(/\s+/g," ").trim();
+  const emitFaq=(question:string,answer:string)=>{question=question.replace(/^question\s*:\s*/i,"").trim();answer=answer.replace(/^answer\s*:\s*/i,"").trim();const key=`${normalizeText(question)}|${normalizeText(answer)}`;if(!question||!answer||faqKeys.has(key))return false;if(faqs>=SEMANTIC_LIMITS.faqs||blocks.length>SEMANTIC_LIMITS.blocks-2){diagnostics.extractionOutputTruncated=1;return false;}faqKeys.add(key);add(`Question: ${question}`,"faq");add(`Answer: ${answer}`,"faq");faqs++;diagnostics.visibleFaqsRetained++;return true;};
+  const emitList=(node:HtmlNode,level=0):number=>{
+    const items=node.children.filter(child=>child.tag==="li");
+    const nav=/^(nav|navigation|menu)$/i.test(attr(node,"role"))||(items.length>3&&items.every(li=>li.children.some(child=>child.tag==="a")&&listText(li).split(" ").length<6));
+    if(nav)return 0;
+    if(lists>=SEMANTIC_LIMITS.lists){diagnostics.extractionOutputTruncated=1;return 0;}
+    lists++; let emitted=0; let number=Number.parseInt(attr(node,"start"),10); if(!Number.isFinite(number))number=1; const local=new Set<string>();
+    for(const li of items){
+      if(emitted>=SEMANTIC_LIMITS.itemsPerList||totalItems>=SEMANTIC_LIMITS.listItems){diagnostics.extractionOutputTruncated=1;break;}
+      const explicit=Number.parseInt(attr(li,"value"),10);if(node.tag==="ol"&&Number.isFinite(explicit))number=explicit;
+      const value=listText(li),key=normalizeText(value);if(value&&!local.has(key)){local.add(key);if(add(`${level?"  ":""}${node.tag==="ol"?`${number}.`:"-"} ${value}`,"list")){emitted++;totalItems++;diagnostics.listItemsRetained++;}}
+      if(node.tag==="ol")number++;
+      for(const nested of li.children.filter(child=>child.tag==="ul"||child.tag==="ol"))emitted+=emitList(nested,Math.min(1,level+1));
+    }
+    return emitted;
+  };
+  const tableRows=(node:HtmlNode):{rows:string[];truncated:boolean}=>{
+    const grid:string[]=[];const spans=new Map<string,string>();const sourceRows=find(node,"tr");let truncated=sourceRows.length>SEMANTIC_LIMITS.tableRows;
+    for(let rowIndex=0;rowIndex<Math.min(sourceRows.length,SEMANTIC_LIMITS.tableRows);rowIndex++){
+      const row:string[]=[];let column=0;const fillSpans=()=>{while(column<SEMANTIC_LIMITS.tableColumns){const span=spans.get(`${rowIndex}:${column}`);if(!span)break;row[column++]=span;}};fillSpans();
+      const cells=sourceRows[rowIndex]!.children.filter(child=>child.tag==="th"||child.tag==="td");if(cells.length>SEMANTIC_LIMITS.tableColumns)truncated=true;
+      for(const cell of cells){fillSpans();if(column>=SEMANTIC_LIMITS.tableColumns)break;const value=plain(cell).slice(0,SEMANTIC_LIMITS.cell);const colspan=Math.min(SEMANTIC_LIMITS.tableColumns-column,Math.max(1,Number.parseInt(attr(cell,"colspan"),10)||1));const rowspan=Math.min(SEMANTIC_LIMITS.tableRows-rowIndex,Math.max(1,Number.parseInt(attr(cell,"rowspan"),10)||1));for(let offset=0;offset<colspan;offset++){row[column+offset]=value;if(rowspan>1)for(let down=1;down<rowspan;down++)spans.set(`${rowIndex+down}:${column+offset}`,value);}column+=colspan;}
+      fillSpans();if(row.some(Boolean))grid.push(row.slice(0,SEMANTIC_LIMITS.tableColumns).map(value=>value??"").join(" | ").replace(/(?: \| )+$/,""));
+    }return {rows:grid,truncated};
+  };
+  const walk=(node:HtmlNode,depth=0,inSpecial=false):void=>{
+    if(depth>SEMANTIC_LIMITS.depth){diagnostics.extractionOutputTruncated=1;return;} if(hidden(node)){diagnostics.hiddenElementsIgnored++;return;} if(ignored.has(node.tag))return;
+    if(/cookie|consent/i.test(`${attr(node,"id")} ${attr(node,"class")}`)&&/(?:button|dialog|banner|controls?)/i.test(`${node.tag} ${attr(node,"role")} ${attr(node,"class")}`))return;
+    if (/^h[1-6]$/.test(node.tag)) { const value=plain(node); if(node.tag==="h1"&&!h1)h1=value; if(diagnostics.headingsRetained>=SEMANTIC_LIMITS.headings)diagnostics.extractionOutputTruncated=1;else add(value,"heading"); return; }
+    if(node.tag==="p"){if(diagnostics.paragraphsRetained>=SEMANTIC_LIMITS.paragraphs)diagnostics.extractionOutputTruncated=1;else add(plain(node),"paragraph");return;}
+    if((node.tag==="ul"||node.tag==="ol")&&!inSpecial){emitList(node);return;}
+    if(node.tag==="table"&&!inSpecial){const extracted=tableRows(node),rows=extracted.rows;const combined=rows.join(" ");const hasHeaders=find(node,"th").some(cell=>Boolean(plain(cell)));const business=/(?:hours?|price|cost|fee|plan|service|feature|specification|model|location|address|policy|availability|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\$|€|£)/i.test(combined);const comparison=hasHeaders&&rows.length>=2&&rows.some(row=>/\d|yes|no|included|available/i.test(row));const rejected=/^(?:presentation|none)$/i.test(attr(node,"role"))||rows.length===0||(!business&&!comparison);if(!rejected){if(tables>=SEMANTIC_LIMITS.tables)diagnostics.extractionOutputTruncated=1;else{tables++;if(extracted.truncated)diagnostics.extractionOutputTruncated=1;let retainedRows=0;for(const row of rows)if(add(row,"table"))retainedRows++;if(retainedRows){diagnostics.tablesRetained++;diagnostics.tableRowsRetained+=retainedRows;}}}return;}
+    if(node.tag==="dl"&&!inSpecial){let term="";for(const child of node.children){if(child.tag==="dt")term=plain(child);else if(child.tag==="dd"&&term){const desc=plain(child);if(!desc)continue;if(/\?$/.test(term)||/faq/i.test(attr(node,"class")))emitFaq(term,desc);else if(definitions>=SEMANTIC_LIMITS.definitions)diagnostics.extractionOutputTruncated=1;else if(add(`${term}: ${desc}`,"definition")){definitions++;diagnostics.definitionEntriesRetained++;}}}return;}
+    if(node.tag==="details"&&!inSpecial){const summary=node.children.find(x=>x.tag==="summary");const question=summary?plain(summary):"";const answer=node.children.filter(x=>x!==summary).map(x=>plain(x)).join(" ").trim();emitFaq(question,answer);return;}
+    if(!inSpecial){
+      const questionNode=node.children.find(child=>/(?:^|[-_\s])(?:faq-?)?question(?:[-_\s]|$)/i.test(attr(child,"class")));
+      const answerNode=node.children.find(child=>/(?:^|[-_\s])(?:faq-?)?answer(?:[-_\s]|$)/i.test(attr(child,"class")));
+      if(questionNode&&answerNode&&emitFaq(plain(questionNode),plain(answerNode)))return;
+      for(let index=0;index<node.children.length-1;index++){const question=node.children[index]!,answer=node.children[index+1]!;if(/^h[2-6]$/.test(question.tag)&&/\?\s*$/.test(plain(question))&&/^(?:p|div|section)$/.test(answer.tag)&&emitFaq(plain(question),plain(answer)))return;}
+    }
+    if (/^(?:div|section|article|main|header|footer|nav|aside|body)$/.test(node.tag)) {
+      const hasSemanticDescendant=find(node,"p").length+find(node,"ul").length+find(node,"ol").length+find(node,"table").length+find(node,"dl").length+find(node,"details").length+find(node,"h1").length+find(node,"h2").length+find(node,"h3").length>0;
+      if(!hasSemanticDescendant){if(diagnostics.paragraphsRetained>=SEMANTIC_LIMITS.paragraphs)diagnostics.extractionOutputTruncated=1;else add(plain(node),"paragraph");return;}
+    }
+    for(const child of node.children)walk(child,depth+1,inSpecial);
+  };
+  function find(node:HtmlNode,tag:string):HtmlNode[]{const result:HtmlNode[]=[];const visit=(n:HtmlNode,d:number)=>{if(d>SEMANTIC_LIMITS.depth)return;if(n.tag===tag)result.push(n);for(const child of n.children)visit(child,d+1);};visit(node,0);return result;}
+  walk(root); let text=blocks.join("\n"); if(text.length>SEMANTIC_LIMITS.text){text=text.slice(0,SEMANTIC_LIMITS.text).replace(/\s+\S*$/s,"").trim();diagnostics.extractionOutputTruncated=1;} return{text,h1,diagnostics};
 }
 
 type JsonLdExtraction = {
@@ -609,7 +679,7 @@ function textBlocks(text: string): { text: string; key: string; protected: boole
   return text.split(/\n+/).map((block) => block.trim()).filter(Boolean).map((text) => ({
     text,
     key: normalizeText(text),
-    protected: /(?:\b(?:mon|tue|wed|thu|fri|sat|sun)(?:day)?\b|\b(?:hours|address)\b|mailto:|tel:|\+?\d[\d\s().-]{6,})/i.test(text),
+    protected: /(?:\b(?:mon|tue|wed|thu|fri|sat|sun)(?:day)?\b|\b(?:hours|address|emergency|after-hours?|contact)\b|mailto:|tel:|[\w.+-]+@[\w.-]+\.\w{2,}|\+?\d[\d\s().-]{6,})/i.test(text),
   })).filter((block) => Boolean(block.key));
 }
 
@@ -627,12 +697,23 @@ function similarity(left: Set<string>, right: Set<string>): number {
   return overlap / Math.min(left.size, right.size);
 }
 
-function extractTitle(html: string): string {
-  const title =
-    html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] ?? "";
-  return decodeHtml(title.replace(/<[^>]+>/g, " "))
-    .replace(/\s+/g, " ")
-    .trim();
+function extractTitle(html: string, h1: string, url: URL): string {
+  const clean=(value:string)=>decodeHtml(value.replace(/<[^>]+>/g," ")).replace(/\s+/g," ").trim().slice(0,200);
+  const meaningful=(value:string)=>value&&!/^(?:home|welcome|untitled|new page)$/i.test(value);
+  const metadata=(name:string)=>{
+    const pattern=/<meta\b([^>]+)>/gi;
+    let match:RegExpExecArray|null;
+    while((match=pattern.exec(html))!==null){
+      const attrs=match[1]??"";
+      const key=attrs.match(/(?:property|name)\s*=\s*(["'])(.*?)\1/i)?.[2]?.toLowerCase();
+      if(key===name)return clean(attrs.match(/content\s*=\s*(["'])(.*?)\1/i)?.[2]??"");
+    }
+    return"";
+  };
+  const candidates=[clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??""),clean(h1),metadata("og:title"),metadata("twitter:title")];
+  const selected=candidates.find(meaningful); if(selected)return selected;
+  const segment=decodeURIComponent(url.pathname.split("/").filter(Boolean).at(-1)??"").replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+  return clean(segment)||normalizeHost(url.hostname);
 }
 
 function inferPageType(url: URL, title: string): string {
@@ -740,7 +821,8 @@ export async function crawlBusinessWebsite(
   const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
   const duplicateDiagnostics = { canonicalUrlsDetected: 0, canonicalDuplicatesSkipped: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, repeatedBoilerplateBlocksRemoved: 0 };
   const structuredDiagnostics = { jsonLdBlocksDetected: 0, jsonLdBlocksParsed: 0, malformedJsonLdBlocksIgnored: 0, supportedStructuredEntitiesDetected: 0, structuredFactsRetained: 0, structuredFactsDeduplicated: 0 };
-  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...duplicateDiagnostics,...structuredDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
+  const semanticDiagnostics: SemanticDiagnostics = { headingsRetained:0, paragraphsRetained:0, listItemsRetained:0, tablesRetained:0, tableRowsRetained:0, definitionEntriesRetained:0, visibleFaqsRetained:0, hiddenElementsIgnored:0, semanticBlocksDeduplicated:0, extractionOutputTruncated:0 };
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
   try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
@@ -784,7 +866,7 @@ export async function crawlBusinessWebsite(
   const finalUrls = new Set<string>();
   const sitemapDiscovered = new Set<string>();
   const localizedUrls = new Set<string>();
-  type RetainedPage = { page: CrawledBusinessPage; finalUrl: string; identity: string; priority: number; blocks: ReturnType<typeof textBlocks>; structuredFacts: number };
+  type RetainedPage = { page: CrawledBusinessPage; finalUrl: string; identity: string; priority: number; blocks: ReturnType<typeof textBlocks>; structuredFacts: number; semantic:SemanticDiagnostics };
   const retained: RetainedPage[] = [];
   const blockCounts = new Map<string, number>();
   let preferredLanguage = (requested.searchParams.get("lang") ?? "").toLowerCase();
@@ -867,14 +949,19 @@ export async function crawlBusinessWebsite(
       if (canonical) duplicateDiagnostics.canonicalUrlsDetected += 1;
       const identity = canonical ?? finalUrl;
       const extractionStarted = now();
-      const text = stripHtmlToText(fetched.html);
+      const semantic = semanticHtml(fetched.html);
+      const text = semantic.text;
+      const title = extractTitle(fetched.html, semantic.h1, fetched.resolvedUrl);
       const structured = extractJsonLd(fetched.html);
       structuredDiagnostics.jsonLdBlocksDetected += structured.blocksDetected;
       structuredDiagnostics.jsonLdBlocksParsed += structured.blocksParsed;
       structuredDiagnostics.malformedJsonLdBlocksIgnored += structured.malformedBlocks;
       structuredDiagnostics.supportedStructuredEntitiesDetected += structured.entitiesDetected;
       structuredDiagnostics.structuredFactsDeduplicated += structured.factsDeduplicated;
-      const blocks = textBlocks(text);
+      // Titles participate in duplicate meaning (as they did in the legacy visible-text
+      // extractor), while structured data remains deliberately excluded.
+      const duplicateTitle = /<title\b[^>]*>[\s\S]*?<\/title>/i.test(fetched.html) || semantic.h1 ? title : "";
+      const blocks = textBlocks(`${duplicateTitle}\n${text}`);
       const pageBlockKeys = new Set<string>();
       for (const block of blocks) {
         if (block.protected) protectedBlocks.add(block.key);
@@ -885,7 +972,6 @@ export async function crawlBusinessWebsite(
         total + (count >= 3 && !protectedBlocks.has(key) ? count : 0), 0);
       timings.contentExtractionMs += Math.max(0, now() - extractionStarted);
       if (text.length < 80) { pagesSkipped += 1; return; }
-      const title = extractTitle(fetched.html);
       const pageType = inferPageType(fetched.resolvedUrl, title);
       const core = pageType !== "other";
       const supplementary = /\/(?:guides?|docs?|documentation|help|case-stud(?:y|ies)|resources?|academy)(?:\/|$)/i.test(fetched.resolvedUrl.pathname);
@@ -893,7 +979,7 @@ export async function crawlBusinessWebsite(
       const actualCanonicalDestination = finalUrl === identity;
       const priority = (core ? 10_000 : supplementary ? 300 : 100) + (actualCanonicalDestination ? 1_000 : 0) + (sitemapDiscovered.has(finalUrl) && core ? 500 : 0) + Math.max(0, 200 - new URL(identity).pathname.length) - (localized ? 200 : 0);
       const retainedText = structured.text ? `${text}\n\n${structured.text}` : text;
-      const candidate: RetainedPage = { page: { url: identity, title, pageType, text: retainedText }, finalUrl, identity, priority, blocks, structuredFacts: structured.factsRetained };
+      const candidate: RetainedPage = { page: { url: identity, title, pageType, text: retainedText }, finalUrl, identity, priority, blocks, structuredFacts: structured.factsRetained, semantic:semantic.diagnostics };
 
       const discoveryStarted = now();
       for (const discovered of discoverInternalLinks(fetched.html, fetched.resolvedUrl, baseHost).reverse()) enqueue(discovered, true, true);
@@ -986,10 +1072,11 @@ export async function crawlBusinessWebsite(
 
   timings.totalCrawlDurationMs = Math.max(0, now() - totalStarted);
   structuredDiagnostics.structuredFactsRetained = retained.reduce((total, record) => total + record.structuredFacts, 0);
+  for(const key of Object.keys(semanticDiagnostics) as (keyof SemanticDiagnostics)[]) semanticDiagnostics[key]=retained.reduce((total,record)=>total+record.semantic[key],0);
 
   if (pages.length === 0) {
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
-      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...duplicateDiagnostics, ...structuredDiagnostics, finalUrls: [], restrictions, timings,
+      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics, finalUrls: [], restrictions, timings,
     });
   }
 
@@ -1005,6 +1092,7 @@ export async function crawlBusinessWebsite(
       pagesFailed,
       ...duplicateDiagnostics,
       ...structuredDiagnostics,
+      ...semanticDiagnostics,
       finalUrls: pages.map((page) => page.url),
       restrictions,
       timings,
