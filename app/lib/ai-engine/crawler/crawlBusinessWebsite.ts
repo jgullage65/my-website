@@ -387,7 +387,9 @@ async function parsePdf(bytes: Uint8Array): Promise<ParsedPdf> {
       const metadata = await document.getMetadata().catch(() => null);
       const raw = lines.join("\n\n").replace(/\0/g, "").replace(/[ \t\f\v]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
       const text = raw.length > PDF_LIMITS.characters ? raw.slice(0, PDF_LIMITS.characters).replace(/\s+\S*$/s, "").trim() : raw;
-      return { text, title: typeof metadata?.info?.Title === "string" ? metadata.info.Title : undefined, pagesParsed: lines.length, truncated: document.numPages > lines.length || raw.length > PDF_LIMITS.characters };
+      const info = metadata?.info;
+      const title = info && typeof info === "object" && "Title" in info && typeof info.Title === "string" ? info.Title : undefined;
+      return { text, title, pagesParsed: lines.length, truncated: document.numPages > lines.length || raw.length > PDF_LIMITS.characters };
     })();
     return await Promise.race([extraction, timeout]);
   } finally { if (timer) clearTimeout(timer); await task.destroy(); }
