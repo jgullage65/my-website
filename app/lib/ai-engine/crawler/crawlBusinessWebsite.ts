@@ -46,6 +46,13 @@ export type BusinessWebsiteCrawlDiagnostics = {
   hiddenElementsIgnored: number;
   semanticBlocksDeduplicated: number;
   extractionOutputTruncated: number;
+  pdfsDiscovered: number;
+  pdfsProcessed: number;
+  pdfsSkipped: number;
+  pdfsFailed: number;
+  pdfBytesDownloaded: number;
+  pdfPagesParsed: number;
+  pdfDocumentsTruncated: number;
   finalUrls: string[];
   restrictions: CrawlRestriction[];
   timings: BusinessWebsiteCrawlTimings;
@@ -91,6 +98,15 @@ const MAX_STRUCTURED_VALUE = 500;
 const MAX_JSON_LD_DEPTH = 8;
 const MAX_JSON_LD_ITEMS = 250;
 const MAX_STRUCTURED_URLS = 10;
+const PDF_LIMITS = {
+  documents: 3,
+  bytes: 10 * 1024 * 1024,
+  pages: 75,
+  characters: 50_000,
+  fetchTimeoutMs: FETCH_TIMEOUT_MS,
+  parseTimeoutMs: FETCH_TIMEOUT_MS,
+  minimumCharacters: 80,
+} as const;
 
 const SEMANTIC_LIMITS = {
   text: 50_000, nodes: 12_000, depth: 60, headings: 80, paragraphs: 300,
@@ -161,7 +177,12 @@ const IGNORED_EXTENSIONS = new Set([
   "webp",
   "svg",
   "ico",
-  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
   "zip",
   "xml",
   "txt",
@@ -169,6 +190,9 @@ const IGNORED_EXTENSIONS = new Set([
   "woff2",
   "ttf",
 ]);
+
+const PDF_DURABLE_SIGNAL = /(?:^|[^a-z])(?:brochures?|menus?|catalog(?:ue)?s?|services?|pricing|prices?|rates?|polic(?:y|ies)|manuals?|guides?|specifications?|capabilities|products?|packages?)(?:[^a-z]|$)/i;
+const PDF_EDITORIAL_SIGNAL = /(?:^|[^a-z])(?:newsletters?|press[\s_-]*releases?|magazines?|blogs?|news|articles?|posts?|archives?|annual[\s_-]*(?:content|archive))(?:[^a-z]|$)/i;
 
 function normalizeInputUrl(value: string): URL {
   const trimmed = value.trim();
@@ -277,6 +301,102 @@ function dedupeUrl(value: string): string {
 function isDocumentOrAsset(url: URL): boolean {
   const extension = url.pathname.split(".").at(-1)?.toLowerCase();
   return Boolean(extension && IGNORED_EXTENSIONS.has(extension));
+}
+
+function isPdfUrl(url: URL): boolean {
+  return /\.pdf$/i.test(url.pathname);
+}
+
+function isEligiblePdf(url: URL, discoveryText = ""): boolean {
+  if (!isPdfUrl(url)) return false;
+  let path = url.pathname;
+  try { path = decodeURIComponent(path); } catch { /* Retain encoded path. */ }
+  const evidence = `${path.replace(/[/.]+/g, " ")} ${discoveryText}`;
+  return PDF_DURABLE_SIGNAL.test(evidence) && !PDF_EDITORIAL_SIGNAL.test(evidence);
+}
+
+type FetchedPdf = { bytes: Uint8Array; resolvedUrl: URL; truncated: boolean };
+type ParsedPdf = { text: string; title?: string; pagesParsed: number; truncated: boolean };
+class PdfSkippedError extends Error { constructor(message: string, readonly truncated = false) { super(message); } }
+
+async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<FetchedPdf | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PDF_LIMITS.fetchTimeoutMs);
+  try {
+    let current = url;
+    const originalHost = normalizeHost(url.hostname);
+    for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
+      if ((current.protocol !== "http:" && current.protocol !== "https:") || normalizeHost(current.hostname) !== originalHost) {
+        restrictions.push({ type: "redirect_blocked", url: current.toString() });
+        return null;
+      }
+      await assertSafeDestination(current);
+      const response = await fetch(current, { redirect: "manual", signal: controller.signal, headers: { accept: "application/pdf,application/octet-stream;q=0.5", "user-agent": "AIBuilderWebsiteCrawler/1.0" } });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (!location || redirects === MAX_REDIRECTS) { restrictions.push({ type: "redirect_blocked", url: current.toString(), status: response.status }); return null; }
+        current = new URL(location, current);
+        continue;
+      }
+      if (!response.ok || !response.body) return null;
+      const declared = Number(response.headers.get("content-length"));
+      if (Number.isFinite(declared) && declared > PDF_LIMITS.bytes) throw new PdfSkippedError("PDF exceeds the download limit.", true);
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let length = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        length += value.byteLength;
+        if (length > PDF_LIMITS.bytes) { await reader.cancel(); throw new PdfSkippedError("PDF exceeds the download limit.", true); }
+        chunks.push(value);
+      }
+      const bytes = new Uint8Array(length); let offset = 0;
+      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+      const signature = bytes.length >= 5 && new TextDecoder("ascii").decode(bytes.subarray(0, 5)) === "%PDF-";
+      const type = (response.headers.get("content-type") ?? "").split(";", 1)[0]!.trim().toLowerCase();
+      if (!signature || (type !== "application/pdf" && type !== "application/octet-stream" && type !== "binary/octet-stream")) {
+        restrictions.push({ type: "unsupported_content_type", url: current.toString(), status: response.status });
+        return null;
+      }
+      return { bytes, resolvedUrl: current, truncated: false };
+    }
+    return null;
+  } finally { clearTimeout(timeout); }
+}
+
+async function parsePdf(bytes: Uint8Array): Promise<ParsedPdf> {
+  // The dependency is loaded only when an eligible PDF survives discovery.
+  // @ts-ignore The package is installed in deployed builds; CI may install production dependencies separately.
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const task = pdfjs.getDocument({ data: bytes.slice(), isEvalSupported: false, disableFontFace: true, useSystemFonts: false });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => { task.destroy(); reject(new Error("PDF parsing timed out.")); }, PDF_LIMITS.parseTimeoutMs); });
+  try {
+    const extraction = (async () => {
+      const document = await task.promise;
+      const pageLimit = Math.min(document.numPages, PDF_LIMITS.pages);
+      const lines: string[] = [];
+      let characters = 0;
+      for (let number = 1; number <= pageLimit && characters < PDF_LIMITS.characters; number += 1) {
+        const page = await document.getPage(number);
+        const content = await page.getTextContent();
+        const pageText = content.items.map((item) => "str" in item ? item.str : "").join(" ");
+        lines.push(pageText); characters += pageText.length + 2;
+      }
+      const metadata = await document.getMetadata().catch(() => null);
+      const raw = lines.join("\n\n").replace(/\0/g, "").replace(/[ \t\f\v]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+      const text = raw.length > PDF_LIMITS.characters ? raw.slice(0, PDF_LIMITS.characters).replace(/\s+\S*$/s, "").trim() : raw;
+      return { text, title: typeof metadata?.info?.Title === "string" ? metadata.info.Title : undefined, pagesParsed: lines.length, truncated: document.numPages > lines.length || raw.length > PDF_LIMITS.characters };
+    })();
+    return await Promise.race([extraction, timeout]);
+  } finally { if (timer) clearTimeout(timer); await task.destroy(); }
+}
+
+function pdfFilenameTitle(url: URL): string {
+  let filename = url.pathname.split("/").at(-1)?.replace(/\.pdf$/i, "") ?? "Document";
+  try { filename = decodeURIComponent(filename); } catch { /* Retain encoded filename. */ }
+  return filename.replace(/[-_]+/g, " ").replace(/\s+/g, " ").trim().replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Document";
 }
 
 function normalizeDiscoveryPath(url: URL): string {
@@ -772,7 +892,7 @@ function discoverInternalLinks(
       continue;
     }
 
-    if (isDocumentOrAsset(parsed)) continue;
+    if (isPdfUrl(parsed) || isDocumentOrAsset(parsed)) continue;
 
     if (!isDiscoverableBusinessUrl(parsed, anchorText)) continue;
 
@@ -784,6 +904,19 @@ function discoverInternalLinks(
   }
 
   return links;
+}
+
+function discoverPdfLinks(html: string, pageUrl: URL, baseHost: string): string[] {
+  const links = new Set<string>();
+  const pattern = /<a\b[^>]*href\s*=\s*(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html)) !== null) {
+    let parsed: URL;
+    try { parsed = new URL(decodeHtml(match[2] ?? "").trim(), pageUrl); } catch { continue; }
+    const anchor = decodeHtml((match[3] ?? "").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+    if ((parsed.protocol === "http:" || parsed.protocol === "https:") && normalizeHost(parsed.hostname) === baseHost && isEligiblePdf(parsed, anchor)) links.add(dedupeUrl(parsed.toString()));
+  }
+  return Array.from(links);
 }
 
 function extractSitemapLocations(xml: string): {
@@ -809,6 +942,8 @@ export async function crawlBusinessWebsite(
   dependencies: {
     fetchPage?: typeof fetchHtml;
     fetchSitemap?: typeof fetchSitemapXml;
+    fetchPdf?: typeof fetchPdf;
+    parsePdf?: typeof parsePdf;
     assertSafe?: typeof assertSafeDestination;
     now?: () => number;
   } = {},
@@ -816,13 +951,16 @@ export async function crawlBusinessWebsite(
   const now = dependencies.now ?? (() => performance.now());
   const fetchPage = dependencies.fetchPage ?? fetchHtml;
   const fetchSitemap = dependencies.fetchSitemap ?? fetchSitemapXml;
+  const fetchPdfDocument = dependencies.fetchPdf ?? fetchPdf;
+  const parsePdfDocument = dependencies.parsePdf ?? parsePdf;
   const assertSafe = dependencies.assertSafe ?? assertSafeDestination;
   const totalStarted = now();
   const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
   const duplicateDiagnostics = { canonicalUrlsDetected: 0, canonicalDuplicatesSkipped: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, repeatedBoilerplateBlocksRemoved: 0 };
   const structuredDiagnostics = { jsonLdBlocksDetected: 0, jsonLdBlocksParsed: 0, malformedJsonLdBlocksIgnored: 0, supportedStructuredEntitiesDetected: 0, structuredFactsRetained: 0, structuredFactsDeduplicated: 0 };
   const semanticDiagnostics: SemanticDiagnostics = { headingsRetained:0, paragraphsRetained:0, listItemsRetained:0, tablesRetained:0, tableRowsRetained:0, definitionEntriesRetained:0, visibleFaqsRetained:0, hiddenElementsIgnored:0, semanticBlocksDeduplicated:0, extractionOutputTruncated:0 };
-  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
+  const pdfDiagnostics = { pdfsDiscovered:0, pdfsProcessed:0, pdfsSkipped:0, pdfsFailed:0, pdfBytesDownloaded:0, pdfPagesParsed:0, pdfDocumentsTruncated:0 };
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...pdfDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
   try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
@@ -865,6 +1003,8 @@ export async function crawlBusinessWebsite(
   const visited = new Set<string>();
   const finalUrls = new Set<string>();
   const sitemapDiscovered = new Set<string>();
+  const pdfCandidates = new Set<string>();
+  const addPdfCandidate = (url: string) => { if (!pdfCandidates.has(url)) { pdfCandidates.add(url); pdfDiagnostics.pdfsDiscovered += 1; } };
   const localizedUrls = new Set<string>();
   type RetainedPage = { page: CrawledBusinessPage; finalUrl: string; identity: string; priority: number; blocks: ReturnType<typeof textBlocks>; structuredFacts: number; semantic:SemanticDiagnostics };
   const retained: RetainedPage[] = [];
@@ -886,10 +1026,10 @@ export async function crawlBusinessWebsite(
     try { parsed = new URL(value, sitemapUrl); } catch { return null; }
     if (
       (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
-      normalizeHost(parsed.hostname) !== baseHost ||
-      isDocumentOrAsset(parsed) ||
-      !isDiscoverableBusinessUrl(parsed)
+      normalizeHost(parsed.hostname) !== baseHost
     ) return null;
+    if (isPdfUrl(parsed)) { if (isEligiblePdf(parsed)) addPdfCandidate(dedupeUrl(parsed.toString())); return null; }
+    if (isDocumentOrAsset(parsed) || !isDiscoverableBusinessUrl(parsed)) return null;
     const normalized = dedupeUrl(parsed.toString());
     sitemapDiscovered.add(normalized);
     return normalized;
@@ -982,6 +1122,7 @@ export async function crawlBusinessWebsite(
       const candidate: RetainedPage = { page: { url: identity, title, pageType, text: retainedText }, finalUrl, identity, priority, blocks, structuredFacts: structured.factsRetained, semantic:semantic.diagnostics };
 
       const discoveryStarted = now();
+      for (const pdf of discoverPdfLinks(fetched.html, fetched.resolvedUrl, baseHost)) addPdfCandidate(pdf);
       for (const discovered of discoverInternalLinks(fetched.html, fetched.resolvedUrl, baseHost).reverse()) enqueue(discovered, true, true);
       timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
 
@@ -1070,13 +1211,52 @@ export async function crawlBusinessWebsite(
     }
   }
 
+  // PDFs are intentionally supplemental: they receive their own budget only after
+  // the bounded HTML crawl has completed.
+  for (const candidateUrl of Array.from(pdfCandidates).slice(0, PDF_LIMITS.documents)) {
+    try {
+      const fetched = await fetchPdfDocument(new URL(candidateUrl), restrictions);
+      if (!fetched) { pdfDiagnostics.pdfsSkipped += 1; continue; }
+      pdfDiagnostics.pdfBytesDownloaded += fetched.bytes.byteLength;
+      if (normalizeHost(fetched.resolvedUrl.hostname) !== baseHost || (fetched.resolvedUrl.protocol !== "http:" && fetched.resolvedUrl.protocol !== "https:")) {
+        pdfDiagnostics.pdfsSkipped += 1;
+        restrictions.push({ type:"redirect_blocked", url:fetched.resolvedUrl.toString() });
+        continue;
+      }
+      const finalUrl = dedupeUrl(fetched.resolvedUrl.toString());
+      if (finalUrls.has(finalUrl)) { pdfDiagnostics.pdfsSkipped += 1; continue; }
+      finalUrls.add(finalUrl);
+      const parsed = await parsePdfDocument(fetched.bytes);
+      pdfDiagnostics.pdfPagesParsed += Math.min(parsed.pagesParsed, PDF_LIMITS.pages);
+      if (fetched.truncated || parsed.truncated || parsed.pagesParsed > PDF_LIMITS.pages || parsed.text.length > PDF_LIMITS.characters) pdfDiagnostics.pdfDocumentsTruncated += 1;
+      const text = parsed.text.replace(/\0/g, "").replace(/[ \t\f\v]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, PDF_LIMITS.characters).trim();
+      if (text.length < PDF_LIMITS.minimumCharacters) { pdfDiagnostics.pdfsSkipped += 1; continue; }
+      const metadataTitle = (parsed.title ?? "").replace(/\0/g, "").replace(/\s+/g, " ").trim();
+      const title = metadataTitle.length >= 3 && !/^(?:untitled|document|microsoft word)$/i.test(metadataTitle) ? metadataTitle.slice(0, 300) : pdfFilenameTitle(fetched.resolvedUrl);
+      const blocks = textBlocks(text);
+      const candidate: RetainedPage = { page:{ url:finalUrl, title, pageType:"document", text }, finalUrl, identity:finalUrl, priority:10, blocks, structuredFacts:0, semantic:{headingsRetained:0,paragraphsRetained:0,listItemsRetained:0,tablesRetained:0,tableRowsRetained:0,definitionEntriesRetained:0,visibleFaqsRetained:0,hiddenElementsIgnored:0,semanticBlocksDeduplicated:0,extractionOutputTruncated:0} };
+      const meaningful = normalizeText(text);
+      const fingerprint = createHash("sha256").update(meaningful).digest("hex");
+      let duplicate = retained.find((record) => createHash("sha256").update(meaningfulFor(record)).digest("hex") === fingerprint);
+      let near = false;
+      if (!duplicate && meaningful.split(" ").length >= 20) { const candidateShingles = shingles(meaningful); duplicate = retained.find((record) => similarity(shingles(meaningfulFor(record)), candidateShingles) >= 0.92); near = Boolean(duplicate); }
+      if (duplicate) { pdfDiagnostics.pdfsSkipped += 1; if (near) duplicateDiagnostics.nearDuplicatesSkipped += 1; else duplicateDiagnostics.exactDuplicatesSkipped += 1; continue; }
+      for (const block of blocks) blockCounts.set(block.key, (blockCounts.get(block.key) ?? 0) + 1);
+      retained.push(candidate); pdfDiagnostics.pdfsProcessed += 1; syncPages();
+    } catch (error) {
+      if (error instanceof PdfSkippedError) { pdfDiagnostics.pdfsSkipped += 1; if (error.truncated) pdfDiagnostics.pdfDocumentsTruncated += 1; }
+      else { pdfDiagnostics.pdfsFailed += 1; const warning = "A PDF document could not be read."; if (!warnings.includes(warning)) warnings.push(warning); }
+    }
+  }
+  if (pdfCandidates.size > PDF_LIMITS.documents) pdfDiagnostics.pdfsSkipped += pdfCandidates.size - PDF_LIMITS.documents;
+
   timings.totalCrawlDurationMs = Math.max(0, now() - totalStarted);
   structuredDiagnostics.structuredFactsRetained = retained.reduce((total, record) => total + record.structuredFacts, 0);
   for(const key of Object.keys(semanticDiagnostics) as (keyof SemanticDiagnostics)[]) semanticDiagnostics[key]=retained.reduce((total,record)=>total+record.semantic[key],0);
 
   if (pages.length === 0) {
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
-      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics, finalUrls: [], restrictions, timings,
+      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...pdfDiagnostics, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics, finalUrls: [], restrictions, timings,
     });
   }
 
@@ -1087,9 +1267,10 @@ export async function crawlBusinessWebsite(
     warnings,
     diagnostics: {
       pagesDiscovered: visited.size + queued.size + 1,
-      pagesProcessed: pages.length,
+      pagesProcessed: pages.filter((page) => page.pageType !== "document").length,
       pagesSkipped,
       pagesFailed,
+      ...pdfDiagnostics,
       ...duplicateDiagnostics,
       ...structuredDiagnostics,
       ...semanticDiagnostics,
