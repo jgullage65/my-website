@@ -31,51 +31,6 @@
   display: none;
 }
 
-@media (min-width: 1200px) {
-  .ai-builder-review-scrollbar {
-    position: relative;
-    background-image: linear-gradient(
-      to bottom,
-      rgba(251, 191, 36, 0.95),
-      rgba(245, 158, 11, 0.72)
-    );
-    background-position: right 2px top;
-    background-repeat: no-repeat;
-    background-size: 2px 100%;
-  }
-
-  .ai-builder-review-scrollbar
-    > div
-    > div
-    > div.relative.w-full
-    > section:first-of-type
-    > div:first-of-type {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ai-builder-review-scrollbar
-    > div
-    > div
-    > div.relative.w-full
-    > section:first-of-type
-    > div:first-of-type
-    > button:last-child {
-    display: none;
-  }
-
-  .ai-builder-review-scrollbar article > div:last-child {
-    display: grid !important;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
-    align-items: center;
-  }
-
-  .ai-builder-review-scrollbar article > div:last-child > button {
-    width: 100%;
-    min-width: 0;
-  }
-}
-
 @media (min-width: 1280px) {
   .ai-builder-shell {
     min-height: 0;
@@ -112,7 +67,7 @@
     min-height: 680px;
     max-height: calc(100dvh - 112px);
     border-radius: 20px;
-    grid-template-columns: 190px minmax(0, 1fr) 430px;
+    grid-template-columns: 190px minmax(0,1fr) 430px;
   }
 
   .ai-builder-shell__content > div.hidden > aside:first-child > div:last-child {
