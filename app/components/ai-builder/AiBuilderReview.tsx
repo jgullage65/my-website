@@ -91,10 +91,10 @@ const filterButtonClassName =
   "cta-raised inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-2.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]";
 
 const itemActionClassName =
-  "rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
+  "min-w-0 flex-1 rounded-xl border border-amber-300/15 bg-[#081226] px-3 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
 
 const approveActionClassName =
-  "rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
+  "min-w-0 flex-1 rounded-xl border border-amber-300/15 bg-[#081226] px-3 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
 
 const panelClassName =
   "overflow-hidden rounded-[14px] border border-amber-300/20 bg-[#050a16]/88 shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition hover:border-amber-300/30 hover:bg-[#07101d]/92";
@@ -760,7 +760,7 @@ function SectionDivider({ label }: { label: string }) {
 
 function ItemActions({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/[0.065] bg-black/10 px-4 py-3">
+    <div className="flex flex-nowrap items-center justify-center gap-2 border-t border-white/[0.065] bg-black/10 px-4 py-3">
       {children}
     </div>
   );
