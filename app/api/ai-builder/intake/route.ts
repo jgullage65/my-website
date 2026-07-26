@@ -86,13 +86,13 @@ function normalizeSubmittedWebsiteKnowledge(value: unknown): StructuredWebsiteKn
     const fact = item as Record<string, unknown>;
     const category = normalizeBoundedText(fact.category, 64);
     const title = normalizeBoundedText(fact.title, 300);
-    const factValue = normalizeBoundedText(fact.value, 4_000);
+    const factValue = normalizeBoundedText(fact.value, 8_000);
     const confidence = normalizeBoundedText(fact.confidence, 32);
     const evidence = (Array.isArray(fact.evidence) ? fact.evidence : []).slice(0, 50).flatMap((entry) => {
       if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
       const item = entry as Record<string, unknown>;
       const url = normalizeWebsiteUrl(item.url);
-      const excerpt = normalizeBoundedText(item.excerpt, 1_000);
+      const excerpt = normalizeBoundedText(item.excerpt, 2_000);
       return url && excerpt ? [{ url, excerpt }] : [];
     });
 
