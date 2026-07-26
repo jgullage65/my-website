@@ -34,6 +34,7 @@ export type BusinessWebsiteCrawlDiagnostics = {
   malformedJsonLdBlocksIgnored: number;
   supportedStructuredEntitiesDetected: number;
   structuredFactsRetained: number;
+  /** Repeated facts removed during all bounded extraction attempts, including pages later discarded. */
   structuredFactsDeduplicated: number;
   finalUrls: string[];
   restrictions: CrawlRestriction[];
@@ -79,6 +80,7 @@ const MAX_STRUCTURED_TEXT = 10_000;
 const MAX_STRUCTURED_VALUE = 500;
 const MAX_JSON_LD_DEPTH = 8;
 const MAX_JSON_LD_ITEMS = 250;
+const MAX_STRUCTURED_URLS = 10;
 
 const PRIORITY_PATHS = [
   "/",
@@ -435,6 +437,22 @@ const SUPPORTED_STRUCTURED_TYPES = new Set([
   "aggregaterating",
 ]);
 
+const LOCAL_BUSINESS_SUBTYPES = new Set([
+  "restaurant", "dentist", "plumber", "electrician", "attorney", "autorepair", "hotel",
+  "medicalclinic", "realestateagent", "accountingservice", "automotivebusiness", "bakery",
+  "barorpub", "beautysalon", "cafeorcoffeeshop", "childcare", "dayspa", "drycleaningorlaundry",
+  "emergencyservice", "employmentagency", "entertainmentbusiness", "financialservice", "foodestablishment",
+  "governmentoffice", "healthandbeautybusiness", "homeandconstructionbusiness", "insuranceagency",
+  "legalservice", "library", "lodgingbusiness", "movingcompany", "notary", "professionalservice",
+  "radiostation", "recyclingcenter", "selfstorage", "shoppingcenter", "sportsactivitylocation",
+  "televisionstation", "touristinformationcenter", "travelagency", "veterinarycare", "bikestore",
+  "bookstore", "clothingstore", "computerstore", "conveniencestore", "departmentstore", "electronicsstore",
+  "florist", "furniturestore", "gardenstore", "grocerystore", "hardwarestore", "hobbystore", "homestore",
+  "jewelrystore", "liquorstore", "mensclothingstore", "mobilestore", "moviestore", "musicstore",
+  "officeequipmentstore", "outletstore", "pawnshop", "petstore", "shoestore", "sportinggoodsstore",
+  "tireshop", "toystore", "wholesalestore",
+]);
+
 function structuredScalar(value: unknown, depth = 0): string {
   if (depth > 3 || value == null) return "";
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
@@ -449,13 +467,23 @@ function structuredScalar(value: unknown, depth = 0): string {
   return "";
 }
 
-function structuredUrl(value: unknown): string {
-  const raw = structuredScalar(value);
-  if (!raw) return "";
-  try {
-    const parsed = new URL(raw);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString().slice(0, MAX_STRUCTURED_VALUE) : "";
-  } catch { return ""; }
+function structuredUrls(value: unknown): string[] {
+  const pending = Array.isArray(value) ? value.slice(0, MAX_STRUCTURED_URLS * 2) : [value];
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  for (const item of pending) {
+    const raw = typeof item === "object" && item && !Array.isArray(item)
+      ? structuredScalar((item as Record<string, unknown>)["@id"])
+      : structuredScalar(item);
+    try {
+      const parsed = new URL(raw);
+      if ((parsed.protocol === "http:" || parsed.protocol === "https:") && !seen.has(parsed.toString())) {
+        seen.add(parsed.toString()); urls.push(parsed.toString().slice(0, MAX_STRUCTURED_VALUE));
+      }
+    } catch { /* Unsupported and malformed URLs are not evidence. */ }
+    if (urls.length >= MAX_STRUCTURED_URLS) break;
+  }
+  return urls;
 }
 
 function extractJsonLd(html: string): JsonLdExtraction {
@@ -463,15 +491,30 @@ function extractJsonLd(html: string): JsonLdExtraction {
   const facts: string[] = [];
   const factKeys = new Set<string>();
   let visitedItems = 0;
-  const add = (label: string, value: unknown, url = false) => {
+  const add = (label: string, value: unknown) => {
     if (facts.length >= MAX_STRUCTURED_FACTS) return;
-    const display = url ? structuredUrl(value) : structuredScalar(value);
+    const display = structuredScalar(value);
     if (!display || /^(?:null|undefined|unknown|n\/a)$/i.test(display)) return;
     const line = `${label}: ${display}`;
     const key = normalizeText(line);
     if (factKeys.has(key)) { result.factsDeduplicated += 1; return; }
     if (facts.join("\n").length + line.length + 1 > MAX_STRUCTURED_TEXT) return;
     factKeys.add(key); facts.push(line);
+  };
+  const addUrls = (label: string, value: unknown) => {
+    for (const url of structuredUrls(value)) add(label, url);
+  };
+  const entitiesById = new Map<string, Record<string, unknown>>();
+  let indexedItems = 0;
+  const indexEntities = (value: unknown, depth: number) => {
+    if (depth > MAX_JSON_LD_DEPTH || indexedItems >= MAX_JSON_LD_ITEMS || value == null) return;
+    if (Array.isArray(value)) { for (const item of value) indexEntities(item, depth + 1); return; }
+    if (typeof value !== "object") return;
+    indexedItems += 1;
+    const entity = value as Record<string, unknown>;
+    const id = typeof entity["@id"] === "string" ? entity["@id"].trim() : "";
+    if (id && !entitiesById.has(id)) entitiesById.set(id, entity);
+    for (const nested of Object.values(entity)) if (nested && typeof nested === "object") indexEntities(nested, depth + 1);
   };
   const visit = (value: unknown, depth: number) => {
     if (depth > MAX_JSON_LD_DEPTH || visitedItems >= MAX_JSON_LD_ITEMS || value == null) return;
@@ -480,16 +523,17 @@ function extractJsonLd(html: string): JsonLdExtraction {
     visitedItems += 1;
     const entity = value as Record<string, unknown>;
     const types = (Array.isArray(entity["@type"]) ? entity["@type"] : [entity["@type"]]).map((type) => String(type ?? "").toLowerCase());
-    const supported = types.some((type) => SUPPORTED_STRUCTURED_TYPES.has(type) || type.endsWith("business") || type.endsWith("store"));
+    const supported = types.some((type) => SUPPORTED_STRUCTURED_TYPES.has(type) || LOCAL_BUSINESS_SUBTYPES.has(type));
     if (supported) {
       result.entitiesDetected += 1;
       const isPerson = types.includes("person");
       const isProduct = types.includes("product");
       const isService = types.includes("service") || types.includes("professionalservice");
       const isQuestion = types.includes("question");
+      const isAnswer = types.includes("answer");
       add(isPerson ? "Person name" : isProduct ? "Product name" : isService ? "Service name" : "Business name", entity.name);
       add("Legal name", entity.legalName); add("Description", entity.description);
-      add("URL", entity.url, true); add("Logo", entity.logo, true); add("Founded", entity.foundingDate); add("Slogan", entity.slogan);
+      addUrls("URL", entity.url); addUrls("Logo", entity.logo); add("Founded", entity.foundingDate); add("Slogan", entity.slogan);
       add("Parent organization", entity.parentOrganization); add("Brand", entity.brand);
       add("Telephone", entity.telephone); add("Email", entity.email); add("Contact type", entity.contactType);
       const address = entity.address && typeof entity.address === "object" && !Array.isArray(entity.address) ? entity.address as Record<string, unknown> : undefined;
@@ -499,10 +543,18 @@ function extractJsonLd(html: string): JsonLdExtraction {
       if (types.includes("openinghoursspecification")) add("Opening hours", `${structuredScalar(entity.dayOfWeek)} ${structuredScalar(entity.opens)}-${structuredScalar(entity.closes)}`.trim());
       add("Category", entity.category); add("Model", entity.model); add("SKU", entity.sku); add("Audience", entity.audience); add("Provider", entity.provider); add("Service type", entity.serviceType);
       add("Price", entity.price); add("Low price", entity.lowPrice); add("High price", entity.highPrice); add("Price currency", entity.priceCurrency); add("Availability", entity.availability); add("Eligible region", entity.eligibleRegion); add("Price specification", entity.priceSpecification); add("Minimum quantity", entity.eligibleQuantity ?? entity.minimumQuantity);
-      if (isQuestion) { add("FAQ question", entity.name ?? entity.text); add("FAQ answer", entity.acceptedAnswer); }
+      if (isQuestion) {
+        add("FAQ question", entity.name ?? entity.text);
+        const answers = Array.isArray(entity.acceptedAnswer) ? entity.acceptedAnswer : [entity.acceptedAnswer];
+        for (const answer of answers.slice(0, 20)) {
+          const referenced = answer && typeof answer === "object" && !Array.isArray(answer) ? entitiesById.get(String((answer as Record<string, unknown>)["@id"] ?? "")) : undefined;
+          add("FAQ answer", referenced ?? answer);
+        }
+      }
+      if (isAnswer) add("FAQ answer", entity.text ?? entity.name);
       add("Job title", entity.jobTitle); add("Works for", entity.worksFor); add("Affiliation", entity.affiliation);
       add("Review body", entity.reviewBody); add("Review author", entity.author); add(types.includes("aggregaterating") ? "Aggregate rating" : "Rating value", entity.ratingValue); add("Review count", entity.reviewCount); add("Rating count", entity.ratingCount);
-      add("External profile", entity.sameAs, true);
+      addUrls("External profile", entity.sameAs);
     }
     for (const nested of Object.values(entity)) if (nested && typeof nested === "object") visit(nested, depth + 1);
   };
@@ -513,7 +565,7 @@ function extractJsonLd(html: string): JsonLdExtraction {
     const type = attributes.match(/\btype\s*=\s*(?:(["'])(.*?)\1|([^\s>]+))/i);
     if ((type?.[2] ?? type?.[3] ?? "").trim().toLowerCase() !== "application/ld+json") continue;
     result.blocksDetected += 1;
-    try { const parsed: unknown = JSON.parse((match[2] ?? "").trim()); result.blocksParsed += 1; visit(parsed, 0); }
+    try { const parsed: unknown = JSON.parse((match[2] ?? "").trim()); result.blocksParsed += 1; indexEntities(parsed, 0); visit(parsed, 0); }
     catch { result.malformedBlocks += 1; }
   }
   result.factsRetained = facts.length;
@@ -732,7 +784,7 @@ export async function crawlBusinessWebsite(
   const finalUrls = new Set<string>();
   const sitemapDiscovered = new Set<string>();
   const localizedUrls = new Set<string>();
-  type RetainedPage = { page: CrawledBusinessPage; finalUrl: string; identity: string; priority: number; blocks: ReturnType<typeof textBlocks> };
+  type RetainedPage = { page: CrawledBusinessPage; finalUrl: string; identity: string; priority: number; blocks: ReturnType<typeof textBlocks>; structuredFacts: number };
   const retained: RetainedPage[] = [];
   const blockCounts = new Map<string, number>();
   let preferredLanguage = (requested.searchParams.get("lang") ?? "").toLowerCase();
@@ -821,7 +873,6 @@ export async function crawlBusinessWebsite(
       structuredDiagnostics.jsonLdBlocksParsed += structured.blocksParsed;
       structuredDiagnostics.malformedJsonLdBlocksIgnored += structured.malformedBlocks;
       structuredDiagnostics.supportedStructuredEntitiesDetected += structured.entitiesDetected;
-      structuredDiagnostics.structuredFactsRetained += structured.factsRetained;
       structuredDiagnostics.structuredFactsDeduplicated += structured.factsDeduplicated;
       const blocks = textBlocks(text);
       const pageBlockKeys = new Set<string>();
@@ -842,7 +893,7 @@ export async function crawlBusinessWebsite(
       const actualCanonicalDestination = finalUrl === identity;
       const priority = (core ? 10_000 : supplementary ? 300 : 100) + (actualCanonicalDestination ? 1_000 : 0) + (sitemapDiscovered.has(finalUrl) && core ? 500 : 0) + Math.max(0, 200 - new URL(identity).pathname.length) - (localized ? 200 : 0);
       const retainedText = structured.text ? `${text}\n\n${structured.text}` : text;
-      const candidate: RetainedPage = { page: { url: identity, title, pageType, text: retainedText }, finalUrl, identity, priority, blocks };
+      const candidate: RetainedPage = { page: { url: identity, title, pageType, text: retainedText }, finalUrl, identity, priority, blocks, structuredFacts: structured.factsRetained };
 
       const discoveryStarted = now();
       for (const discovered of discoverInternalLinks(fetched.html, fetched.resolvedUrl, baseHost).reverse()) enqueue(discovered, true, true);
@@ -934,6 +985,7 @@ export async function crawlBusinessWebsite(
   }
 
   timings.totalCrawlDurationMs = Math.max(0, now() - totalStarted);
+  structuredDiagnostics.structuredFactsRetained = retained.reduce((total, record) => total + record.structuredFacts, 0);
 
   if (pages.length === 0) {
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {

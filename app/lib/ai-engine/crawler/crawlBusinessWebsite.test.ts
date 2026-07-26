@@ -64,6 +64,81 @@ test("site-wide JSON-LD neither expands discovery nor collapses visibly distinct
   assert.ok(result.pages.every((item) => !item.text.includes("javascript:alert")));
 });
 
+test("recognizes LocalBusiness subtypes, URL arrays, and referenced answers", async () => {
+  const graph = [
+    { "@type": "Restaurant", name: "North Café", telephone: "555-0100", sameAs: ["https://social.test/a", "javascript:bad()", "https://social.test/a", { "@id": "https://social.test/b" }] },
+    { "@type": ["Plumber", "UnknownSpecialty"], name: "Pipe Pro", areaServed: "Dallas" },
+    { "@type": "MedicalClinic", name: "Healthy Clinic", address: { "@type": "PostalAddress", streetAddress: "1 Care Way" } },
+    { "@id": "#answer", "@type": "Answer", text: "Yes, every day." },
+    { "@type": "Question", name: "Open daily?", acceptedAnswer: [{ "@id": "#answer" }, { "@type": "Answer", text: "Including weekends." }] },
+  ];
+  const calls: string[] = [];
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined, fetchSitemap: async () => null,
+    fetchPage: async (url) => { calls.push(url.toString()); return url.pathname === "/" ? { resolvedUrl: url, html: `<main>${"Visible healthcare and trade information. ".repeat(8)}</main><script type="application/ld+json">${JSON.stringify({ "@graph": graph })}</script>` } : null; },
+  });
+  const text = result.pages[0]?.text ?? "";
+  assert.match(text, /Business name: North Café/);
+  assert.match(text, /Business name: Pipe Pro/);
+  assert.match(text, /Business name: Healthy Clinic/);
+  assert.equal(text.match(/External profile: https:\/\/social\.test\/a/g)?.length, 1);
+  assert.match(text, /External profile: https:\/\/social\.test\/b/);
+  assert.ok(!text.includes("javascript:bad"));
+  assert.match(text, /FAQ answer: Yes, every day\./);
+  assert.match(text, /FAQ answer: Including weekends\./);
+  assert.ok(!calls.some((url) => url.includes("social.test")));
+});
+
+test("keeps structured extraction bounded for deep and very large JSON-LD", async () => {
+  let deep: Record<string, unknown> = { "@type": "Organization", name: "Too Deep" };
+  for (let index = 0; index < 30; index += 1) deep = { child: deep };
+  const many = Array.from({ length: 1_000 }, (_, index) => ({ "@type": "Product", name: `Product ${index}`, description: "x".repeat(2_000) }));
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined, fetchSitemap: async () => null,
+    fetchPage: async (url) => url.pathname === "/" ? { resolvedUrl: url, html: `<main>${"Visible bounded extraction content. ".repeat(8)}</main><script type="application/ld+json">${JSON.stringify([deep, ...many])}</script><script type="application/ld+json">{broken</script>` } : null,
+  });
+  const structured = (result.pages[0]?.text ?? "").split("Structured business data:\n")[1] ?? "";
+  assert.ok(structured.length <= 10_000);
+  assert.ok(structured.split("\n").filter(Boolean).length <= 100);
+  assert.ok(!structured.includes("x".repeat(501)));
+  assert.ok(!structured.includes("Too Deep"));
+  assert.ok(result.diagnostics.supportedStructuredEntitiesDetected <= 250);
+  assert.equal(result.diagnostics.malformedJsonLdBlocksIgnored, 1);
+});
+
+test("empty JSON-LD emits no structured section", async () => {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined, fetchSitemap: async () => null,
+    fetchPage: async (url) => url.pathname === "/" ? { resolvedUrl: url, html: `<main>${"Visible content remains available. ".repeat(8)}</main><script type="application/ld+json">{}</script><script type="application/ld+json">[]</script>` } : null,
+  });
+  assert.ok(!result.pages[0]?.text.includes("Structured business data:"));
+  assert.equal(result.diagnostics.structuredFactsRetained, 0);
+});
+
+test("retained fact diagnostics exclude duplicates and follow canonical replacement", async () => {
+  const visible = "Identical visible installation repair and maintenance information. ".repeat(10);
+  const json = (name: string, description?: string) => `<script type="application/ld+json">${JSON.stringify({ "@type": "Organization", name, description })}</script>`;
+  const crawl = () => crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined, fetchSitemap: async () => null,
+    fetchPage: async (url: URL) => {
+      if (url.pathname === "/") return { resolvedUrl: url, html: `<main>${visible}</main>${json("Home retained")}` };
+      if (url.pathname === "/about") return { resolvedUrl: url, html: `<head><link rel="canonical" href="/services"></head><main>${"Canonical family visible facts. ".repeat(10)}</main>${json("Weak alias", "Must be removed")}` };
+      if (url.pathname === "/services") return { resolvedUrl: url, html: `<main>${"Canonical family visible facts. ".repeat(10)}</main>${json("Strong canonical")}` };
+      if (url.pathname === "/about-us") return { resolvedUrl: url, html: `<main>${visible}</main>${json("Discarded duplicate", "Not retained")}` };
+      return null;
+    },
+  });
+  const first = await crawl();
+  const second = await crawl();
+  const evidenceLines = first.pages.flatMap((page) => page.text.split("\n")).filter((line) => /^[A-Z][^:]*: .+/.test(line) && line !== "Structured business data:");
+  assert.equal(first.diagnostics.structuredFactsRetained, evidenceLines.length);
+  assert.equal(first.diagnostics.structuredFactsRetained, 2);
+  assert.ok(first.pages.some((page) => page.text.includes("Business name: Strong canonical")));
+  assert.ok(first.pages.every((page) => !page.text.includes("Weak alias") && !page.text.includes("Discarded duplicate")));
+  assert.equal(first.diagnostics.structuredFactsRetained, second.diagnostics.structuredFactsRetained);
+  assert.ok(first.diagnostics.supportedStructuredEntitiesDetected > first.diagnostics.structuredFactsRetained);
+});
+
 test("uses safe same-domain canonicals and ignores external canonicals", async () => {
   const canonicalPage = (canonical: string) => `<!doctype html><html><head><title>Services</title><link rel="canonical" href="${canonical}"></head><body><main>${"Distinct plumbing installation and repair details. ".repeat(8)}</main></body></html>`;
   const result = await crawlBusinessWebsite("https://example.test", undefined, {
