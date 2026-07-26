@@ -8,6 +8,62 @@ import {
 
 const page = (title: string, links = "") => `<!doctype html><html><head><title>${title}</title></head><body><main>${"Useful business content. ".repeat(8)}${links}</main></body></html>`;
 
+test("appends readable JSON-LD business evidence and records parsing diagnostics", async () => {
+  const structured = [
+    { "@type": ["Organization", "UnexpectedType"], name: "Acme Plomberie", description: "Réparations durables", telephone: "555-123-4567", address: { "@type": "PostalAddress", streetAddress: "100 Main Street", addressLocality: "Dallas", addressRegion: "TX", postalCode: "75201" } },
+    { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Friday"], opens: "08:00", closes: "17:00" },
+    { "@type": "Service", name: "Emergency repair", offers: { "@type": "Offer", price: 149, priceCurrency: "USD", availability: "InStock" } },
+    { "@type": "FAQPage", mainEntity: { "@type": "Question", name: "Emergency service?", acceptedAnswer: { "@type": "Answer", text: "Available 24 hours." } } },
+    { "@type": "Person", name: "Ada Expert", jobTitle: "Master Plumber" },
+    { "@type": "Review", reviewBody: "Excellent work", author: { "@type": "Person", name: "Sam" }, reviewRating: { "@type": "AggregateRating", ratingValue: 4.9, reviewCount: 42 } },
+  ];
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => url.pathname === "/" ? { resolvedUrl: url, html: `<main>${"Visible homepage details remain first. ".repeat(8)}</main><script type="application/ld+json">${JSON.stringify({ "@graph": structured })}</script><script type='application/ld+json'>{bad</script><script>throw new Error("never execute")</script>` } : null,
+  });
+  const text = result.pages[0]?.text ?? "";
+  assert.ok(text.startsWith("Visible homepage details"));
+  assert.match(text, /Structured business data:\nBusiness name: Acme Plomberie/);
+  assert.match(text, /Address: 100 Main Street, Dallas, TX, 75201/);
+  assert.match(text, /Opening hours: Monday, Friday 08:00-17:00/);
+  assert.match(text, /Service name: Emergency repair/);
+  assert.match(text, /Price: 149/);
+  assert.match(text, /FAQ question: Emergency service\?/);
+  assert.match(text, /FAQ answer: Available 24 hours\./);
+  assert.match(text, /Person name: Ada Expert/);
+  assert.match(text, /Aggregate rating: 4\.9/);
+  assert.ok(!text.includes('"@type"'));
+  assert.equal(result.diagnostics.jsonLdBlocksDetected, 2);
+  assert.equal(result.diagnostics.jsonLdBlocksParsed, 1);
+  assert.equal(result.diagnostics.malformedJsonLdBlocksIgnored, 1);
+  assert.ok(result.diagnostics.supportedStructuredEntitiesDetected >= structured.length);
+  assert.equal(result.warnings.length, 0);
+});
+
+test("supports multiple blocks and top-level arrays while deduplicating facts", async () => {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined, fetchSitemap: async () => null,
+    fetchPage: async (url) => url.pathname === "/" ? { resolvedUrl: url, html: `<main>${"Visible distinct content. ".repeat(8)}</main><script type=application/ld+json>${JSON.stringify([{ "@type": "Product", name: "Pro Pump", sku: "PP-1" }])}</script><script TYPE="APPLICATION/LD+JSON">${JSON.stringify({ "@type": "Product", name: "Pro Pump", sku: "PP-1" })}</script>` } : null,
+  });
+  assert.equal(result.diagnostics.jsonLdBlocksParsed, 2);
+  assert.ok(result.diagnostics.structuredFactsDeduplicated >= 2);
+  assert.equal(result.pages[0]?.text.match(/Product name: Pro Pump/g)?.length, 1);
+});
+
+test("site-wide JSON-LD neither expands discovery nor collapses visibly distinct pages", async () => {
+  const calls: string[] = [];
+  const json = JSON.stringify({ "@type": "Organization", name: "Shared Company", url: "javascript:alert(1)", sameAs: "https://external.test/profile" });
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined, fetchSitemap: async () => null,
+    fetchPage: async (url) => { calls.push(url.toString()); const route = url.pathname.replace(/\W/g, "") || "home"; return { resolvedUrl: url, html: `<main>${`${route} specialized ${route} customer details and policies. `.repeat(10)}</main><script type="application/ld+json">${json}</script>` }; },
+  });
+  assert.ok(result.pages.length > 3);
+  assert.ok(result.pages.every((item) => item.text.includes("Structured business data:")));
+  assert.ok(!calls.some((url) => url.includes("external.test") || url.includes("javascript")));
+  assert.ok(result.pages.every((item) => !item.text.includes("javascript:alert")));
+});
+
 test("uses safe same-domain canonicals and ignores external canonicals", async () => {
   const canonicalPage = (canonical: string) => `<!doctype html><html><head><title>Services</title><link rel="canonical" href="${canonical}"></head><body><main>${"Distinct plumbing installation and repair details. ".repeat(8)}</main></body></html>`;
   const result = await crawlBusinessWebsite("https://example.test", undefined, {
