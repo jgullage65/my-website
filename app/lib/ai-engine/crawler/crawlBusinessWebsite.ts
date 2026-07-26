@@ -1,5 +1,6 @@
 import { lookup as dnsLookup } from "node:dns/promises";
 import net from "node:net";
+import { createHash } from "node:crypto";
 
 export type CrawledBusinessPage = {
   url: string;
@@ -21,6 +22,12 @@ export type BusinessWebsiteCrawlDiagnostics = {
   pagesProcessed: number;
   pagesSkipped: number;
   pagesFailed: number;
+  canonicalUrlsDetected: number;
+  redirectDuplicatesSkipped: number;
+  exactDuplicatesSkipped: number;
+  nearDuplicatesSkipped: number;
+  alternateVariantsSkipped: number;
+  repeatedBoilerplateBlocksRemoved: number;
   finalUrls: string[];
   restrictions: CrawlRestriction[];
   timings: BusinessWebsiteCrawlTimings;
@@ -386,9 +393,9 @@ function stripHtmlToText(html: string): string {
       .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
       .replace(/<svg\b[\s\S]*?<\/svg>/gi, " ")
       .replace(/<!--([\s\S]*?)-->/g, " ")
-      .replace(/<nav\b[\s\S]*?<\/nav>/gi, " ")
-      .replace(/<footer\b[\s\S]*?<\/footer>/gi, " ")
-      .replace(/<header\b[\s\S]*?<\/header>/gi, " ")
+      .replace(/<(nav|header|footer)\b[^>]*>([\s\S]*?)<\/\1>/gi, (_match, _tag, content) =>
+        /(?:\b(?:mon|tue|wed|thu|fri|sat|sun)(?:day)?\b|\b(?:hours|address)\b|mailto:|tel:|\+?\d[\d\s().-]{6,})/i.test(content) ? content : " ",
+      )
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(
         /<\/(p|div|section|article|li|h1|h2|h3|h4|h5|h6)>/gi,
@@ -400,6 +407,57 @@ function stripHtmlToText(html: string): string {
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function extractLinkRelations(html: string, pageUrl: URL, baseHost: string) {
+  let canonical: string | undefined;
+  const alternates: { url: string; language: string }[] = [];
+  let ignoredAlternates = 0;
+  const pattern = /<link\b([^>]*?)>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(html))) {
+    const attributes = match[1] ?? "";
+    const attribute = (name: string) => decodeHtml(attributes.match(new RegExp(`\\b${name}\\s*=\\s*(["'])(.*?)\\1`, "i"))?.[2] ?? "").trim();
+    const rel = attribute("rel").toLowerCase().split(/\s+/);
+    const href = attribute("href");
+    if (!href) continue;
+    let parsed: URL;
+    try { parsed = new URL(href, pageUrl); } catch { continue; }
+    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || normalizeHost(parsed.hostname) !== baseHost || isDocumentOrAsset(parsed) || !isAllowedPageUrl(parsed)) { if (rel.includes("alternate")) ignoredAlternates += 1; continue; }
+    const url = dedupeUrl(parsed.toString());
+    if (rel.includes("canonical") && !canonical) canonical = url;
+    if (rel.includes("alternate")) alternates.push({ url, language: attribute("hreflang").toLowerCase() });
+  }
+  return { canonical, alternates, ignoredAlternates };
+}
+
+function isAllowedPageUrl(url: URL): boolean {
+  const segments = normalizeDiscoveryPath(url).split("/").filter(Boolean);
+  return !segments.some((segment) => EDITORIAL_PATH_SEGMENT.test(segment)) && !(segments.length > 1 && YEAR_PATH_SEGMENT.test(segments[0] ?? ""));
+}
+
+const BOILERPLATE = /^(?:home|menu|skip to (?:main )?content|accept (?:all )?cookies?|cookie (?:notice|preferences)|privacy policy|terms (?:of (?:use|service)|and conditions)|all rights reserved|subscribe|newsletter|follow us|contact us)$/i;
+function meaningfulText(text: string): { normalized: string; blocksRemoved: number } {
+  let blocksRemoved = 0;
+  const lines = text.split(/\n+/).map((line) => line.replace(/https?:\/\/\S+/gi, (value) => { try { const url = new URL(value); url.search = ""; return url.toString(); } catch { return value; } }).trim()).filter((line) => {
+    if (!line || BOILERPLATE.test(line) || (/^(?:©|copyright)\s*\d{4}/i.test(line) && line.length < 120)) { blocksRemoved += 1; return false; }
+    return true;
+  });
+  return { normalized: lines.join(" ").toLowerCase().replace(/[\p{P}\p{S}]+/gu, " ").replace(/\s+/g, " ").trim(), blocksRemoved };
+}
+
+function shingles(value: string): Set<string> {
+  const tokens = value.split(" ").filter(Boolean);
+  const result = new Set<string>();
+  for (let index = 0; index <= tokens.length - 5; index += 1) result.add(tokens.slice(index, index + 5).join(" "));
+  return result;
+}
+
+function similarity(left: Set<string>, right: Set<string>): number {
+  if (!left.size || !right.size) return 0;
+  let overlap = 0;
+  left.forEach((item) => { if (right.has(item)) overlap += 1; });
+  return overlap / Math.min(left.size, right.size);
 }
 
 function extractTitle(html: string): string {
@@ -513,7 +571,8 @@ export async function crawlBusinessWebsite(
   const assertSafe = dependencies.assertSafe ?? assertSafeDestination;
   const totalStarted = now();
   const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
-  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
+  const duplicateDiagnostics = { canonicalUrlsDetected: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, repeatedBoilerplateBlocksRemoved: 0 };
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...duplicateDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
   try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
@@ -555,6 +614,10 @@ export async function crawlBusinessWebsite(
   const queued = new Set<string>();
   const visited = new Set<string>();
   const finalUrls = new Set<string>();
+  const canonicalIdentities = new Set<string>();
+  const sitemapDiscovered = new Set<string>();
+  const localizedUrls = new Set<string>();
+  const signatures: { fingerprint: string; shingles: Set<string>; priority: number }[] = [];
   const enqueue = (value: string, front = false, alreadyClassified = false) => {
     let parsed: URL;
     try { parsed = new URL(value); } catch { return; }
@@ -571,7 +634,9 @@ export async function crawlBusinessWebsite(
       isDocumentOrAsset(parsed) ||
       !isDiscoverableBusinessUrl(parsed)
     ) return null;
-    return dedupeUrl(parsed.toString());
+    const normalized = dedupeUrl(parsed.toString());
+    sitemapDiscovered.add(normalized);
+    return normalized;
   };
   const discoverSitemapPages = async () => {
     const pending = [new URL("/sitemap.xml", homepageResolved.origin)];
@@ -615,19 +680,45 @@ export async function crawlBusinessWebsite(
   };
   const processFetched = (fetched: { html: string; resolvedUrl: URL }) => {
       const finalUrl = dedupeUrl(fetched.resolvedUrl.toString());
-      if (finalUrls.has(finalUrl)) { pagesSkipped += 1; return; }
+      if (finalUrls.has(finalUrl)) { pagesSkipped += 1; duplicateDiagnostics.redirectDuplicatesSkipped += 1; return; }
       finalUrls.add(finalUrl);
+      const relations = extractLinkRelations(fetched.html, fetched.resolvedUrl, baseHost);
+      duplicateDiagnostics.alternateVariantsSkipped += relations.ignoredAlternates;
+      if (relations.canonical) duplicateDiagnostics.canonicalUrlsDetected += 1;
+      const identity = relations.canonical ?? finalUrl;
+      if (canonicalIdentities.has(identity)) { pagesSkipped += 1; return; }
+      canonicalIdentities.add(identity);
       const extractionStarted = now();
       const text = stripHtmlToText(fetched.html);
+      const meaningful = meaningfulText(text);
+      duplicateDiagnostics.repeatedBoilerplateBlocksRemoved += meaningful.blocksRemoved;
       timings.contentExtractionMs += Math.max(0, now() - extractionStarted);
       if (text.length < 80) { pagesSkipped += 1; return; }
       const title = extractTitle(fetched.html);
+      const pageType = inferPageType(new URL(identity), title);
+      const core = pageType !== "other";
+      const supplementary = /\/(?:guides?|docs?|documentation|help|case-stud(?:y|ies)|resources?|academy)(?:\/|$)/i.test(new URL(identity).pathname);
+      const localized = localizedUrls.has(finalUrl);
+      const priority = (core ? 1_000 : supplementary ? 300 : 200) + (relations.canonical ? 100 : 0) + (sitemapDiscovered.has(finalUrl) && core ? 50 : 0) + Math.max(0, 50 - new URL(identity).pathname.length) - (localized ? 100 : 0);
+      const fingerprint = createHash("sha256").update(meaningful.normalized).digest("hex");
+      const pageShingles = shingles(meaningful.normalized);
+      let duplicateIndex = signatures.findIndex((entry) => entry.fingerprint === fingerprint);
+      const exact = duplicateIndex >= 0;
+      if (duplicateIndex < 0 && meaningful.normalized.split(" ").length >= 20) duplicateIndex = signatures.findIndex((entry) => similarity(entry.shingles, pageShingles) >= 0.92);
+      if (duplicateIndex >= 0) {
+        pagesSkipped += 1;
+        if (exact) duplicateDiagnostics.exactDuplicatesSkipped += 1; else duplicateDiagnostics.nearDuplicatesSkipped += 1;
+        if (priority <= signatures[duplicateIndex]!.priority) return;
+        pages.splice(duplicateIndex, 1);
+        signatures.splice(duplicateIndex, 1);
+      }
       pages.push({
-        url: fetched.resolvedUrl.toString(),
+        url: identity,
         title,
-        pageType: inferPageType(fetched.resolvedUrl, title),
+        pageType,
         text,
       });
+      signatures.push({ fingerprint, shingles: pageShingles, priority });
       const discoveryStarted = now();
       const discoveredLinks = discoverInternalLinks(
         fetched.html,
@@ -636,6 +727,13 @@ export async function crawlBusinessWebsite(
       );
       timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
       for (const discovered of discoveredLinks) enqueue(discovered, false, true);
+      const language = (fetched.html.match(/<html\b[^>]*\blang\s*=\s*["']([^"']+)/i)?.[1] ?? "").toLowerCase();
+      const preferred = relations.alternates.find((item) => language && (item.language === language || item.language.split("-")[0] === language.split("-")[0])) ?? relations.alternates.find((item) => item.language === "x-default");
+      for (const alternate of relations.alternates) {
+        if (alternate !== preferred || alternate.url === identity || localizedUrls.size >= 2) { duplicateDiagnostics.alternateVariantsSkipped += 1; continue; }
+        localizedUrls.add(alternate.url);
+        enqueue(alternate.url, false, true);
+      }
       onPage?.(pages.length, visited.size + queued.size + 1);
   };
 
@@ -687,7 +785,7 @@ export async function crawlBusinessWebsite(
 
   if (pages.length === 0) {
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
-      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, finalUrls: [], restrictions, timings,
+      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...duplicateDiagnostics, finalUrls: [], restrictions, timings,
     });
   }
 
@@ -701,6 +799,7 @@ export async function crawlBusinessWebsite(
       pagesProcessed: pages.length,
       pagesSkipped,
       pagesFailed,
+      ...duplicateDiagnostics,
       finalUrls: pages.map((page) => page.url),
       restrictions,
       timings,
