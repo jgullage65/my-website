@@ -14,6 +14,7 @@ import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
+import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import "./AiBuilderFormOverrides.css";
@@ -421,7 +422,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           </div>
         </header>
 
-        <div className="ai-builder-review-scrollbar min-h-0 flex-1 overflow-y-scroll overscroll-contain p-4 [scrollbar-color:rgba(251,191,36,0.95)_rgba(255,255,255,0.04)] [scrollbar-gutter:stable] [&::-webkit-scrollbar]:w-[6px] [&::-webkit-scrollbar-track]:bg-white/[0.04] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-300/90 [&::-webkit-scrollbar-thumb:hover]:bg-amber-200">
+        <AiBuilderDesktopScrollArea>
           {workspaceTab === "knowledge" ? (
             <>
               {reviewSaveStatus !== "idle" || saveError ? (
@@ -448,6 +449,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                   pendingReviewItems={pendingReviewItems}
                   onBack={() => setWorkspaceTab("overview")}
                   onLaunchChat={() => undefined}
+                  showLaunchChat={false}
                 />
               </div>
             </>
@@ -470,7 +472,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
               </div>
             </div>
           )}
-        </div>
+        </AiBuilderDesktopScrollArea>
       </main>
 
       <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#040a16] p-4">
