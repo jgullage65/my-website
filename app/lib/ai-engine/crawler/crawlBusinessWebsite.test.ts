@@ -8,6 +8,31 @@ import {
 
 const page = (title: string, links = "") => `<!doctype html><html><head><title>${title}</title></head><body><main>${"Useful business content. ".repeat(8)}${links}</main></body></html>`;
 
+test("retains bounded semantic sections while ignoring statically hidden content", async () => {
+  const html = `<!doctype html><title>Home</title><meta property="og:title" content="Acme Services">
+    <main><h1>Réparations commerciales</h1><p>Installation and repair for offices and retail locations.</p>
+    <ul><li>Emergency repair</li><li>Emergency repair</li><li>Water-heater installation<ul><li>Same-day assessment</li></ul></li></ul>
+    <table><thead><tr><th>Plan</th><th>Price</th></tr></thead><tbody><tr><td>Starter</td><td>$99/month</td></tr></tbody></table>
+    <dl><dt>Service area</dt><dd>Dallas</dd><dd>Fort Worth</dd></dl>
+    <details><summary>Do you offer emergency service?</summary><p>Yes, emergency service is available 24 hours.</p></details>
+    <p hidden>Hidden offer</p><p aria-hidden="true">Technical label</p><p style="display:none">Invisible payload</p></main>`;
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined, fetchSitemap: async () => null,
+    fetchPage: async (url) => url.pathname === "/" ? { resolvedUrl:url, html } : null,
+  });
+  const retained=result.pages[0]!;
+  assert.equal(retained.title,"Réparations commerciales");
+  assert.match(retained.text,/Réparations commerciales\nInstallation and repair/);
+  assert.equal((retained.text.match(/- Emergency repair/g)??[]).length,1);
+  assert.match(retained.text,/Plan \| Price\nStarter \| \$99\/month/);
+  assert.match(retained.text,/Service area: Dallas\nService area: Fort Worth/);
+  assert.match(retained.text,/Question: Do you offer emergency service\?\nAnswer: Yes, emergency service is available 24 hours\./);
+  assert.doesNotMatch(retained.text,/Hidden offer|Technical label|Invisible payload/);
+  assert.equal(result.diagnostics.tablesRetained,1);
+  assert.equal(result.diagnostics.visibleFaqsRetained,1);
+  assert.equal(result.diagnostics.hiddenElementsIgnored,3);
+});
+
 test("appends readable JSON-LD business evidence and records parsing diagnostics", async () => {
   const structured = [
     { "@type": ["Organization", "UnexpectedType"], name: "Acme Plomberie", description: "Réparations durables", telephone: "555-123-4567", address: { "@type": "PostalAddress", streetAddress: "100 Main Street", addressLocality: "Dallas", addressRegion: "TX", postalCode: "75201" } },
