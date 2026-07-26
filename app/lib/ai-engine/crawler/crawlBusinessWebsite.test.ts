@@ -62,6 +62,53 @@ test("restrains hreflang alternates and never fetches an external alternate", as
   assert.ok(calls.length <= PRIORITY_FETCH_PATHS.length);
 });
 
+test("replaces a weaker canonical alias without disturbing unrelated retained pages", async () => {
+  const content = "Installation repair maintenance guarantees scheduling and licensed service details. ".repeat(10);
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      if (url.pathname === "/") return { resolvedUrl: url, html: page("Acme") };
+      if (url.pathname === "/about") return { resolvedUrl: url, html: `<head><title>Weak alias</title><link rel="canonical" href="/services"></head><main>${content}</main>` };
+      if (url.pathname === "/about-us") return { resolvedUrl: url, html: `<title>Independent company page</title><main>${"Unique company history leadership and values. ".repeat(10)}</main>` };
+      if (url.pathname === "/services") return { resolvedUrl: url, html: `<title>Canonical services</title><main>${content}</main>` };
+      return null;
+    },
+  });
+  assert.equal(result.pages.find((item) => item.url === "https://example.test/services")?.title, "Canonical services");
+  assert.ok(result.pages.some((item) => item.title === "Independent company page"));
+  assert.equal(result.diagnostics.canonicalDuplicatesSkipped, 1);
+});
+
+test("dynamically discounts repeated blocks while preserving repeated contact details", async () => {
+  const shared = "Shared navigation Products Services Pricing Newsletter signup";
+  const contact = "Call 555-123-4567. Hours Monday to Friday 9 to 5.";
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => ({ resolvedUrl: url, html: `<header>${shared}</header><main>${`${url.pathname.replace(/\W/g, "") || "homepage"} specialized details `.repeat(20)}</main><footer>${contact}</footer>` }),
+  });
+  assert.ok(result.diagnostics.repeatedBoilerplateBlocksRemoved >= 3);
+  assert.ok(result.pages.every((item) => item.text.includes(contact)));
+  assert.ok(result.pages.length > 3);
+});
+
+test("uses the homepage language consistently when scheduling alternates", async () => {
+  const calls: string[] = [];
+  await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      calls.push(url.pathname);
+      const links = url.pathname === "/" ? '<link rel="alternate" hreflang="fr" href="/fr/services"><link rel="alternate" hreflang="en-US" href="/en/services"><link rel="alternate" hreflang="x-default" href="/default/services">' : "";
+      return { resolvedUrl: url, html: `<html lang="en"><head>${links}</head><main>${url.pathname} ${"Business content specific to this route. ".repeat(10)}</main></html>` };
+    },
+  });
+  assert.ok(calls.includes("/en/services"));
+  assert.ok(!calls.includes("/fr/services"));
+  assert.ok(!calls.includes("/default/services"));
+});
+
 test("preserves submitted root and canonical homepage identity when internal pages finish later", async () => {
   const calls: string[] = [];
   const fetchPage = async (url: URL, _restrictions: CrawlRestriction[]) => {
@@ -205,7 +252,10 @@ test("discovers durable supplementary pages from HTML and sitemaps while rejecti
     });
 
     assert.equal(result.diagnostics.pagesDiscovered, 19, source);
-    assert.ok(result.diagnostics.pagesDiscovered >= accepted.length, source);
+    if (source === "html") {
+      assert.ok(accepted.every((path) => fetchedPaths.includes(path)), source);
+      assert.ok(accepted.every((path) => result.pages.some((pageResult) => new URL(pageResult.url).pathname === path)), source);
+    }
     assert.ok(ignored.every((path) => !fetchedPaths.includes(path)), source);
   }
 });

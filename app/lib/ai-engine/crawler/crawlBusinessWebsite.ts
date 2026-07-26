@@ -23,6 +23,7 @@ export type BusinessWebsiteCrawlDiagnostics = {
   pagesSkipped: number;
   pagesFailed: number;
   canonicalUrlsDetected: number;
+  canonicalDuplicatesSkipped: number;
   redirectDuplicatesSkipped: number;
   exactDuplicatesSkipped: number;
   nearDuplicatesSkipped: number;
@@ -393,12 +394,9 @@ function stripHtmlToText(html: string): string {
       .replace(/<noscript\b[\s\S]*?<\/noscript>/gi, " ")
       .replace(/<svg\b[\s\S]*?<\/svg>/gi, " ")
       .replace(/<!--([\s\S]*?)-->/g, " ")
-      .replace(/<(nav|header|footer)\b[^>]*>([\s\S]*?)<\/\1>/gi, (_match, _tag, content) =>
-        /(?:\b(?:mon|tue|wed|thu|fri|sat|sun)(?:day)?\b|\b(?:hours|address)\b|mailto:|tel:|\+?\d[\d\s().-]{6,})/i.test(content) ? content : " ",
-      )
       .replace(/<br\s*\/?>/gi, "\n")
       .replace(
-        /<\/(p|div|section|article|li|h1|h2|h3|h4|h5|h6)>/gi,
+        /<\/(p|div|section|article|nav|header|footer|li|h1|h2|h3|h4|h5|h6)>/gi,
         "\n",
       )
       .replace(/<[^>]+>/g, " "),
@@ -436,14 +434,17 @@ function isAllowedPageUrl(url: URL): boolean {
   return !segments.some((segment) => EDITORIAL_PATH_SEGMENT.test(segment)) && !(segments.length > 1 && YEAR_PATH_SEGMENT.test(segments[0] ?? ""));
 }
 
-const BOILERPLATE = /^(?:home|menu|skip to (?:main )?content|accept (?:all )?cookies?|cookie (?:notice|preferences)|privacy policy|terms (?:of (?:use|service)|and conditions)|all rights reserved|subscribe|newsletter|follow us|contact us)$/i;
-function meaningfulText(text: string): { normalized: string; blocksRemoved: number } {
-  let blocksRemoved = 0;
-  const lines = text.split(/\n+/).map((line) => line.replace(/https?:\/\/\S+/gi, (value) => { try { const url = new URL(value); url.search = ""; return url.toString(); } catch { return value; } }).trim()).filter((line) => {
-    if (!line || BOILERPLATE.test(line) || (/^(?:©|copyright)\s*\d{4}/i.test(line) && line.length < 120)) { blocksRemoved += 1; return false; }
-    return true;
-  });
-  return { normalized: lines.join(" ").toLowerCase().replace(/[\p{P}\p{S}]+/gu, " ").replace(/\s+/g, " ").trim(), blocksRemoved };
+function normalizeText(value: string): string {
+  return value.replace(/https?:\/\/\S+/gi, (raw) => { try { const url = new URL(raw); url.search = ""; return url.toString(); } catch { return raw; } })
+    .toLowerCase().replace(/[\p{P}\p{S}]+/gu, " ").replace(/\s+/g, " ").trim();
+}
+
+function textBlocks(text: string): { text: string; key: string; protected: boolean }[] {
+  return text.split(/\n+/).map((block) => block.trim()).filter(Boolean).map((text) => ({
+    text,
+    key: normalizeText(text),
+    protected: /(?:\b(?:mon|tue|wed|thu|fri|sat|sun)(?:day)?\b|\b(?:hours|address)\b|mailto:|tel:|\+?\d[\d\s().-]{6,})/i.test(text),
+  })).filter((block) => Boolean(block.key));
 }
 
 function shingles(value: string): Set<string> {
@@ -571,7 +572,7 @@ export async function crawlBusinessWebsite(
   const assertSafe = dependencies.assertSafe ?? assertSafeDestination;
   const totalStarted = now();
   const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
-  const duplicateDiagnostics = { canonicalUrlsDetected: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, repeatedBoilerplateBlocksRemoved: 0 };
+  const duplicateDiagnostics = { canonicalUrlsDetected: 0, canonicalDuplicatesSkipped: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, repeatedBoilerplateBlocksRemoved: 0 };
   const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...duplicateDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
   try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
@@ -614,10 +615,16 @@ export async function crawlBusinessWebsite(
   const queued = new Set<string>();
   const visited = new Set<string>();
   const finalUrls = new Set<string>();
-  const canonicalIdentities = new Set<string>();
   const sitemapDiscovered = new Set<string>();
   const localizedUrls = new Set<string>();
-  const signatures: { fingerprint: string; shingles: Set<string>; priority: number }[] = [];
+  type RetainedPage = { page: CrawledBusinessPage; finalUrl: string; identity: string; priority: number; blocks: ReturnType<typeof textBlocks> };
+  const retained: RetainedPage[] = [];
+  const blockCounts = new Map<string, number>();
+  let preferredLanguage = (requested.searchParams.get("lang") ?? "").toLowerCase();
+  const syncPages = () => { pages.splice(0, pages.length, ...retained.map((record) => record.page)); };
+  const meaningfulFor = (record: Pick<RetainedPage, "blocks">) => normalizeText(record.blocks
+    .filter((block) => block.protected || (blockCounts.get(block.key) ?? 0) < 3)
+    .map((block) => block.text).join(" "));
   const enqueue = (value: string, front = false, alreadyClassified = false) => {
     let parsed: URL;
     try { parsed = new URL(value); } catch { return; }
@@ -678,67 +685,87 @@ export async function crawlBusinessWebsite(
     }
     return Array.from(discoveredPages);
   };
-  const processFetched = (fetched: { html: string; resolvedUrl: URL }) => {
+  const protectedBlocks = new Set<string>();
+  const processFetched = async (fetched: { html: string; resolvedUrl: URL }) => {
       const finalUrl = dedupeUrl(fetched.resolvedUrl.toString());
       if (finalUrls.has(finalUrl)) { pagesSkipped += 1; duplicateDiagnostics.redirectDuplicatesSkipped += 1; return; }
       finalUrls.add(finalUrl);
       const relations = extractLinkRelations(fetched.html, fetched.resolvedUrl, baseHost);
       duplicateDiagnostics.alternateVariantsSkipped += relations.ignoredAlternates;
-      if (relations.canonical) duplicateDiagnostics.canonicalUrlsDetected += 1;
-      const identity = relations.canonical ?? finalUrl;
-      if (canonicalIdentities.has(identity)) { pagesSkipped += 1; return; }
-      canonicalIdentities.add(identity);
+      const safeRelation = async (value: string | undefined) => {
+        if (!value) return undefined;
+        try { await assertSafe(new URL(value)); return value; } catch { return undefined; }
+      };
+      const canonical = await safeRelation(relations.canonical);
+      if (canonical) duplicateDiagnostics.canonicalUrlsDetected += 1;
+      const identity = canonical ?? finalUrl;
       const extractionStarted = now();
       const text = stripHtmlToText(fetched.html);
-      const meaningful = meaningfulText(text);
-      duplicateDiagnostics.repeatedBoilerplateBlocksRemoved += meaningful.blocksRemoved;
+      const blocks = textBlocks(text);
+      for (const block of blocks) {
+        blockCounts.set(block.key, (blockCounts.get(block.key) ?? 0) + 1);
+        if (block.protected) protectedBlocks.add(block.key);
+      }
+      duplicateDiagnostics.repeatedBoilerplateBlocksRemoved = Array.from(blockCounts).reduce((total, [key, count]) =>
+        total + (count >= 3 && !protectedBlocks.has(key) ? count : 0), 0);
       timings.contentExtractionMs += Math.max(0, now() - extractionStarted);
       if (text.length < 80) { pagesSkipped += 1; return; }
       const title = extractTitle(fetched.html);
-      const pageType = inferPageType(new URL(identity), title);
+      const pageType = inferPageType(fetched.resolvedUrl, title);
       const core = pageType !== "other";
-      const supplementary = /\/(?:guides?|docs?|documentation|help|case-stud(?:y|ies)|resources?|academy)(?:\/|$)/i.test(new URL(identity).pathname);
+      const supplementary = /\/(?:guides?|docs?|documentation|help|case-stud(?:y|ies)|resources?|academy)(?:\/|$)/i.test(fetched.resolvedUrl.pathname);
       const localized = localizedUrls.has(finalUrl);
-      const priority = (core ? 1_000 : supplementary ? 300 : 200) + (relations.canonical ? 100 : 0) + (sitemapDiscovered.has(finalUrl) && core ? 50 : 0) + Math.max(0, 50 - new URL(identity).pathname.length) - (localized ? 100 : 0);
-      const fingerprint = createHash("sha256").update(meaningful.normalized).digest("hex");
-      const pageShingles = shingles(meaningful.normalized);
-      let duplicateIndex = signatures.findIndex((entry) => entry.fingerprint === fingerprint);
-      const exact = duplicateIndex >= 0;
-      if (duplicateIndex < 0 && meaningful.normalized.split(" ").length >= 20) duplicateIndex = signatures.findIndex((entry) => similarity(entry.shingles, pageShingles) >= 0.92);
-      if (duplicateIndex >= 0) {
-        pagesSkipped += 1;
-        if (exact) duplicateDiagnostics.exactDuplicatesSkipped += 1; else duplicateDiagnostics.nearDuplicatesSkipped += 1;
-        if (priority <= signatures[duplicateIndex]!.priority) return;
-        pages.splice(duplicateIndex, 1);
-        signatures.splice(duplicateIndex, 1);
-      }
-      pages.push({
-        url: identity,
-        title,
-        pageType,
-        text,
-      });
-      signatures.push({ fingerprint, shingles: pageShingles, priority });
+      const actualCanonicalDestination = finalUrl === identity;
+      const priority = (core ? 10_000 : supplementary ? 300 : 100) + (actualCanonicalDestination ? 1_000 : 0) + (sitemapDiscovered.has(finalUrl) && core ? 500 : 0) + Math.max(0, 200 - new URL(identity).pathname.length) - (localized ? 200 : 0);
+      const candidate: RetainedPage = { page: { url: identity, title, pageType, text }, finalUrl, identity, priority, blocks };
+
       const discoveryStarted = now();
-      const discoveredLinks = discoverInternalLinks(
-        fetched.html,
-        fetched.resolvedUrl,
-        baseHost,
-      );
+      for (const discovered of discoverInternalLinks(fetched.html, fetched.resolvedUrl, baseHost).reverse()) enqueue(discovered, true, true);
       timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
-      for (const discovered of discoveredLinks) enqueue(discovered, false, true);
-      const language = (fetched.html.match(/<html\b[^>]*\blang\s*=\s*["']([^"']+)/i)?.[1] ?? "").toLowerCase();
-      const preferred = relations.alternates.find((item) => language && (item.language === language || item.language.split("-")[0] === language.split("-")[0])) ?? relations.alternates.find((item) => item.language === "x-default");
+
+      const htmlLanguage = (fetched.html.match(/<html\b[^>]*\blang\s*=\s*["']([^"']+)/i)?.[1] ?? "").toLowerCase();
+      if (!preferredLanguage && retained.length === 0) preferredLanguage = htmlLanguage || (relations.alternates.some((item) => item.language === "x-default") ? "x-default" : "");
+      const preferredAlternate = relations.alternates.find((item) => preferredLanguage && (item.language === preferredLanguage || (preferredLanguage !== "x-default" && item.language.split("-")[0] === preferredLanguage.split("-")[0])))
+        ?? (preferredLanguage === "x-default" ? relations.alternates.find((item) => item.language === "x-default") : undefined);
       for (const alternate of relations.alternates) {
-        if (alternate !== preferred || alternate.url === identity || localizedUrls.size >= 2) { duplicateDiagnostics.alternateVariantsSkipped += 1; continue; }
-        localizedUrls.add(alternate.url);
-        enqueue(alternate.url, false, true);
+        const safeAlternate = await safeRelation(alternate.url);
+        if (!safeAlternate || alternate !== preferredAlternate || safeAlternate === identity || localizedUrls.size >= 1) { duplicateDiagnostics.alternateVariantsSkipped += 1; continue; }
+        localizedUrls.add(safeAlternate);
+        enqueue(safeAlternate, true, true);
       }
+
+      let duplicate = retained.find((record) => record.identity === identity);
+      let duplicateKind: "canonical" | "exact" | "near" | undefined = duplicate ? "canonical" : undefined;
+      if (!duplicate) {
+        const candidateMeaningful = meaningfulFor(candidate);
+        const fingerprint = createHash("sha256").update(candidateMeaningful).digest("hex");
+        duplicate = retained.find((record) => createHash("sha256").update(meaningfulFor(record)).digest("hex") === fingerprint);
+        duplicateKind = duplicate ? "exact" : undefined;
+        if (!duplicate && candidateMeaningful.split(" ").length >= 20) {
+          const candidateShingles = shingles(candidateMeaningful);
+          duplicate = retained.find((record) => similarity(shingles(meaningfulFor(record)), candidateShingles) >= 0.92);
+          duplicateKind = duplicate ? "near" : undefined;
+        }
+      }
+      if (duplicate && duplicateKind) {
+        pagesSkipped += 1;
+        if (localized) duplicateDiagnostics.alternateVariantsSkipped += 1;
+        else if (duplicateKind === "canonical") duplicateDiagnostics.canonicalDuplicatesSkipped += 1;
+        else if (duplicateKind === "exact") duplicateDiagnostics.exactDuplicatesSkipped += 1;
+        else duplicateDiagnostics.nearDuplicatesSkipped += 1;
+        if (priority <= duplicate.priority) return;
+        retained.splice(retained.indexOf(duplicate), 1, candidate);
+        syncPages();
+        onPage?.(pages.length, visited.size + queued.size + 1);
+        return;
+      }
+      retained.push(candidate);
+      syncPages();
       onPage?.(pages.length, visited.size + queued.size + 1);
   };
 
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
-  if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
+  if (homepageHtml) await processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
   const sitemapStarted = now();
   const sitemapPages = await discoverSitemapPages();
   timings.pageDiscoveryMs += Math.max(0, now() - sitemapStarted);
@@ -777,7 +804,7 @@ export async function crawlBusinessWebsite(
         if (error && !warnings.includes(message)) warnings.push(message);
         continue;
       }
-      processFetched(fetched);
+      await processFetched(fetched);
     }
   }
 
