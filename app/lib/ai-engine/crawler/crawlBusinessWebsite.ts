@@ -29,6 +29,12 @@ export type BusinessWebsiteCrawlDiagnostics = {
   nearDuplicatesSkipped: number;
   alternateVariantsSkipped: number;
   repeatedBoilerplateBlocksRemoved: number;
+  jsonLdBlocksDetected: number;
+  jsonLdBlocksParsed: number;
+  malformedJsonLdBlocksIgnored: number;
+  supportedStructuredEntitiesDetected: number;
+  structuredFactsRetained: number;
+  structuredFactsDeduplicated: number;
   finalUrls: string[];
   restrictions: CrawlRestriction[];
   timings: BusinessWebsiteCrawlTimings;
@@ -68,6 +74,11 @@ const MAX_HTML_BYTES = 750_000;
 const FETCH_TIMEOUT_MS = 7_000;
 const MAX_REDIRECTS = 3;
 const MAX_CONCURRENT_FETCHES = 3;
+const MAX_STRUCTURED_FACTS = 100;
+const MAX_STRUCTURED_TEXT = 10_000;
+const MAX_STRUCTURED_VALUE = 500;
+const MAX_JSON_LD_DEPTH = 8;
+const MAX_JSON_LD_ITEMS = 250;
 
 const PRIORITY_PATHS = [
   "/",
@@ -407,6 +418,109 @@ function stripHtmlToText(html: string): string {
     .trim();
 }
 
+type JsonLdExtraction = {
+  text: string;
+  blocksDetected: number;
+  blocksParsed: number;
+  malformedBlocks: number;
+  entitiesDetected: number;
+  factsRetained: number;
+  factsDeduplicated: number;
+};
+
+const SUPPORTED_STRUCTURED_TYPES = new Set([
+  "organization", "localbusiness", "corporation", "professionalservice", "store",
+  "product", "service", "offer", "aggregateoffer", "faqpage", "question", "answer",
+  "person", "postaladdress", "openinghoursspecification", "contactpoint", "review",
+  "aggregaterating",
+]);
+
+function structuredScalar(value: unknown, depth = 0): string {
+  if (depth > 3 || value == null) return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    const normalized = String(value).replace(/\s+/g, " ").trim();
+    return normalized.slice(0, MAX_STRUCTURED_VALUE);
+  }
+  if (Array.isArray(value)) return value.slice(0, 20).map((item) => structuredScalar(item, depth + 1)).filter(Boolean).join(", ").slice(0, MAX_STRUCTURED_VALUE);
+  if (typeof value === "object") {
+    const object = value as Record<string, unknown>;
+    return structuredScalar(object.name ?? object.description ?? object.text ?? object.value ?? object.price ?? object.ratingValue ?? object["@id"], depth + 1);
+  }
+  return "";
+}
+
+function structuredUrl(value: unknown): string {
+  const raw = structuredScalar(value);
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString().slice(0, MAX_STRUCTURED_VALUE) : "";
+  } catch { return ""; }
+}
+
+function extractJsonLd(html: string): JsonLdExtraction {
+  const result: JsonLdExtraction = { text: "", blocksDetected: 0, blocksParsed: 0, malformedBlocks: 0, entitiesDetected: 0, factsRetained: 0, factsDeduplicated: 0 };
+  const facts: string[] = [];
+  const factKeys = new Set<string>();
+  let visitedItems = 0;
+  const add = (label: string, value: unknown, url = false) => {
+    if (facts.length >= MAX_STRUCTURED_FACTS) return;
+    const display = url ? structuredUrl(value) : structuredScalar(value);
+    if (!display || /^(?:null|undefined|unknown|n\/a)$/i.test(display)) return;
+    const line = `${label}: ${display}`;
+    const key = normalizeText(line);
+    if (factKeys.has(key)) { result.factsDeduplicated += 1; return; }
+    if (facts.join("\n").length + line.length + 1 > MAX_STRUCTURED_TEXT) return;
+    factKeys.add(key); facts.push(line);
+  };
+  const visit = (value: unknown, depth: number) => {
+    if (depth > MAX_JSON_LD_DEPTH || visitedItems >= MAX_JSON_LD_ITEMS || value == null) return;
+    if (Array.isArray(value)) { for (const item of value.slice(0, MAX_JSON_LD_ITEMS - visitedItems)) visit(item, depth + 1); return; }
+    if (typeof value !== "object") return;
+    visitedItems += 1;
+    const entity = value as Record<string, unknown>;
+    const types = (Array.isArray(entity["@type"]) ? entity["@type"] : [entity["@type"]]).map((type) => String(type ?? "").toLowerCase());
+    const supported = types.some((type) => SUPPORTED_STRUCTURED_TYPES.has(type) || type.endsWith("business") || type.endsWith("store"));
+    if (supported) {
+      result.entitiesDetected += 1;
+      const isPerson = types.includes("person");
+      const isProduct = types.includes("product");
+      const isService = types.includes("service") || types.includes("professionalservice");
+      const isQuestion = types.includes("question");
+      add(isPerson ? "Person name" : isProduct ? "Product name" : isService ? "Service name" : "Business name", entity.name);
+      add("Legal name", entity.legalName); add("Description", entity.description);
+      add("URL", entity.url, true); add("Logo", entity.logo, true); add("Founded", entity.foundingDate); add("Slogan", entity.slogan);
+      add("Parent organization", entity.parentOrganization); add("Brand", entity.brand);
+      add("Telephone", entity.telephone); add("Email", entity.email); add("Contact type", entity.contactType);
+      const address = entity.address && typeof entity.address === "object" && !Array.isArray(entity.address) ? entity.address as Record<string, unknown> : undefined;
+      if (address) add("Address", [address.streetAddress, address.addressLocality, address.addressRegion, address.postalCode, address.addressCountry].map(structuredScalar).filter(Boolean).join(", "));
+      add("Street address", entity.streetAddress); add("Locality", entity.addressLocality); add("Region", entity.addressRegion); add("Postal code", entity.postalCode); add("Country", entity.addressCountry);
+      add("Area served", entity.areaServed ?? entity.serviceArea); add("Opening hours", entity.openingHours);
+      if (types.includes("openinghoursspecification")) add("Opening hours", `${structuredScalar(entity.dayOfWeek)} ${structuredScalar(entity.opens)}-${structuredScalar(entity.closes)}`.trim());
+      add("Category", entity.category); add("Model", entity.model); add("SKU", entity.sku); add("Audience", entity.audience); add("Provider", entity.provider); add("Service type", entity.serviceType);
+      add("Price", entity.price); add("Low price", entity.lowPrice); add("High price", entity.highPrice); add("Price currency", entity.priceCurrency); add("Availability", entity.availability); add("Eligible region", entity.eligibleRegion); add("Price specification", entity.priceSpecification); add("Minimum quantity", entity.eligibleQuantity ?? entity.minimumQuantity);
+      if (isQuestion) { add("FAQ question", entity.name ?? entity.text); add("FAQ answer", entity.acceptedAnswer); }
+      add("Job title", entity.jobTitle); add("Works for", entity.worksFor); add("Affiliation", entity.affiliation);
+      add("Review body", entity.reviewBody); add("Review author", entity.author); add(types.includes("aggregaterating") ? "Aggregate rating" : "Rating value", entity.ratingValue); add("Review count", entity.reviewCount); add("Rating count", entity.ratingCount);
+      add("External profile", entity.sameAs, true);
+    }
+    for (const nested of Object.values(entity)) if (nested && typeof nested === "object") visit(nested, depth + 1);
+  };
+  const scriptPattern = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = scriptPattern.exec(html))) {
+    const attributes = match[1] ?? "";
+    const type = attributes.match(/\btype\s*=\s*(?:(["'])(.*?)\1|([^\s>]+))/i);
+    if ((type?.[2] ?? type?.[3] ?? "").trim().toLowerCase() !== "application/ld+json") continue;
+    result.blocksDetected += 1;
+    try { const parsed: unknown = JSON.parse((match[2] ?? "").trim()); result.blocksParsed += 1; visit(parsed, 0); }
+    catch { result.malformedBlocks += 1; }
+  }
+  result.factsRetained = facts.length;
+  if (facts.length) result.text = `Structured business data:\n${facts.join("\n")}`;
+  return result;
+}
+
 function extractLinkRelations(html: string, pageUrl: URL, baseHost: string) {
   let canonical: string | undefined;
   const alternates: { url: string; language: string }[] = [];
@@ -573,7 +687,8 @@ export async function crawlBusinessWebsite(
   const totalStarted = now();
   const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
   const duplicateDiagnostics = { canonicalUrlsDetected: 0, canonicalDuplicatesSkipped: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, repeatedBoilerplateBlocksRemoved: 0 };
-  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...duplicateDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
+  const structuredDiagnostics = { jsonLdBlocksDetected: 0, jsonLdBlocksParsed: 0, malformedJsonLdBlocksIgnored: 0, supportedStructuredEntitiesDetected: 0, structuredFactsRetained: 0, structuredFactsDeduplicated: 0 };
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...duplicateDiagnostics,...structuredDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
   try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
@@ -701,6 +816,13 @@ export async function crawlBusinessWebsite(
       const identity = canonical ?? finalUrl;
       const extractionStarted = now();
       const text = stripHtmlToText(fetched.html);
+      const structured = extractJsonLd(fetched.html);
+      structuredDiagnostics.jsonLdBlocksDetected += structured.blocksDetected;
+      structuredDiagnostics.jsonLdBlocksParsed += structured.blocksParsed;
+      structuredDiagnostics.malformedJsonLdBlocksIgnored += structured.malformedBlocks;
+      structuredDiagnostics.supportedStructuredEntitiesDetected += structured.entitiesDetected;
+      structuredDiagnostics.structuredFactsRetained += structured.factsRetained;
+      structuredDiagnostics.structuredFactsDeduplicated += structured.factsDeduplicated;
       const blocks = textBlocks(text);
       const pageBlockKeys = new Set<string>();
       for (const block of blocks) {
@@ -719,7 +841,8 @@ export async function crawlBusinessWebsite(
       const localized = localizedUrls.has(finalUrl);
       const actualCanonicalDestination = finalUrl === identity;
       const priority = (core ? 10_000 : supplementary ? 300 : 100) + (actualCanonicalDestination ? 1_000 : 0) + (sitemapDiscovered.has(finalUrl) && core ? 500 : 0) + Math.max(0, 200 - new URL(identity).pathname.length) - (localized ? 200 : 0);
-      const candidate: RetainedPage = { page: { url: identity, title, pageType, text }, finalUrl, identity, priority, blocks };
+      const retainedText = structured.text ? `${text}\n\n${structured.text}` : text;
+      const candidate: RetainedPage = { page: { url: identity, title, pageType, text: retainedText }, finalUrl, identity, priority, blocks };
 
       const discoveryStarted = now();
       for (const discovered of discoverInternalLinks(fetched.html, fetched.resolvedUrl, baseHost).reverse()) enqueue(discovered, true, true);
@@ -814,7 +937,7 @@ export async function crawlBusinessWebsite(
 
   if (pages.length === 0) {
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
-      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...duplicateDiagnostics, finalUrls: [], restrictions, timings,
+      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...duplicateDiagnostics, ...structuredDiagnostics, finalUrls: [], restrictions, timings,
     });
   }
 
@@ -829,6 +952,7 @@ export async function crawlBusinessWebsite(
       pagesSkipped,
       pagesFailed,
       ...duplicateDiagnostics,
+      ...structuredDiagnostics,
       finalUrls: pages.map((page) => page.url),
       restrictions,
       timings,
