@@ -249,7 +249,6 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         <div className="mt-5 space-y-6 min-[1200px]:mt-4">
           <section className="min-[1200px]:mx-auto min-[1200px]:w-[42%] min-[1200px]:min-w-[32rem] min-[1200px]:max-w-[40rem]">
             <article className={`${cardClassName} relative overflow-hidden text-center`}>
-              <div className="absolute right-[-5rem] top-[-5rem] h-44 w-44 rounded-full bg-amber-400/10 blur-3xl" />
               <div className="relative">
                 <span
                   className={`absolute right-0 top-0 rounded-full border px-3 py-1 text-xs font-semibold max-[640px]:-right-2 max-[640px]:-top-2 ${
@@ -406,7 +405,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function Status({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
   return (
-    <div className={`mx-auto mt-4 rounded-xl border px-4 py-3 text-sm ${tone === "success" ? "border-amber-300/15 bg-amber-300/[0.06] text-white" : "border-red-400/20 bg-red-400/[0.07] text-red-200"}`}>
+    <div role="status" className={`mx-auto mt-4 px-4 py-3 text-sm ${tone === "success" ? "cta-raised flex w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] font-semibold text-white" : "rounded-xl border border-red-400/20 bg-red-400/[0.07] text-red-200"}`}>
       {children}
     </div>
   );
