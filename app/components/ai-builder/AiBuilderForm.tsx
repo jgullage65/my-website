@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import AiBuilderAuthCta from "./AiBuilderAuthCta";
+import AiBuilderAuthCta, { aiBuilderCornerCtaClassName } from "./AiBuilderAuthCta";
 import type {
   BuilderState,
   UserKnowledge,
@@ -235,12 +235,12 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
         <Link
           href="/ai-builder"
-          className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_18px_48px_rgba(212,175,55,.24),inset_0_1px_0_rgba(255,255,255,.55)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] min-[1200px]:absolute min-[1200px]:left-8 min-[1200px]:top-8"
+          className={`${aiBuilderCornerCtaClassName} absolute left-4 top-4 z-10 sm:left-6 lg:left-8`}
         >
-          ← All Projects
+          ← AI Projects
         </Link>
 
-        <header className="mt-8 text-center min-[1200px]:mt-0">
+        <header className="mt-12 text-center min-[1200px]:mt-0">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
             AI Builder
           </p>
@@ -252,7 +252,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <div className="absolute right-[-5rem] top-[-5rem] h-44 w-44 rounded-full bg-amber-400/10 blur-3xl" />
               <div className="relative">
                 <span
-                  className={`absolute right-0 top-0 rounded-full border px-3 py-1 text-xs font-semibold ${
+                  className={`absolute right-0 top-0 rounded-full border px-3 py-1 text-xs font-semibold max-[640px]:-right-2 max-[640px]:-top-2 ${
                     value.websiteKnowledge
                       ? "border-amber-300/20 bg-amber-300/10 text-amber-200"
                       : "border-white/10 bg-white/[0.04] text-slate-400"
@@ -261,7 +261,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                   {value.websiteKnowledge ? "Active" : "Optional"}
                 </span>
 
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300 max-[640px]:pt-8">
                   {value.websiteKnowledge ? "Website connected" : "Connect your website"}
                 </p>
                 <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-400">
