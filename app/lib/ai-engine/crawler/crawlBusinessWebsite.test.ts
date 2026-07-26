@@ -109,8 +109,80 @@ test("discovers same-host pages from a standard sitemap URL set", async () => {
   assert.ok(!calls.includes("https://www.example.test/team"));
   assert.ok(!calls.some((url) => url.includes("other.test") || url.includes("brochure.pdf")));
   assert.equal(sitemapFetches, 1);
-  assert.equal(result.diagnostics.pagesDiscovered, 14);
+  assert.equal(result.diagnostics.pagesDiscovered, 13);
 });
+
+test("discovers durable supplementary pages from HTML and sitemaps while rejecting editorial URLs", async () => {
+  const accepted = [
+    "/GUIDES/getting-started",
+    "/documentation/api",
+    "/help-center/billing",
+    "/faqs/accounts",
+    "/case_studies/acme",
+    "/resources/toolkit",
+    "/academy/courses",
+  ];
+  const ignored = [
+    "/blog/launch",
+    "/news/update",
+    "/articles/advice",
+    "/posts/announcement",
+    "/author/editor",
+    "/tags/growth",
+    "/category/seo",
+    "/2025/07/25/release",
+  ];
+  const links = [...accepted, ...ignored]
+    .map((path) => `<a href="${path}">${path}</a>`)
+    .join("");
+  for (const source of ["html", "sitemap"] as const) {
+    const fetchedPaths: string[] = [];
+    const result = await crawlBusinessWebsite("https://example.test", undefined, {
+      assertSafe: async () => undefined,
+      fetchSitemap: async (url) => source === "sitemap" ? {
+        resolvedUrl: url,
+        xml: `<urlset>${[...accepted, ...ignored].map((path) => `<url><loc>https://example.test${path}?source=sitemap</loc></url>`).join("")}</urlset>`,
+      } : null,
+      fetchPage: async (url) => {
+        fetchedPaths.push(url.pathname);
+        if (url.pathname !== "/" && PRIORITY_FETCH_PATHS.includes(url.pathname)) return null;
+        return { resolvedUrl: url, html: page(url.pathname === "/" ? "Acme" : url.pathname, source === "html" && url.pathname === "/" ? links : "") };
+      },
+    });
+
+    assert.equal(result.diagnostics.pagesDiscovered, 19, source);
+    assert.ok(accepted.every((path) => fetchedPaths.includes(path)), source);
+    assert.ok(accepted.every((path) => result.pages.some((pageResult) => new URL(pageResult.url).pathname === path)), source);
+    assert.ok(ignored.every((path) => !fetchedPaths.includes(path)), source);
+  }
+});
+
+test("rejects chronological editorial paths without rejecting business pages ending in a year", async () => {
+  const accepted = ["/awards/2025", "/pricing/2026", "/company-history/1998", "/annual-report/2024"];
+  const ignored = ["/2025/07/25/post", "/2025/07/post", "/2025/post-title", "/blog/2025/post", "/news/2024/update"];
+  const links = [...accepted, ...ignored]
+    .map((path) => `<a href="${path}">Customer information</a>`)
+    .join("");
+  const fetchedPaths: string[] = [];
+
+  await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      fetchedPaths.push(url.pathname);
+      if (url.pathname !== "/" && PRIORITY_FETCH_PATHS.includes(url.pathname)) return null;
+      return { resolvedUrl: url, html: page("Acme", url.pathname === "/" ? links : "") };
+    },
+  });
+
+  assert.ok(accepted.every((path) => fetchedPaths.includes(path)));
+  assert.ok(ignored.every((path) => !fetchedPaths.includes(path)));
+});
+
+const PRIORITY_FETCH_PATHS = [
+  "/", "/about", "/about-us", "/services", "/products", "/pricing",
+  "/faq", "/faqs", "/contact", "/contact-us", "/policies", "/terms",
+];
 
 test("follows same-host sitemap indexes and ignores malformed sitemap failures", async () => {
   const sitemapCalls: string[] = [];
@@ -160,20 +232,7 @@ test("keeps canonical priority paths ahead of a large sitemap within the page li
 
   assert.equal(pageFetches, 12);
   assert.equal(result.pages.length, 12);
-  assert.equal(result.diagnostics.pagesDiscovered, 1_012);
-  assert.deepEqual(pageCalls, [
-    "/",
-    "/about",
-    "/about-us",
-    "/services",
-    "/products",
-    "/pricing",
-    "/faq",
-    "/faqs",
-    "/contact",
-    "/contact-us",
-    "/policies",
-    "/terms",
-  ]);
+  assert.equal(result.diagnostics.pagesDiscovered, 12);
+  assert.deepEqual(pageCalls, PRIORITY_FETCH_PATHS);
   assert.ok(!pageCalls.some((pathname) => pathname.startsWith("/page-")));
 });

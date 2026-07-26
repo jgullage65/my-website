@@ -90,13 +90,28 @@ const DISCOVERY_KEYWORDS = [
   "question",
   "contact",
   "policy",
+  "policies",
+  "terms",
   "process",
   "guarantee",
   "team",
   "solution",
   "industry",
   "customer",
+  "guide",
+  "documentation",
+  "docs",
+  "help",
+  "case-study",
+  "case-studies",
+  "case_study",
+  "case_studies",
+  "resource",
+  "academy",
 ] as const;
+
+const EDITORIAL_PATH_SEGMENT = /^(?:blogs?|news|articles?|posts?|authors?|tags?|categories?|archives?)$/;
+const YEAR_PATH_SEGMENT = /^(?:19|20)\d{2}$/;
 
 const IGNORED_EXTENSIONS = new Set([
   "css",
@@ -225,6 +240,24 @@ function dedupeUrl(value: string): string {
 function isDocumentOrAsset(url: URL): boolean {
   const extension = url.pathname.split(".").at(-1)?.toLowerCase();
   return Boolean(extension && IGNORED_EXTENSIONS.has(extension));
+}
+
+function normalizeDiscoveryPath(url: URL): string {
+  let pathname = url.pathname;
+  try { pathname = decodeURIComponent(pathname); } catch { /* Keep malformed escapes encoded. */ }
+  return `/${pathname.toLowerCase().replace(/\\/g, "/").replace(/\/{2,}/g, "/").replace(/^\/+|\/+$/g, "")}`;
+}
+
+function isDiscoverableBusinessUrl(url: URL, discoveryText = ""): boolean {
+  const path = normalizeDiscoveryPath(url);
+  const segments = path.split("/").filter(Boolean);
+  if (segments.some((segment) => EDITORIAL_PATH_SEGMENT.test(segment))) return false;
+  if (segments.length > 1 && YEAR_PATH_SEGMENT.test(segments[0] ?? "")) return false;
+
+  const normalizedMetadata = discoveryText.toLowerCase();
+  return DISCOVERY_KEYWORDS.some((keyword) =>
+    path.includes(keyword) || normalizedMetadata.includes(keyword),
+  );
 }
 
 async function fetchHtml(
@@ -435,14 +468,7 @@ function discoverInternalLinks(
 
     if (isDocumentOrAsset(parsed)) continue;
 
-    const pathAndText = `${parsed.pathname.toLowerCase()} ${anchorText}`;
-    if (
-      !DISCOVERY_KEYWORDS.some((keyword) =>
-        pathAndText.includes(keyword),
-      )
-    ) {
-      continue;
-    }
+    if (!isDiscoverableBusinessUrl(parsed, anchorText)) continue;
 
     const normalized = dedupeUrl(parsed.toString());
     if (!seen.has(normalized)) {
@@ -527,8 +553,11 @@ export async function crawlBusinessWebsite(
   const queued = new Set<string>();
   const visited = new Set<string>();
   const finalUrls = new Set<string>();
-  const enqueue = (value: string, front = false) => {
-    const normalized = dedupeUrl(value);
+  const enqueue = (value: string, front = false, alreadyClassified = false) => {
+    let parsed: URL;
+    try { parsed = new URL(value); } catch { return; }
+    if (!alreadyClassified && !isDiscoverableBusinessUrl(parsed)) return;
+    const normalized = dedupeUrl(parsed.toString());
     if (!visited.has(normalized) && !queued.has(normalized)) { queued.add(normalized); front ? queue.unshift(normalized) : queue.push(normalized); }
   };
   const normalizeSitemapPage = (value: string, sitemapUrl: URL): string | null => {
@@ -537,7 +566,8 @@ export async function crawlBusinessWebsite(
     if (
       (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
       normalizeHost(parsed.hostname) !== baseHost ||
-      isDocumentOrAsset(parsed)
+      isDocumentOrAsset(parsed) ||
+      !isDiscoverableBusinessUrl(parsed)
     ) return null;
     return dedupeUrl(parsed.toString());
   };
@@ -603,23 +633,23 @@ export async function crawlBusinessWebsite(
         baseHost,
       );
       timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
-      for (const discovered of discoveredLinks.reverse()) enqueue(discovered, true);
+      for (const discovered of discoveredLinks) enqueue(discovered, false, true);
       onPage?.(pages.length, visited.size + queued.size + 1);
   };
 
-  if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
+  if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
   const sitemapStarted = now();
   const sitemapPages = await discoverSitemapPages();
   timings.pageDiscoveryMs += Math.max(0, now() - sitemapStarted);
   for (const sitemapPage of sitemapPages) enqueue(sitemapPage);
 
-  while (queue.length > 0 && visited.size < MAX_PAGES - 1) {
+  while (queue.length > 0 && finalUrls.size < MAX_PAGES) {
     const batch: URL[] = [];
     while (
       queue.length &&
       batch.length < MAX_CONCURRENT_FETCHES &&
-      visited.size < MAX_PAGES - 1
+      batch.length < MAX_PAGES - finalUrls.size
     ) {
       const nextUrl = queue.shift()!;
       queued.delete(nextUrl);
