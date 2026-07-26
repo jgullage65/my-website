@@ -536,8 +536,10 @@ export async function crawlBusinessWebsite(
   let pagesFailed = 0;
   let homepageResolved = requestedRoot;
   let homepageHtml = "";
+  let pageFetchAttempts = 0;
   const homepageStarted = now();
   try {
+    pageFetchAttempts += 1;
     const homepage = await fetchPage(requestedRoot, restrictions, true);
     if (homepage) { homepageResolved = homepage.resolvedUrl; homepageHtml = homepage.html; }
     else pagesFailed += 1;
@@ -644,12 +646,12 @@ export async function crawlBusinessWebsite(
   timings.pageDiscoveryMs += Math.max(0, now() - sitemapStarted);
   for (const sitemapPage of sitemapPages) enqueue(sitemapPage);
 
-  while (queue.length > 0 && finalUrls.size < MAX_PAGES) {
+  while (queue.length > 0 && pageFetchAttempts < MAX_PAGES) {
     const batch: URL[] = [];
     while (
       queue.length &&
       batch.length < MAX_CONCURRENT_FETCHES &&
-      batch.length < MAX_PAGES - finalUrls.size
+      batch.length < MAX_PAGES - pageFetchAttempts
     ) {
       const nextUrl = queue.shift()!;
       queued.delete(nextUrl);
@@ -662,6 +664,7 @@ export async function crawlBusinessWebsite(
       } catch { pagesSkipped += 1; }
     }
     if (!batch.length) continue;
+    pageFetchAttempts += batch.length;
     const crawlStarted = now();
     const fetchedBatch = await Promise.all(batch.map(async (parsed) => {
       try { return { parsed, fetched: await fetchPage(parsed, restrictions), error: null }; }
