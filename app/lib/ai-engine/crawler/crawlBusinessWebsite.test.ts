@@ -93,6 +93,19 @@ test("dynamically discounts repeated blocks while preserving repeated contact de
   assert.ok(result.pages.length > 3);
 });
 
+test("does not count repeated occurrences within one page as site-wide boilerplate", async () => {
+  const repeated = "Repeated promotional navigation block";
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => url.pathname === "/" ? {
+      resolvedUrl: url,
+      html: `<header>${repeated}</header><nav>${repeated}</nav><footer>${repeated}</footer><main>${"Unique homepage business information. ".repeat(10)}</main>`,
+    } : null,
+  });
+  assert.equal(result.diagnostics.repeatedBoilerplateBlocksRemoved, 0);
+});
+
 test("uses the homepage language consistently when scheduling alternates", async () => {
   const calls: string[] = [];
   await crawlBusinessWebsite("https://example.test", undefined, {
@@ -268,18 +281,21 @@ test("rejects chronological editorial paths without rejecting business pages end
     .join("");
   const fetchedPaths: string[] = [];
 
-  await crawlBusinessWebsite("https://example.test", undefined, {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe: async () => undefined,
     fetchSitemap: async () => null,
     fetchPage: async (url) => {
       fetchedPaths.push(url.pathname);
       if (url.pathname !== "/" && PRIORITY_FETCH_PATHS.includes(url.pathname)) return null;
-      return { resolvedUrl: url, html: page("Acme", url.pathname === "/" ? links : "") };
+      if (url.pathname === "/") return { resolvedUrl: url, html: page("Acme", links) };
+      return { resolvedUrl: url, html: `<title>${url.pathname}</title><main>${`${url.pathname} durable company awards pricing and annual business information. `.repeat(10)}</main>` };
     },
   });
 
-  assert.ok(accepted.every((path) => !ignored.includes(path)));
+  assert.ok(accepted.every((path) => fetchedPaths.includes(path)));
+  assert.ok(accepted.every((path) => result.pages.some((item) => new URL(item.url).pathname === path)));
   assert.ok(ignored.every((path) => !fetchedPaths.includes(path)));
+  assert.ok(ignored.every((path) => !result.pages.some((item) => new URL(item.url).pathname === path)));
 });
 
 const PRIORITY_FETCH_PATHS = [

@@ -702,10 +702,12 @@ export async function crawlBusinessWebsite(
       const extractionStarted = now();
       const text = stripHtmlToText(fetched.html);
       const blocks = textBlocks(text);
+      const pageBlockKeys = new Set<string>();
       for (const block of blocks) {
-        blockCounts.set(block.key, (blockCounts.get(block.key) ?? 0) + 1);
         if (block.protected) protectedBlocks.add(block.key);
+        pageBlockKeys.add(block.key);
       }
+      pageBlockKeys.forEach((key) => blockCounts.set(key, (blockCounts.get(key) ?? 0) + 1));
       duplicateDiagnostics.repeatedBoilerplateBlocksRemoved = Array.from(blockCounts).reduce((total, [key, count]) =>
         total + (count >= 3 && !protectedBlocks.has(key) ? count : 0), 0);
       timings.contentExtractionMs += Math.max(0, now() - extractionStarted);
