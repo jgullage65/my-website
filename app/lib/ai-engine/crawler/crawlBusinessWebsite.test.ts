@@ -33,6 +33,7 @@ test("preserves submitted root and canonical homepage identity when internal pag
   const result = await crawlBusinessWebsite("https://example.test/contact?from=form", undefined, {
     assertSafe: async () => undefined,
     fetchPage,
+    fetchSitemap: async () => null,
   });
 
   assert.equal(result.requestedUrl, "https://example.test/");
@@ -70,6 +71,7 @@ test("crawls all eligible pages with bounded concurrency", async () => {
   const result = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe: async () => undefined,
     fetchPage,
+    fetchSitemap: async () => null,
   });
 
   assert.equal(result.pages.length, 12);
@@ -78,4 +80,100 @@ test("crawls all eligible pages with bounded concurrency", async () => {
   assert.ok(result.diagnostics.timings.homepageFetchMs >= 0);
   assert.ok(result.diagnostics.timings.pageCrawlingMs >= 0);
   assert.ok(result.diagnostics.timings.totalCrawlDurationMs >= 0);
+});
+
+test("discovers same-host pages from a standard sitemap URL set", async () => {
+  const calls: string[] = [];
+  let sitemapFetches = 0;
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async (url) => {
+      sitemapFetches += 1;
+      return {
+        resolvedUrl: url,
+        xml: `<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+          <url><loc>https://example.test/locations</loc></url>
+          <url><loc>https://www.example.test/team?source=sitemap</loc></url>
+          <url><loc>https://other.test/services</loc></url>
+          <url><loc>https://example.test/brochure.pdf</loc></url>
+        </urlset>`,
+      };
+    },
+    fetchPage: async (url) => {
+      calls.push(url.toString());
+      return { resolvedUrl: url, html: page(url.pathname === "/" ? "Acme" : url.pathname) };
+    },
+  });
+
+  assert.ok(!calls.includes("https://example.test/locations"));
+  assert.ok(!calls.includes("https://www.example.test/team"));
+  assert.ok(!calls.some((url) => url.includes("other.test") || url.includes("brochure.pdf")));
+  assert.equal(sitemapFetches, 1);
+  assert.equal(result.diagnostics.pagesDiscovered, 14);
+});
+
+test("follows same-host sitemap indexes and ignores malformed sitemap failures", async () => {
+  const sitemapCalls: string[] = [];
+  const pageCalls: string[] = [];
+  await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async (url) => {
+      sitemapCalls.push(url.toString());
+      if (url.pathname === "/sitemap.xml") return {
+        resolvedUrl: url,
+        xml: `<sitemapindex><sitemap><loc>/pages.xml</loc></sitemap><sitemap><loc>/pages.xml</loc></sitemap><sitemap><loc>https://other.test/private.xml</loc></sitemap></sitemapindex>`,
+      };
+      return { resolvedUrl: url, xml: `<urlset><url><loc>https://example.test/case-studies</loc></url></urlset>` };
+    },
+    fetchPage: async (url) => {
+      pageCalls.push(url.toString());
+      return { resolvedUrl: url, html: page(url.pathname === "/" ? "Acme" : url.pathname) };
+    },
+  });
+  assert.deepEqual(sitemapCalls, ["https://example.test/sitemap.xml", "https://example.test/pages.xml"]);
+  assert.ok(!pageCalls.includes("https://example.test/case-studies"));
+
+  const fallback = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => { throw new Error("malformed or unavailable"); },
+    fetchPage: async (url) => ({ resolvedUrl: url, html: page("Acme") }),
+  });
+  assert.equal(fallback.pages.length, 12);
+  assert.deepEqual(fallback.warnings, []);
+});
+
+test("keeps canonical priority paths ahead of a large sitemap within the page limit", async () => {
+  let pageFetches = 0;
+  const pageCalls: string[] = [];
+  const locations = Array.from({ length: 1_000 }, (_, index) =>
+    `<url><loc>https://example.test/page-${index}</loc></url>`,
+  ).join("");
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async (url) => ({ resolvedUrl: url, xml: `<urlset>${locations}</urlset>` }),
+    fetchPage: async (url) => {
+      pageFetches += 1;
+      pageCalls.push(url.pathname);
+      return { resolvedUrl: url, html: page("Acme") };
+    },
+  });
+
+  assert.equal(pageFetches, 12);
+  assert.equal(result.pages.length, 12);
+  assert.equal(result.diagnostics.pagesDiscovered, 1_012);
+  assert.deepEqual(pageCalls, [
+    "/",
+    "/about",
+    "/about-us",
+    "/services",
+    "/products",
+    "/pricing",
+    "/faq",
+    "/faqs",
+    "/contact",
+    "/contact-us",
+    "/policies",
+    "/terms",
+  ]);
+  assert.ok(!pageCalls.some((pathname) => pathname.startsWith("/page-")));
 });
