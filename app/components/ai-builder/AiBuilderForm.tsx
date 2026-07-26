@@ -318,13 +318,18 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           <section className={`${cardClassName} mx-auto text-center min-[1200px]:w-[42%] min-[1200px]:min-w-[32rem] min-[1200px]:max-w-[40rem] min-[1200px]:py-4`}>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Communication style</p>
             <h3 className="mt-2 text-xl font-semibold text-white">How should your AI sound?</h3>
-            <select className={`${inputClassName} mt-4`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
-              <option>Professional</option>
-              <option>Friendly</option>
-              <option>Consultative</option>
-              <option>Direct</option>
-              <option>Warm</option>
-            </select>
+            <div className="relative mt-4">
+              <select className={`${inputClassName} appearance-none px-12`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
+                <option>Professional</option>
+                <option>Friendly</option>
+                <option>Consultative</option>
+                <option>Direct</option>
+                <option>Warm</option>
+              </select>
+              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400">
+                <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
           </section>
 
           <section className="min-w-0 space-y-5 min-[1200px]:space-y-7">
@@ -405,7 +410,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function Status({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
   return (
-    <div role="status" className={`mx-auto mt-4 px-4 py-3 text-sm ${tone === "success" ? "cta-raised flex w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] font-semibold text-white" : "rounded-xl border border-red-400/20 bg-red-400/[0.07] text-red-200"}`}>
+    <div role="status" className={`mx-auto mt-4 px-4 py-3 text-sm ${tone === "success" ? "cta-raised flex w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#030713] font-semibold text-white" : "rounded-xl border border-red-400/20 bg-red-400/[0.07] text-red-200"}`}>
       {children}
     </div>
   );
