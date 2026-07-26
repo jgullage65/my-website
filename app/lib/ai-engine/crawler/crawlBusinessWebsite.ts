@@ -308,18 +308,24 @@ function isPdfUrl(url: URL): boolean {
 }
 
 function isEligiblePdf(url: URL, discoveryText = ""): boolean {
-  if (!isPdfUrl(url)) return false;
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
   let path = url.pathname;
   try { path = decodeURIComponent(path); } catch { /* Retain encoded path. */ }
-  const evidence = `${path.replace(/[/.]+/g, " ")} ${discoveryText}`;
+  const queryValues = Array.from(url.searchParams.values()).map((value) => {
+    try { return decodeURIComponent(value); } catch { return value; }
+  });
+  const pdfSignal = isPdfUrl(url) || queryValues.some((value) => /\.pdf$/i.test(value)) || (/\bpdf\b/i.test(discoveryText) && PDF_DURABLE_SIGNAL.test(discoveryText));
+  if (!pdfSignal) return false;
+  const evidence = `${path.replace(/[/.]+/g, " ")} ${queryValues.join(" ")} ${discoveryText}`;
   return PDF_DURABLE_SIGNAL.test(evidence) && !PDF_EDITORIAL_SIGNAL.test(evidence);
 }
 
 type FetchedPdf = { bytes: Uint8Array; resolvedUrl: URL; truncated: boolean };
 type ParsedPdf = { text: string; title?: string; pagesParsed: number; truncated: boolean };
 class PdfSkippedError extends Error { constructor(message: string, readonly truncated = false) { super(message); } }
+type PdfFetchOutcome = { status: "success"; document: FetchedPdf } | { status: "skipped"; truncated?: boolean } | { status: "failed" };
 
-async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<FetchedPdf | null> {
+async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<PdfFetchOutcome> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), PDF_LIMITS.fetchTimeoutMs);
   try {
@@ -328,17 +334,17 @@ async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<Fet
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
       if ((current.protocol !== "http:" && current.protocol !== "https:") || normalizeHost(current.hostname) !== originalHost) {
         restrictions.push({ type: "redirect_blocked", url: current.toString() });
-        return null;
+        return { status: "skipped" };
       }
       await assertSafeDestination(current);
       const response = await fetch(current, { redirect: "manual", signal: controller.signal, headers: { accept: "application/pdf,application/octet-stream;q=0.5", "user-agent": "AIBuilderWebsiteCrawler/1.0" } });
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
-        if (!location || redirects === MAX_REDIRECTS) { restrictions.push({ type: "redirect_blocked", url: current.toString(), status: response.status }); return null; }
+        if (!location || redirects === MAX_REDIRECTS) { restrictions.push({ type: "redirect_blocked", url: current.toString(), status: response.status }); return { status: "skipped" }; }
         current = new URL(location, current);
         continue;
       }
-      if (!response.ok || !response.body) return null;
+      if (!response.ok || !response.body) return { status: "failed" };
       const declared = Number(response.headers.get("content-length"));
       if (Number.isFinite(declared) && declared > PDF_LIMITS.bytes) throw new PdfSkippedError("PDF exceeds the download limit.", true);
       const reader = response.body.getReader();
@@ -357,12 +363,21 @@ async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<Fet
       const type = (response.headers.get("content-type") ?? "").split(";", 1)[0]!.trim().toLowerCase();
       if (!signature || (type !== "application/pdf" && type !== "application/octet-stream" && type !== "binary/octet-stream")) {
         restrictions.push({ type: "unsupported_content_type", url: current.toString(), status: response.status });
-        return null;
+        return { status: "skipped" };
       }
-      return { bytes, resolvedUrl: current, truncated: false };
+      return { status: "success", document: { bytes, resolvedUrl: current, truncated: false } };
     }
-    return null;
+    return { status: "skipped" };
+  } catch (error) {
+    if (error instanceof PdfSkippedError) return { status: "skipped", truncated: error.truncated };
+    return { status: "failed" };
   } finally { clearTimeout(timeout); }
+}
+
+function dedupePdfUrl(value: string): string {
+  const parsed = new URL(value);
+  parsed.hash = "";
+  return parsed.toString();
 }
 
 async function parsePdf(bytes: Uint8Array): Promise<ParsedPdf> {
@@ -894,7 +909,7 @@ function discoverInternalLinks(
       continue;
     }
 
-    if (isPdfUrl(parsed) || isDocumentOrAsset(parsed)) continue;
+    if (isEligiblePdf(parsed, anchorText) || isDocumentOrAsset(parsed)) continue;
 
     if (!isDiscoverableBusinessUrl(parsed, anchorText)) continue;
 
@@ -916,7 +931,7 @@ function discoverPdfLinks(html: string, pageUrl: URL, baseHost: string): string[
     let parsed: URL;
     try { parsed = new URL(decodeHtml(match[2] ?? "").trim(), pageUrl); } catch { continue; }
     const anchor = decodeHtml((match[3] ?? "").replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
-    if ((parsed.protocol === "http:" || parsed.protocol === "https:") && normalizeHost(parsed.hostname) === baseHost && isEligiblePdf(parsed, anchor)) links.add(dedupeUrl(parsed.toString()));
+    if ((parsed.protocol === "http:" || parsed.protocol === "https:") && normalizeHost(parsed.hostname) === baseHost && isEligiblePdf(parsed, anchor)) links.add(dedupePdfUrl(parsed.toString()));
   }
   return Array.from(links);
 }
@@ -944,7 +959,7 @@ export async function crawlBusinessWebsite(
   dependencies: {
     fetchPage?: typeof fetchHtml;
     fetchSitemap?: typeof fetchSitemapXml;
-    fetchPdf?: typeof fetchPdf;
+    fetchPdf?: (url: URL, restrictions: CrawlRestriction[]) => Promise<PdfFetchOutcome | FetchedPdf | null>;
     parsePdf?: typeof parsePdf;
     assertSafe?: typeof assertSafeDestination;
     now?: () => number;
@@ -1030,7 +1045,7 @@ export async function crawlBusinessWebsite(
       (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
       normalizeHost(parsed.hostname) !== baseHost
     ) return null;
-    if (isPdfUrl(parsed)) { if (isEligiblePdf(parsed)) addPdfCandidate(dedupeUrl(parsed.toString())); return null; }
+    if (isEligiblePdf(parsed)) { addPdfCandidate(dedupePdfUrl(parsed.toString())); return null; }
     if (isDocumentOrAsset(parsed) || !isDiscoverableBusinessUrl(parsed)) return null;
     const normalized = dedupeUrl(parsed.toString());
     sitemapDiscovered.add(normalized);
@@ -1113,6 +1128,9 @@ export async function crawlBusinessWebsite(
       duplicateDiagnostics.repeatedBoilerplateBlocksRemoved = Array.from(blockCounts).reduce((total, [key, count]) =>
         total + (count >= 3 && !protectedBlocks.has(key) ? count : 0), 0);
       timings.contentExtractionMs += Math.max(0, now() - extractionStarted);
+      const discoveryStarted = now();
+      for (const pdf of discoverPdfLinks(fetched.html, fetched.resolvedUrl, baseHost)) addPdfCandidate(pdf);
+      timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
       if (text.length < 80) { pagesSkipped += 1; return; }
       const pageType = inferPageType(fetched.resolvedUrl, title);
       const core = pageType !== "other";
@@ -1123,10 +1141,9 @@ export async function crawlBusinessWebsite(
       const retainedText = structured.text ? `${text}\n\n${structured.text}` : text;
       const candidate: RetainedPage = { page: { url: identity, title, pageType, text: retainedText }, finalUrl, identity, priority, blocks, structuredFacts: structured.factsRetained, semantic:semantic.diagnostics };
 
-      const discoveryStarted = now();
-      for (const pdf of discoverPdfLinks(fetched.html, fetched.resolvedUrl, baseHost)) addPdfCandidate(pdf);
+      const htmlDiscoveryStarted = now();
       for (const discovered of discoverInternalLinks(fetched.html, fetched.resolvedUrl, baseHost).reverse()) enqueue(discovered, true, true);
-      timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
+      timings.pageDiscoveryMs += Math.max(0, now() - htmlDiscoveryStarted);
 
       const htmlLanguage = (fetched.html.match(/<html\b[^>]*\blang\s*=\s*["']([^"']+)/i)?.[1] ?? "").toLowerCase();
       if (!preferredLanguage && retained.length === 0) preferredLanguage = htmlLanguage || (relations.alternates.some((item) => item.language === "x-default") ? "x-default" : "");
@@ -1217,8 +1234,14 @@ export async function crawlBusinessWebsite(
   // the bounded HTML crawl has completed.
   for (const candidateUrl of Array.from(pdfCandidates).slice(0, PDF_LIMITS.documents)) {
     try {
-      const fetched = await fetchPdfDocument(new URL(candidateUrl), restrictions);
-      if (!fetched) { pdfDiagnostics.pdfsSkipped += 1; continue; }
+      const outcome = await fetchPdfDocument(new URL(candidateUrl), restrictions);
+      if (!outcome) { pdfDiagnostics.pdfsFailed += 1; const warning = "A PDF document could not be read."; if (!warnings.includes(warning)) warnings.push(warning); continue; }
+      if ("status" in outcome && outcome.status !== "success") {
+        if (outcome.status === "skipped") { pdfDiagnostics.pdfsSkipped += 1; if (outcome.truncated) pdfDiagnostics.pdfDocumentsTruncated += 1; }
+        else { pdfDiagnostics.pdfsFailed += 1; const warning = "A PDF document could not be read."; if (!warnings.includes(warning)) warnings.push(warning); }
+        continue;
+      }
+      const fetched = "status" in outcome ? outcome.document : outcome;
       pdfDiagnostics.pdfBytesDownloaded += fetched.bytes.byteLength;
       if (normalizeHost(fetched.resolvedUrl.hostname) !== baseHost || (fetched.resolvedUrl.protocol !== "http:" && fetched.resolvedUrl.protocol !== "https:")) {
         pdfDiagnostics.pdfsSkipped += 1;
