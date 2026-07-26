@@ -76,6 +76,9 @@ const PRIORITY_PATHS = [
   "/terms",
 ] as const;
 
+const MAX_PAGES = PRIORITY_PATHS.length;
+const MAX_SITEMAP_FETCHES = MAX_PAGES;
+
 const DISCOVERY_KEYWORDS = [
   "about",
   "service",
@@ -286,6 +289,46 @@ async function fetchHtml(
   }
 }
 
+async function fetchSitemapXml(
+  url: URL,
+  _restrictions: CrawlRestriction[],
+): Promise<{ xml: string; resolvedUrl: URL } | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    let current = url;
+    for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+      if (current.protocol !== "http:" && current.protocol !== "https:") return null;
+      await assertSafeDestination(current);
+
+      const response = await fetch(current.toString(), {
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          accept: "application/xml,text/xml;q=0.9,*/*;q=0.1",
+          "user-agent": "AIBuilderWebsiteCrawler/1.0",
+        },
+      });
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get("location");
+        if (!location || redirectCount === MAX_REDIRECTS) return null;
+        current = new URL(location, current);
+        continue;
+      }
+      if (!response.ok) return null;
+
+      return {
+        xml: (await response.text()).slice(0, MAX_HTML_BYTES),
+        resolvedUrl: current,
+      };
+    }
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function decodeHtml(value: string): string {
   return value
     .replace(/&nbsp;/gi, " ")
@@ -411,17 +454,36 @@ function discoverInternalLinks(
   return links;
 }
 
+function extractSitemapLocations(xml: string): {
+  type: "index" | "urlset";
+  locations: string[];
+} | null {
+  const root = xml.match(/<(?:[\w.-]+:)?(sitemapindex|urlset)\b/i)?.[1]?.toLowerCase();
+  if (root !== "sitemapindex" && root !== "urlset") return null;
+
+  const locations: string[] = [];
+  const locationPattern = /<(?:[\w.-]+:)?loc\b[^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?loc\s*>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = locationPattern.exec(xml)) !== null) {
+    const location = decodeHtml((match[1] ?? "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")).trim();
+    if (location) locations.push(location);
+  }
+  return { type: root === "sitemapindex" ? "index" : "urlset", locations };
+}
+
 export async function crawlBusinessWebsite(
   websiteUrl: string,
   onPage?: (completedPages: number, discoveredPages: number) => void,
   dependencies: {
     fetchPage?: typeof fetchHtml;
+    fetchSitemap?: typeof fetchSitemapXml;
     assertSafe?: typeof assertSafeDestination;
     now?: () => number;
   } = {},
 ): Promise<BusinessWebsiteCrawlResult> {
   const now = dependencies.now ?? (() => performance.now());
   const fetchPage = dependencies.fetchPage ?? fetchHtml;
+  const fetchSitemap = dependencies.fetchSitemap ?? fetchSitemapXml;
   const assertSafe = dependencies.assertSafe ?? assertSafeDestination;
   const totalStarted = now();
   const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
@@ -469,6 +531,56 @@ export async function crawlBusinessWebsite(
     const normalized = dedupeUrl(value);
     if (!visited.has(normalized) && !queued.has(normalized)) { queued.add(normalized); front ? queue.unshift(normalized) : queue.push(normalized); }
   };
+  const normalizeSitemapPage = (value: string, sitemapUrl: URL): string | null => {
+    let parsed: URL;
+    try { parsed = new URL(value, sitemapUrl); } catch { return null; }
+    if (
+      (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+      normalizeHost(parsed.hostname) !== baseHost ||
+      isDocumentOrAsset(parsed)
+    ) return null;
+    return dedupeUrl(parsed.toString());
+  };
+  const discoverSitemapPages = async () => {
+    const pending = [new URL("/sitemap.xml", homepageResolved.origin)];
+    const seenSitemaps = new Set<string>();
+    const discoveredPages = new Set<string>();
+
+    while (pending.length > 0 && seenSitemaps.size < MAX_SITEMAP_FETCHES) {
+      const sitemapUrl = pending.shift()!;
+      const normalizedSitemapUrl = dedupeUrl(sitemapUrl.toString());
+      if (seenSitemaps.has(normalizedSitemapUrl)) continue;
+      seenSitemaps.add(normalizedSitemapUrl);
+
+      try {
+        const fetched = await fetchSitemap(sitemapUrl, restrictions);
+        if (!fetched || normalizeHost(fetched.resolvedUrl.hostname) !== baseHost) continue;
+        const parsed = extractSitemapLocations(fetched.xml);
+        if (!parsed) continue;
+
+        if (parsed.type === "urlset") {
+          for (const location of parsed.locations) {
+            const pageUrl = normalizeSitemapPage(location, fetched.resolvedUrl);
+            if (pageUrl) discoveredPages.add(pageUrl);
+          }
+          continue;
+        }
+
+        for (const location of parsed.locations) {
+          let child: URL;
+          try { child = new URL(location, fetched.resolvedUrl); } catch { continue; }
+          if (
+            (child.protocol === "http:" || child.protocol === "https:") &&
+            normalizeHost(child.hostname) === baseHost &&
+            !seenSitemaps.has(dedupeUrl(child.toString()))
+          ) pending.push(child);
+        }
+      } catch {
+        // Sitemap discovery is opportunistic; HTML discovery remains the fallback.
+      }
+    }
+    return Array.from(discoveredPages);
+  };
   const processFetched = (fetched: { html: string; resolvedUrl: URL }) => {
       const finalUrl = dedupeUrl(fetched.resolvedUrl.toString());
       if (finalUrls.has(finalUrl)) { pagesSkipped += 1; return; }
@@ -497,10 +609,18 @@ export async function crawlBusinessWebsite(
 
   if (homepageHtml) processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
+  const sitemapStarted = now();
+  const sitemapPages = await discoverSitemapPages();
+  timings.pageDiscoveryMs += Math.max(0, now() - sitemapStarted);
+  for (const sitemapPage of sitemapPages) enqueue(sitemapPage);
 
-  while (queue.length > 0) {
+  while (queue.length > 0 && visited.size < MAX_PAGES - 1) {
     const batch: URL[] = [];
-    while (queue.length && batch.length < MAX_CONCURRENT_FETCHES) {
+    while (
+      queue.length &&
+      batch.length < MAX_CONCURRENT_FETCHES &&
+      visited.size < MAX_PAGES - 1
+    ) {
       const nextUrl = queue.shift()!;
       queued.delete(nextUrl);
       if (visited.has(nextUrl)) continue;
