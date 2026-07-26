@@ -148,31 +148,45 @@ type BrowserLimits = { pages: number; renderTimeoutMs: number; totalTimeMs: numb
 
 type RenderedHtml = { html: string; resolvedUrl: URL };
 type BrowserRenderer = { render: (url: URL, timeoutMs: number) => Promise<RenderedHtml | null>; close: () => Promise<void> };
+type BrowserRoute = { request: () => { url: () => string }; abort: () => Promise<void>; continue: () => Promise<void> };
+type PlaywrightBrowser = {
+  newContext: (options: { javaScriptEnabled: boolean }) => Promise<{ newPage: () => Promise<{
+    route: (pattern: string, handler: (route: BrowserRoute) => Promise<void>) => Promise<void>;
+    goto: (url: string, options: { waitUntil: "networkidle"; timeout: number }) => Promise<unknown>;
+    content: () => Promise<string>;
+    url: () => string;
+  }> }>;
+  close: () => Promise<void>;
+};
+type LoadPlaywright = () => Promise<{ chromium: { launch: (options: { headless: boolean }) => Promise<PlaywrightBrowser> } }>;
 
-async function createPlaywrightRenderer(assertSafe: typeof assertSafeDestination, baseHost: string): Promise<BrowserRenderer> {
+export async function createPlaywrightRenderer(assertSafe: typeof assertSafeDestination, baseHost: string, loadPlaywright?: LoadPlaywright): Promise<BrowserRenderer> {
   // Browser code and process startup are deliberately deferred until a weak page exists.
-  // @ts-ignore Playwright is dynamically loaded so HTML-only crawls never initialize it.
-  const { chromium } = await import("playwright");
+  // @ts-ignore Playwright is dynamically loaded so HTML-only crawls never initialize it; the local interface limits what the crawler can invoke.
+  const { chromium } = await (loadPlaywright ? loadPlaywright() : import("playwright") as Promise<{ chromium: { launch: (options: { headless: boolean }) => Promise<PlaywrightBrowser> } }>);
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({ javaScriptEnabled: true });
-  const page = await context.newPage();
-  await page.route("**/*", async (route: { request: () => { isNavigationRequest: () => boolean; url: () => string }; abort: () => Promise<void>; continue: () => Promise<void> }) => {
-    const request = route.request();
-    if (!request.isNavigationRequest()) { await route.continue(); return; }
-    try {
-      const destination = new URL(request.url());
-      if ((destination.protocol !== "http:" && destination.protocol !== "https:") || normalizeHost(destination.hostname) !== baseHost) { await route.abort(); return; }
-      await assertSafe(destination);
-      await route.continue();
-    } catch { await route.abort(); }
-  });
-  return {
-    render: async (url, timeoutMs) => {
-      await page.goto(url.toString(), { waitUntil: "networkidle", timeout: timeoutMs });
-      return { html: await page.content(), resolvedUrl: new URL(page.url()) };
-    },
-    close: async () => { await browser.close(); },
-  };
+  try {
+    const context = await browser.newContext({ javaScriptEnabled: true });
+    const page = await context.newPage();
+    await page.route("**/*", async (route) => {
+      try {
+        const destination = new URL(route.request().url());
+        if ((destination.protocol !== "http:" && destination.protocol !== "https:") || normalizeHost(destination.hostname) !== baseHost) throw new Error("Blocked browser destination");
+        await assertSafe(destination);
+        await route.continue();
+      } catch { await route.abort(); }
+    });
+    return {
+      render: async (url, timeoutMs) => {
+        await page.goto(url.toString(), { waitUntil: "networkidle", timeout: timeoutMs });
+        return { html: await page.content(), resolvedUrl: new URL(page.url()) };
+      },
+      close: async () => { await browser.close(); },
+    };
+  } catch (error) {
+    try { await browser.close(); } catch { /* Initialization cleanup cannot hide the original failure. */ }
+    throw error;
+  }
 }
 
 const DISCOVERY_KEYWORDS = [
@@ -1287,6 +1301,7 @@ export async function crawlBusinessWebsite(
       onPage?.(pages.length, visited.size + queued.size + 1);
   };
 
+  try {
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
   if (homepageHtml) await processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
   const sitemapStarted = now();
@@ -1408,4 +1423,7 @@ export async function crawlBusinessWebsite(
       timings,
     },
   };
+  } finally {
+    if (renderer) { try { await renderer.close(); } catch { /* Rendering cleanup cannot fail a crawl. */ } }
+  }
 }

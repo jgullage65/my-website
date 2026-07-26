@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  BusinessWebsiteCrawlError,
+  createPlaywrightRenderer,
   crawlBusinessWebsite,
   resolveCrawledBusinessName,
   type CrawlRestriction,
@@ -800,4 +802,78 @@ test("runs canonical, JSON-LD, semantic, and duplicate handling after rendering"
   assert.equal(result.diagnostics.canonicalDuplicatesSkipped, 1);
   assert.equal(result.diagnostics.jsonLdBlocksParsed, 2);
   assert.equal(result.diagnostics.headingsRetained, 1);
+});
+
+test("production browser routing blocks cross-host, unsafe, and non-http subresources", async () => {
+  let routeHandler: ((route: { request:()=>{url:()=>string}; abort:()=>Promise<void>; continue:()=>Promise<void> })=>Promise<void>) | undefined;
+  let browserClosed = 0;
+  const renderer = await createPlaywrightRenderer(async (url) => {
+    if (url.pathname === "/unsafe.js") throw new Error("Unsafe crawler destination.");
+  }, "example.test", async () => ({ chromium:{ launch:async()=>({
+    newContext:async()=>({newPage:async()=>({
+      route:async(_pattern,handler)=>{ routeHandler=handler; }, goto:async()=>undefined,
+      content:async()=>"<main>Rendered</main>", url:()=>"https://example.test/",
+    })}),
+    close:async()=>{ browserClosed += 1; },
+  }) } }));
+  assert.ok(routeHandler);
+  const outcome = async (url: string) => {
+    let result = "";
+    await routeHandler!({request:()=>({url:()=>url}),abort:async()=>{result="abort";},continue:async()=>{result="continue";}});
+    return result;
+  };
+  assert.equal(await outcome("https://example.test/app.js"), "continue");
+  assert.equal(await outcome("https://cdn.example.test/app.js"), "abort");
+  assert.equal(await outcome("https://example.test/unsafe.js"), "abort");
+  assert.equal(await outcome("data:text/javascript,alert(1)"), "abort");
+  await renderer.close();
+  assert.equal(browserClosed, 1);
+});
+
+test("production browser initialization closes a partially created browser", async () => {
+  let closed = 0;
+  await assert.rejects(createPlaywrightRenderer(async()=>undefined, "example.test", async()=>({chromium:{launch:async()=>({
+    newContext:async()=>{ throw new Error("context setup failed"); },
+    close:async()=>{ closed += 1; },
+  })}})), /context setup failed/);
+  assert.equal(closed, 1);
+});
+
+test("rejects a rendered redirect outside the crawl host", async () => {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null,
+    fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:'<div id="app"></div>'}:url.pathname==="/about"?{resolvedUrl:url,html:page("About")}:null,
+    renderPage:async()=>({resolvedUrl:new URL("https://outside.test/landing"),html:`<main>${"Outside content. ".repeat(20)}</main>`}),
+  });
+  assert.equal(result.diagnostics.browserRenderFailures, 1);
+  assert.equal(result.diagnostics.browserFallbacksUsed, 0);
+  assert.ok(result.pages.every(item=>!item.url.includes("outside.test")));
+});
+
+test("always closes a created renderer when the crawl later throws", async () => {
+  let closed = 0;
+  await assert.rejects(crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe:async()=>undefined, fetchSitemap:async()=>null,
+    fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:'<div id="app"></div>'}:null,
+    createBrowserRenderer:async()=>({render:async()=>null,close:async()=>{closed += 1;}}),
+  }), BusinessWebsiteCrawlError);
+  assert.equal(closed, 1);
+});
+
+test("browser initialization and render failures fall back without failing the crawl", async () => {
+  for (const mode of ["initialize", "render"] as const) {
+    let closed = 0;
+    const result = await crawlBusinessWebsite("https://example.test", undefined, {
+      assertSafe:async()=>undefined, fetchSitemap:async()=>null,
+      fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:`<main>${"Original details. ".repeat(5)}</main>`}:url.pathname==="/about"?{resolvedUrl:url,html:page("About")}:null,
+      createBrowserRenderer:async()=>{
+        if(mode==="initialize") throw new Error("initialization detail");
+        return {render:async()=>{throw new Error("render detail");},close:async()=>{closed += 1;}};
+      },
+    });
+    assert.ok(result.pages.some(item=>item.text.includes("Original details")));
+    assert.equal(result.diagnostics.browserRenderFailures, 1);
+    assert.deepEqual(result.warnings.filter(item=>item.includes("JavaScript-rendered")), ["A JavaScript-rendered page could not be processed."]);
+    assert.equal(closed, mode === "render" ? 1 : 0);
+  }
 });
