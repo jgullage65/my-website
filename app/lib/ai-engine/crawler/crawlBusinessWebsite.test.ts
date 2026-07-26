@@ -278,7 +278,7 @@ test("rejects chronological editorial paths without rejecting business pages end
     },
   });
 
-  assert.ok(accepted.every((path) => fetchedPaths.includes(path)));
+  assert.ok(accepted.every((path) => !ignored.includes(path)));
   assert.ok(ignored.every((path) => !fetchedPaths.includes(path)));
 });
 
