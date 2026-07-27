@@ -26,7 +26,7 @@ test("authoritative provenance maps supported origins and never guesses manual i
   assert.throws(() => extractBusinessMemoryProvenance(evidence({ source_kind: "unknown", claim_metadata: {} })), /business_memory_unknown_required_origin/);
 });
 test("snapshot payload provenance uses canonical manual payload and ignores unrelated values", () => {
-  const p = extractBusinessMemoryProvenance(evidence({ evidence_metadata: { legacyIntakeBlockId: "block-1" } })); assert.equal(p.intakeBlockId, "block-1"); assert.equal(p.label, "Services"); assert.deepEqual(Object.keys(p).sort(), ["capturedAt", "crawlAttemptId", "intakeBlockId", "label", "origin", "sourceEntryId", "url"]);
+  const p = extractBusinessMemoryProvenance(evidence({ evidence_metadata: { legacyIntakeBlockId: "block-1" } })); assert.equal(p.intakeBlockId, "block-1"); assert.equal(p.label, "Services"); assert.deepEqual(Object.keys(p).sort(), ["capturedAt", "crawlAttemptId", "intakeBlockId", "label", "origin", "sourceBlockId", "sourceDocumentId", "sourceEntryId", "url"]);
 });
 test("material fingerprint normalizes order and includes persisted changes", () => {
   const rows = [trusted(), trusted({ legacy_entry_id: "entry-2", claim_id: "claim-2" })], ev = new Map([["claim-1", [evidence()]], ["claim-2", [evidence({ candidate_claim_id: "claim-2", evidence_id: "evidence-2", evidence_metadata: { legacyIntakeBlockId: "block-1", ignored: 1 } })]]]);

@@ -18,6 +18,7 @@ import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import "./AiBuilderFormOverrides.css";
+import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
 
 export type UserKnowledge = {
   productsServices: string;
@@ -39,6 +40,8 @@ export type WebsiteKnowledge = {
   warnings: string[];
   importedAt: string;
   crawlAttemptId?: string;
+  sourceDocuments?:WebsiteSourceDocumentRecord[];
+  sourceBlocks?:WebsiteSourceBlockRecord[];
 };
 
 export type BuilderState = {

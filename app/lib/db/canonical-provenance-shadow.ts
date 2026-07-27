@@ -94,7 +94,7 @@ async function writeWebsiteSource(input: CanonicalProvenanceInput): Promise<Prov
   const evidenceIds = new Map<string, string>();
   await Promise.all(websiteKnowledge.knowledge.facts.flatMap((fact) => fact.evidence.map(async (evidence) => {
     const evidenceCanonicalIdentity = websiteEvidenceIdentity(snapshotCanonicalIdentity, fact, evidence);
-    const evidenceId = await resolveEvidence({ sourceStorageId, snapshotStorageId, canonicalIdentity: evidenceCanonicalIdentity, content: evidence.excerpt, url: evidence.url, metadata: { ...metadata, category: fact.category, title: fact.title, value: fact.value, confidence: fact.confidence }, capturedAt });
+    const evidenceId = await resolveEvidence({ sourceStorageId, snapshotStorageId, canonicalIdentity: evidenceCanonicalIdentity, content: evidence.excerpt, url: evidence.url, metadata: { ...metadata, category: fact.category, title: fact.title, value: fact.value, confidence: fact.confidence, sourceDocumentId:evidence.sourceDocumentId??null,sourceBlockId:evidence.sourceBlockId??null,sourceCoordinates:evidence.sourceCoordinates??null }, capturedAt });
     evidenceIds.set(evidenceCanonicalIdentity, evidenceId);
   })));
   return { snapshotStorageId, snapshotCanonicalIdentity, evidenceIds };
