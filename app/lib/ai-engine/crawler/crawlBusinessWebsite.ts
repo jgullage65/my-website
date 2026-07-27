@@ -240,6 +240,7 @@ export async function createPlaywrightRenderer(assertSafe: DestinationSafetyChec
         await route.continue();
       } catch { await route.abort(); }
     });
+    const page = await context.newPage();
     return {
       render: async (url, timeoutMs, signal) => {
         const page = await context.newPage();
