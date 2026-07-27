@@ -86,19 +86,19 @@ function reviewSection(entry: BusinessContextEntry): {
 }
 
 const canonicalButtonClassName =
-  "cta-raised inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-4 py-2.5 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
+  "cta-raised inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2.5 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
 
 const filterButtonClassName =
-  "cta-raised inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-2.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830]";
+  "cta-raised inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-5 py-2.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111]";
 
 const itemActionClassName =
-  "min-w-0 w-full rounded-xl border border-amber-300/15 bg-[#081226] px-3 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
+  "min-w-0 w-full rounded-xl border border-amber-300/15 bg-[#080808] px-3 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40";
 
 const approveActionClassName =
-  "min-w-0 w-full rounded-xl border border-amber-300/15 bg-[#081226] px-3 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40";
+  "min-w-0 w-full rounded-xl border border-amber-300/15 bg-[#080808] px-3 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40";
 
 const panelClassName =
-  "overflow-hidden rounded-[14px] border border-amber-300/20 bg-[#050a16]/88 shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition hover:border-amber-300/30 hover:bg-[#07101d]/92";
+  "overflow-hidden rounded-[14px] border border-amber-300/20 bg-[#070707]/88 shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition hover:border-amber-300/30 hover:bg-[#0d0d0d]/92";
 
 function CollapsibleReviewText({
   children,
@@ -341,7 +341,7 @@ export default function AiBuilderReview({
     session.status === "ready" && session.contextCounts.approved > 0;
 
   return (
-    <div className="relative w-full space-y-6 bg-[#030713] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
+    <div className="relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
       {confirmDialogNode}
       <AiBuilderAuthCta />
 
@@ -394,7 +394,7 @@ export default function AiBuilderReview({
                 onClick={() => setFilter(nextFilter)}
                 className={`${filterButtonClassName} ${
                   filter === nextFilter
-                    ? "border-amber-300/35 bg-[#0b1830] text-amber-200"
+                    ? "border-amber-300/35 bg-[#111111] text-amber-200"
                     : ""
                 }`}
                 aria-pressed={filter === nextFilter}
@@ -458,7 +458,7 @@ export default function AiBuilderReview({
                                       },
                                     }))
                                   }
-                                  className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                                  className="w-full rounded-xl border border-amber-300/20 bg-[#020202] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
                                 />
                                 <textarea
                                   rows={5}
@@ -475,7 +475,7 @@ export default function AiBuilderReview({
                                       },
                                     }))
                                   }
-                                  className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                                  className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020202] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
                                 />
                               </div>
                             ) : (
@@ -626,7 +626,7 @@ export default function AiBuilderReview({
                                 },
                               }))
                             }
-                            className="w-full rounded-xl border border-amber-300/20 bg-[#020611] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                            className="w-full rounded-xl border border-amber-300/20 bg-[#020202] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
                           />
                           <textarea
                             rows={5}
@@ -643,7 +643,7 @@ export default function AiBuilderReview({
                                 },
                               }))
                             }
-                            className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020611] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                            className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020202] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
                           />
                         </div>
                       ) : (
@@ -756,7 +756,7 @@ export default function AiBuilderReview({
         ) : null}
 
         {!grouped.length && !visibleFaqEntries.length ? (
-          <section className="rounded-[16px] border border-amber-300/20 bg-[#050a16]/88 p-8 text-center shadow-[0_12px_30px_rgba(0,0,0,0.14)]">
+          <section className="rounded-[16px] border border-amber-300/20 bg-[#070707]/88 p-8 text-center shadow-[0_12px_30px_rgba(0,0,0,0.14)]">
             <p className="text-sm text-slate-400">No items match this filter.</p>
           </section>
         ) : null}
@@ -767,7 +767,7 @@ export default function AiBuilderReview({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-0 rounded-xl border border-amber-300/25 bg-[#030713] px-3 py-4 text-center shadow-[0_10px_24px_rgba(0,0,0,0.18)] sm:px-4">
+    <div className="min-w-0 rounded-xl border border-amber-300/25 bg-[#000000] px-3 py-4 text-center shadow-[0_10px_24px_rgba(0,0,0,0.18)] sm:px-4">
       <p className="text-2xl font-semibold text-white">{value}</p>
       <p className="mt-2 whitespace-nowrap text-[0.68rem] font-black uppercase tracking-[0.12em] text-amber-300">
         {label}

@@ -527,7 +527,7 @@ export default function AiBuilderDemoChat({
   };
 
   return (
-    <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#030713] xl:static xl:z-auto xl:h-full xl:bg-transparent">
+    <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#000000] xl:static xl:z-auto xl:h-full xl:bg-transparent">
       <header className="relative flex flex-none items-center justify-center border-b border-white/10 px-5 py-5 sm:px-8 xl:hidden">
         <p className="text-center text-sm font-black uppercase tracking-[0.28em] text-amber-300">
           Live assistant test
@@ -542,7 +542,7 @@ export default function AiBuilderDemoChat({
         </button>
       </header>
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#030713] xl:rounded-[30px] xl:border xl:border-white/10 xl:shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#000000] xl:rounded-[30px] xl:border xl:border-white/10 xl:shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
         <div className="relative min-h-0 flex-1">
           <div
             ref={chatScrollRef}
@@ -554,8 +554,8 @@ export default function AiBuilderDemoChat({
               key={item.id}
               className={
                 item.role === "user"
-                  ? "ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md border border-amber-300/25 bg-[#07101f] px-4 py-3 text-sm font-medium leading-6 text-slate-100 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
-                  : "w-fit max-w-[85%] rounded-2xl rounded-bl-md border border-amber-300/25 bg-[#050b18] px-4 py-3 text-sm leading-6 text-slate-200 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
+                  ? "ml-auto w-fit max-w-[85%] rounded-2xl rounded-br-md border border-amber-300/25 bg-[#0d0d0d] px-4 py-3 text-sm font-medium leading-6 text-slate-100 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
+                  : "w-fit max-w-[85%] rounded-2xl rounded-bl-md border border-amber-300/25 bg-[#0a0a0a] px-4 py-3 text-sm leading-6 text-slate-200 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]"
               }
             >
               <p className="whitespace-pre-wrap">
@@ -568,7 +568,7 @@ export default function AiBuilderDemoChat({
           ))}
 
           {sending ? (
-            <div className="flex min-h-[48px] w-fit max-w-[85%] items-center gap-3 rounded-2xl rounded-bl-md border border-amber-300/25 bg-[#050b18] px-4 py-3 text-sm text-slate-400 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]">
+            <div className="flex min-h-[48px] w-fit max-w-[85%] items-center gap-3 rounded-2xl rounded-bl-md border border-amber-300/25 bg-[#0a0a0a] px-4 py-3 text-sm text-slate-400 shadow-[0_10px_24px_rgba(0,0,0,.2)] sm:max-w-[68%]">
               <span>{knowledge.assistantName} is thinking</span>
               <span className="flex gap-1" aria-hidden="true"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70" /><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70 [animation-delay:150ms]" /><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300/70 [animation-delay:300ms]" /></span>
             </div>
@@ -621,7 +621,7 @@ export default function AiBuilderDemoChat({
                 purchaseInterestSubmitted ||
                 purchaseInterestSubmitting
               }
-              className="cta-raised rounded-xl border border-amber-300/15 bg-[#081226] px-4 py-2 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-emerald-300/20 disabled:bg-emerald-300/[0.07] disabled:text-emerald-200 disabled:opacity-80 disabled:hover:translate-y-0"
+              className="cta-raised rounded-xl border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#111111] disabled:cursor-not-allowed disabled:border-emerald-300/20 disabled:bg-emerald-300/[0.07] disabled:text-emerald-200 disabled:opacity-80 disabled:hover:translate-y-0"
             >
               {purchaseInterestSubmitted
                 ? "Purchase Request Sent ✓"
@@ -637,7 +637,7 @@ export default function AiBuilderDemoChat({
             </span>
           </div>
 
-          <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-amber-300/25 bg-[#050b18] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">
+          <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-amber-300/25 bg-[#0a0a0a] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">
             <textarea
               rows={2}
               value={message}
@@ -654,7 +654,7 @@ export default function AiBuilderDemoChat({
                 sending ||
                 !message.trim()
               }
-              className="min-h-[52px] rounded-xl border border-amber-300/15 bg-[#081226] px-5 py-3 font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,.24)] transition hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-[52px] rounded-xl border border-amber-300/15 bg-[#080808] px-5 py-3 font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,.24)] transition hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Send
             </button>

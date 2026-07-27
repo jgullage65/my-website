@@ -377,8 +377,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   };
 
   const desktopWorkspace = session && knowledgePack ? (
-    <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/10 bg-[#020611] xl:grid xl:grid-cols-[190px_minmax(0,1fr)_430px]">
-      <aside className="border-r border-white/10 bg-[#040a16] p-4">
+    <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/10 bg-[#020202] xl:grid xl:grid-cols-[190px_minmax(0,1fr)_430px]">
+      <aside className="border-r border-white/10 bg-[#050505] p-4">
         <button
           type="button"
           onClick={() => window.location.assign("/ai-builder")}
@@ -410,7 +410,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         </nav>
       </aside>
 
-      <main className="flex min-h-0 min-w-0 flex-col bg-[#020713]">
+      <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
         <header className="flex flex-none justify-center border-b border-white/10 px-5 py-3 text-center">
           <div className="min-w-0 max-w-full">
             <h1 className="text-lg font-bold text-amber-300">
@@ -430,7 +430,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                   className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${
                     reviewSaveStatus === "error"
                       ? "border-red-500/30 bg-red-500/10 text-red-200"
-                      : "border-amber-300/20 bg-[#030713] text-slate-400"
+                      : "border-amber-300/20 bg-[#000000] text-slate-400"
                   }`}
                   role={reviewSaveStatus === "error" ? "alert" : "status"}
                   aria-live="polite"
@@ -462,7 +462,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
               onReview={() => setWorkspaceTab("knowledge")}
             />
           ) : (
-            <div className="flex min-h-full items-center justify-center rounded-3xl border border-white/10 bg-[#030713] p-8 text-center">
+            <div className="flex min-h-full items-center justify-center rounded-3xl border border-white/10 bg-[#000000] p-8 text-center">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-300">{workspaceTab}</p>
                 <h2 className="mt-3 text-2xl font-bold text-white">This workspace is ready for its next module.</h2>
@@ -475,7 +475,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         </AiBuilderDesktopScrollArea>
       </main>
 
-      <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#040a16] p-4">
+      <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#050505] p-4">
         <div className="mb-4 flex-none text-center">
           <p className="text-sm font-bold text-white">Test Your AI Assistant</p>
         </div>
@@ -494,7 +494,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   return (
     <AiBuilderShell>
       {step === "loading" ? (
-        <div className="relative mx-auto max-w-3xl rounded-[30px] border border-amber-300/20 bg-[#030713] px-6 py-12 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]">
+        <div className="relative mx-auto max-w-3xl rounded-[30px] border border-amber-300/20 bg-[#000000] px-6 py-12 text-center shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]">
           <AiBuilderAuthCta />
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-300">Loading AI project</p>
           <p className="mt-4 text-base text-slate-400">Restoring your saved business knowledge.</p>
@@ -522,7 +522,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         {step === "review" && session ? (
           <>
             {reviewSaveStatus !== "idle" || saveError ? (
-              <div className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-amber-300/20 bg-[#030713] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">
+              <div className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-amber-300/20 bg-[#000000] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">
                 {reviewSaveStatus === "saving" ? "Applying review command..." : reviewSaveStatus === "saved" ? "Review command applied." : saveError}
               </div>
             ) : null}

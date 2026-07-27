@@ -20,7 +20,7 @@ const pendingSteps = [
 ];
 
 const shellClassName =
-  "relative overflow-hidden bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-amber-300/20 min-[1200px]:px-6 min-[1200px]:py-6 min-[1200px]:shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]";
+  "relative overflow-hidden bg-[#000000] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-amber-300/20 min-[1200px]:px-6 min-[1200px]:py-6 min-[1200px]:shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]";
 
 export default function AiBuilderProgress({
   builder,
@@ -109,7 +109,7 @@ export default function AiBuilderProgress({
             <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 min-[1200px]:mt-4 min-[1200px]:gap-3">
               <Link
                 href="/ai-builder"
-                className="flex min-h-[56px] items-center justify-center rounded-2xl border border-amber-300/15 bg-[#081226] px-3 py-4 text-center text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.14)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:px-5 sm:text-base min-[1200px]:min-h-[46px] min-[1200px]:rounded-xl min-[1200px]:py-3 min-[1200px]:text-sm"
+                className="flex min-h-[56px] items-center justify-center rounded-2xl border border-amber-300/15 bg-[#080808] px-3 py-4 text-center text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.14)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] sm:px-5 sm:text-base min-[1200px]:min-h-[46px] min-[1200px]:rounded-xl min-[1200px]:py-3 min-[1200px]:text-sm"
               >
                 Return to Projects
               </Link>
@@ -117,7 +117,7 @@ export default function AiBuilderProgress({
               <button
                 type="button"
                 onClick={onReview}
-                className="min-h-[56px] rounded-2xl border border-amber-300/15 bg-[#081226] px-3 py-4 text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] sm:px-5 sm:text-base min-[1200px]:min-h-[46px] min-[1200px]:rounded-xl min-[1200px]:py-3 min-[1200px]:text-sm"
+                className="min-h-[56px] rounded-2xl border border-amber-300/15 bg-[#080808] px-3 py-4 text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] sm:px-5 sm:text-base min-[1200px]:min-h-[46px] min-[1200px]:rounded-xl min-[1200px]:py-3 min-[1200px]:text-sm"
               >
                 Review business knowledge
               </button>
