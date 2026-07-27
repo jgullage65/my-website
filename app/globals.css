@@ -401,7 +401,7 @@ a[href][class*="border-amber-300/15"],
 button[class*="border-amber-300/15"]:not(:disabled) {
   border-width: 0.5px;
   border-color: rgba(212, 175, 55, 0.18);
-  background-color: #030713;
+  background-color: #000000;
   box-shadow: none;
 }
 
@@ -413,6 +413,7 @@ span.cta-raised,
 div.cta-raised {
   border-width: 1px;
   border-color: rgba(245, 158, 11, 0.2);
+  background-color: #000000;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(212, 175, 55, 0.72);
 }
 
@@ -423,7 +424,7 @@ button[class*="border-amber-300/15"]:not(:disabled):hover,
 button[class*="border-amber-300/15"]:not(:disabled):focus,
 button[class*="border-amber-300/15"]:not(:disabled):active {
   border-color: #d4af37;
-  background-color: #050b18;
+  background-color: #0a0a0a;
 }
 
 a[href][class*="border-amber-300/15"]:hover,
@@ -436,13 +437,14 @@ button[class*="border-amber-300/15"]:not(:disabled):not([role]):not([aria-label]
 a[href].cta-raised:hover,
 button.cta-raised:not(:disabled):hover {
   border-color: rgba(245, 158, 11, 0.2);
+  background-color: #0a0a0a;
   color: var(--gold);
 }
 
 button[role="tab"][aria-selected="true"] {
   border-width: 0.5px;
   border-color: rgba(212, 175, 55, 0.28);
-  background-color: #030713;
+  background-color: #000000;
   box-shadow: none;
 }
 
@@ -455,6 +457,16 @@ button[role="tab"].cta-raised:not(:disabled) {
 button[role="tab"].cta-raised:not(:disabled):hover {
   border-color: rgba(245, 158, 11, 0.2);
   color: var(--gold);
+}
+
+/* Destructive controls keep their warning color in the border and label, while
+ * sharing the studio's black control surface. */
+:where(button, a[href])[class*="border-red-"] {
+  background-color: #000000;
+}
+
+:where(button, a[href])[class*="border-red-"]:hover {
+  background-color: #0a0a0a;
 }
 
 button,

@@ -55,10 +55,10 @@ type WebsiteImportEvent =
   | { type: "error"; error?: { message?: string }; crawlAttemptId?: string };
 
 const inputClassName =
-  "w-full rounded-xl border border-white/10 bg-[#020611] px-4 py-3 text-center text-sm text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
+  "w-full rounded-xl border border-white/10 bg-[#020202] px-4 py-3 text-center text-sm text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
 
 const cardClassName =
-  "rounded-2xl border border-amber-300/20 bg-[#050a16]/88 p-5 shadow-[0_14px_42px_rgba(0,0,0,0.2)]";
+  "rounded-2xl border border-amber-300/20 bg-[#070707]/88 p-5 shadow-[0_14px_42px_rgba(0,0,0,0.2)]";
 
 export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [importing, setImporting] = useState(false);
@@ -235,7 +235,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
   return (
     <div className="w-full pb-10 min-[1200px]:px-8">
-      <div className="relative bg-[#030713] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[28px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:p-8 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
+      <div className="relative bg-[#000000] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[28px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:p-8 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
         <AiBuilderAuthCta />
 
         <Link
@@ -292,7 +292,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                     type="button"
                     disabled={!value.website.trim() || importing}
                     onClick={importWebsite}
-                    className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:border-[rgba(212,175,55,0.18)] disabled:bg-[#030713] disabled:text-white disabled:shadow-none disabled:[border-width:0.5px] disabled:hover:translate-y-0 disabled:hover:border-[rgba(212,175,55,0.18)] disabled:hover:bg-[#030713]"
+                    className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:border-[rgba(212,175,55,0.18)] disabled:bg-[#000000] disabled:text-white disabled:shadow-none disabled:[border-width:0.5px] disabled:hover:translate-y-0 disabled:hover:border-[rgba(212,175,55,0.18)] disabled:hover:bg-[#000000]"
                   >
                     {importing
                       ? importStage === "crawl"
@@ -311,7 +311,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                   <button
                     type="button"
                     onClick={() => setShowWebsiteKnowledge(true)}
-                    className="cta-raised mt-4 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#081226] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#0b1830]"
+                    className="cta-raised mt-4 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#111111]"
                   >
                     View imported knowledge →
                   </button>
@@ -370,7 +370,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                 <div className="relative">
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Final step</p>
                   <h3 className="mt-2 text-2xl font-semibold text-white">Ready to build your AI?</h3>
-                  <button type="button" disabled={!valid || importing} onClick={onBuild} className="mt-5 min-w-0 rounded-2xl border border-amber-300/15 bg-[#081226] px-4 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#0b1830] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0">Build My AI</button>
+                  <button type="button" disabled={!valid || importing} onClick={onBuild} className="mt-5 min-w-0 rounded-2xl border border-amber-300/15 bg-[#080808] px-4 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0">Build My AI</button>
                   <p className="mt-3 text-xs leading-5 text-slate-500">{valid ? "Everything required is ready." : "Add your business name, industry, products or services, and ideal customers to continue."}</p>
                 </div>
               </section>
@@ -415,7 +415,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 function Status({ tone, children }: { tone: "success" | "error"; children: ReactNode }) {
   return (
-    <div role="status" className={`mx-auto mt-4 px-4 py-3 text-sm ${tone === "success" ? "cta-raised flex w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#030713] font-semibold text-white" : "rounded-xl border border-red-400/20 bg-red-400/[0.07] text-red-200"}`}>
+    <div role="status" className={`mx-auto mt-4 px-4 py-3 text-sm ${tone === "success" ? "cta-raised flex w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#000000] font-semibold text-white" : "rounded-xl border border-red-400/20 bg-red-400/[0.07] text-red-200"}`}>
       {children}
     </div>
   );
@@ -429,7 +429,7 @@ function WebsiteKnowledgeModal({ knowledge, onClose }: { knowledge: WebsiteKnowl
 
   const modal = (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Imported website knowledge" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#030713] shadow-[0_30px_120px_rgba(0,0,0,0.7)]">
+      <div className="max-h-[92vh] w-full max-w-5xl overflow-hidden rounded-[30px] border border-amber-300/20 bg-[#000000] shadow-[0_30px_120px_rgba(0,0,0,0.7)]">
         <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5 sm:p-7">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Website knowledge</p>
