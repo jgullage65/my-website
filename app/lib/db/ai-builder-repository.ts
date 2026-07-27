@@ -19,6 +19,7 @@ import { buildCanonicalProvenanceShadowQueries } from "./canonical-provenance-sh
 import { requireClerkIdentity, requireClerkUserId } from "@/app/lib/auth/clerk";
 import { normalizeContextProvenance, normalizeFaqProvenance } from "@/app/lib/ai-engine/provenance";
 import { Pool } from "@neondatabase/serverless";
+import { normalizeWebsiteSourceBlocks, normalizeWebsiteSourceDocuments } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
 
 type DatabaseRow = Record<string, unknown>;
 
@@ -79,7 +80,7 @@ export function normalizeWebsiteKnowledge(value: unknown): PersistedWebsiteKnowl
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
 
   const document = value as Record<string, unknown>;
-  if (document.schema_version !== 1) return null;
+  if (document.schema_version !== 1 && document.schema_version !== 2) return null;
   const documentVersion = document.document_version;
   if (typeof documentVersion !== "number" || !Number.isSafeInteger(documentVersion) || documentVersion < 1) return null;
 
@@ -99,7 +100,9 @@ export function normalizeWebsiteKnowledge(value: unknown): PersistedWebsiteKnowl
       const record = item as Record<string, unknown>;
       const url = normalizeWebsiteUrl(record.url);
       const excerpt = normalizeText(record.excerpt, 2_000);
-      return url && excerpt ? [{ url, excerpt }] : [];
+      const sourceDocumentId=normalizeText(record.sourceDocumentId,200),sourceBlockId=normalizeText(record.sourceBlockId,200),crawlAttemptId=normalizeText(record.crawlAttemptId,200);
+      const sourceCoordinates=record.sourceCoordinates&&typeof record.sourceCoordinates==="object"&&!Array.isArray(record.sourceCoordinates)?record.sourceCoordinates as import("@/app/lib/ai-engine/crawler/websiteSourceRecords").SourceCoordinates:undefined;
+      return url && excerpt ? [{ url, excerpt,...(sourceDocumentId?{sourceDocumentId}:{}),...(sourceBlockId?{sourceBlockId}:{}),...(crawlAttemptId?{crawlAttemptId}:{}),...(sourceCoordinates?{sourceCoordinates}:{}) }] : [];
     });
     if (!websiteKnowledgeCategories.has(category) || !title || !factValue || !websiteKnowledgeConfidenceLevels.has(confidence) || !evidence.length) return [];
     hasKnowledge = true;
@@ -126,23 +129,38 @@ export function normalizeWebsiteKnowledge(value: unknown): PersistedWebsiteKnowl
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
     const page = entry as Record<string, unknown>;
     const url = normalizeWebsiteUrl(page.url);
-    return url ? [{ url, title: normalizeText(page.title, 500), pageType: normalizeText(page.pageType, 100) }] : [];
+    const sourceDocumentId=normalizeText(page.sourceDocumentId,200);
+    return url ? [{ url, title: normalizeText(page.title, 500), pageType: normalizeText(page.pageType, 100),...(sourceDocumentId?{sourceDocumentId}:{}) }] : [];
   });
   const warnings = (Array.isArray(document.warnings) ? document.warnings : [])
     .slice(0, 100)
     .map((warning) => normalizeText(warning, 500))
     .filter(Boolean);
+  const crawlAttemptId=normalizeText(document.current_crawl_attempt_id,200);
+  const sourceDocuments=document.schema_version===2?normalizeWebsiteSourceDocuments(document.source_documents,crawlAttemptId):[];
+  const sourceBlocks=document.schema_version===2?normalizeWebsiteSourceBlocks(document.source_blocks,crawlAttemptId,sourceDocuments):[];
+  const documentsById=new Map(sourceDocuments.map(item=>[item.id,item]));
+  const blocksById=new Map(sourceBlocks.map(item=>[item.id,item]));
+  const verifiedFacts=facts.map(fact=>({...fact,evidence:fact.evidence.map(evidence=>{
+    const sourceDocumentId="sourceDocumentId" in evidence?evidence.sourceDocumentId:undefined;
+    const sourceBlockId="sourceBlockId" in evidence?evidence.sourceBlockId:undefined;
+    const sourceDocument=sourceDocumentId?documentsById.get(sourceDocumentId):undefined;
+    const sourceBlock=sourceBlockId?blocksById.get(sourceBlockId):undefined;
+    if(!sourceDocument||sourceDocument.crawlAttemptId!==crawlAttemptId||(sourceBlockId&&(!sourceBlock||sourceBlock.sourceDocumentId!==sourceDocument.id)))return {url:evidence.url,excerpt:evidence.excerpt};
+    return {url:evidence.url,excerpt:evidence.excerpt,sourceDocumentId:sourceDocument.id,crawlAttemptId,...(sourceBlock?{sourceBlockId:sourceBlock.id,sourceCoordinates:sourceBlock.coordinates}:{})};
+  })})) as StructuredWebsiteKnowledge["facts"];
 
   return {
-    schema_version: 1,
+    schema_version: document.schema_version,
     document_version: documentVersion,
-    current_crawl_attempt_id: normalizeText(document.current_crawl_attempt_id, 200) || null,
+    current_crawl_attempt_id: crawlAttemptId || null,
     imported_at: normalizeText(document.imported_at, 100) || null,
     requested_url: normalizeWebsiteUrl(document.requested_url),
     resolved_url: normalizeWebsiteUrl(document.resolved_url),
     pages,
     warnings,
-    knowledge: { facts, coverage, unresolvedQuestions },
+    knowledge: { facts:verifiedFacts, coverage, unresolvedQuestions },
+    ...(document.schema_version===2?{source_documents:sourceDocuments,source_blocks:sourceBlocks}:{}),
   };
 }
 

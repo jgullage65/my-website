@@ -53,7 +53,7 @@ export const WEBSITE_KNOWLEDGE_SECTION_LABELS: Record<(typeof WEBSITE_KNOWLEDGE_
   other: "Additional Business Knowledge",
 };
 
-export type WebsiteKnowledgeEvidence = { url: string; excerpt: string };
+export type WebsiteKnowledgeEvidence = { url: string; excerpt: string; sourceDocumentId?:string;sourceBlockId?:string;sourceCoordinates?:import("../crawler/websiteSourceRecords").SourceCoordinates;crawlAttemptId?:string };
 
 export type WebsiteKnowledgeFact = {
   category: (typeof WEBSITE_KNOWLEDGE_CATEGORIES)[number];
@@ -74,10 +74,10 @@ export type StructuredWebsiteKnowledge = {
   unresolvedQuestions: string[];
 };
 
-export type WebsiteKnowledgePage = { url: string; title: string; pageType: string };
+export type WebsiteKnowledgePage = { url: string; title: string; pageType: string;sourceDocumentId?:string };
 
 export type PersistedWebsiteKnowledge = {
-  schema_version: 1;
+  schema_version: 1|2;
   document_version: number;
   current_crawl_attempt_id: string | null;
   imported_at: string | null;
@@ -86,6 +86,8 @@ export type PersistedWebsiteKnowledge = {
   pages: WebsiteKnowledgePage[];
   warnings: string[];
   knowledge: StructuredWebsiteKnowledge;
+  source_documents?:import("../crawler/websiteSourceRecords").WebsiteSourceDocumentRecord[];
+  source_blocks?:import("../crawler/websiteSourceRecords").WebsiteSourceBlockRecord[];
 };
 
 import type {

@@ -449,6 +449,7 @@ async function createAiBuilderSchema() {
       warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
       errors JSONB NOT NULL DEFAULT '[]'::jsonb,
       restrictions JSONB,
+      crawler_diagnostics JSONB,
       failure_stage TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -466,14 +467,58 @@ async function createAiBuilderSchema() {
       processing_percent INTEGER,
       result JSONB,
       error_message TEXT,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      lease_owner TEXT,
+      lease_expires_at TIMESTAMPTZ,
+      next_attempt_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       started_at TIMESTAMPTZ,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       completed_at TIMESTAMPTZ
     )
   `;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_website_crawl_attempts (
+    id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL, requested_url TEXT NOT NULL, normalized_submitted_url TEXT NOT NULL,
+    resolved_entry_url TEXT NOT NULL, started_at TIMESTAMPTZ NOT NULL, completed_at TIMESTAMPTZ NOT NULL,
+    crawler_version TEXT NOT NULL, extraction_version TEXT NOT NULL, status TEXT NOT NULL, budgets JSONB NOT NULL, restrictions JSONB NOT NULL
+  )`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_website_source_documents (
+    id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL, crawl_attempt_id TEXT NOT NULL REFERENCES ai_builder_website_crawl_attempts(id) ON DELETE RESTRICT,
+    actual_fetched_url TEXT NOT NULL, canonical_url TEXT, redirect_chain JSONB NOT NULL, source_type TEXT NOT NULL, content_type TEXT NOT NULL,
+    status TEXT NOT NULL, fetched_at TIMESTAMPTZ NOT NULL, source_content_hash TEXT NOT NULL, extracted_content_hash TEXT NOT NULL,
+    language TEXT, source_truncated BOOLEAN NOT NULL, extraction_truncated BOOLEAN NOT NULL, discovery_method TEXT NOT NULL, discovered_from_url TEXT
+  )`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_website_source_blocks (
+    id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL, source_document_id TEXT NOT NULL REFERENCES ai_builder_website_source_documents(id) ON DELETE RESTRICT,
+    crawl_attempt_id TEXT NOT NULL REFERENCES ai_builder_website_crawl_attempts(id) ON DELETE RESTRICT, block_type TEXT NOT NULL,
+    normalized_text TEXT NOT NULL, coordinates JSONB NOT NULL, extraction_method TEXT NOT NULL
+  )`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_website_recrawl_reconciliations (
+    id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+    previous_crawl_attempt_id TEXT NOT NULL REFERENCES ai_builder_website_crawl_attempts(id) ON DELETE RESTRICT,
+    current_crawl_attempt_id TEXT NOT NULL REFERENCES ai_builder_website_crawl_attempts(id) ON DELETE RESTRICT,
+    fingerprint TEXT NOT NULL, result JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(project_id,previous_crawl_attempt_id,current_crawl_attempt_id), CHECK(previous_crawl_attempt_id<>current_crawl_attempt_id)
+  )`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_website_source_documents_attempt_idx ON ai_builder_website_source_documents(crawl_attempt_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_website_source_blocks_document_idx ON ai_builder_website_source_blocks(source_document_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_website_recrawl_project_idx ON ai_builder_website_recrawl_reconciliations(project_id,created_at DESC)`;
+  await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS attempt_count INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS lease_owner TEXT`;
+  await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ`;
+  await sql`UPDATE ai_builder_crawl_jobs SET lease_expires_at=NOW(),updated_at=NOW() WHERE state IN ('crawling','processing') AND lease_expires_at IS NULL`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_jobs_queue_idx ON ai_builder_crawl_jobs(state, created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_jobs_owner_idx ON ai_builder_crawl_jobs(clerk_user_id, created_at DESC)`;
+  await sql`
+    WITH duplicates AS (
+      SELECT id, ROW_NUMBER() OVER (PARTITION BY clerk_user_id ORDER BY created_at, id) AS position
+      FROM ai_builder_crawl_jobs WHERE state IN ('queued','crawling','processing')
+    )
+    UPDATE ai_builder_crawl_jobs SET state='failed',error_message='Superseded by another active crawl job.',completed_at=NOW(),updated_at=NOW(),lease_owner=NULL,lease_expires_at=NULL
+    WHERE id IN (SELECT id FROM duplicates WHERE position > 1)
+  `;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS ai_builder_crawl_jobs_one_active_per_user_idx ON ai_builder_crawl_jobs(clerk_user_id) WHERE state IN ('queued','crawling','processing')`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_generation_telemetry (
@@ -564,6 +609,8 @@ async function createAiBuilderSchema() {
   await sql`ALTER TABLE ai_builder_business_memory_assertions ADD COLUMN IF NOT EXISTS trusted_lifecycle TEXT NOT NULL DEFAULT 'active'`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_business_memory_sources (id TEXT PRIMARY KEY, memory_id TEXT NOT NULL REFERENCES ai_builder_business_memory(id) ON DELETE CASCADE, canonical_source_id TEXT NOT NULL REFERENCES ai_builder_canonical_sources(id) ON DELETE RESTRICT, origin TEXT NOT NULL, source_entry_id TEXT, intake_block_id TEXT, url TEXT, label TEXT, captured_at TIMESTAMPTZ NOT NULL, crawl_attempt_id TEXT, UNIQUE(memory_id, canonical_source_id))`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_business_memory_evidence (id TEXT PRIMARY KEY, memory_id TEXT NOT NULL REFERENCES ai_builder_business_memory(id) ON DELETE CASCADE, source_id TEXT NOT NULL REFERENCES ai_builder_business_memory_sources(id) ON DELETE CASCADE, canonical_evidence_id TEXT NOT NULL REFERENCES ai_builder_canonical_evidence(id) ON DELETE RESTRICT, excerpt TEXT NOT NULL, url TEXT, captured_at TIMESTAMPTZ NOT NULL, UNIQUE(memory_id, canonical_evidence_id))`;
+  await sql`ALTER TABLE ai_builder_business_memory_sources ADD COLUMN IF NOT EXISTS source_document_id TEXT REFERENCES ai_builder_website_source_documents(id) ON DELETE RESTRICT`;
+  await sql`ALTER TABLE ai_builder_business_memory_evidence ADD COLUMN IF NOT EXISTS source_block_id TEXT REFERENCES ai_builder_website_source_blocks(id) ON DELETE RESTRICT`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_business_memory_assertion_sources (assertion_id TEXT NOT NULL REFERENCES ai_builder_business_memory_assertions(id) ON DELETE CASCADE, source_id TEXT NOT NULL REFERENCES ai_builder_business_memory_sources(id) ON DELETE CASCADE, PRIMARY KEY(assertion_id, source_id))`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_business_memory_assertion_evidence (assertion_id TEXT NOT NULL REFERENCES ai_builder_business_memory_assertions(id) ON DELETE CASCADE, evidence_id TEXT NOT NULL REFERENCES ai_builder_business_memory_evidence(id) ON DELETE CASCADE, PRIMARY KEY(assertion_id, evidence_id))`;
   await sql`CREATE TABLE IF NOT EXISTS ai_builder_business_memory_relationships (id TEXT PRIMARY KEY, memory_id TEXT NOT NULL REFERENCES ai_builder_business_memory(id) ON DELETE CASCADE, relationship_type TEXT NOT NULL, from_entity_id TEXT NOT NULL REFERENCES ai_builder_business_memory_entities(id) ON DELETE CASCADE, to_entity_id TEXT NOT NULL REFERENCES ai_builder_business_memory_entities(id) ON DELETE CASCADE, from_assertion_id TEXT NOT NULL REFERENCES ai_builder_business_memory_assertions(id) ON DELETE CASCADE, to_assertion_id TEXT NOT NULL REFERENCES ai_builder_business_memory_assertions(id) ON DELETE CASCADE, source_entry_ids JSONB NOT NULL DEFAULT '[]'::jsonb, provenance JSONB NOT NULL DEFAULT '[]'::jsonb, review_state TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL)`;
@@ -706,6 +753,7 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_communications_project_idx ON ai_builder_communications(project_id, sent_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_impersonation_events_admin_idx ON ai_builder_impersonation_events(admin_id, occurred_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_telemetry_project_idx ON ai_builder_crawl_telemetry(project_id, started_at DESC)`;
+  await sql`ALTER TABLE ai_builder_crawl_telemetry ADD COLUMN IF NOT EXISTS crawler_diagnostics JSONB`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_telemetry_url_idx ON ai_builder_crawl_telemetry(requested_url, started_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_generation_telemetry_project_idx ON ai_builder_generation_telemetry(project_id, started_at DESC)`;
 }

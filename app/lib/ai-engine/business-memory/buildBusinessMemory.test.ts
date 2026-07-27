@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { AiBuilderSession, BusinessContextEntry } from "../contracts";
-import { websiteFactIdentity, type PersistedWebsiteKnowledge } from "../knowledge/websiteKnowledge";
+import { WEBSITE_KNOWLEDGE_COVERAGE_FIELDS, websiteFactIdentity, type PersistedWebsiteKnowledge } from "../knowledge/websiteKnowledge";
 import { buildBusinessMemory } from "./buildBusinessMemory";
 
 const createdAt = "2026-07-19T10:00:00.000Z";
@@ -28,10 +28,11 @@ function entry(overrides: Partial<BusinessContextEntry> = {}): BusinessContextEn
 }
 
 function websiteKnowledge(facts: PersistedWebsiteKnowledge["knowledge"]["facts"]): PersistedWebsiteKnowledge {
+  const coverage=Object.fromEntries(WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.map(field=>[field,0])) as PersistedWebsiteKnowledge["knowledge"]["coverage"];
   return {
     schema_version: 1, document_version: 1, current_crawl_attempt_id: "crawl_1", imported_at: createdAt,
     requested_url: "https://example.com", resolved_url: "https://example.com", pages: [], warnings: [],
-    knowledge: { facts, coverage: { businessIdentity: 0, offers: 0, customers: 0, pricing: 0, policies: 0, processes: 0, faq: 0, contact: 0, overall: 0 }, unresolvedQuestions: [] },
+    knowledge: { facts, coverage, unresolvedQuestions: [] },
   };
 }
 
@@ -319,6 +320,13 @@ test("keeps raw website assertion and entity identities stable across recrawls w
   assert.notDeepEqual(refreshed.sources.map((source) => source.id), original.sources.map((source) => source.id));
   const materiallyChanged = buildBusinessMemory({ session: session(), websiteKnowledge: websiteKnowledge([{ ...planningWebsiteFact, value: "Planning is now limited." }]) });
   assert.notEqual(materiallyChanged.assertions[0].id, original.assertions[0].id);
+});
+
+test("retains website source document and block identities in Business Memory",()=>{
+  const enriched={...planningWebsiteFact,evidence:[{...planningWebsiteFact.evidence[0],sourceDocumentId:"website_source_1",sourceBlockId:"website_block_1",crawlAttemptId:"crawl_1",sourceCoordinates:{lineStart:1,lineEnd:1}}]};
+  const memory=buildBusinessMemory({session:session(),websiteKnowledge:{...websiteKnowledge([enriched]),schema_version:2}});
+  assert.equal(memory.sources[0]?.sourceDocumentId,"website_source_1");
+  assert.equal(memory.evidence[0]?.sourceBlockId,"website_block_1");
 });
 
 test("keeps duplicate identical raw website facts independently and deterministically addressable", () => {
