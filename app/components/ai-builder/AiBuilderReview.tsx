@@ -86,19 +86,19 @@ function reviewSection(entry: BusinessContextEntry): {
 }
 
 const canonicalButtonClassName =
-  "cta-raised inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2.5 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
+  "inline-flex min-h-11 items-center justify-center rounded-lg border border-white/[0.08] bg-[#080808] px-4 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-[#111111] disabled:cursor-not-allowed disabled:border-white/[0.05] disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
 
 const filterButtonClassName =
-  "cta-raised inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-5 py-2.5 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111]";
+  "inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-white/[0.06] bg-[#070707] px-5 py-2.5 text-sm font-bold text-slate-300 transition hover:border-white/[0.12] hover:bg-[#101010] hover:text-white";
 
 const itemActionClassName =
-  "min-w-0 w-full rounded-xl border border-amber-300/15 bg-[#080808] px-3 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40";
+  "min-w-0 w-full rounded-xl border border-white/[0.07] bg-[#080808] px-3 py-2.5 text-xs font-bold text-slate-200 transition hover:border-white/[0.14] hover:bg-[#111111] hover:text-white disabled:cursor-not-allowed disabled:opacity-40";
 
 const approveActionClassName =
-  "min-w-0 w-full rounded-xl border border-amber-300/15 bg-[#080808] px-3 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40";
+  "min-w-0 w-full rounded-xl border border-white/[0.08] bg-[#0a0a0a] px-3 py-2.5 text-xs font-bold text-amber-300 transition hover:border-amber-300/20 hover:bg-[#121212] disabled:cursor-not-allowed disabled:opacity-40";
 
 const panelClassName =
-  "overflow-hidden rounded-[14px] border border-amber-300/20 bg-[#070707]/88 shadow-[0_12px_30px_rgba(0,0,0,0.14)] transition hover:border-amber-300/30 hover:bg-[#0d0d0d]/92";
+  "overflow-hidden rounded-[14px] border border-white/[0.055] bg-[#080808]/90 shadow-[0_14px_36px_rgba(0,0,0,0.2)] transition hover:border-white/[0.1] hover:bg-[#0d0d0d]/95";
 
 function CollapsibleReviewText({
   children,
@@ -363,7 +363,7 @@ export default function AiBuilderReview({
           <button type="button" onClick={onBack} className={canonicalButtonClassName}>
             Back to results
           </button>
-          <button type="button" onClick={approveAll} className={canonicalButtonClassName}>
+          <button type="button" onClick={approveAll} className={`${canonicalButtonClassName} text-amber-300`}>
             Approve all
           </button>
           {showLaunchChat ? (
@@ -394,7 +394,7 @@ export default function AiBuilderReview({
                 onClick={() => setFilter(nextFilter)}
                 className={`${filterButtonClassName} ${
                   filter === nextFilter
-                    ? "border-amber-300/35 bg-[#111111] text-amber-200"
+                    ? "border-white/[0.14] bg-[#141414] text-white shadow-[0_8px_22px_rgba(0,0,0,0.2)]"
                     : ""
                 }`}
                 aria-pressed={filter === nextFilter}
@@ -458,7 +458,7 @@ export default function AiBuilderReview({
                                       },
                                     }))
                                   }
-                                  className="w-full rounded-xl border border-amber-300/20 bg-[#020202] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                                  className="w-full rounded-xl border border-white/[0.08] bg-[#020202] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none transition focus:border-amber-300/35"
                                 />
                                 <textarea
                                   rows={5}
@@ -475,7 +475,7 @@ export default function AiBuilderReview({
                                       },
                                     }))
                                   }
-                                  className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020202] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                                  className="w-full resize-y rounded-xl border border-white/[0.08] bg-[#020202] px-4 py-3 text-left text-sm leading-6 text-white outline-none transition focus:border-amber-300/35"
                                 />
                               </div>
                             ) : (
@@ -626,7 +626,7 @@ export default function AiBuilderReview({
                                 },
                               }))
                             }
-                            className="w-full rounded-xl border border-amber-300/20 bg-[#020202] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none focus:border-amber-300/45"
+                            className="w-full rounded-xl border border-white/[0.08] bg-[#020202] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none transition focus:border-amber-300/35"
                           />
                           <textarea
                             rows={5}
@@ -643,7 +643,7 @@ export default function AiBuilderReview({
                                 },
                               }))
                             }
-                            className="w-full resize-y rounded-xl border border-amber-300/16 bg-[#020202] px-4 py-3 text-left text-sm leading-6 text-white outline-none focus:border-amber-300/45"
+                            className="w-full resize-y rounded-xl border border-white/[0.08] bg-[#020202] px-4 py-3 text-left text-sm leading-6 text-white outline-none transition focus:border-amber-300/35"
                           />
                         </div>
                       ) : (
@@ -756,7 +756,7 @@ export default function AiBuilderReview({
         ) : null}
 
         {!grouped.length && !visibleFaqEntries.length ? (
-          <section className="rounded-[16px] border border-amber-300/20 bg-[#070707]/88 p-8 text-center shadow-[0_12px_30px_rgba(0,0,0,0.14)]">
+          <section className="rounded-[16px] border border-white/[0.055] bg-[#080808]/90 p-8 text-center shadow-[0_14px_36px_rgba(0,0,0,0.2)]">
             <p className="text-sm text-slate-400">No items match this filter.</p>
           </section>
         ) : null}
@@ -767,7 +767,7 @@ export default function AiBuilderReview({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-0 rounded-xl border border-amber-300/25 bg-[#000000] px-3 py-4 text-center shadow-[0_10px_24px_rgba(0,0,0,0.18)] sm:px-4">
+    <div className="min-w-0 rounded-xl border border-white/[0.05] bg-[#050505] px-3 py-4 text-center shadow-[0_10px_24px_rgba(0,0,0,0.16)] sm:px-4">
       <p className="text-2xl font-semibold text-white">{value}</p>
       <p className="mt-2 whitespace-nowrap text-[0.68rem] font-black uppercase tracking-[0.12em] text-amber-300">
         {label}
@@ -779,11 +779,11 @@ function Stat({ label, value }: { label: string; value: number }) {
 function SectionDivider({ label }: { label: string }) {
   return (
     <div className="mb-3 flex items-center gap-3">
-      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-amber-300/20" />
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/[0.08]" />
       <h3 className="text-center text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">
         {label}
       </h3>
-      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-amber-300/20" />
+      <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/[0.08]" />
     </div>
   );
 }

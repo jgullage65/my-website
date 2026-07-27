@@ -430,7 +430,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                   className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${
                     reviewSaveStatus === "error"
                       ? "border-red-500/30 bg-red-500/10 text-red-200"
-                      : "border-amber-300/20 bg-[#000000] text-slate-400"
+                      : "border-white/[0.08] bg-[#050505] text-slate-400"
                   }`}
                   role={reviewSaveStatus === "error" ? "alert" : "status"}
                   aria-live="polite"
@@ -522,7 +522,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         {step === "review" && session ? (
           <>
             {reviewSaveStatus !== "idle" || saveError ? (
-              <div className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-amber-300/20 bg-[#000000] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">
+              <div className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-white/[0.08] bg-[#050505] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">
                 {reviewSaveStatus === "saving" ? "Applying review command..." : reviewSaveStatus === "saved" ? "Review command applied." : saveError}
               </div>
             ) : null}
