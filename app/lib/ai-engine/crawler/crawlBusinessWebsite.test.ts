@@ -191,6 +191,12 @@ test("isolates an unexpected extraction failure and retains later safe pages", a
   assert.equal(result.pages.length, 1);
   assert.equal(result.pages[0]!.pageType, "about");
   assert.equal(result.diagnostics.pagesExtractionFailed, 1);
+  assert.equal(result.diagnostics.pagesFetched, 2);
+  assert.equal(result.diagnostics.pagesExtractionAttempted, 2);
+  assert.equal(result.diagnostics.pagesExtractionSucceeded, 1);
+  assert.equal(result.diagnostics.pagesProcessed, 1);
+  assert.equal(result.diagnostics.pagesRetained, 1);
+  assert.deepEqual(result.diagnostics.warningDetails.map(({stage,url})=>({stage,url})), [{stage:"html_extraction",url:"https://example.test/"}]);
   assert.match(result.warnings.join(" "), /fetched but its content could not be extracted/);
 });
 
@@ -441,6 +447,7 @@ test("restrains hreflang alternates and never fetches an external alternate", as
   });
   assert.ok(!calls.some((url) => url.includes("external.test")));
   assert.ok(result.diagnostics.alternateVariantsSkipped >= 2);
+  assert.equal(result.diagnostics.alternateVariantsSkipped, result.diagnostics.alternateLinksRejected + result.diagnostics.alternateLinksNotSelected + result.diagnostics.alternatePagesDeduplicated);
   assert.ok(calls.length <= PRIORITY_FETCH_PATHS.length);
 });
 
@@ -470,7 +477,7 @@ test("dynamically discounts repeated blocks while preserving repeated contact de
     fetchSitemap: async () => null,
     fetchPage: async (url) => ({ resolvedUrl: url, html: `<header>${shared}</header><main>${`${url.pathname.replace(/\W/g, "") || "homepage"} specialized details `.repeat(20)}</main><footer>${contact}</footer>` }),
   });
-  assert.ok(result.diagnostics.repeatedBoilerplateBlocksRemoved >= 3);
+  assert.ok(result.diagnostics.repeatedBoilerplateOccurrencesDiscounted >= 3);
   assert.ok(result.pages.every((item) => item.text.includes(contact)));
   assert.ok(result.pages.length > 3);
 });
@@ -485,7 +492,7 @@ test("does not count repeated occurrences within one page as site-wide boilerpla
       html: `<header>${repeated}</header><nav>${repeated}</nav><footer>${repeated}</footer><main>${"Unique homepage business information. ".repeat(10)}</main>`,
     } : null,
   });
-  assert.equal(result.diagnostics.repeatedBoilerplateBlocksRemoved, 0);
+  assert.equal(result.diagnostics.repeatedBoilerplateOccurrencesDiscounted, 0);
 });
 
 test("uses the homepage language consistently when scheduling alternates", async () => {
@@ -679,6 +686,8 @@ test("rejects chronological editorial paths without rejecting business pages end
   assert.ok(accepted.every((path) => result.pages.some((item) => new URL(item.url).pathname === path)));
   assert.ok(ignored.every((path) => !fetchedPaths.includes(path)));
   assert.ok(ignored.every((path) => !result.pages.some((item) => new URL(item.url).pathname === path)));
+  assert.equal(result.diagnostics.pagesFailed, 0);
+  assert.ok(result.diagnostics.pagesFetchRejected > 0);
 });
 
 const PRIORITY_FETCH_PATHS = [
@@ -763,7 +772,11 @@ test("discovers durable same-domain PDFs from HTML and sitemaps with an independ
   });
   assert.deepEqual(pdfCalls, ["/brochure.pdf", "/menu.pdf", "/pricing-guide.pdf"]);
   assert.equal(result.diagnostics.pdfsDiscovered, 5);
-  assert.equal(result.diagnostics.pdfsProcessed, 1);
+  assert.equal(result.diagnostics.pdfFetchAttempted, 3);
+  assert.equal(result.diagnostics.pdfsFetched, 3);
+  assert.equal(result.diagnostics.pdfParseAttempted, 3);
+  assert.equal(result.diagnostics.pdfsParsed, 3);
+  assert.equal(result.diagnostics.pdfsRetained, 1);
   assert.equal(result.diagnostics.pdfsSkipped, 4);
   assert.equal(result.diagnostics.pdfBytesDownloaded, 15);
   assert.equal(result.diagnostics.pdfPagesParsed, 6);
@@ -784,7 +797,7 @@ test("retains normalized PDF text, uses filename titles, and isolates parser fai
   const document=result.pages.find(item=>item.pageType==="document")!;
   assert.equal(document.title,"Service Catalog");
   assert.doesNotMatch(document.text,/\0| {2}|\n{3}/);
-  assert.equal(result.diagnostics.pdfsProcessed,1);
+  assert.equal(result.diagnostics.pdfsRetained,1);
   assert.equal(result.diagnostics.pdfsFailed,1);
   assert.equal(result.diagnostics.pdfDocumentsTruncated,1);
   assert.deepEqual(result.warnings,["A PDF document could not be read."]);
@@ -807,7 +820,7 @@ test("discovers a PDF from weak HTML without retaining or budgeting the weak pag
   assert.equal(result.pages.some((item) => item.url === "https://example.test/"), false);
   assert.equal(result.pages.filter((item) => item.pageType === "document").length, 1);
   assert.equal(result.diagnostics.pagesSkipped, 1);
-  assert.equal(result.diagnostics.pdfsProcessed, 1);
+  assert.equal(result.diagnostics.pdfsRetained, 1);
   assert.equal(fetchedPaths.filter((path) => path === "/downloads/service-catalog.pdf").length, 0);
 });
 
@@ -835,10 +848,11 @@ test("separates skipped PDF validation outcomes from eligible fetch failures", a
   const result = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe:async()=>undefined, fetchSitemap:async()=>null,
     fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:page("Acme",links)}:null,
-    fetchPdf:async()=>{ call += 1; return call === 1 ? {status:"skipped"} : {status:"failed"}; },
+    fetchPdf:async()=>{ call += 1; return call === 1 ? {status:"skipped",bytesDownloaded:123} : {status:"failed"}; },
   });
   assert.equal(result.diagnostics.pdfsSkipped,1);
   assert.equal(result.diagnostics.pdfsFailed,2);
+  assert.equal(result.diagnostics.pdfBytesDownloaded,123);
   assert.deepEqual(result.warnings,["A PDF document could not be read."]);
   assert.equal(result.pages.some((item)=>item.pageType==="home"),true);
 });
@@ -901,6 +915,7 @@ test("isolates browser timeouts and failures while continuing the crawl", async 
     renderPage:async(url,_timeout,signal)=>{ calls += 1; if(url.pathname==="/") return await new Promise((_resolve,reject)=>signal?.addEventListener("abort",()=>{aborted += 1;reject(new Error("aborted"));},{once:true})); if(url.pathname==="/about") throw new Error("secret browser failure"); return {resolvedUrl:url,html:`<main>${"Rendered service information. ".repeat(8)}</main>`}; },
   });
   assert.equal(calls, 3);
+  assert.equal(result.diagnostics.browserRenderAttempts, 3);
   assert.equal(aborted, 1);
   assert.equal(result.diagnostics.browserRenderTimeouts, 1);
   assert.equal(result.diagnostics.browserRenderFailures, 1);

@@ -449,6 +449,7 @@ async function createAiBuilderSchema() {
       warnings JSONB NOT NULL DEFAULT '[]'::jsonb,
       errors JSONB NOT NULL DEFAULT '[]'::jsonb,
       restrictions JSONB,
+      crawler_diagnostics JSONB,
       failure_stage TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -724,6 +725,7 @@ async function createAiBuilderSchema() {
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_communications_project_idx ON ai_builder_communications(project_id, sent_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_impersonation_events_admin_idx ON ai_builder_impersonation_events(admin_id, occurred_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_telemetry_project_idx ON ai_builder_crawl_telemetry(project_id, started_at DESC)`;
+  await sql`ALTER TABLE ai_builder_crawl_telemetry ADD COLUMN IF NOT EXISTS crawler_diagnostics JSONB`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_telemetry_url_idx ON ai_builder_crawl_telemetry(requested_url, started_at DESC)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_generation_telemetry_project_idx ON ai_builder_generation_telemetry(project_id, started_at DESC)`;
 }

@@ -21,9 +21,19 @@ export type BusinessWebsiteCrawlResult = {
 };
 
 export type BusinessWebsiteCrawlDiagnostics = {
+  /** Unique eligible HTML identities admitted to the crawl queue, including the submitted entry. */
   pagesDiscovered: number;
+  /** HTML responses whose extraction/duplicate pipeline completed, including pages subsequently skipped. */
   pagesProcessed: number;
+  pagesFetchAttempted: number;
+  pagesFetched: number;
+  /** Fetches that cleanly returned no eligible HTML document, such as 404s or policy-rejected responses. */
+  pagesFetchRejected: number;
+  pagesExtractionAttempted: number;
+  pagesExtractionSucceeded: number;
+  pagesRetained: number;
   pagesSkipped: number;
+  /** HTML fetch/read failures only; extraction failures are counted separately. */
   pagesFailed: number;
   pagesExtractionFailed: number;
   canonicalUrlsDetected: number;
@@ -32,7 +42,10 @@ export type BusinessWebsiteCrawlDiagnostics = {
   exactDuplicatesSkipped: number;
   nearDuplicatesSkipped: number;
   alternateVariantsSkipped: number;
-  repeatedBoilerplateBlocksRemoved: number;
+  alternateLinksRejected: number;
+  alternateLinksNotSelected: number;
+  alternatePagesDeduplicated: number;
+  repeatedBoilerplateOccurrencesDiscounted: number;
   jsonLdBlocksDetected: number;
   jsonLdBlocksParsed: number;
   malformedJsonLdBlocksIgnored: number;
@@ -51,13 +64,18 @@ export type BusinessWebsiteCrawlDiagnostics = {
   semanticBlocksDeduplicated: number;
   extractionOutputTruncated: number;
   pdfsDiscovered: number;
-  pdfsProcessed: number;
+  pdfFetchAttempted: number;
+  pdfsFetched: number;
+  pdfParseAttempted: number;
+  pdfsParsed: number;
+  pdfsRetained: number;
   pdfsSkipped: number;
   pdfsFailed: number;
   pdfBytesDownloaded: number;
   pdfPagesParsed: number;
   pdfDocumentsTruncated: number;
   browserPagesQueued: number;
+  browserRenderAttempts: number;
   browserPagesRendered: number;
   browserPagesSkipped: number;
   browserRenderFailures: number;
@@ -66,19 +84,24 @@ export type BusinessWebsiteCrawlDiagnostics = {
   browserRenderDurationMs: number;
   finalUrls: string[];
   restrictions: CrawlRestriction[];
+  warningDetails: CrawlWarning[];
   timings: BusinessWebsiteCrawlTimings;
 };
 
 export type BusinessWebsiteCrawlTimings = {
   initialUrlResolutionMs: number;
   homepageFetchMs: number;
+  sitemapDiscoveryMs: number;
   pageDiscoveryMs: number;
   pageCrawlingMs: number;
+  pdfFetchMs: number;
+  pdfParseMs: number;
   contentExtractionMs: number;
   totalCrawlDurationMs: number;
 };
 
 export type CrawlRestriction = { type: "access_denied" | "rate_limited" | "redirect_blocked" | "unsupported_protocol" | "unsupported_content_type" | "unsafe_destination" | "response_too_large"; url: string; status?: number };
+export type CrawlWarning = { stage: "homepage_fetch" | "html_fetch" | "html_extraction" | "browser_render" | "pdf_fetch" | "pdf_parse"; message: string; url: string };
 
 export class BusinessWebsiteCrawlError extends Error {
   constructor(message: string, public readonly diagnostics: BusinessWebsiteCrawlDiagnostics) { super(message); this.name = "BusinessWebsiteCrawlError"; }
@@ -450,7 +473,7 @@ async function requestSafeDestination(url: URL, options: { signal: AbortSignal; 
   });
 }
 
-class ResponseLimitError extends Error {}
+class ResponseLimitError extends Error { constructor(message: string, readonly bytesRead = 0) { super(message); } }
 
 async function cancelBody(body: ReadableStream<Uint8Array>): Promise<void> {
   try { await body.cancel(); } catch { /* Response cleanup cannot hide the crawl outcome. */ }
@@ -471,7 +494,7 @@ async function readBoundedBody(body: ReadableStream<Uint8Array>, maximumBytes: n
       const { done, value } = await reader.read();
       if (done) break;
       length += value.byteLength;
-      if (length > maximumBytes) throw new ResponseLimitError("Crawler response exceeds the download limit.");
+      if (length > maximumBytes) throw new ResponseLimitError("Crawler response exceeds the download limit.", length);
       chunks.push(value);
     }
   } catch (error) {
@@ -518,8 +541,11 @@ function isEligiblePdf(url: URL, discoveryText = ""): boolean {
 
 type FetchedPdf = { bytes: Uint8Array; resolvedUrl: URL; truncated: boolean };
 type ParsedPdf = { text: string; title?: string; pagesParsed: number; truncated: boolean };
-class PdfSkippedError extends Error { constructor(message: string, readonly truncated = false) { super(message); } }
-type PdfFetchOutcome = { status: "success"; document: FetchedPdf } | { status: "skipped"; truncated?: boolean } | { status: "failed" };
+class PdfSkippedError extends Error { constructor(message: string, readonly truncated = false, readonly bytesDownloaded = 0) { super(message); } }
+type PdfFetchOutcome =
+  | { status: "success"; document: FetchedPdf; bytesDownloaded?: number }
+  | { status: "skipped"; truncated?: boolean; bytesDownloaded?: number }
+  | { status: "failed"; bytesDownloaded?: number };
 
 async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<PdfFetchOutcome> {
   const controller = new AbortController();
@@ -554,7 +580,7 @@ async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<Pdf
       catch (error) {
         if (error instanceof ResponseLimitError) {
           restrictions.push({ type: "response_too_large", url: current.toString(), status: response.status });
-          throw new PdfSkippedError("PDF exceeds the download limit.", true);
+          throw new PdfSkippedError("PDF exceeds the download limit.", true, error.bytesRead);
         }
         throw error;
       }
@@ -562,13 +588,13 @@ async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<Pdf
       const type = (response.headers.get("content-type") ?? "").split(";", 1)[0]!.trim().toLowerCase();
       if (!signature || (type !== "application/pdf" && type !== "application/octet-stream" && type !== "binary/octet-stream")) {
         restrictions.push({ type: "unsupported_content_type", url: current.toString(), status: response.status });
-        return { status: "skipped" };
+        return { status: "skipped", bytesDownloaded: bytes.byteLength };
       }
-      return { status: "success", document: { bytes, resolvedUrl: current, truncated: false } };
+      return { status: "success", document: { bytes, resolvedUrl: current, truncated: false }, bytesDownloaded: bytes.byteLength };
     }
     return { status: "skipped" };
   } catch (error) {
-    if (error instanceof PdfSkippedError) return { status: "skipped", truncated: error.truncated };
+    if (error instanceof PdfSkippedError) return { status: "skipped", truncated: error.truncated, bytesDownloaded: error.bytesDownloaded };
     return { status: "failed" };
   } finally { clearTimeout(timeout); }
 }
@@ -1202,13 +1228,13 @@ export async function crawlBusinessWebsite(
   const assertSafe = dependencies.assertSafe ?? assertSafeDestination;
   const browserLimits: BrowserLimits = { ...BROWSER_LIMITS, ...dependencies.browserLimits };
   const totalStarted = now();
-  const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
-  const duplicateDiagnostics = { canonicalUrlsDetected: 0, canonicalDuplicatesSkipped: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, repeatedBoilerplateBlocksRemoved: 0 };
+  const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, sitemapDiscoveryMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, pdfFetchMs: 0, pdfParseMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
+  const duplicateDiagnostics = { canonicalUrlsDetected: 0, canonicalDuplicatesSkipped: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, alternateLinksRejected: 0, alternateLinksNotSelected: 0, alternatePagesDeduplicated: 0, repeatedBoilerplateOccurrencesDiscounted: 0 };
   const structuredDiagnostics = { jsonLdBlocksDetected: 0, jsonLdBlocksParsed: 0, malformedJsonLdBlocksIgnored: 0, supportedStructuredEntitiesDetected: 0, structuredFactsRetained: 0, structuredFactsDeduplicated: 0 };
   const semanticDiagnostics: SemanticDiagnostics = { headingsRetained:0, paragraphsRetained:0, listItemsRetained:0, tablesRetained:0, tableRowsRetained:0, definitionEntriesRetained:0, visibleFaqsRetained:0, hiddenElementsIgnored:0, semanticBlocksDeduplicated:0, extractionOutputTruncated:0 };
-  const pdfDiagnostics = { pdfsDiscovered:0, pdfsProcessed:0, pdfsSkipped:0, pdfsFailed:0, pdfBytesDownloaded:0, pdfPagesParsed:0, pdfDocumentsTruncated:0 };
-  const browserDiagnostics = { browserPagesQueued:0, browserPagesRendered:0, browserPagesSkipped:0, browserRenderFailures:0, browserRenderTimeouts:0, browserFallbacksUsed:0, browserRenderDurationMs:0 };
-  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,pagesExtractionFailed:0,...pdfDiagnostics,...browserDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
+  const pdfDiagnostics = { pdfsDiscovered:0, pdfFetchAttempted:0, pdfsFetched:0, pdfParseAttempted:0, pdfsParsed:0, pdfsRetained:0, pdfsSkipped:0, pdfsFailed:0, pdfBytesDownloaded:0, pdfPagesParsed:0, pdfDocumentsTruncated:0 };
+  const browserDiagnostics = { browserPagesQueued:0, browserRenderAttempts:0, browserPagesRendered:0, browserPagesSkipped:0, browserRenderFailures:0, browserRenderTimeouts:0, browserFallbacksUsed:0, browserRenderDurationMs:0 };
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesFetchAttempted:0,pagesFetched:0,pagesFetchRejected:0,pagesExtractionAttempted:0,pagesExtractionSucceeded:0,pagesRetained:0,pagesSkipped:0,pagesFailed:0,pagesExtractionFailed:0,...pdfDiagnostics,...browserDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,warningDetails:[],timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
   try { requested = normalizeWebsiteCrawlInput(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
@@ -1227,10 +1253,19 @@ export async function crawlBusinessWebsite(
   timings.initialUrlResolutionMs = Math.max(0, now() - resolutionStarted);
 
   const warnings: string[] = [];
+  const warningDetails: CrawlWarning[] = [];
+  const warn = (warning: CrawlWarning) => {
+    if (!warnings.includes(warning.message)) warnings.push(warning.message);
+    if (!warningDetails.some((item) => item.stage === warning.stage && item.url === warning.url && item.message === warning.message)) warningDetails.push(warning);
+  };
   const pages: CrawledBusinessPage[] = [];
   let pagesSkipped = 0;
   let pagesFailed = 0;
   let pagesExtractionFailed = 0;
+  let pagesFetched = 0;
+  let pagesFetchRejected = 0;
+  let pagesExtractionAttempted = 0;
+  let pagesExtractionSucceeded = 0;
   let homepageResolved = requestedEntry;
   let homepageHtml = "";
   let pageFetchAttempts = 0;
@@ -1238,12 +1273,12 @@ export async function crawlBusinessWebsite(
   try {
     pageFetchAttempts += 1;
     const homepage = await fetchPage(requestedEntry, restrictions, true);
-    if (homepage) { homepageResolved = homepage.resolvedUrl; homepageHtml = homepage.html; }
+    if (homepage) { pagesFetched += 1; homepageResolved = homepage.resolvedUrl; homepageHtml = homepage.html; }
     else pagesFailed += 1;
   } catch (error) {
     pagesFailed += 1;
     const message = error instanceof Error ? error.message : "Unknown crawl error";
-    if (!warnings.includes(message)) warnings.push(message);
+    warn({ stage:"homepage_fetch", message, url:requestedEntry.toString() });
   }
   timings.homepageFetchMs = Math.max(0, now() - homepageStarted);
 
@@ -1251,6 +1286,7 @@ export async function crawlBusinessWebsite(
   const queue: string[] = [];
   const queued = new Set<string>();
   const visited = new Set<string>();
+  const discoveredHtmlUrls = new Set<string>([dedupeUrl(requestedEntry.toString())]);
   const finalUrls = new Set<string>();
   const sitemapDiscovered = new Set<string>();
   const pdfCandidates = new Set<string>();
@@ -1262,7 +1298,7 @@ export async function crawlBusinessWebsite(
   let preferredLanguage = (requested.searchParams.get("lang") ?? "").toLowerCase();
   const syncPages = () => { pages.splice(0, pages.length, ...retained.map((record) => record.page)); };
   const reportPageProgress = () => {
-    try { onPage?.(pages.length, visited.size + queued.size + 1); }
+    try { onPage?.(retained.filter((record) => record.page.pageType !== "document").length, discoveredHtmlUrls.size); }
     catch { /* Progress observers cannot change crawl retention or failure state. */ }
   };
   const meaningfulFor = (record: Pick<RetainedPage, "blocks">) => normalizeText(record.blocks
@@ -1273,6 +1309,7 @@ export async function crawlBusinessWebsite(
     try { parsed = new URL(value); } catch { return; }
     if (!alreadyClassified && !isDiscoverableBusinessUrl(parsed)) return;
     const normalized = dedupeUrl(parsed.toString());
+    discoveredHtmlUrls.add(normalized);
     if (!visited.has(normalized) && !queued.has(normalized)) { queued.add(normalized); front ? queue.unshift(normalized) : queue.push(normalized); }
   };
   const normalizeSitemapPage = (value: string, sitemapUrl: URL): string | null => {
@@ -1349,6 +1386,7 @@ export async function crawlBusinessWebsite(
     browserDiagnostics.browserPagesQueued += 1;
     if (browserAttempts >= browserLimits.pages || browserTimeUsed >= browserLimits.totalTimeMs) { browserDiagnostics.browserPagesSkipped += 1; return fetched; }
     browserAttempts += 1;
+    browserDiagnostics.browserRenderAttempts += 1;
     const remaining = browserLimits.totalTimeMs - browserTimeUsed;
     const timeoutMs = Math.min(browserLimits.renderTimeoutMs, remaining);
     const started = now();
@@ -1394,7 +1432,7 @@ export async function crawlBusinessWebsite(
       }
       else browserDiagnostics.browserRenderFailures += 1;
       const warning = "A JavaScript-rendered page could not be processed.";
-      if (!warnings.includes(warning)) warnings.push(warning);
+      warn({ stage:"browser_render", message:warning, url:fetched.resolvedUrl.toString() });
       return fetched;
     } finally {
       if (timer) clearTimeout(timer);
@@ -1410,6 +1448,7 @@ export async function crawlBusinessWebsite(
       finalUrls.add(finalUrl);
       const relations = extractLinkRelations(fetched.html, fetched.resolvedUrl, baseHost);
       duplicateDiagnostics.alternateVariantsSkipped += relations.ignoredAlternates;
+      duplicateDiagnostics.alternateLinksRejected += relations.ignoredAlternates;
       const safeRelation = async (value: string | undefined) => {
         if (!value) return undefined;
         try { await assertSafe(new URL(value)); return value; } catch { return undefined; }
@@ -1437,7 +1476,7 @@ export async function crawlBusinessWebsite(
         pageBlockKeys.add(block.key);
       }
       pageBlockKeys.forEach((key) => blockCounts.set(key, (blockCounts.get(key) ?? 0) + 1));
-      duplicateDiagnostics.repeatedBoilerplateBlocksRemoved = Array.from(blockCounts).reduce((total, [key, count]) =>
+      duplicateDiagnostics.repeatedBoilerplateOccurrencesDiscounted = Array.from(blockCounts).reduce((total, [key, count]) =>
         total + (count >= 3 && !protectedBlocks.has(key) ? count : 0), 0);
       timings.contentExtractionMs += Math.max(0, now() - extractionStarted);
       const discoveryStarted = now();
@@ -1463,7 +1502,8 @@ export async function crawlBusinessWebsite(
         ?? (preferredLanguage === "x-default" ? relations.alternates.find((item) => item.language === "x-default") : undefined);
       for (const alternate of relations.alternates) {
         const safeAlternate = await safeRelation(alternate.url);
-        if (!safeAlternate || alternate !== preferredAlternate || safeAlternate === identity || localizedUrls.size >= 1) { duplicateDiagnostics.alternateVariantsSkipped += 1; continue; }
+        if (!safeAlternate) { duplicateDiagnostics.alternateVariantsSkipped += 1; duplicateDiagnostics.alternateLinksRejected += 1; continue; }
+        if (alternate !== preferredAlternate || safeAlternate === identity || localizedUrls.size >= 1) { duplicateDiagnostics.alternateVariantsSkipped += 1; duplicateDiagnostics.alternateLinksNotSelected += 1; continue; }
         localizedUrls.add(safeAlternate);
         enqueue(safeAlternate, true, true);
       }
@@ -1483,7 +1523,7 @@ export async function crawlBusinessWebsite(
       }
       if (duplicate && duplicateKind) {
         pagesSkipped += 1;
-        if (localized) duplicateDiagnostics.alternateVariantsSkipped += 1;
+        if (localized) { duplicateDiagnostics.alternateVariantsSkipped += 1; duplicateDiagnostics.alternatePagesDeduplicated += 1; }
         else if (duplicateKind === "canonical") duplicateDiagnostics.canonicalDuplicatesSkipped += 1;
         else if (duplicateKind === "exact") duplicateDiagnostics.exactDuplicatesSkipped += 1;
         else duplicateDiagnostics.nearDuplicatesSkipped += 1;
@@ -1498,13 +1538,13 @@ export async function crawlBusinessWebsite(
       reportPageProgress();
   };
   const processFetchedSafely = async (fetched: { html: string; resolvedUrl: URL }) => {
-    try { await processFetched(fetched); }
+    pagesExtractionAttempted += 1;
+    try { await processFetched(fetched); pagesExtractionSucceeded += 1; }
     catch {
       try { finalUrls.delete(dedupeUrl(fetched.resolvedUrl.toString())); } catch { /* Invalid failure inputs have no retained identity. */ }
-      pagesFailed += 1;
       pagesExtractionFailed += 1;
       const warning = "A page was fetched but its content could not be extracted.";
-      if (!warnings.includes(warning)) warnings.push(warning);
+      warn({ stage:"html_extraction", message:warning, url:fetched.resolvedUrl.toString() });
     }
   };
 
@@ -1514,7 +1554,7 @@ export async function crawlBusinessWebsite(
   if (homepageHtml) await processFetchedSafely({ html: homepageHtml, resolvedUrl: homepageResolved });
   const sitemapStarted = now();
   const sitemapPages = await discoverSitemapPages();
-  timings.pageDiscoveryMs += Math.max(0, now() - sitemapStarted);
+  timings.sitemapDiscoveryMs += Math.max(0, now() - sitemapStarted);
   for (const sitemapPage of sitemapPages) enqueue(sitemapPage);
 
   while (queue.length > 0 && pageFetchAttempts < MAX_PAGES) {
@@ -1544,11 +1584,18 @@ export async function crawlBusinessWebsite(
     timings.pageCrawlingMs += Math.max(0, now() - crawlStarted);
     for (const { parsed, fetched, error } of fetchedBatch) {
       if (!fetched) {
-        pagesFailed += 1;
-        const message = error instanceof Error ? error.message : error ? "Unknown crawl error" : "Page could not be read";
-        if (error && !warnings.includes(message)) warnings.push(message);
+        if (error) {
+          pagesFailed += 1;
+          const message = error instanceof Error ? error.message : "Unknown crawl error";
+          warn({ stage:"html_fetch", message, url:parsed.toString() });
+        } else {
+          // A clean no-document outcome (404, unsupported content, blocked redirect,
+          // or another policy rejection) is a skip, not an operational fetch failure.
+          pagesFetchRejected += 1;
+        }
         continue;
       }
+      pagesFetched += 1;
       await processFetchedSafely(fetched);
     }
   }
@@ -1556,16 +1603,29 @@ export async function crawlBusinessWebsite(
   // PDFs are intentionally supplemental: they receive their own budget only after
   // the bounded HTML crawl has completed.
   for (const candidateUrl of Array.from(pdfCandidates).slice(0, PDF_LIMITS.documents)) {
+    pdfDiagnostics.pdfFetchAttempted += 1;
+    const pdfFetchStarted = now();
+    let outcome: PdfFetchOutcome | FetchedPdf | null;
     try {
-      const outcome = await fetchPdfDocument(new URL(candidateUrl), restrictions);
-      if (!outcome) { pdfDiagnostics.pdfsFailed += 1; const warning = "A PDF document could not be read."; if (!warnings.includes(warning)) warnings.push(warning); continue; }
+      outcome = await fetchPdfDocument(new URL(candidateUrl), restrictions);
+    } catch (error) {
+      timings.pdfFetchMs += Math.max(0, now() - pdfFetchStarted);
+      pdfDiagnostics.pdfsFailed += 1;
+      warn({ stage:"pdf_fetch", message:"A PDF document could not be read.", url:candidateUrl });
+      continue;
+    }
+    timings.pdfFetchMs += Math.max(0, now() - pdfFetchStarted);
+    try {
+      if (!outcome) { pdfDiagnostics.pdfsFailed += 1; warn({ stage:"pdf_fetch", message:"A PDF document could not be read.", url:candidateUrl }); continue; }
+      if ("status" in outcome) pdfDiagnostics.pdfBytesDownloaded += outcome.bytesDownloaded ?? (outcome.status === "success" ? outcome.document.bytes.byteLength : 0);
       if ("status" in outcome && outcome.status !== "success") {
         if (outcome.status === "skipped") { pdfDiagnostics.pdfsSkipped += 1; if (outcome.truncated) pdfDiagnostics.pdfDocumentsTruncated += 1; }
-        else { pdfDiagnostics.pdfsFailed += 1; const warning = "A PDF document could not be read."; if (!warnings.includes(warning)) warnings.push(warning); }
+        else { pdfDiagnostics.pdfsFailed += 1; warn({ stage:"pdf_fetch", message:"A PDF document could not be read.", url:candidateUrl }); }
         continue;
       }
       const fetched = "status" in outcome ? outcome.document : outcome;
-      pdfDiagnostics.pdfBytesDownloaded += fetched.bytes.byteLength;
+      if (!("status" in outcome)) pdfDiagnostics.pdfBytesDownloaded += fetched.bytes.byteLength;
+      pdfDiagnostics.pdfsFetched += 1;
       if (normalizeHost(fetched.resolvedUrl.hostname) !== baseHost || (fetched.resolvedUrl.protocol !== "http:" && fetched.resolvedUrl.protocol !== "https:")) {
         pdfDiagnostics.pdfsSkipped += 1;
         restrictions.push({ type:"redirect_blocked", url:fetched.resolvedUrl.toString() });
@@ -1574,7 +1634,18 @@ export async function crawlBusinessWebsite(
       const finalUrl = dedupeUrl(fetched.resolvedUrl.toString());
       if (finalUrls.has(finalUrl)) { pdfDiagnostics.pdfsSkipped += 1; continue; }
       finalUrls.add(finalUrl);
-      const parsed = await parsePdfDocument(fetched.bytes);
+      pdfDiagnostics.pdfParseAttempted += 1;
+      const pdfParseStarted = now();
+      let parsed: ParsedPdf;
+      try { parsed = await parsePdfDocument(fetched.bytes); }
+      catch (error) {
+        timings.pdfParseMs += Math.max(0, now() - pdfParseStarted);
+        pdfDiagnostics.pdfsFailed += 1;
+        warn({ stage:"pdf_parse", message:"A PDF document could not be read.", url:fetched.resolvedUrl.toString() });
+        continue;
+      }
+      timings.pdfParseMs += Math.max(0, now() - pdfParseStarted);
+      pdfDiagnostics.pdfsParsed += 1;
       pdfDiagnostics.pdfPagesParsed += Math.min(parsed.pagesParsed, PDF_LIMITS.pages);
       if (fetched.truncated || parsed.truncated || parsed.pagesParsed > PDF_LIMITS.pages || parsed.text.length > PDF_LIMITS.characters) pdfDiagnostics.pdfDocumentsTruncated += 1;
       const text = parsed.text.replace(/\0/g, "").replace(/[ \t\f\v]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim().slice(0, PDF_LIMITS.characters).trim();
@@ -1590,10 +1661,10 @@ export async function crawlBusinessWebsite(
       if (!duplicate && meaningful.split(" ").length >= 20) { const candidateShingles = shingles(meaningful); duplicate = retained.find((record) => similarity(shingles(meaningfulFor(record)), candidateShingles) >= 0.92); near = Boolean(duplicate); }
       if (duplicate) { pdfDiagnostics.pdfsSkipped += 1; if (near) duplicateDiagnostics.nearDuplicatesSkipped += 1; else duplicateDiagnostics.exactDuplicatesSkipped += 1; continue; }
       for (const block of blocks) blockCounts.set(block.key, (blockCounts.get(block.key) ?? 0) + 1);
-      retained.push(candidate); pdfDiagnostics.pdfsProcessed += 1; syncPages();
+      retained.push(candidate); pdfDiagnostics.pdfsRetained += 1; syncPages();
     } catch (error) {
       if (error instanceof PdfSkippedError) { pdfDiagnostics.pdfsSkipped += 1; if (error.truncated) pdfDiagnostics.pdfDocumentsTruncated += 1; }
-      else { pdfDiagnostics.pdfsFailed += 1; const warning = "A PDF document could not be read."; if (!warnings.includes(warning)) warnings.push(warning); }
+      else { pdfDiagnostics.pdfsFailed += 1; warn({ stage:"pdf_parse", message:"A PDF document could not be read.", url:candidateUrl }); }
     }
   }
   if (pdfCandidates.size > PDF_LIMITS.documents) pdfDiagnostics.pdfsSkipped += pdfCandidates.size - PDF_LIMITS.documents;
@@ -1604,7 +1675,10 @@ export async function crawlBusinessWebsite(
 
   if (pages.length === 0) {
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
-      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, pagesExtractionFailed, ...pdfDiagnostics, ...browserDiagnostics, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics, finalUrls: [], restrictions, timings,
+      pagesDiscovered: discoveredHtmlUrls.size, pagesProcessed: pagesExtractionSucceeded, pagesFetchAttempted:pageFetchAttempts,
+      pagesFetched, pagesFetchRejected, pagesExtractionAttempted, pagesExtractionSucceeded, pagesRetained:0, pagesSkipped, pagesFailed, pagesExtractionFailed,
+      ...pdfDiagnostics, ...browserDiagnostics, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics,
+      finalUrls: [], restrictions, warningDetails, timings,
     });
   }
 
@@ -1614,18 +1688,23 @@ export async function crawlBusinessWebsite(
     pages,
     warnings,
     diagnostics: {
-      pagesDiscovered: visited.size + queued.size + 1,
-      pagesProcessed: pages.filter((page) => page.pageType !== "document").length,
-      pagesSkipped,
-      pagesFailed,
-      pagesExtractionFailed,
+      pagesDiscovered: discoveredHtmlUrls.size,
+      pagesProcessed: pagesExtractionSucceeded,
+      pagesFetchAttempted:pageFetchAttempts,
+      pagesFetched,
+      pagesFetchRejected,
+      pagesExtractionAttempted,
+      pagesExtractionSucceeded,
+      pagesRetained: retained.filter((record) => record.page.pageType !== "document").length,
+      pagesSkipped, pagesFailed, pagesExtractionFailed,
       ...pdfDiagnostics,
       ...browserDiagnostics,
       ...duplicateDiagnostics,
       ...structuredDiagnostics,
       ...semanticDiagnostics,
-      finalUrls: pages.map((page) => page.url),
+      finalUrls: retained.map((record) => record.finalUrl),
       restrictions,
+      warningDetails,
       timings,
     },
   };

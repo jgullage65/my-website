@@ -327,10 +327,10 @@ export async function POST(request: Request) {
     crawlDiagnostics = crawl.diagnostics;
     const crawlCompletedAt = new Date().toISOString();
     const telemetryFinish = performance.now();
-    await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
+    await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed||crawl.diagnostics.pagesExtractionFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,diagnostics:crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
     persistenceMs += performance.now() - telemetryFinish;
     crawlRecorded = true;
-    send({ type: "crawl_complete", pagesCrawled: crawl.pages.length, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
+    send({ type: "crawl_complete", pagesCrawled: crawl.diagnostics.pagesRetained, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
     send({ type: "progress", percent: 70 });
     const client = new OpenAI({ apiKey });
 
@@ -451,7 +451,7 @@ export async function POST(request: Request) {
         if (!crawlRecorded) {
           const diagnostics=error instanceof BusinessWebsiteCrawlError?error.diagnostics:undefined;
           crawlDiagnostics = diagnostics;
-          await finishCrawlTelemetry(attemptId,{status:"failed",startedAt:crawlStartedAt,completedAt:new Date().toISOString(),...diagnostics,errors:[{stage:"crawl",message:message.slice(0,500)}],failureStage:"crawl"});
+          await finishCrawlTelemetry(attemptId,{status:"failed",startedAt:crawlStartedAt,completedAt:new Date().toISOString(),...diagnostics,diagnostics,errors:[{stage:"crawl",message:message.slice(0,500)}],failureStage:"crawl"});
         }
         console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website, message });
         send({
