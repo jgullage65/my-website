@@ -7,7 +7,7 @@ import {
   retrieveStructuredCanonicalKnowledge,
   type ChatResponse,
 } from "@/app/lib/ai-engine/chat";
-import type { ConversationMemory } from "@/app/lib/ai-engine/memory/contracts";
+import type { ConversationMemory } from "@/app/lib/ai-engine/contracts/memory";
 import { runOpenAiChat } from "@/app/lib/ai-engine/providers/openaiChatRunner";
 import { getPersistedAssistantProjectionForUpdate } from "@/app/lib/ai-engine/assistant-projection/persistence";
 import {
