@@ -466,14 +466,32 @@ async function createAiBuilderSchema() {
       processing_percent INTEGER,
       result JSONB,
       error_message TEXT,
+      attempt_count INTEGER NOT NULL DEFAULT 0,
+      lease_owner TEXT,
+      lease_expires_at TIMESTAMPTZ,
+      next_attempt_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       started_at TIMESTAMPTZ,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       completed_at TIMESTAMPTZ
     )
   `;
+  await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS attempt_count INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS lease_owner TEXT`;
+  await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ`;
+  await sql`UPDATE ai_builder_crawl_jobs SET lease_expires_at=NOW(),updated_at=NOW() WHERE state IN ('crawling','processing') AND lease_expires_at IS NULL`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_jobs_queue_idx ON ai_builder_crawl_jobs(state, created_at)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_crawl_jobs_owner_idx ON ai_builder_crawl_jobs(clerk_user_id, created_at DESC)`;
+  await sql`
+    WITH duplicates AS (
+      SELECT id, ROW_NUMBER() OVER (PARTITION BY clerk_user_id ORDER BY created_at, id) AS position
+      FROM ai_builder_crawl_jobs WHERE state IN ('queued','crawling','processing')
+    )
+    UPDATE ai_builder_crawl_jobs SET state='failed',error_message='Superseded by another active crawl job.',completed_at=NOW(),updated_at=NOW(),lease_owner=NULL,lease_expires_at=NULL
+    WHERE id IN (SELECT id FROM duplicates WHERE position > 1)
+  `;
+  await sql`CREATE UNIQUE INDEX IF NOT EXISTS ai_builder_crawl_jobs_one_active_per_user_idx ON ai_builder_crawl_jobs(clerk_user_id) WHERE state IN ('queued','crawling','processing')`;
 
   await sql`
     CREATE TABLE IF NOT EXISTS ai_builder_generation_telemetry (

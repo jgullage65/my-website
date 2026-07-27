@@ -149,10 +149,11 @@ const BROWSER_LIMITS = {
   renderTimeoutMs: 5_000,
   totalTimeMs: 12_000,
 } as const;
+const BROWSER_CANCELLATION_GRACE_MS = 1_000;
 type BrowserLimits = { pages: number; renderTimeoutMs: number; totalTimeMs: number };
 
 type RenderedHtml = { html: string; resolvedUrl: URL };
-type BrowserRenderer = { render: (url: URL, timeoutMs: number) => Promise<RenderedHtml | null>; close: () => Promise<void> };
+type BrowserRenderer = { render: (url: URL, timeoutMs: number, signal?: AbortSignal) => Promise<RenderedHtml | null>; close: () => Promise<void> };
 type BrowserRoute = { request: () => { url: () => string }; abort: () => Promise<void>; continue: () => Promise<void> };
 type SafeAddress = { address: string; family: 4 | 6 };
 type SafeDestination = SafeAddress & { addresses?: SafeAddress[] };
@@ -166,6 +167,7 @@ type PlaywrightBrowser = {
       evaluate: <Result>(work: () => Result) => Promise<Result>;
       content: () => Promise<string>;
       url: () => string;
+      close: () => Promise<void>;
     }>;
   }>;
   close: () => Promise<void>;
@@ -187,6 +189,12 @@ export async function createPlaywrightRenderer(assertSafe: DestinationSafetyChec
     headless: true,
     ...(resolverRules ? { args: ["--no-proxy-server", `--host-resolver-rules=${resolverRules}`] } : {}),
   });
+  let browserClosed = false;
+  const closeBrowser = async () => {
+    if (browserClosed) return;
+    browserClosed = true;
+    await browser.close();
+  };
   try {
     const context = await browser.newContext({ javaScriptEnabled: true, serviceWorkers: "block" });
     await context.routeWebSocket("**", async (socket) => { await socket.close(); });
@@ -200,16 +208,31 @@ export async function createPlaywrightRenderer(assertSafe: DestinationSafetyChec
     });
     const page = await context.newPage();
     return {
-      render: async (url, timeoutMs) => {
-        await page.goto(url.toString(), { waitUntil: "networkidle", timeout: timeoutMs });
-        const serializedCharacters = await page.evaluate(() => document.documentElement?.outerHTML.length ?? 0);
-        if (serializedCharacters > MAX_HTML_BYTES) throw new ResponseLimitError("Rendered page exceeds the extraction limit.");
-        return { html: await page.content(), resolvedUrl: new URL(page.url()) };
+      render: async (url, timeoutMs, signal) => {
+        const page = await context.newPage();
+        let pageClosed = false;
+        const closePage = async () => {
+          if (pageClosed) return;
+          pageClosed = true;
+          try { await page.close(); } catch { /* Abort and cleanup are best effort. */ }
+        };
+        const abort = () => { void closePage(); };
+        signal?.addEventListener("abort", abort, { once: true });
+        try {
+          if (signal?.aborted) throw new Error("Browser render aborted.");
+          await page.goto(url.toString(), { waitUntil: "networkidle", timeout: timeoutMs });
+          const serializedCharacters = await page.evaluate(() => document.documentElement?.outerHTML.length ?? 0);
+          if (serializedCharacters > MAX_HTML_BYTES) throw new ResponseLimitError("Rendered page exceeds the extraction limit.");
+          return { html: await page.content(), resolvedUrl: new URL(page.url()) };
+        } finally {
+          signal?.removeEventListener("abort", abort);
+          await closePage();
+        }
       },
-      close: async () => { await browser.close(); },
+      close: closeBrowser,
     };
   } catch (error) {
-    try { await browser.close(); } catch { /* Initialization cleanup cannot hide the original failure. */ }
+    try { await closeBrowser(); } catch { /* Initialization cleanup cannot hide the original failure. */ }
     throw error;
   }
 }
@@ -276,7 +299,7 @@ const IGNORED_EXTENSIONS = new Set([
 const PDF_DURABLE_SIGNAL = /(?:^|[^a-z])(?:brochures?|menus?|catalog(?:ue)?s?|services?|pricing|prices?|rates?|polic(?:y|ies)|manuals?|guides?|specifications?|capabilities|products?|packages?)(?:[^a-z]|$)/i;
 const PDF_EDITORIAL_SIGNAL = /(?:^|[^a-z])(?:newsletters?|press[\s_-]*releases?|magazines?|blogs?|news|articles?|posts?|archives?|annual[\s_-]*(?:content|archive))(?:[^a-z]|$)/i;
 
-function normalizeInputUrl(value: string): URL {
+export function normalizeWebsiteCrawlInput(value: string): URL {
   const trimmed = value.trim();
   if (!trimmed) throw new Error("Website URL is required.");
 
@@ -1166,7 +1189,7 @@ export async function crawlBusinessWebsite(
     parsePdf?: typeof parsePdf;
     assertSafe?: DestinationSafetyCheck;
     now?: () => number;
-    renderPage?: (url: URL, timeoutMs: number) => Promise<RenderedHtml | null>;
+    renderPage?: (url: URL, timeoutMs: number, signal?: AbortSignal) => Promise<RenderedHtml | null>;
     createBrowserRenderer?: (assertSafe: DestinationSafetyCheck, baseHost: string, renderHost?: string) => Promise<BrowserRenderer>;
     browserLimits?: Partial<BrowserLimits>;
   } = {},
@@ -1187,15 +1210,16 @@ export async function crawlBusinessWebsite(
   const browserDiagnostics = { browserPagesQueued:0, browserPagesRendered:0, browserPagesSkipped:0, browserRenderFailures:0, browserRenderTimeouts:0, browserFallbacksUsed:0, browserRenderDurationMs:0 };
   const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,pagesExtractionFailed:0,...pdfDiagnostics,...browserDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
-  try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
+  try { requested = normalizeWebsiteCrawlInput(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
     const restrictions:CrawlRestriction[]=message.includes("http or https")?[{type:"unsupported_protocol",url:websiteUrl.slice(0,500)}]:[];
     throw new BusinessWebsiteCrawlError(message,emptyDiagnostics(restrictions));
   }
   const restrictions: CrawlRestriction[] = [];
-  const requestedRoot = new URL("/", requested.origin);
+  const requestedEntry = new URL(requested);
+  const originRoot = new URL("/", requested.origin);
   const resolutionStarted = now();
-  try { await assertSafe(requestedRoot); } catch (error) {
+  try { await assertSafe(requestedEntry); } catch (error) {
     timings.initialUrlResolutionMs = Math.max(0, now() - resolutionStarted);
     restrictions.push({type:"unsafe_destination",url:requested.toString()});
     throw new BusinessWebsiteCrawlError(error instanceof Error?error.message:"Unsafe crawler destination.",emptyDiagnostics(restrictions));
@@ -1207,13 +1231,13 @@ export async function crawlBusinessWebsite(
   let pagesSkipped = 0;
   let pagesFailed = 0;
   let pagesExtractionFailed = 0;
-  let homepageResolved = requestedRoot;
+  let homepageResolved = requestedEntry;
   let homepageHtml = "";
   let pageFetchAttempts = 0;
   const homepageStarted = now();
   try {
     pageFetchAttempts += 1;
-    const homepage = await fetchPage(requestedRoot, restrictions, true);
+    const homepage = await fetchPage(requestedEntry, restrictions, true);
     if (homepage) { homepageResolved = homepage.resolvedUrl; homepageHtml = homepage.html; }
     else pagesFailed += 1;
   } catch (error) {
@@ -1329,12 +1353,17 @@ export async function crawlBusinessWebsite(
     const timeoutMs = Math.min(browserLimits.renderTimeoutMs, remaining);
     const started = now();
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const renderController = new AbortController();
+    let renderPromise: Promise<RenderedHtml | null> | undefined;
     try {
       const render = dependencies.renderPage ?? (renderer ??= await (dependencies.createBrowserRenderer
         ? dependencies.createBrowserRenderer(assertSafe, baseHost, fetched.resolvedUrl.hostname)
         : createPlaywrightRenderer(assertSafe, baseHost, undefined, fetched.resolvedUrl.hostname))).render;
-      const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new BrowserRenderTimeout()), timeoutMs); });
-      const rendered = await Promise.race([render(new URL(fetched.resolvedUrl), timeoutMs), timeout]);
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => { renderController.abort(); reject(new BrowserRenderTimeout()); }, timeoutMs);
+      });
+      renderPromise = render(new URL(fetched.resolvedUrl), timeoutMs, renderController.signal);
+      const rendered = await Promise.race([renderPromise, timeout]);
       if (!rendered) { browserDiagnostics.browserPagesSkipped += 1; return fetched; }
       browserDiagnostics.browserPagesRendered += 1;
       if ((rendered.resolvedUrl.protocol !== "http:" && rendered.resolvedUrl.protocol !== "https:") || normalizeHost(rendered.resolvedUrl.hostname) !== baseHost) throw new Error("Invalid rendered destination");
@@ -1347,7 +1376,22 @@ export async function crawlBusinessWebsite(
       browserDiagnostics.browserFallbacksUsed += 1;
       return rendered;
     } catch (error) {
-      if (error instanceof BrowserRenderTimeout) browserDiagnostics.browserRenderTimeouts += 1;
+      if (error instanceof BrowserRenderTimeout) {
+        browserDiagnostics.browserRenderTimeouts += 1;
+        renderController.abort();
+        if (renderPromise) {
+          let drainTimer: ReturnType<typeof setTimeout> | undefined;
+          const drained = await Promise.race([
+            renderPromise.then(() => true, () => true),
+            new Promise<false>((resolve) => { drainTimer = setTimeout(() => resolve(false), BROWSER_CANCELLATION_GRACE_MS); }),
+          ]);
+          if (drainTimer) clearTimeout(drainTimer);
+          if (!drained && renderer) {
+            try { await renderer.close(); } catch { /* Timed-out renderer disposal is best effort. */ }
+            renderer = undefined;
+          }
+        }
+      }
       else browserDiagnostics.browserRenderFailures += 1;
       const warning = "A JavaScript-rendered page could not be processed.";
       if (!warnings.includes(warning)) warnings.push(warning);
@@ -1465,6 +1509,7 @@ export async function crawlBusinessWebsite(
   };
 
   try {
+  if (dedupeUrl(originRoot.toString()) !== dedupeUrl(requestedEntry.toString())) enqueue(originRoot.toString(), false, true);
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
   if (homepageHtml) await processFetchedSafely({ html: homepageHtml, resolvedUrl: homepageResolved });
   const sitemapStarted = now();
@@ -1553,8 +1598,6 @@ export async function crawlBusinessWebsite(
   }
   if (pdfCandidates.size > PDF_LIMITS.documents) pdfDiagnostics.pdfsSkipped += pdfCandidates.size - PDF_LIMITS.documents;
 
-  if (renderer) { try { await renderer.close(); } catch { /* Rendering cleanup cannot fail a crawl. */ } }
-
   timings.totalCrawlDurationMs = Math.max(0, now() - totalStarted);
   structuredDiagnostics.structuredFactsRetained = retained.reduce((total, record) => total + record.structuredFacts, 0);
   for(const key of Object.keys(semanticDiagnostics) as (keyof SemanticDiagnostics)[]) semanticDiagnostics[key]=retained.reduce((total,record)=>total+record.semantic[key],0);
@@ -1566,7 +1609,7 @@ export async function crawlBusinessWebsite(
   }
 
   return {
-    requestedUrl: requestedRoot.toString(),
+    requestedUrl: requestedEntry.toString(),
     resolvedUrl: homepageResolved.toString(),
     pages,
     warnings,

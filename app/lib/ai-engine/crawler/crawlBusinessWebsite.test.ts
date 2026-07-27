@@ -504,7 +504,7 @@ test("uses the homepage language consistently when scheduling alternates", async
   assert.ok(!calls.includes("/default/services"));
 });
 
-test("preserves submitted root and canonical homepage identity when internal pages finish later", async () => {
+test("preserves submitted entry and canonical homepage identity when internal pages finish later", async () => {
   const calls: string[] = [];
   const fetchPage = async (url: URL, _restrictions: CrawlRestriction[]) => {
     calls.push(url.toString());
@@ -532,7 +532,8 @@ test("preserves submitted root and canonical homepage identity when internal pag
     fetchSitemap: async () => null,
   });
 
-  assert.equal(result.requestedUrl, "https://example.test/");
+  assert.equal(calls[0], "https://example.test/contact?from=form");
+  assert.equal(result.requestedUrl, "https://example.test/contact?from=form");
   assert.equal(result.resolvedUrl, "https://www.example.test/");
   assert.equal(result.pages[0]?.pageType, "home");
   assert.equal(result.pages[0]?.title, "Acme Plumbing | Local Experts");
@@ -893,13 +894,14 @@ test("rejects oversized rendered HTML without losing other crawl pages", async (
 });
 
 test("isolates browser timeouts and failures while continuing the crawl", async () => {
-  let calls = 0;
+  let calls = 0, aborted = 0;
   const result = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe:async()=>undefined, fetchSitemap:async()=>null, browserLimits:{renderTimeoutMs:5},
     fetchPage:async(url)=>url.pathname==="/"||url.pathname==="/about"||url.pathname==="/services"?{resolvedUrl:url,html:`<title>${url.pathname}</title><div id="app"></div>`}:null,
-    renderPage:async(url)=>{ calls += 1; if(url.pathname==="/") return await new Promise(()=>{}); if(url.pathname==="/about") throw new Error("secret browser failure"); return {resolvedUrl:url,html:`<main>${"Rendered service information. ".repeat(8)}</main>`}; },
+    renderPage:async(url,_timeout,signal)=>{ calls += 1; if(url.pathname==="/") return await new Promise((_resolve,reject)=>signal?.addEventListener("abort",()=>{aborted += 1;reject(new Error("aborted"));},{once:true})); if(url.pathname==="/about") throw new Error("secret browser failure"); return {resolvedUrl:url,html:`<main>${"Rendered service information. ".repeat(8)}</main>`}; },
   });
   assert.equal(calls, 3);
+  assert.equal(aborted, 1);
   assert.equal(result.diagnostics.browserRenderTimeouts, 1);
   assert.equal(result.diagnostics.browserRenderFailures, 1);
   assert.equal(result.diagnostics.browserFallbacksUsed, 1);
@@ -954,6 +956,7 @@ test("production browser routing blocks cross-host, unsafe, and non-http subreso
   let webSocketHandler: ((socket: { close: () => Promise<void> }) => Promise<void>) | undefined;
   let serializedCharacters = 100;
   let contentCalls = 0;
+  let pageCloses = 0;
   const renderer = await createPlaywrightRenderer(async (url) => {
     if (url.pathname === "/unsafe.js") throw new Error("Unsafe crawler destination.");
     return { address: "93.184.216.34", family: 4 };
@@ -965,6 +968,7 @@ test("production browser routing blocks cross-host, unsafe, and non-http subreso
         routeWebSocket:async(_pattern,handler)=>{ webSocketHandler=handler; },
         newPage:async()=>({goto:async()=>undefined,evaluate:async<Result>()=>serializedCharacters as unknown as Result,
         content:async()=>{contentCalls += 1;return "<main>Rendered</main>";}, url:()=>"https://example.test/",
+        close:async()=>{pageCloses += 1;},
       })};},
       close:async()=>{ browserClosed += 1; },
     };
@@ -988,6 +992,8 @@ test("production browser routing blocks cross-host, unsafe, and non-http subreso
   serializedCharacters = 750_001;
   await assert.rejects(renderer.render(new URL("https://example.test/"), 100), /exceeds the extraction limit/);
   assert.equal(contentCalls, 0);
+  assert.equal(pageCloses, 1);
+  await renderer.close();
   await renderer.close();
   assert.equal(browserClosed, 1);
 });
