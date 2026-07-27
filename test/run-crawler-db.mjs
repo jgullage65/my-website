@@ -19,6 +19,6 @@ if (!/(^|[-_])test($|[-_])|_test$/i.test(databaseName)) {
 const result = spawnSync(process.execPath, [
   "--experimental-transform-types",
   "--experimental-loader", "./test/node-alias-loader.mjs",
-  "--test", "app/lib/ai-engine/crawler/crawlJobStore.integration.test.ts", "app/lib/ai-engine/crawler/websiteSourceRecordStore.integration.test.ts",
+  "--test", "app/lib/ai-engine/crawler/crawlJobStore.integration.test.ts", "app/lib/ai-engine/crawler/websiteSourceRecordStore.integration.test.ts", "app/lib/ai-engine/crawler/websiteRecrawlReconciliationStore.integration.test.ts",
 ], { stdio:"inherit", env:{ ...process.env, DATABASE_URL:databaseUrl } });
 process.exit(result.status ?? 1);

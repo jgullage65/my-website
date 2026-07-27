@@ -493,8 +493,16 @@ async function createAiBuilderSchema() {
     crawl_attempt_id TEXT NOT NULL REFERENCES ai_builder_website_crawl_attempts(id) ON DELETE RESTRICT, block_type TEXT NOT NULL,
     normalized_text TEXT NOT NULL, coordinates JSONB NOT NULL, extraction_method TEXT NOT NULL
   )`;
+  await sql`CREATE TABLE IF NOT EXISTS ai_builder_website_recrawl_reconciliations (
+    id TEXT PRIMARY KEY, schema_version INTEGER NOT NULL, project_id TEXT NOT NULL REFERENCES ai_builder_projects(id) ON DELETE CASCADE,
+    previous_crawl_attempt_id TEXT NOT NULL REFERENCES ai_builder_website_crawl_attempts(id) ON DELETE RESTRICT,
+    current_crawl_attempt_id TEXT NOT NULL REFERENCES ai_builder_website_crawl_attempts(id) ON DELETE RESTRICT,
+    fingerprint TEXT NOT NULL, result JSONB NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(project_id,previous_crawl_attempt_id,current_crawl_attempt_id), CHECK(previous_crawl_attempt_id<>current_crawl_attempt_id)
+  )`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_website_source_documents_attempt_idx ON ai_builder_website_source_documents(crawl_attempt_id)`;
   await sql`CREATE INDEX IF NOT EXISTS ai_builder_website_source_blocks_document_idx ON ai_builder_website_source_blocks(source_document_id)`;
+  await sql`CREATE INDEX IF NOT EXISTS ai_builder_website_recrawl_project_idx ON ai_builder_website_recrawl_reconciliations(project_id,created_at DESC)`;
   await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS attempt_count INTEGER NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS lease_owner TEXT`;
   await sql`ALTER TABLE ai_builder_crawl_jobs ADD COLUMN IF NOT EXISTS lease_expires_at TIMESTAMPTZ`;
