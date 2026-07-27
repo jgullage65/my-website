@@ -63,6 +63,12 @@ export type BusinessWebsiteCrawlDiagnostics = {
   hiddenElementsIgnored: number;
   semanticBlocksDeduplicated: number;
   extractionOutputTruncated: number;
+  sitemapsDiscovered: number;
+  sitemapFetchAttempted: number;
+  sitemapsFetched: number;
+  sitemapsParsed: number;
+  sitemapsRejected: number;
+  sitemapsFailed: number;
   pdfsDiscovered: number;
   pdfFetchAttempted: number;
   pdfsFetched: number;
@@ -210,7 +216,12 @@ export async function createPlaywrightRenderer(assertSafe: DestinationSafetyChec
     : undefined;
   const browser = await chromium.launch({
     headless: true,
-    ...(resolverRules ? { args: ["--no-proxy-server", `--host-resolver-rules=${resolverRules}`] } : {}),
+    args: [
+      "--disable-background-networking",
+      "--disable-extensions",
+      "--js-flags=--max-old-space-size=128",
+      ...(resolverRules ? ["--no-proxy-server", `--host-resolver-rules=${resolverRules}`] : []),
+    ],
   });
   let browserClosed = false;
   const closeBrowser = async () => {
@@ -1232,9 +1243,10 @@ export async function crawlBusinessWebsite(
   const duplicateDiagnostics = { canonicalUrlsDetected: 0, canonicalDuplicatesSkipped: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, alternateLinksRejected: 0, alternateLinksNotSelected: 0, alternatePagesDeduplicated: 0, repeatedBoilerplateOccurrencesDiscounted: 0 };
   const structuredDiagnostics = { jsonLdBlocksDetected: 0, jsonLdBlocksParsed: 0, malformedJsonLdBlocksIgnored: 0, supportedStructuredEntitiesDetected: 0, structuredFactsRetained: 0, structuredFactsDeduplicated: 0 };
   const semanticDiagnostics: SemanticDiagnostics = { headingsRetained:0, paragraphsRetained:0, listItemsRetained:0, tablesRetained:0, tableRowsRetained:0, definitionEntriesRetained:0, visibleFaqsRetained:0, hiddenElementsIgnored:0, semanticBlocksDeduplicated:0, extractionOutputTruncated:0 };
+  const sitemapDiagnostics = { sitemapsDiscovered:0, sitemapFetchAttempted:0, sitemapsFetched:0, sitemapsParsed:0, sitemapsRejected:0, sitemapsFailed:0 };
   const pdfDiagnostics = { pdfsDiscovered:0, pdfFetchAttempted:0, pdfsFetched:0, pdfParseAttempted:0, pdfsParsed:0, pdfsRetained:0, pdfsSkipped:0, pdfsFailed:0, pdfBytesDownloaded:0, pdfPagesParsed:0, pdfDocumentsTruncated:0 };
   const browserDiagnostics = { browserPagesQueued:0, browserRenderAttempts:0, browserPagesRendered:0, browserPagesSkipped:0, browserRenderFailures:0, browserRenderTimeouts:0, browserFallbacksUsed:0, browserRenderDurationMs:0 };
-  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesFetchAttempted:0,pagesFetched:0,pagesFetchRejected:0,pagesExtractionAttempted:0,pagesExtractionSucceeded:0,pagesRetained:0,pagesSkipped:0,pagesFailed:0,pagesExtractionFailed:0,...pdfDiagnostics,...browserDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,warningDetails:[],timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesFetchAttempted:0,pagesFetched:0,pagesFetchRejected:0,pagesExtractionAttempted:0,pagesExtractionSucceeded:0,pagesRetained:0,pagesSkipped:0,pagesFailed:0,pagesExtractionFailed:0,...sitemapDiagnostics,...pdfDiagnostics,...browserDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,warningDetails:[],timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
   try { requested = normalizeWebsiteCrawlInput(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
@@ -1335,12 +1347,16 @@ export async function crawlBusinessWebsite(
       const normalizedSitemapUrl = dedupeUrl(sitemapUrl.toString());
       if (seenSitemaps.has(normalizedSitemapUrl)) continue;
       seenSitemaps.add(normalizedSitemapUrl);
+      sitemapDiagnostics.sitemapsDiscovered += 1;
+      sitemapDiagnostics.sitemapFetchAttempted += 1;
 
       try {
         const fetched = await fetchSitemap(sitemapUrl, restrictions);
-        if (!fetched || normalizeHost(fetched.resolvedUrl.hostname) !== baseHost) continue;
+        if (!fetched || normalizeHost(fetched.resolvedUrl.hostname) !== baseHost) { sitemapDiagnostics.sitemapsRejected += 1; continue; }
+        sitemapDiagnostics.sitemapsFetched += 1;
         const parsed = extractSitemapLocations(fetched.xml);
-        if (!parsed) continue;
+        if (!parsed) { sitemapDiagnostics.sitemapsRejected += 1; continue; }
+        sitemapDiagnostics.sitemapsParsed += 1;
 
         if (parsed.type === "urlset") {
           for (const location of parsed.locations) {
@@ -1360,6 +1376,7 @@ export async function crawlBusinessWebsite(
           ) pending.push(child);
         }
       } catch {
+        sitemapDiagnostics.sitemapsFailed += 1;
         // Sitemap discovery is opportunistic; HTML discovery remains the fallback.
       }
     }
@@ -1456,7 +1473,6 @@ export async function crawlBusinessWebsite(
       const canonical = await safeRelation(relations.canonical);
       if (canonical) duplicateDiagnostics.canonicalUrlsDetected += 1;
       const identity = canonical ?? finalUrl;
-      const extractionStarted = now();
       const semantic = semanticHtml(fetched.html);
       const text = semantic.text;
       const title = extractTitle(fetched.html, semantic.h1, fetched.resolvedUrl);
@@ -1478,7 +1494,6 @@ export async function crawlBusinessWebsite(
       pageBlockKeys.forEach((key) => blockCounts.set(key, (blockCounts.get(key) ?? 0) + 1));
       duplicateDiagnostics.repeatedBoilerplateOccurrencesDiscounted = Array.from(blockCounts).reduce((total, [key, count]) =>
         total + (count >= 3 && !protectedBlocks.has(key) ? count : 0), 0);
-      timings.contentExtractionMs += Math.max(0, now() - extractionStarted);
       const discoveryStarted = now();
       for (const pdf of discoverPdfLinks(fetched.html, fetched.resolvedUrl, baseHost)) addPdfCandidate(pdf);
       timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
@@ -1539,13 +1554,14 @@ export async function crawlBusinessWebsite(
   };
   const processFetchedSafely = async (fetched: { html: string; resolvedUrl: URL }) => {
     pagesExtractionAttempted += 1;
+    const extractionStarted = now();
     try { await processFetched(fetched); pagesExtractionSucceeded += 1; }
     catch {
       try { finalUrls.delete(dedupeUrl(fetched.resolvedUrl.toString())); } catch { /* Invalid failure inputs have no retained identity. */ }
       pagesExtractionFailed += 1;
       const warning = "A page was fetched but its content could not be extracted.";
       warn({ stage:"html_extraction", message:warning, url:fetched.resolvedUrl.toString() });
-    }
+    } finally { timings.contentExtractionMs += Math.max(0, now() - extractionStarted); }
   };
 
   try {
@@ -1677,7 +1693,7 @@ export async function crawlBusinessWebsite(
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
       pagesDiscovered: discoveredHtmlUrls.size, pagesProcessed: pagesExtractionSucceeded, pagesFetchAttempted:pageFetchAttempts,
       pagesFetched, pagesFetchRejected, pagesExtractionAttempted, pagesExtractionSucceeded, pagesRetained:0, pagesSkipped, pagesFailed, pagesExtractionFailed,
-      ...pdfDiagnostics, ...browserDiagnostics, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics,
+      ...sitemapDiagnostics, ...pdfDiagnostics, ...browserDiagnostics, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics,
       finalUrls: [], restrictions, warningDetails, timings,
     });
   }
@@ -1698,6 +1714,7 @@ export async function crawlBusinessWebsite(
       pagesRetained: retained.filter((record) => record.page.pageType !== "document").length,
       pagesSkipped, pagesFailed, pagesExtractionFailed,
       ...pdfDiagnostics,
+      ...sitemapDiagnostics,
       ...browserDiagnostics,
       ...duplicateDiagnostics,
       ...structuredDiagnostics,

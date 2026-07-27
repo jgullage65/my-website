@@ -51,8 +51,23 @@ async function activeJob(clerkUserId: string): Promise<CrawlJob | null> {
   return row ? job(row) : null;
 }
 
+async function recoverExpiredCrawlJobs(clerkUserId: string): Promise<void> {
+  await getSql()`
+    UPDATE ai_builder_crawl_jobs SET
+      state=CASE WHEN attempt_count >= ${MAX_JOB_ATTEMPTS} THEN 'failed' ELSE 'queued' END,
+      error_message=CASE WHEN attempt_count >= ${MAX_JOB_ATTEMPTS} THEN COALESCE(error_message,'The crawl worker stopped before completing the job.') ELSE error_message END,
+      completed_at=CASE WHEN attempt_count >= ${MAX_JOB_ATTEMPTS} THEN NOW() ELSE NULL END,
+      next_attempt_at=CASE WHEN attempt_count >= ${MAX_JOB_ATTEMPTS} THEN NULL ELSE NOW() END,
+      lease_owner=NULL,lease_expires_at=NULL,updated_at=NOW()
+    WHERE clerk_user_id=${clerkUserId} AND state IN ('crawling','processing') AND lease_expires_at < NOW()
+  `;
+}
+
 export async function createCrawlJob(clerkUserId: string, requestedUrl: string): Promise<CrawlJob> {
   await ensureAiBuilderSchema();
+  // Admission is self-healing: a scheduler outage cannot leave an expired
+  // leased job permanently blocking the user who owns it.
+  await recoverExpiredCrawlJobs(clerkUserId);
   const existing = await activeJob(clerkUserId);
   if (existing) {
     if (existing.requestedUrl === requestedUrl) return existing;

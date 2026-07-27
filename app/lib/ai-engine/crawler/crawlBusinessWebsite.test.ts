@@ -179,7 +179,9 @@ test("keeps invalid numeric entities and malformed URL escapes page-local and re
 });
 
 test("isolates an unexpected extraction failure and retains later safe pages", async () => {
+  let clock = 0;
   const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    now: () => ++clock,
     assertSafe: async () => undefined,
     fetchSitemap: async () => null,
     fetchPage: async (url) => {
@@ -196,6 +198,7 @@ test("isolates an unexpected extraction failure and retains later safe pages", a
   assert.equal(result.diagnostics.pagesExtractionSucceeded, 1);
   assert.equal(result.diagnostics.pagesProcessed, 1);
   assert.equal(result.diagnostics.pagesRetained, 1);
+  assert.ok(result.diagnostics.timings.contentExtractionMs >= 2);
   assert.deepEqual(result.diagnostics.warningDetails.map(({stage,url})=>({stage,url})), [{stage:"html_extraction",url:"https://example.test/"}]);
   assert.match(result.warnings.join(" "), /fetched but its content could not be extracted/);
 });
@@ -497,7 +500,7 @@ test("does not count repeated occurrences within one page as site-wide boilerpla
 
 test("uses the homepage language consistently when scheduling alternates", async () => {
   const calls: string[] = [];
-  await crawlBusinessWebsite("https://example.test", undefined, {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe: async () => undefined,
     fetchSitemap: async () => null,
     fetchPage: async (url) => {
@@ -698,7 +701,7 @@ const PRIORITY_FETCH_PATHS = [
 test("follows same-host sitemap indexes and ignores malformed sitemap failures", async () => {
   const sitemapCalls: string[] = [];
   const pageCalls: string[] = [];
-  await crawlBusinessWebsite("https://example.test", undefined, {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe: async () => undefined,
     fetchSitemap: async (url) => {
       sitemapCalls.push(url.toString());
@@ -714,6 +717,12 @@ test("follows same-host sitemap indexes and ignores malformed sitemap failures",
     },
   });
   assert.deepEqual(sitemapCalls, ["https://example.test/sitemap.xml", "https://example.test/pages.xml"]);
+  assert.equal(result.diagnostics.sitemapsDiscovered, 2);
+  assert.equal(result.diagnostics.sitemapFetchAttempted, 2);
+  assert.equal(result.diagnostics.sitemapsFetched, 2);
+  assert.equal(result.diagnostics.sitemapsParsed, 2);
+  assert.equal(result.diagnostics.sitemapsRejected, 0);
+  assert.equal(result.diagnostics.sitemapsFailed, 0);
   assert.ok(!pageCalls.includes("https://example.test/case-studies"));
 
   const fallback = await crawlBusinessWebsite("https://example.test", undefined, {
@@ -722,6 +731,8 @@ test("follows same-host sitemap indexes and ignores malformed sitemap failures",
     fetchPage: async (url) => ({ resolvedUrl: url, html: page("Acme") }),
   });
   assert.equal(fallback.pages.length, 1);
+  assert.equal(fallback.diagnostics.sitemapFetchAttempted, 1);
+  assert.equal(fallback.diagnostics.sitemapsFailed, 1);
   assert.equal(fallback.diagnostics.exactDuplicatesSkipped, 11);
   assert.deepEqual(fallback.warnings, []);
 });
@@ -990,7 +1001,7 @@ test("production browser routing blocks cross-host, unsafe, and non-http subreso
   } } }));
   assert.ok(routeHandler);
   assert.ok(webSocketHandler);
-  assert.deepEqual(launchArgs, ["--no-proxy-server", "--host-resolver-rules=MAP example.test 93.184.216.34"]);
+  assert.deepEqual(launchArgs, ["--disable-background-networking", "--disable-extensions", "--js-flags=--max-old-space-size=128", "--no-proxy-server", "--host-resolver-rules=MAP example.test 93.184.216.34"]);
   assert.deepEqual(contextOptions, { javaScriptEnabled: true, serviceWorkers: "block" });
   let webSocketClosed = false;
   await webSocketHandler!({ close: async () => { webSocketClosed = true; } });

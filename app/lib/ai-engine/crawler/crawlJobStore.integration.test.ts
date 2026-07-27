@@ -71,6 +71,37 @@ db("concurrent crawl claims assign each job to only one lease owner", async () =
   }
 });
 
+db("crawl admission requeues an expired lease without waiting for the scheduler", async () => {
+  process.env.DATABASE_URL = databaseUrl;
+  const { claimNextCrawlJob, createCrawlJob, getOwnedCrawlJob } = await import("./crawlJobStore");
+  const pool = new Pool({ connectionString: databaseUrl });
+  const owner = `stale-admission-owner-${randomUUID()}`;
+  const created = await createCrawlJob(owner, "https://example.test/stale-admission");
+  let replacementId = "";
+  try {
+    await pool.query("UPDATE ai_builder_crawl_jobs SET created_at='1997-01-01'::timestamptz WHERE id=$1", [created.id]);
+    const claimed = await claimNextCrawlJob();
+    assert.equal(claimed?.id, created.id);
+    await pool.query("UPDATE ai_builder_crawl_jobs SET lease_expires_at=NOW()-INTERVAL '1 second' WHERE id=$1", [created.id]);
+
+    const recovered = await createCrawlJob(owner, created.requestedUrl);
+    assert.equal(recovered.id, created.id);
+    assert.equal(recovered.state, "queued");
+    assert.equal(recovered.leaseOwner, null);
+    assert.ok(recovered.nextAttemptAt);
+    assert.equal((await getOwnedCrawlJob(created.id, owner))?.state, "queued");
+
+    await pool.query("UPDATE ai_builder_crawl_jobs SET state='crawling',attempt_count=3,lease_owner='expired-owner',lease_expires_at=NOW()-INTERVAL '1 second' WHERE id=$1", [created.id]);
+    const replacement = await createCrawlJob(owner, "https://example.test/replacement");
+    replacementId = replacement.id;
+    assert.notEqual(replacement.id, created.id);
+    assert.equal((await getOwnedCrawlJob(created.id, owner))?.state, "failed");
+  } finally {
+    await pool.query("DELETE FROM ai_builder_crawl_jobs WHERE id=ANY($1::text[])", [[created.id, replacementId].filter(Boolean)]);
+    await pool.end();
+  }
+});
+
 db("crawl job failures back off transient retries and stop permanent retries", async () => {
   process.env.DATABASE_URL = databaseUrl;
   const { claimNextCrawlJob, createCrawlJob, failCrawlJob } = await import("./crawlJobStore");
