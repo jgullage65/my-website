@@ -1,0 +1,42 @@
+name: Crawler hardening
+
+on:
+  pull_request:
+    paths:
+      - "app/api/ai-builder/crawl/**"
+      - "app/lib/ai-engine/crawler/**"
+      - "app/lib/telemetry/ai-builder-telemetry.ts"
+      - "app/lib/db/ai-builder-schema.ts"
+      - "test/run-crawler-db.mjs"
+      - "package.json"
+      - ".github/workflows/crawler-hardening.yml"
+  push:
+    branches: [main]
+
+jobs:
+  crawler-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: crawler
+          POSTGRES_PASSWORD: crawler
+          POSTGRES_DB: crawler_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U crawler -d crawler_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL_TEST: postgresql://crawler:crawler@127.0.0.1:5432/crawler_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run test:ai-builder-crawler
+      - run: npm run test:ai-builder-crawler-db

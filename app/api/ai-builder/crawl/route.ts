@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { BusinessWebsiteCrawlError, crawlBusinessWebsite, resolveCrawledBusinessName } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
-import { finishCrawlTelemetry, startCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
+import { finishCrawlTelemetry, safePublicUrl, startCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import { estimateAiTokenCost } from "@/app/lib/telemetry/ai-pricing";
 import type { AiTokenUsage } from "@/app/lib/telemetry/ai-pricing";
@@ -312,6 +312,7 @@ export async function POST(request: Request) {
       let model = process.env.AI_BUILDER_CRAWLER_MODEL?.trim() || "gpt-5-mini";
       let usage: AiTokenUsage | undefined;
       let aiCalls = 0;
+      let aiExtractionUnits = 0;
       let estimatedInputCostUsd = 0;
       let estimatedOutputCostUsd = 0;
       let hasCostEstimate = false;
@@ -327,10 +328,10 @@ export async function POST(request: Request) {
     crawlDiagnostics = crawl.diagnostics;
     const crawlCompletedAt = new Date().toISOString();
     const telemetryFinish = performance.now();
-    await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
+    await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed||crawl.diagnostics.pagesExtractionFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,diagnostics:crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
     persistenceMs += performance.now() - telemetryFinish;
     crawlRecorded = true;
-    send({ type: "crawl_complete", pagesCrawled: crawl.pages.length, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
+    send({ type: "crawl_complete", pagesCrawled: crawl.diagnostics.pagesRetained, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
     send({ type: "progress", percent: 70 });
     const client = new OpenAI({ apiKey });
 
@@ -342,6 +343,7 @@ export async function POST(request: Request) {
       title: page.title,
       text: page.text,
     }));
+    aiExtractionUnits = extractionUnits.length;
     const crawledPages = new Map(crawl.pages.map((page) => [
       canonicalizeUrl(page.url),
       normalizeText(page.text),
@@ -451,9 +453,9 @@ export async function POST(request: Request) {
         if (!crawlRecorded) {
           const diagnostics=error instanceof BusinessWebsiteCrawlError?error.diagnostics:undefined;
           crawlDiagnostics = diagnostics;
-          await finishCrawlTelemetry(attemptId,{status:"failed",startedAt:crawlStartedAt,completedAt:new Date().toISOString(),...diagnostics,errors:[{stage:"crawl",message:message.slice(0,500)}],failureStage:"crawl"});
+          await finishCrawlTelemetry(attemptId,{status:"failed",startedAt:crawlStartedAt,completedAt:new Date().toISOString(),...diagnostics,diagnostics,errors:[{stage:"crawl",message:message.slice(0,500)}],failureStage:"crawl"});
         }
-        console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website, message });
+        console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website:safePublicUrl(website), message });
         send({
           type: "error",
           error: {
@@ -470,12 +472,13 @@ export async function POST(request: Request) {
           totalCostUsd: estimatedInputCostUsd + estimatedOutputCostUsd,
         } : undefined;
         const pagesProcessed = crawlDiagnostics?.pagesProcessed ?? 0;
+        const pagesRetained = crawlDiagnostics?.pagesRetained ?? 0;
         console.info("AI_BUILDER_CRAWL_DIAGNOSTICS", {
           attemptId,
-          website,
+          website: safePublicUrl(website),
           model,
           pagesDiscovered: crawlDiagnostics?.pagesDiscovered ?? 0,
-          pagesCrawled: pagesProcessed,
+          pagesCrawled: pagesRetained,
           pagesProcessed,
           pagesSkipped: crawlDiagnostics?.pagesSkipped ?? 0,
           pagesFailed: crawlDiagnostics?.pagesFailed ?? 0,
@@ -486,7 +489,8 @@ export async function POST(request: Request) {
           estimatedInputCostUsd: cost?.inputCostUsd ?? null,
           estimatedOutputCostUsd: cost?.outputCostUsd ?? null,
           estimatedTotalCostUsd: cost?.totalCostUsd ?? null,
-          costPerPageUsd: cost && pagesProcessed > 0 ? cost.totalCostUsd / pagesProcessed : null,
+          aiExtractionUnits,
+          costPerExtractionUnitUsd: cost && aiExtractionUnits > 0 ? cost.totalCostUsd / aiExtractionUnits : null,
           crawlDurationMs: crawlDiagnostics?.timings.totalCrawlDurationMs ?? 0,
           aiExtractionDurationMs,
           totalRequestDurationMs: performance.now() - requestStarted,
