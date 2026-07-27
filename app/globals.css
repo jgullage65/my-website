@@ -12,7 +12,14 @@
   --amber: #f59e0b;
   --text: #ebf0ff;
   --muted: #a0aac8;
-  --border: rgba(212, 175, 55, 0.22);
+  --border: rgba(148, 163, 184, 0.12);
+  --surface-workspace: #030713;
+  --surface-section: rgba(7, 13, 28, 0.92);
+  --surface-card: rgba(9, 16, 31, 0.9);
+  --surface-interactive: rgba(13, 22, 40, 0.94);
+  --surface-focused: rgba(17, 27, 48, 0.98);
+  --border-subtle: rgba(148, 163, 184, 0.11);
+  --border-interactive: rgba(148, 163, 184, 0.18);
   --lf-brand-navy-shell: #070c1e;
   --lf-brand-navy-shell-mid: #0b1128;
   --lf-brand-navy-shell-end: #090e21;
@@ -37,7 +44,7 @@
   position: relative;
   width: 100%;
   overflow: hidden;
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  border: 1px solid var(--border-subtle);
   border-radius: 18px;
   background: rgba(2, 6, 23, 0.72);
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
@@ -60,12 +67,12 @@
   right: 1.25rem;
   left: 1.25rem;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.78), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16), transparent);
 }
 
 * {
   box-sizing: border-box;
-  scrollbar-color: var(--gold) var(--navy-0);
+  scrollbar-color: rgba(148, 163, 184, 0.45) var(--navy-0);
   scrollbar-width: thin;
 }
 
@@ -82,7 +89,7 @@
 *::-webkit-scrollbar-thumb {
   border: 2px solid var(--navy-0);
   border-radius: 999px;
-  background: var(--gold);
+  background: rgba(148, 163, 184, 0.4);
 }
 
 *::-webkit-scrollbar-thumb:hover {
@@ -399,9 +406,9 @@ a {
 
 a[href][class*="border-amber-300/15"],
 button[class*="border-amber-300/15"]:not(:disabled) {
-  border-width: 0.5px;
-  border-color: rgba(212, 175, 55, 0.18);
-  background-color: #000000;
+  border-width: 1px;
+  border-color: var(--border-subtle);
+  background-color: var(--surface-interactive);
   box-shadow: none;
 }
 
@@ -412,9 +419,9 @@ button.cta-raised:not(:disabled),
 span.cta-raised,
 div.cta-raised {
   border-width: 1px;
-  border-color: rgba(245, 158, 11, 0.2);
-  background-color: #000000;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(212, 175, 55, 0.72);
+  border-color: rgba(212, 175, 55, 0.22);
+  background-color: var(--surface-interactive);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 a[href][class*="border-amber-300/15"]:hover,
@@ -423,8 +430,8 @@ a[href][class*="border-amber-300/15"]:active,
 button[class*="border-amber-300/15"]:not(:disabled):hover,
 button[class*="border-amber-300/15"]:not(:disabled):focus,
 button[class*="border-amber-300/15"]:not(:disabled):active {
-  border-color: #d4af37;
-  background-color: #0a0a0a;
+  border-color: rgba(212, 175, 55, 0.42);
+  background-color: var(--surface-focused);
 }
 
 a[href][class*="border-amber-300/15"]:hover,
@@ -436,8 +443,8 @@ a[href][class*="border-amber-300/15"]:not([role]):not([aria-label]):hover,
 button[class*="border-amber-300/15"]:not(:disabled):not([role]):not([aria-label]):hover,
 a[href].cta-raised:hover,
 button.cta-raised:not(:disabled):hover {
-  border-color: rgba(245, 158, 11, 0.2);
-  background-color: #0a0a0a;
+  border-color: rgba(212, 175, 55, 0.32);
+  background-color: var(--surface-focused);
   color: var(--gold);
 }
 
@@ -446,6 +453,34 @@ button[role="tab"][aria-selected="true"] {
   border-color: rgba(212, 175, 55, 0.28);
   background-color: #000000;
   box-shadow: none;
+}
+
+/* Enterprise surface hierarchy
+ *
+ * Gold remains available to actions, scores and active states, while passive
+ * framing recedes into neutral, low-contrast layers. These selectors target
+ * existing structural utility patterns so every workspace benefits without
+ * changing component markup, layout, behavior, or responsive rules. */
+:where(article, section, aside, main, div)[class*="border-[rgba(212,175,55"] {
+  border-color: var(--border-subtle);
+}
+
+:where(article, section, aside, main, div)[class*="border-amber-300/20"],
+:where(article, section, aside, main, div)[class*="border-amber-300/25"] {
+  border-color: var(--border-subtle);
+}
+
+:where(article, section, div)[class*="bg-[#000000]"][class*="rounded-"] {
+  background-color: var(--surface-card);
+}
+
+:where(article, section, div)[class*="border-amber-300/20"][class*="bg-black"],
+:where(article, section, div)[class*="border-amber-300/25"][class*="bg-black"] {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+}
+
+:where(article, section)[class*="hover:border-amber"]:hover {
+  border-color: var(--border-interactive);
 }
 
 button[role="tab"].cta-raised:not(:disabled) {
