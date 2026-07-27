@@ -34,7 +34,7 @@ function CanonicalConfirmDialog({
       aria-modal="true"
       aria-labelledby="canonical-confirm-title"
     >
-      <div className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-[24px] border border-[rgba(245,158,11,0.22)] bg-[#030713] shadow-[0_26px_70px_rgba(0,0,0,0.48)]">
+      <div className="relative flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-[24px] border border-[rgba(245,158,11,0.22)] bg-black shadow-[0_26px_70px_rgba(0,0,0,0.48)]">
         <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
         <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-[rgba(245,158,11,0.14)] blur-3xl" />
         <div className="pointer-events-none absolute -bottom-10 -left-8 h-24 w-24 rounded-full bg-[rgba(245,158,11,0.08)] blur-3xl" />
@@ -43,7 +43,7 @@ function CanonicalConfirmDialog({
           type="button"
           onClick={() => onClose(false)}
           aria-label="Close"
-          className="absolute right-3 top-3 z-20 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(245,158,11,0.28)] bg-[#030713] text-[var(--gold)] transition hover:bg-[rgba(245,158,11,0.12)] focus:outline-none focus:ring-2 focus:ring-amber-300/50"
+          className="absolute right-3 top-3 z-20 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(245,158,11,0.28)] bg-black text-[var(--gold)] transition hover:bg-[#0a0a0a] focus:outline-none focus:ring-2 focus:ring-amber-300/50"
         >
           ×
         </button>
@@ -64,7 +64,7 @@ function CanonicalConfirmDialog({
           <button
             type="button"
             onClick={() => onClose(false)}
-            className="cta-raised rounded-lg border border-[rgba(245,158,11,0.22)] bg-[#030713] px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40"
+            className="cta-raised rounded-lg border border-[rgba(245,158,11,0.22)] bg-black px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40 hover:bg-[#0a0a0a]"
           >
             {dialog.cancelLabel}
           </button>
@@ -72,7 +72,7 @@ function CanonicalConfirmDialog({
             type="button"
             onClick={() => onClose(true)}
             disabled={dialog.confirmDisabled}
-            className="cta-raised rounded-lg border border-[rgba(245,158,11,0.22)] bg-[#030713] px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40 hover:text-[var(--gold)] disabled:cursor-not-allowed disabled:border-white/10 disabled:text-slate-500 disabled:hover:border-white/10 disabled:hover:text-slate-500"
+            className="cta-raised rounded-lg border border-[rgba(245,158,11,0.22)] bg-black px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40 hover:bg-[#0a0a0a] hover:text-[var(--gold)] disabled:cursor-not-allowed disabled:border-white/10 disabled:text-slate-500 disabled:hover:border-white/10 disabled:hover:text-slate-500"
           >
             {dialog.confirmLabel}
           </button>
