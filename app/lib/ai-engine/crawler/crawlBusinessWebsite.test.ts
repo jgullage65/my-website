@@ -2,13 +2,58 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   BusinessWebsiteCrawlError,
+  assertSafeDestination,
   createPlaywrightRenderer,
   crawlBusinessWebsite,
+  fetchHtml,
+  fetchSitemapXml,
   resolveCrawledBusinessName,
   type CrawlRestriction,
 } from "./crawlBusinessWebsite";
 
 const page = (title: string, links = "") => `<!doctype html><html><head><title>${title}</title></head><body><main>${"Useful business content. ".repeat(8)}${links}</main></body></html>`;
+
+const oversizedResponse = (cancelled: { value: boolean }) => ({
+  status: 200,
+  ok: true,
+  headers: new Headers({ "content-type": "text/html" }),
+  body: new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(500_000));
+      controller.enqueue(new Uint8Array(500_000));
+    },
+    cancel() { cancelled.value = true; },
+  }),
+});
+
+test("streams and cancels oversized HTML and sitemap responses without content-length", async () => {
+  for (const kind of ["html", "sitemap"] as const) {
+    const restrictions: CrawlRestriction[] = [];
+    const cancelled = { value: false };
+    const request = async () => oversizedResponse(cancelled);
+    await assert.rejects(
+      kind === "html"
+        ? fetchHtml(new URL("https://example.test/"), restrictions, false, request)
+        : fetchSitemapXml(new URL("https://example.test/sitemap.xml"), restrictions, request),
+      /exceeds the download limit/,
+    );
+    assert.equal(cancelled.value, true, kind);
+    assert.equal(restrictions[0]?.type, "response_too_large", kind);
+  }
+});
+
+test("revalidates every redirect before reading the next destination", async () => {
+  const requested: string[] = [];
+  const restrictions: CrawlRestriction[] = [];
+  const emptyBody = () => new ReadableStream<Uint8Array>({ start(controller) { controller.close(); } });
+  await assert.rejects(fetchHtml(new URL("https://example.test/"), restrictions, false, async (url) => {
+    requested.push(url.toString());
+    if (url.pathname === "/private") throw new Error("Unsafe crawler destination.");
+    return { status: 302, ok: false, headers: new Headers({ location: "/private" }), body: emptyBody() };
+  }), /Unsafe crawler destination/);
+  assert.deepEqual(requested, ["https://example.test/", "https://example.test/private"]);
+  assert.deepEqual(restrictions, [{ type: "unsafe_destination", url: "https://example.test/private" }]);
+});
 
 test("retains bounded semantic sections while ignoring statically hidden content", async () => {
   const html = `<!doctype html><title>Home</title><meta property="og:title" content="Acme Services">
@@ -118,6 +163,89 @@ test("bounds oversized and malformed semantic structures deterministically", asy
   assert.equal(first.diagnostics.tableRowsRetained,30);
   assert.equal(first.diagnostics.extractionOutputTruncated,1);
   assert.doesNotMatch(first.pages[0]!.text,/Service option 44|Specification 89|Plan 39/);
+});
+
+test("keeps invalid numeric entities and malformed URL escapes page-local and readable", async () => {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => url.pathname === "/"
+      ? { resolvedUrl: new URL("https://example.test/bad%ZZ"), html: `<title>Home</title><main><p>${"Durable service information. ".repeat(5)}&#999999999; &#xD800;</p></main>` }
+      : null,
+  });
+  assert.equal(result.pages.length, 1);
+  assert.match(result.pages[0]!.text, /�/);
+  assert.equal(result.diagnostics.pagesExtractionFailed, 0);
+});
+
+test("isolates an unexpected extraction failure and retains later safe pages", async () => {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => {
+      if (url.pathname === "/") return { resolvedUrl: url, html: {} as unknown as string };
+      if (url.pathname === "/about") return { resolvedUrl: url, html: page("About") };
+      return null;
+    },
+  });
+  assert.equal(result.pages.length, 1);
+  assert.equal(result.pages[0]!.pageType, "about");
+  assert.equal(result.diagnostics.pagesExtractionFailed, 1);
+  assert.match(result.warnings.join(" "), /fetched but its content could not be extracted/);
+});
+
+test("does not turn progress observer failures into extraction failures", async () => {
+  const result = await crawlBusinessWebsite("https://example.test", () => { throw new Error("observer failed"); }, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => url.pathname === "/" ? { resolvedUrl: url, html: page("Home") } : null,
+  });
+  assert.equal(result.pages.length, 1);
+  assert.equal(result.diagnostics.pagesExtractionFailed, 0);
+  assert.doesNotMatch(result.warnings.join(" "), /observer failed/);
+});
+
+test("rejects DNS answers when any destination is unsafe and rejects non-public IPv6", async () => {
+  await assert.rejects(
+    assertSafeDestination(new URL("https://example.test"), async () => [
+      { address: "93.184.216.34", family: 4 },
+      { address: "127.0.0.1", family: 4 },
+    ]),
+    /Unsafe crawler destination/,
+  );
+  await assert.rejects(assertSafeDestination(new URL("https://[ff02::1]/")), /Unsafe crawler destination/);
+  assert.deepEqual(
+    await assertSafeDestination(new URL("https://example.test"), async () => [
+      { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+      { address: "93.184.216.34", family: 4 },
+    ]),
+    {
+      address: "93.184.216.34",
+      family: 4,
+      addresses: [
+        { address: "93.184.216.34", family: 4 },
+        { address: "2606:2800:220:1:248:1893:25c8:1946", family: 6 },
+      ],
+    },
+  );
+  for (const unsafe of ["192.0.2.10", "198.18.0.1", "198.51.100.20", "203.0.113.30", "2001:db8::1", "3fff::1"]) {
+    await assert.rejects(assertSafeDestination(new URL(`https://${unsafe.includes(":") ? `[${unsafe}]` : unsafe}/`)), /Unsafe crawler destination/, unsafe);
+  }
+  await assert.rejects(
+    assertSafeDestination(new URL("https://example.test"), async () => [{ address: "93.184.216.34", family: 6 }]),
+    /Unsafe crawler destination/,
+  );
+  await assert.rejects(
+    assertSafeDestination(new URL("https://example.test"), async () => await new Promise(() => {}), 5),
+    /DNS resolution timed out/,
+  );
+  let resolvedHost = "";
+  await assertSafeDestination(new URL("https://www.example.test"), async (hostname) => {
+    resolvedHost = hostname;
+    return [{ address: "93.184.216.34", family: 4 }];
+  });
+  assert.equal(resolvedHost, "www.example.test");
+  await assert.rejects(crawlBusinessWebsite("https://user:secret@example.test"), /must not contain credentials/);
 });
 
 test("normalizes equivalent paragraph and list meaning for duplicate comparison", async () => {
@@ -376,7 +504,7 @@ test("uses the homepage language consistently when scheduling alternates", async
   assert.ok(!calls.includes("/default/services"));
 });
 
-test("preserves submitted root and canonical homepage identity when internal pages finish later", async () => {
+test("preserves submitted entry and canonical homepage identity when internal pages finish later", async () => {
   const calls: string[] = [];
   const fetchPage = async (url: URL, _restrictions: CrawlRestriction[]) => {
     calls.push(url.toString());
@@ -404,7 +532,8 @@ test("preserves submitted root and canonical homepage identity when internal pag
     fetchSitemap: async () => null,
   });
 
-  assert.equal(result.requestedUrl, "https://example.test/");
+  assert.equal(calls[0], "https://example.test/contact?from=form");
+  assert.equal(result.requestedUrl, "https://example.test/contact?from=form");
   assert.equal(result.resolvedUrl, "https://www.example.test/");
   assert.equal(result.pages[0]?.pageType, "home");
   assert.equal(result.pages[0]?.title, "Acme Plumbing | Local Experts");
@@ -750,14 +879,29 @@ test("does not replace weak HTML with empty rendered output", async () => {
   assert.equal(result.diagnostics.browserPagesSkipped, 1);
 });
 
+test("rejects oversized rendered HTML without losing other crawl pages", async () => {
+  const result = await crawlBusinessWebsite("https://example.test", undefined, {
+    assertSafe: async () => undefined,
+    fetchSitemap: async () => null,
+    fetchPage: async (url) => url.pathname === "/"
+      ? { resolvedUrl: url, html: '<div id="app"></div>' }
+      : url.pathname === "/about" ? { resolvedUrl: url, html: page("About") } : null,
+    renderPage: async (url) => ({ resolvedUrl: url, html: `<main>${"x".repeat(750_001)}</main>` }),
+  });
+  assert.ok(result.pages.some((item) => item.pageType === "about"));
+  assert.equal(result.diagnostics.browserRenderFailures, 1);
+  assert.ok(result.diagnostics.restrictions.some((item) => item.type === "response_too_large"));
+});
+
 test("isolates browser timeouts and failures while continuing the crawl", async () => {
-  let calls = 0;
+  let calls = 0, aborted = 0;
   const result = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe:async()=>undefined, fetchSitemap:async()=>null, browserLimits:{renderTimeoutMs:5},
     fetchPage:async(url)=>url.pathname==="/"||url.pathname==="/about"||url.pathname==="/services"?{resolvedUrl:url,html:`<title>${url.pathname}</title><div id="app"></div>`}:null,
-    renderPage:async(url)=>{ calls += 1; if(url.pathname==="/") return await new Promise(()=>{}); if(url.pathname==="/about") throw new Error("secret browser failure"); return {resolvedUrl:url,html:`<main>${"Rendered service information. ".repeat(8)}</main>`}; },
+    renderPage:async(url,_timeout,signal)=>{ calls += 1; if(url.pathname==="/") return await new Promise((_resolve,reject)=>signal?.addEventListener("abort",()=>{aborted += 1;reject(new Error("aborted"));},{once:true})); if(url.pathname==="/about") throw new Error("secret browser failure"); return {resolvedUrl:url,html:`<main>${"Rendered service information. ".repeat(8)}</main>`}; },
   });
   assert.equal(calls, 3);
+  assert.equal(aborted, 1);
   assert.equal(result.diagnostics.browserRenderTimeouts, 1);
   assert.equal(result.diagnostics.browserRenderFailures, 1);
   assert.equal(result.diagnostics.browserFallbacksUsed, 1);
@@ -807,16 +951,35 @@ test("runs canonical, JSON-LD, semantic, and duplicate handling after rendering"
 test("production browser routing blocks cross-host, unsafe, and non-http subresources", async () => {
   let routeHandler: ((route: { request:()=>{url:()=>string}; abort:()=>Promise<void>; continue:()=>Promise<void> })=>Promise<void>) | undefined;
   let browserClosed = 0;
+  let launchArgs: string[] | undefined;
+  let contextOptions: { javaScriptEnabled: boolean; serviceWorkers: "block" } | undefined;
+  let webSocketHandler: ((socket: { close: () => Promise<void> }) => Promise<void>) | undefined;
+  let serializedCharacters = 100;
+  let contentCalls = 0;
+  let pageCloses = 0;
   const renderer = await createPlaywrightRenderer(async (url) => {
     if (url.pathname === "/unsafe.js") throw new Error("Unsafe crawler destination.");
-  }, "example.test", async () => ({ chromium:{ launch:async()=>({
-    newContext:async()=>({newPage:async()=>({
-      route:async(_pattern,handler)=>{ routeHandler=handler; }, goto:async()=>undefined,
-      content:async()=>"<main>Rendered</main>", url:()=>"https://example.test/",
-    })}),
-    close:async()=>{ browserClosed += 1; },
-  }) } }));
+    return { address: "93.184.216.34", family: 4 };
+  }, "example.test", async () => ({ chromium:{ launch:async(options)=>{
+    launchArgs=options.args;
+    return {
+      newContext:async(options)=>{contextOptions=options;return{
+        route:async(_pattern,handler)=>{ routeHandler=handler; },
+        routeWebSocket:async(_pattern,handler)=>{ webSocketHandler=handler; },
+        newPage:async()=>({goto:async()=>undefined,evaluate:async<Result>()=>serializedCharacters as unknown as Result,
+        content:async()=>{contentCalls += 1;return "<main>Rendered</main>";}, url:()=>"https://example.test/",
+        close:async()=>{pageCloses += 1;},
+      })};},
+      close:async()=>{ browserClosed += 1; },
+    };
+  } } }));
   assert.ok(routeHandler);
+  assert.ok(webSocketHandler);
+  assert.deepEqual(launchArgs, ["--no-proxy-server", "--host-resolver-rules=MAP example.test 93.184.216.34"]);
+  assert.deepEqual(contextOptions, { javaScriptEnabled: true, serviceWorkers: "block" });
+  let webSocketClosed = false;
+  await webSocketHandler!({ close: async () => { webSocketClosed = true; } });
+  assert.equal(webSocketClosed, true);
   const outcome = async (url: string) => {
     let result = "";
     await routeHandler!({request:()=>({url:()=>url}),abort:async()=>{result="abort";},continue:async()=>{result="continue";}});
@@ -826,6 +989,11 @@ test("production browser routing blocks cross-host, unsafe, and non-http subreso
   assert.equal(await outcome("https://cdn.example.test/app.js"), "abort");
   assert.equal(await outcome("https://example.test/unsafe.js"), "abort");
   assert.equal(await outcome("data:text/javascript,alert(1)"), "abort");
+  serializedCharacters = 750_001;
+  await assert.rejects(renderer.render(new URL("https://example.test/"), 100), /exceeds the extraction limit/);
+  assert.equal(contentCalls, 0);
+  assert.equal(pageCloses, 1);
+  await renderer.close();
   await renderer.close();
   assert.equal(browserClosed, 1);
 });

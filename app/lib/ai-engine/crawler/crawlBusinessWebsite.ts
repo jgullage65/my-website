@@ -1,6 +1,9 @@
 import { lookup as dnsLookup } from "node:dns/promises";
 import net from "node:net";
 import { createHash } from "node:crypto";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { Readable } from "node:stream";
 
 export type CrawledBusinessPage = {
   url: string;
@@ -22,6 +25,7 @@ export type BusinessWebsiteCrawlDiagnostics = {
   pagesProcessed: number;
   pagesSkipped: number;
   pagesFailed: number;
+  pagesExtractionFailed: number;
   canonicalUrlsDetected: number;
   canonicalDuplicatesSkipped: number;
   redirectDuplicatesSkipped: number;
@@ -74,7 +78,7 @@ export type BusinessWebsiteCrawlTimings = {
   totalCrawlDurationMs: number;
 };
 
-export type CrawlRestriction = { type: "access_denied" | "rate_limited" | "redirect_blocked" | "unsupported_protocol" | "unsupported_content_type" | "unsafe_destination"; url: string; status?: number };
+export type CrawlRestriction = { type: "access_denied" | "rate_limited" | "redirect_blocked" | "unsupported_protocol" | "unsupported_content_type" | "unsafe_destination" | "response_too_large"; url: string; status?: number };
 
 export class BusinessWebsiteCrawlError extends Error {
   constructor(message: string, public readonly diagnostics: BusinessWebsiteCrawlDiagnostics) { super(message); this.name = "BusinessWebsiteCrawlError"; }
@@ -97,6 +101,7 @@ export function resolveCrawledBusinessName(extractedName: unknown, crawl: Pick<B
 
 const MAX_HTML_BYTES = 750_000;
 const FETCH_TIMEOUT_MS = 7_000;
+const DNS_TIMEOUT_MS = 3_000;
 const MAX_REDIRECTS = 3;
 const MAX_CONCURRENT_FETCHES = 3;
 const MAX_STRUCTURED_FACTS = 100;
@@ -144,47 +149,89 @@ const BROWSER_LIMITS = {
   renderTimeoutMs: 5_000,
   totalTimeMs: 12_000,
 } as const;
+const BROWSER_CANCELLATION_GRACE_MS = 1_000;
 type BrowserLimits = { pages: number; renderTimeoutMs: number; totalTimeMs: number };
 
 type RenderedHtml = { html: string; resolvedUrl: URL };
-type BrowserRenderer = { render: (url: URL, timeoutMs: number) => Promise<RenderedHtml | null>; close: () => Promise<void> };
+type BrowserRenderer = { render: (url: URL, timeoutMs: number, signal?: AbortSignal) => Promise<RenderedHtml | null>; close: () => Promise<void> };
 type BrowserRoute = { request: () => { url: () => string }; abort: () => Promise<void>; continue: () => Promise<void> };
+type SafeAddress = { address: string; family: 4 | 6 };
+type SafeDestination = SafeAddress & { addresses?: SafeAddress[] };
+type DestinationSafetyCheck = (url: URL) => Promise<SafeDestination | void>;
 type PlaywrightBrowser = {
-  newContext: (options: { javaScriptEnabled: boolean }) => Promise<{ newPage: () => Promise<{
+  newContext: (options: { javaScriptEnabled: boolean; serviceWorkers: "block" }) => Promise<{
     route: (pattern: string, handler: (route: BrowserRoute) => Promise<void>) => Promise<void>;
-    goto: (url: string, options: { waitUntil: "networkidle"; timeout: number }) => Promise<unknown>;
-    content: () => Promise<string>;
-    url: () => string;
-  }> }>;
+    routeWebSocket: (pattern: string, handler: (socket: { close: () => Promise<void> | void }) => Promise<void>) => Promise<void>;
+    newPage: () => Promise<{
+      goto: (url: string, options: { waitUntil: "networkidle"; timeout: number }) => Promise<unknown>;
+      evaluate: <Result>(work: () => Result) => Promise<Result>;
+      content: () => Promise<string>;
+      url: () => string;
+      close: () => Promise<void>;
+    }>;
+  }>;
   close: () => Promise<void>;
 };
-type LoadPlaywright = () => Promise<{ chromium: { launch: (options: { headless: boolean }) => Promise<PlaywrightBrowser> } }>;
+type LoadPlaywright = () => Promise<{ chromium: { launch: (options: { headless: boolean; args?: string[] }) => Promise<PlaywrightBrowser> } }>;
 
-export async function createPlaywrightRenderer(assertSafe: typeof assertSafeDestination, baseHost: string, loadPlaywright?: LoadPlaywright): Promise<BrowserRenderer> {
+export async function createPlaywrightRenderer(assertSafe: DestinationSafetyCheck, baseHost: string, loadPlaywright?: LoadPlaywright, renderHost = baseHost): Promise<BrowserRenderer> {
   // Browser code and process startup are deliberately deferred until a weak page exists.
   // @ts-ignore Playwright is dynamically loaded so HTML-only crawls never initialize it; the local interface limits what the crawler can invoke.
-  const { chromium } = await (loadPlaywright ? loadPlaywright() : import("playwright") as Promise<{ chromium: { launch: (options: { headless: boolean }) => Promise<PlaywrightBrowser> } }>);
-  const browser = await chromium.launch({ headless: true });
+  const { chromium } = await (loadPlaywright ? loadPlaywright() : import("playwright") as Promise<{ chromium: { launch: (options: { headless: boolean; args?: string[] }) => Promise<PlaywrightBrowser> } }>);
+  const pinnedHost = networkHost(renderHost);
+  const browserUrlHost = net.isIP(pinnedHost) === 6 ? `[${pinnedHost}]` : pinnedHost;
+  const approved = await assertSafe(new URL(`https://${browserUrlHost}/`));
+  const resolverAddress = approved?.family === 6 ? `[${approved.address}]` : approved?.address;
+  const resolverRules = approved
+    ? `MAP ${pinnedHost} ${resolverAddress}`
+    : undefined;
+  const browser = await chromium.launch({
+    headless: true,
+    ...(resolverRules ? { args: ["--no-proxy-server", `--host-resolver-rules=${resolverRules}`] } : {}),
+  });
+  let browserClosed = false;
+  const closeBrowser = async () => {
+    if (browserClosed) return;
+    browserClosed = true;
+    await browser.close();
+  };
   try {
-    const context = await browser.newContext({ javaScriptEnabled: true });
-    const page = await context.newPage();
-    await page.route("**/*", async (route) => {
+    const context = await browser.newContext({ javaScriptEnabled: true, serviceWorkers: "block" });
+    await context.routeWebSocket("**", async (socket) => { await socket.close(); });
+    await context.route("**/*", async (route) => {
       try {
         const destination = new URL(route.request().url());
-        if ((destination.protocol !== "http:" && destination.protocol !== "https:") || normalizeHost(destination.hostname) !== baseHost) throw new Error("Blocked browser destination");
+        if ((destination.protocol !== "http:" && destination.protocol !== "https:") || networkHost(destination.hostname) !== pinnedHost || normalizeHost(destination.hostname) !== baseHost) throw new Error("Blocked browser destination");
         await assertSafe(destination);
         await route.continue();
       } catch { await route.abort(); }
     });
     return {
-      render: async (url, timeoutMs) => {
-        await page.goto(url.toString(), { waitUntil: "networkidle", timeout: timeoutMs });
-        return { html: await page.content(), resolvedUrl: new URL(page.url()) };
+      render: async (url, timeoutMs, signal) => {
+        const page = await context.newPage();
+        let pageClosed = false;
+        const closePage = async () => {
+          if (pageClosed) return;
+          pageClosed = true;
+          try { await page.close(); } catch { /* Abort and cleanup are best effort. */ }
+        };
+        const abort = () => { void closePage(); };
+        signal?.addEventListener("abort", abort, { once: true });
+        try {
+          if (signal?.aborted) throw new Error("Browser render aborted.");
+          await page.goto(url.toString(), { waitUntil: "networkidle", timeout: timeoutMs });
+          const serializedCharacters = await page.evaluate(() => document.documentElement?.outerHTML.length ?? 0);
+          if (serializedCharacters > MAX_HTML_BYTES) throw new ResponseLimitError("Rendered page exceeds the extraction limit.");
+          return { html: await page.content(), resolvedUrl: new URL(page.url()) };
+        } finally {
+          signal?.removeEventListener("abort", abort);
+          await closePage();
+        }
       },
-      close: async () => { await browser.close(); },
+      close: closeBrowser,
     };
   } catch (error) {
-    try { await browser.close(); } catch { /* Initialization cleanup cannot hide the original failure. */ }
+    try { await closeBrowser(); } catch { /* Initialization cleanup cannot hide the original failure. */ }
     throw error;
   }
 }
@@ -251,7 +298,7 @@ const IGNORED_EXTENSIONS = new Set([
 const PDF_DURABLE_SIGNAL = /(?:^|[^a-z])(?:brochures?|menus?|catalog(?:ue)?s?|services?|pricing|prices?|rates?|polic(?:y|ies)|manuals?|guides?|specifications?|capabilities|products?|packages?)(?:[^a-z]|$)/i;
 const PDF_EDITORIAL_SIGNAL = /(?:^|[^a-z])(?:newsletters?|press[\s_-]*releases?|magazines?|blogs?|news|articles?|posts?|archives?|annual[\s_-]*(?:content|archive))(?:[^a-z]|$)/i;
 
-function normalizeInputUrl(value: string): URL {
+export function normalizeWebsiteCrawlInput(value: string): URL {
   const trimmed = value.trim();
   if (!trimmed) throw new Error("Website URL is required.");
 
@@ -261,14 +308,34 @@ function normalizeInputUrl(value: string): URL {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("Website URL must use http or https.");
   }
+  if (parsed.username || parsed.password) {
+    throw new Error("Website URL must not contain credentials.");
+  }
 
   parsed.hash = "";
   return parsed;
 }
 
 function normalizeHost(hostname: string): string {
-  return hostname.replace(/^www\./i, "").replace(/\.$/, "").toLowerCase();
+  return networkHost(hostname).replace(/^www\./i, "");
 }
+
+function networkHost(hostname: string): string {
+  return hostname.replace(/^\[|\]$/g, "").replace(/\.$/, "").toLowerCase();
+}
+
+const UNSAFE_IPV4_RANGES = new net.BlockList();
+for (const [address, prefix] of [
+  ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10], ["127.0.0.0", 8],
+  ["169.254.0.0", 16], ["172.16.0.0", 12], ["192.0.0.0", 24], ["192.0.2.0", 24],
+  ["192.88.99.0", 24], ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24],
+  ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4],
+] as const) UNSAFE_IPV4_RANGES.addSubnet(address, prefix, "ipv4");
+
+const UNSAFE_IPV6_RANGES = new net.BlockList();
+for (const [address, prefix] of [
+  ["2001::", 23], ["2001:db8::", 32], ["2002::", 16], ["3fff::", 20],
+] as const) UNSAFE_IPV6_RANGES.addSubnet(address, prefix, "ipv6");
 
 function isUnsafeIpv4(ip: string): boolean {
   const parts = ip.split(".").map((part) => Number.parseInt(part, 10));
@@ -281,29 +348,15 @@ function isUnsafeIpv4(ip: string): boolean {
     return true;
   }
 
-  const [first, second] = parts;
-  return (
-    first === 0 ||
-    first === 10 ||
-    first === 127 ||
-    (first === 100 && second >= 64 && second <= 127) ||
-    (first === 169 && second === 254) ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168) ||
-    first >= 224
-  );
+  return UNSAFE_IPV4_RANGES.check(ip, "ipv4");
 }
 
 function isUnsafeIpv6(ip: string): boolean {
   const normalized = ip.toLowerCase();
-  if (normalized === "::" || normalized === "::1") return true;
-  if (normalized.startsWith("fc") || normalized.startsWith("fd")) return true;
-  if (/^fe[89ab]/i.test(normalized)) return true;
-
-  const mapped = normalized.match(
-    /^(?:::ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/,
-  );
-  return mapped?.[1] ? isUnsafeIpv4(mapped[1]) : false;
+  // Public IPv6 unicast space is currently 2000::/3. Rejecting everything
+  // outside it also excludes loopback, link/site local, mapped IPv4,
+  // documentation-adjacent special space, and multicast destinations.
+  return !/^[23][0-9a-f]{0,3}:/i.test(normalized) || UNSAFE_IPV6_RANGES.check(normalized, "ipv6");
 }
 
 function isUnsafeIp(ip: string): boolean {
@@ -313,8 +366,13 @@ function isUnsafeIp(ip: string): boolean {
   return true;
 }
 
-async function assertSafeDestination(url: URL): Promise<void> {
-  const hostname = normalizeHost(url.hostname);
+export async function assertSafeDestination(
+  url: URL,
+  lookup: (hostname: string, options: { all: true }) => Promise<{ address: string; family: number }[]> = dnsLookup,
+  dnsTimeoutMs = DNS_TIMEOUT_MS,
+): Promise<SafeDestination> {
+  if (url.username || url.password) throw new Error("Unsafe crawler destination.");
+  const hostname = networkHost(url.hostname);
   if (!hostname || hostname === "localhost") {
     throw new Error("Unsafe crawler destination.");
   }
@@ -323,7 +381,7 @@ async function assertSafeDestination(url: URL): Promise<void> {
     if (isUnsafeIp(hostname)) {
       throw new Error("Unsafe crawler destination.");
     }
-    return;
+    return { address: hostname, family: net.isIP(hostname) as 4 | 6 };
   }
 
   if (
@@ -336,13 +394,93 @@ async function assertSafeDestination(url: URL): Promise<void> {
     throw new Error("Unsafe crawler destination.");
   }
 
-  const addresses = await dnsLookup(hostname, { all: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Crawler DNS resolution timed out.")), dnsTimeoutMs);
+  });
+  const addresses = await Promise.race([lookup(hostname, { all: true }), timeout]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
   if (
     !addresses.length ||
-    addresses.some((entry) => isUnsafeIp(entry.address))
+    addresses.some((entry) => {
+      const family = net.isIP(entry.address);
+      return (family !== 4 && family !== 6) || family !== entry.family || isUnsafeIp(entry.address);
+    })
   ) {
     throw new Error("Unsafe crawler destination.");
   }
+  const approved = addresses.map((entry) => ({ address: entry.address, family: entry.family as 4 | 6 }))
+    .sort((left, right) => left.family - right.family || left.address.localeCompare(right.address));
+  const selected = approved[0]!;
+  return { ...selected, addresses: approved };
+}
+
+type SafeHttpResponse = { status: number; ok: boolean; headers: Headers; body: ReadableStream<Uint8Array> };
+type SafeRequest = (url: URL, options: { signal: AbortSignal; headers: Record<string, string> }) => Promise<SafeHttpResponse>;
+
+async function requestSafeDestination(url: URL, options: { signal: AbortSignal; headers: Record<string, string> }): Promise<SafeHttpResponse> {
+  const approved = await assertSafeDestination(url);
+  return new Promise<SafeHttpResponse>((resolve, reject) => {
+    const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(url, {
+      method: "GET",
+      headers: options.headers,
+      signal: options.signal,
+      agent: false,
+      lookup: (_hostname, lookupOptions, callback) => {
+        if (typeof lookupOptions === "object" && lookupOptions.all) callback(null, approved.addresses ?? [{ address: approved.address, family: approved.family }]);
+        else (callback as unknown as (error: null, address: string, family: number) => void)(null, approved.address, approved.family);
+      },
+    }, (response) => {
+      const headers = new Headers();
+      for (const [name, value] of Object.entries(response.headers)) {
+        if (Array.isArray(value)) for (const item of value) headers.append(name, item);
+        else if (value !== undefined) headers.set(name, value);
+      }
+      resolve({
+        status: response.statusCode ?? 0,
+        ok: Boolean(response.statusCode && response.statusCode >= 200 && response.statusCode < 300),
+        headers,
+        body: Readable.toWeb(response) as ReadableStream<Uint8Array>,
+      });
+    });
+    request.on("error", reject);
+    request.end();
+  });
+}
+
+class ResponseLimitError extends Error {}
+
+async function cancelBody(body: ReadableStream<Uint8Array>): Promise<void> {
+  try { await body.cancel(); } catch { /* Response cleanup cannot hide the crawl outcome. */ }
+}
+
+function recordUnsafeDestination(error: unknown, restrictions: CrawlRestriction[], url: URL): void {
+  if (error instanceof Error && error.message === "Unsafe crawler destination.") {
+    restrictions.push({ type: "unsafe_destination", url: url.toString() });
+  }
+}
+
+async function readBoundedBody(body: ReadableStream<Uint8Array>, maximumBytes: number): Promise<Uint8Array> {
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > maximumBytes) throw new ResponseLimitError("Crawler response exceeds the download limit.");
+      chunks.push(value);
+    }
+  } catch (error) {
+    try { await reader.cancel(); } catch { /* Cancellation must not hide the read failure. */ }
+    throw error;
+  }
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes;
 }
 
 function dedupeUrl(value: string): string {
@@ -393,29 +531,32 @@ async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<Pdf
         restrictions.push({ type: "redirect_blocked", url: current.toString() });
         return { status: "skipped" };
       }
-      await assertSafeDestination(current);
-      const response = await fetch(current, { redirect: "manual", signal: controller.signal, headers: { accept: "application/pdf,application/octet-stream;q=0.5", "user-agent": "AIBuilderWebsiteCrawler/1.0" } });
+      let response: SafeHttpResponse;
+      try { response = await requestSafeDestination(current, { signal: controller.signal, headers: { accept: "application/pdf,application/octet-stream;q=0.5", "user-agent": "AIBuilderWebsiteCrawler/1.0" } }); }
+      catch (error) { recordUnsafeDestination(error, restrictions, current); throw error; }
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
+        await cancelBody(response.body);
         if (!location || redirects === MAX_REDIRECTS) { restrictions.push({ type: "redirect_blocked", url: current.toString(), status: response.status }); return { status: "skipped" }; }
         current = new URL(location, current);
         continue;
       }
-      if (!response.ok || !response.body) return { status: "failed" };
+      if (!response.ok) { await cancelBody(response.body); return { status: "failed" }; }
       const declared = Number(response.headers.get("content-length"));
-      if (Number.isFinite(declared) && declared > PDF_LIMITS.bytes) throw new PdfSkippedError("PDF exceeds the download limit.", true);
-      const reader = response.body.getReader();
-      const chunks: Uint8Array[] = [];
-      let length = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        length += value.byteLength;
-        if (length > PDF_LIMITS.bytes) { await reader.cancel(); throw new PdfSkippedError("PDF exceeds the download limit.", true); }
-        chunks.push(value);
+      if (Number.isFinite(declared) && declared > PDF_LIMITS.bytes) {
+        restrictions.push({ type: "response_too_large", url: current.toString(), status: response.status });
+        await cancelBody(response.body);
+        throw new PdfSkippedError("PDF exceeds the download limit.", true);
       }
-      const bytes = new Uint8Array(length); let offset = 0;
-      for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+      let bytes: Uint8Array;
+      try { bytes = await readBoundedBody(response.body, PDF_LIMITS.bytes); }
+      catch (error) {
+        if (error instanceof ResponseLimitError) {
+          restrictions.push({ type: "response_too_large", url: current.toString(), status: response.status });
+          throw new PdfSkippedError("PDF exceeds the download limit.", true);
+        }
+        throw error;
+      }
       const signature = bytes.length >= 5 && new TextDecoder("ascii").decode(bytes.subarray(0, 5)) === "%PDF-";
       const type = (response.headers.get("content-type") ?? "").split(";", 1)[0]!.trim().toLowerCase();
       if (!signature || (type !== "application/pdf" && type !== "application/octet-stream" && type !== "binary/octet-stream")) {
@@ -495,11 +636,15 @@ function isDiscoverableBusinessUrl(url: URL, discoveryText = ""): boolean {
   );
 }
 
-async function fetchHtml(
+export async function fetchHtml(
   url: URL,
   restrictions: CrawlRestriction[],
   initialDestinationValidated = false,
+  requestResource: SafeRequest = requestSafeDestination,
 ): Promise<{ html: string; resolvedUrl: URL } | null> {
+  // Kept for dependency compatibility; the socket-level request always repeats
+  // validation so an earlier check can never substitute for address pinning.
+  void initialDestinationValidated;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
@@ -515,19 +660,14 @@ async function fetchHtml(
         restrictions.push({type:"unsupported_protocol",url:current.toString()});
         return null;
       }
-      if (redirectCount > 0 || !initialDestinationValidated) await assertSafeDestination(current);
-
-      const response = await fetch(current.toString(), {
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          accept: "text/html,application/xhtml+xml",
-          "user-agent": "AIBuilderWebsiteCrawler/1.0",
-        },
-      });
+      let response: SafeHttpResponse;
+      try {
+        response = await requestResource(current, { signal: controller.signal, headers: { accept: "text/html,application/xhtml+xml", "user-agent": "AIBuilderWebsiteCrawler/1.0" } });
+      } catch (error) { recordUnsafeDestination(error, restrictions, current); throw error; }
 
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
+        await cancelBody(response.body);
         if (!location || redirectCount === MAX_REDIRECTS) { restrictions.push({type:"redirect_blocked",url:current.toString(),status:response.status}); return null; }
         current = new URL(location, current);
         continue;
@@ -536,6 +676,7 @@ async function fetchHtml(
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) restrictions.push({type:"access_denied",url:current.toString(),status:response.status});
         if (response.status === 429) restrictions.push({type:"rate_limited",url:current.toString(),status:response.status});
+        await cancelBody(response.body);
         return null;
       }
       const contentType = response.headers.get("content-type") ?? "";
@@ -544,10 +685,23 @@ async function fetchHtml(
         !contentType.toLowerCase().includes("text/html")
       ) {
         restrictions.push({type:"unsupported_content_type",url:current.toString(),status:response.status});
+        await cancelBody(response.body);
         return null;
       }
+      const declared = Number(response.headers.get("content-length"));
+      if (Number.isFinite(declared) && declared > MAX_HTML_BYTES) {
+        restrictions.push({ type: "response_too_large", url: current.toString(), status: response.status });
+        await cancelBody(response.body);
+        throw new ResponseLimitError("Crawler response exceeds the download limit.");
+      }
 
-      const html = (await response.text()).slice(0, MAX_HTML_BYTES);
+      let bytes: Uint8Array;
+      try { bytes = await readBoundedBody(response.body, MAX_HTML_BYTES); }
+      catch (error) {
+        if (error instanceof ResponseLimitError) restrictions.push({ type: "response_too_large", url: current.toString(), status: response.status });
+        throw error;
+      }
+      const html = new TextDecoder().decode(bytes);
       return { html, resolvedUrl: current };
     }
 
@@ -557,9 +711,10 @@ async function fetchHtml(
   }
 }
 
-async function fetchSitemapXml(
+export async function fetchSitemapXml(
   url: URL,
-  _restrictions: CrawlRestriction[],
+  restrictions: CrawlRestriction[],
+  requestResource: SafeRequest = requestSafeDestination,
 ): Promise<{ xml: string; resolvedUrl: URL } | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -568,28 +723,31 @@ async function fetchSitemapXml(
     let current = url;
     for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
       if (current.protocol !== "http:" && current.protocol !== "https:") return null;
-      await assertSafeDestination(current);
-
-      const response = await fetch(current.toString(), {
-        redirect: "manual",
-        signal: controller.signal,
-        headers: {
-          accept: "application/xml,text/xml;q=0.9,*/*;q=0.1",
-          "user-agent": "AIBuilderWebsiteCrawler/1.0",
-        },
-      });
+      let response: SafeHttpResponse;
+      try {
+        response = await requestResource(current, { signal: controller.signal, headers: { accept: "application/xml,text/xml;q=0.9,*/*;q=0.1", "user-agent": "AIBuilderWebsiteCrawler/1.0" } });
+      } catch (error) { recordUnsafeDestination(error, restrictions, current); throw error; }
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
+        await cancelBody(response.body);
         if (!location || redirectCount === MAX_REDIRECTS) return null;
         current = new URL(location, current);
         continue;
       }
-      if (!response.ok) return null;
+      if (!response.ok) { await cancelBody(response.body); return null; }
+      const declared = Number(response.headers.get("content-length"));
+      if (Number.isFinite(declared) && declared > MAX_HTML_BYTES) {
+        restrictions.push({ type: "response_too_large", url: current.toString(), status: response.status });
+        await cancelBody(response.body);
+        throw new ResponseLimitError("Crawler response exceeds the download limit.");
+      }
 
-      return {
-        xml: (await response.text()).slice(0, MAX_HTML_BYTES),
-        resolvedUrl: current,
-      };
+      try {
+        return { xml: new TextDecoder().decode(await readBoundedBody(response.body, MAX_HTML_BYTES)), resolvedUrl: current };
+      } catch (error) {
+        if (error instanceof ResponseLimitError) restrictions.push({ type: "response_too_large", url: current.toString(), status: response.status });
+        throw error;
+      }
     }
     return null;
   } finally {
@@ -598,6 +756,15 @@ async function fetchSitemapXml(
 }
 
 function decodeHtml(value: string): string {
+  const codePoint = (raw: string, radix: number) => {
+    const parsed = Number.parseInt(raw, radix);
+    const validWhitespace = parsed === 0x09 || parsed === 0x0a || parsed === 0x0d;
+    const disallowedControl = (parsed >= 0 && parsed < 0x20 && !validWhitespace) || (parsed >= 0x7f && parsed <= 0x9f);
+    const nonCharacter = (parsed >= 0xfdd0 && parsed <= 0xfdef) || (parsed & 0xfffe) === 0xfffe;
+    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 0x10ffff && !(parsed >= 0xd800 && parsed <= 0xdfff) && !disallowedControl && !nonCharacter
+      ? String.fromCodePoint(parsed)
+      : "�";
+  };
   return value
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -605,12 +772,8 @@ function decodeHtml(value: string): string {
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/&#(\d+);/g, (_, code) =>
-      String.fromCodePoint(Number(code)),
-    )
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) =>
-      String.fromCodePoint(Number.parseInt(code, 16)),
-    );
+    .replace(/&#(\d+);/g, (_, code) => codePoint(code, 10))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => codePoint(code, 16));
 }
 
 type SemanticDiagnostics = { headingsRetained:number; paragraphsRetained:number; listItemsRetained:number; tablesRetained:number; tableRowsRetained:number; definitionEntriesRetained:number; visibleFaqsRetained:number; hiddenElementsIgnored:number; semanticBlocksDeduplicated:number; extractionOutputTruncated:number };
@@ -910,7 +1073,8 @@ function extractTitle(html: string, h1: string, url: URL): string {
   };
   const candidates=[clean(html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]??""),clean(h1),metadata("og:title"),metadata("twitter:title")];
   const selected=candidates.find(meaningful); if(selected)return selected;
-  const segment=decodeURIComponent(url.pathname.split("/").filter(Boolean).at(-1)??"").replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase());
+  const rawSegment=url.pathname.split("/").filter(Boolean).at(-1)??"";let decodedSegment=rawSegment;try{decodedSegment=decodeURIComponent(rawSegment);}catch{/* Preserve malformed escapes as visible source text. */}
+  const segment=decodedSegment.replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase());
   return clean(segment)||normalizeHost(url.hostname);
 }
 
@@ -1022,10 +1186,10 @@ export async function crawlBusinessWebsite(
     fetchSitemap?: typeof fetchSitemapXml;
     fetchPdf?: (url: URL, restrictions: CrawlRestriction[]) => Promise<PdfFetchOutcome | FetchedPdf | null>;
     parsePdf?: typeof parsePdf;
-    assertSafe?: typeof assertSafeDestination;
+    assertSafe?: DestinationSafetyCheck;
     now?: () => number;
-    renderPage?: (url: URL, timeoutMs: number) => Promise<RenderedHtml | null>;
-    createBrowserRenderer?: (assertSafe: typeof assertSafeDestination, baseHost: string) => Promise<BrowserRenderer>;
+    renderPage?: (url: URL, timeoutMs: number, signal?: AbortSignal) => Promise<RenderedHtml | null>;
+    createBrowserRenderer?: (assertSafe: DestinationSafetyCheck, baseHost: string, renderHost?: string) => Promise<BrowserRenderer>;
     browserLimits?: Partial<BrowserLimits>;
   } = {},
 ): Promise<BusinessWebsiteCrawlResult> {
@@ -1043,17 +1207,18 @@ export async function crawlBusinessWebsite(
   const semanticDiagnostics: SemanticDiagnostics = { headingsRetained:0, paragraphsRetained:0, listItemsRetained:0, tablesRetained:0, tableRowsRetained:0, definitionEntriesRetained:0, visibleFaqsRetained:0, hiddenElementsIgnored:0, semanticBlocksDeduplicated:0, extractionOutputTruncated:0 };
   const pdfDiagnostics = { pdfsDiscovered:0, pdfsProcessed:0, pdfsSkipped:0, pdfsFailed:0, pdfBytesDownloaded:0, pdfPagesParsed:0, pdfDocumentsTruncated:0 };
   const browserDiagnostics = { browserPagesQueued:0, browserPagesRendered:0, browserPagesSkipped:0, browserRenderFailures:0, browserRenderTimeouts:0, browserFallbacksUsed:0, browserRenderDurationMs:0 };
-  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,...pdfDiagnostics,...browserDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
+  const emptyDiagnostics = (restrictions: CrawlRestriction[]): BusinessWebsiteCrawlDiagnostics => ({pagesDiscovered:0,pagesProcessed:0,pagesSkipped:0,pagesFailed:0,pagesExtractionFailed:0,...pdfDiagnostics,...browserDiagnostics,...duplicateDiagnostics,...structuredDiagnostics,...semanticDiagnostics,finalUrls:[],restrictions,timings:{...timings,totalCrawlDurationMs:Math.max(0,now()-totalStarted)}});
   let requested: URL;
-  try { requested = normalizeInputUrl(websiteUrl); } catch (error) {
+  try { requested = normalizeWebsiteCrawlInput(websiteUrl); } catch (error) {
     const message=error instanceof Error?error.message:"Invalid website URL.";
     const restrictions:CrawlRestriction[]=message.includes("http or https")?[{type:"unsupported_protocol",url:websiteUrl.slice(0,500)}]:[];
     throw new BusinessWebsiteCrawlError(message,emptyDiagnostics(restrictions));
   }
   const restrictions: CrawlRestriction[] = [];
-  const requestedRoot = new URL("/", requested.origin);
+  const requestedEntry = new URL(requested);
+  const originRoot = new URL("/", requested.origin);
   const resolutionStarted = now();
-  try { await assertSafe(requestedRoot); } catch (error) {
+  try { await assertSafe(requestedEntry); } catch (error) {
     timings.initialUrlResolutionMs = Math.max(0, now() - resolutionStarted);
     restrictions.push({type:"unsafe_destination",url:requested.toString()});
     throw new BusinessWebsiteCrawlError(error instanceof Error?error.message:"Unsafe crawler destination.",emptyDiagnostics(restrictions));
@@ -1064,13 +1229,14 @@ export async function crawlBusinessWebsite(
   const pages: CrawledBusinessPage[] = [];
   let pagesSkipped = 0;
   let pagesFailed = 0;
-  let homepageResolved = requestedRoot;
+  let pagesExtractionFailed = 0;
+  let homepageResolved = requestedEntry;
   let homepageHtml = "";
   let pageFetchAttempts = 0;
   const homepageStarted = now();
   try {
     pageFetchAttempts += 1;
-    const homepage = await fetchPage(requestedRoot, restrictions, true);
+    const homepage = await fetchPage(requestedEntry, restrictions, true);
     if (homepage) { homepageResolved = homepage.resolvedUrl; homepageHtml = homepage.html; }
     else pagesFailed += 1;
   } catch (error) {
@@ -1094,6 +1260,10 @@ export async function crawlBusinessWebsite(
   const blockCounts = new Map<string, number>();
   let preferredLanguage = (requested.searchParams.get("lang") ?? "").toLowerCase();
   const syncPages = () => { pages.splice(0, pages.length, ...retained.map((record) => record.page)); };
+  const reportPageProgress = () => {
+    try { onPage?.(pages.length, visited.size + queued.size + 1); }
+    catch { /* Progress observers cannot change crawl retention or failure state. */ }
+  };
   const meaningfulFor = (record: Pick<RetainedPage, "blocks">) => normalizeText(record.blocks
     .filter((block) => block.protected || (blockCounts.get(block.key) ?? 0) < 3)
     .map((block) => block.text).join(" "));
@@ -1182,19 +1352,45 @@ export async function crawlBusinessWebsite(
     const timeoutMs = Math.min(browserLimits.renderTimeoutMs, remaining);
     const started = now();
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const renderController = new AbortController();
+    let renderPromise: Promise<RenderedHtml | null> | undefined;
     try {
-      const render = dependencies.renderPage ?? (renderer ??= await (dependencies.createBrowserRenderer ?? createPlaywrightRenderer)(assertSafe, baseHost)).render;
-      const timeout = new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new BrowserRenderTimeout()), timeoutMs); });
-      const rendered = await Promise.race([render(new URL(fetched.resolvedUrl), timeoutMs), timeout]);
+      const render = dependencies.renderPage ?? (renderer ??= await (dependencies.createBrowserRenderer
+        ? dependencies.createBrowserRenderer(assertSafe, baseHost, fetched.resolvedUrl.hostname)
+        : createPlaywrightRenderer(assertSafe, baseHost, undefined, fetched.resolvedUrl.hostname))).render;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => { renderController.abort(); reject(new BrowserRenderTimeout()); }, timeoutMs);
+      });
+      renderPromise = render(new URL(fetched.resolvedUrl), timeoutMs, renderController.signal);
+      const rendered = await Promise.race([renderPromise, timeout]);
       if (!rendered) { browserDiagnostics.browserPagesSkipped += 1; return fetched; }
       browserDiagnostics.browserPagesRendered += 1;
       if ((rendered.resolvedUrl.protocol !== "http:" && rendered.resolvedUrl.protocol !== "https:") || normalizeHost(rendered.resolvedUrl.hostname) !== baseHost) throw new Error("Invalid rendered destination");
       await assertSafe(rendered.resolvedUrl);
+      if (new TextEncoder().encode(rendered.html).byteLength > MAX_HTML_BYTES) {
+        restrictions.push({ type: "response_too_large", url: rendered.resolvedUrl.toString() });
+        throw new ResponseLimitError("Rendered page exceeds the extraction limit.");
+      }
       if (!materiallyImproves(fetched.html, rendered.html)) { browserDiagnostics.browserPagesSkipped += 1; return fetched; }
       browserDiagnostics.browserFallbacksUsed += 1;
       return rendered;
     } catch (error) {
-      if (error instanceof BrowserRenderTimeout) browserDiagnostics.browserRenderTimeouts += 1;
+      if (error instanceof BrowserRenderTimeout) {
+        browserDiagnostics.browserRenderTimeouts += 1;
+        renderController.abort();
+        if (renderPromise) {
+          let drainTimer: ReturnType<typeof setTimeout> | undefined;
+          const drained = await Promise.race([
+            renderPromise.then(() => true, () => true),
+            new Promise<false>((resolve) => { drainTimer = setTimeout(() => resolve(false), BROWSER_CANCELLATION_GRACE_MS); }),
+          ]);
+          if (drainTimer) clearTimeout(drainTimer);
+          if (!drained && renderer) {
+            try { await renderer.close(); } catch { /* Timed-out renderer disposal is best effort. */ }
+            renderer = undefined;
+          }
+        }
+      }
       else browserDiagnostics.browserRenderFailures += 1;
       const warning = "A JavaScript-rendered page could not be processed.";
       if (!warnings.includes(warning)) warnings.push(warning);
@@ -1293,17 +1489,28 @@ export async function crawlBusinessWebsite(
         if (priority <= duplicate.priority) return;
         retained.splice(retained.indexOf(duplicate), 1, candidate);
         syncPages();
-        onPage?.(pages.length, visited.size + queued.size + 1);
+        reportPageProgress();
         return;
       }
       retained.push(candidate);
       syncPages();
-      onPage?.(pages.length, visited.size + queued.size + 1);
+      reportPageProgress();
+  };
+  const processFetchedSafely = async (fetched: { html: string; resolvedUrl: URL }) => {
+    try { await processFetched(fetched); }
+    catch {
+      try { finalUrls.delete(dedupeUrl(fetched.resolvedUrl.toString())); } catch { /* Invalid failure inputs have no retained identity. */ }
+      pagesFailed += 1;
+      pagesExtractionFailed += 1;
+      const warning = "A page was fetched but its content could not be extracted.";
+      if (!warnings.includes(warning)) warnings.push(warning);
+    }
   };
 
   try {
+  if (dedupeUrl(originRoot.toString()) !== dedupeUrl(requestedEntry.toString())) enqueue(originRoot.toString(), false, true);
   for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
-  if (homepageHtml) await processFetched({ html: homepageHtml, resolvedUrl: homepageResolved });
+  if (homepageHtml) await processFetchedSafely({ html: homepageHtml, resolvedUrl: homepageResolved });
   const sitemapStarted = now();
   const sitemapPages = await discoverSitemapPages();
   timings.pageDiscoveryMs += Math.max(0, now() - sitemapStarted);
@@ -1338,11 +1545,10 @@ export async function crawlBusinessWebsite(
       if (!fetched) {
         pagesFailed += 1;
         const message = error instanceof Error ? error.message : error ? "Unknown crawl error" : "Page could not be read";
-        if (message === "Unsafe crawler destination.") restrictions.push({type:"unsafe_destination",url:parsed.toString()});
         if (error && !warnings.includes(message)) warnings.push(message);
         continue;
       }
-      await processFetched(fetched);
+      await processFetchedSafely(fetched);
     }
   }
 
@@ -1391,20 +1597,18 @@ export async function crawlBusinessWebsite(
   }
   if (pdfCandidates.size > PDF_LIMITS.documents) pdfDiagnostics.pdfsSkipped += pdfCandidates.size - PDF_LIMITS.documents;
 
-  if (renderer) { try { await renderer.close(); } catch { /* Rendering cleanup cannot fail a crawl. */ } }
-
   timings.totalCrawlDurationMs = Math.max(0, now() - totalStarted);
   structuredDiagnostics.structuredFactsRetained = retained.reduce((total, record) => total + record.structuredFacts, 0);
   for(const key of Object.keys(semanticDiagnostics) as (keyof SemanticDiagnostics)[]) semanticDiagnostics[key]=retained.reduce((total,record)=>total+record.semantic[key],0);
 
   if (pages.length === 0) {
     throw new BusinessWebsiteCrawlError("The website could not be read. Confirm the URL is public and try again.", {
-      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, ...pdfDiagnostics, ...browserDiagnostics, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics, finalUrls: [], restrictions, timings,
+      pagesDiscovered: visited.size + queued.size + (homepageHtml ? 1 : 0), pagesProcessed: 0, pagesSkipped, pagesFailed, pagesExtractionFailed, ...pdfDiagnostics, ...browserDiagnostics, ...duplicateDiagnostics, ...structuredDiagnostics, ...semanticDiagnostics, finalUrls: [], restrictions, timings,
     });
   }
 
   return {
-    requestedUrl: requestedRoot.toString(),
+    requestedUrl: requestedEntry.toString(),
     resolvedUrl: homepageResolved.toString(),
     pages,
     warnings,
@@ -1413,6 +1617,7 @@ export async function crawlBusinessWebsite(
       pagesProcessed: pages.filter((page) => page.pageType !== "document").length,
       pagesSkipped,
       pagesFailed,
+      pagesExtractionFailed,
       ...pdfDiagnostics,
       ...browserDiagnostics,
       ...duplicateDiagnostics,
