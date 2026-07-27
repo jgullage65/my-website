@@ -63,6 +63,7 @@ export type KnowledgeSource = {
   label: string | null;
   capturedAt: string;
   crawlAttemptId: string | null;
+  sourceDocumentId?:string|null;
   pageType?: string | null;
   importedAt?: string | null;
 };
@@ -73,6 +74,7 @@ export type EvidenceRecord = {
   excerpt: string;
   url: string | null;
   capturedAt: string;
+  sourceBlockId?:string|null;
 };
 
 /** One independently sourced legacy claim about a canonical entity. */

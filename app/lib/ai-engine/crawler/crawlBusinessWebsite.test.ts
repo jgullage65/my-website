@@ -415,6 +415,12 @@ test("uses safe same-domain canonicals and ignores external canonicals", async (
   assert.equal(result.pages.filter((item) => item.url === "https://example.test/services").length, 1);
   assert.ok(result.pages.some((item) => item.url === "https://example.test/about"));
   assert.equal(result.diagnostics.canonicalUrlsDetected, 2);
+  const canonicalDocument=result.sourceDocuments.find(item=>item.canonicalUrl==="https://example.test/services");
+  assert.ok(canonicalDocument);
+  assert.equal(typeof canonicalDocument.actualFetchedUrl,"string");
+  assert.match(canonicalDocument.sourceContentHash,/^[a-f0-9]{64}$/);
+  assert.match(canonicalDocument.extractedContentHash,/^[a-f0-9]{64}$/);
+  assert.ok(result.sourceBlocks.some(item=>item.sourceDocumentId===canonicalDocument.id));
 });
 
 test("deduplicates redirect, exact, and near-identical pages without exceeding the fetch cap", async () => {
@@ -803,7 +809,7 @@ test("retains normalized PDF text, uses filename titles, and isolates parser fai
     assertSafe: async () => undefined, fetchSitemap:async()=>null,
     fetchPage:async(url)=>url.pathname==="/"?{resolvedUrl:url,html:page("Acme",'<a href="/service-catalog.pdf">Catalog</a><a href="/policy-guide.pdf">Policy guide</a>')}:null,
     fetchPdf:async(url)=>({resolvedUrl:url,bytes:new Uint8Array(100),truncated:false}),
-    parsePdf:async()=>{ parsed += 1; if(parsed===2) throw new Error("sensitive parser internals"); return {text:`  Service catalog\0   details\n\n\n${"pricing and capabilities ".repeat(5)}`,title:"Untitled",pagesParsed:75,truncated:true}; },
+    parsePdf:async()=>{ parsed += 1; if(parsed===2) throw new Error("sensitive parser internals"); return {text:`  Service catalog\0   details\n\n\n${"pricing and capabilities ".repeat(5)}`,title:"Untitled",pagesParsed:75,truncated:true,pages:[{pageNumber:1,text:"Service catalog details"},{pageNumber:2,text:"pricing and capabilities"}]}; },
   });
   const document=result.pages.find(item=>item.pageType==="document")!;
   assert.equal(document.title,"Service Catalog");
@@ -812,6 +818,8 @@ test("retains normalized PDF text, uses filename titles, and isolates parser fai
   assert.equal(result.diagnostics.pdfsFailed,1);
   assert.equal(result.diagnostics.pdfDocumentsTruncated,1);
   assert.deepEqual(result.warnings,["A PDF document could not be read."]);
+  const pdfSource=result.sourceDocuments.find(item=>item.sourceType==="pdf")!;
+  assert.ok(pdfSource); assert.ok(result.sourceBlocks.some(item=>item.sourceDocumentId===pdfSource.id&&item.coordinates.pageNumber===2));
 });
 
 test("discovers a PDF from weak HTML without retaining or budgeting the weak page", async () => {
@@ -891,6 +899,7 @@ test("keeps HTML authoritative and renders only deterministically weak pages", a
   assert.ok(weak.diagnostics.browserRenderDurationMs >= 0);
   assert.equal(weak.diagnostics.headingsRetained, 1);
   assert.equal(weak.diagnostics.paragraphsRetained, 1);
+  assert.equal(weak.sourceDocuments[0]?.sourceType,"rendered_html");
 });
 
 test("does not replace weak HTML with empty rendered output", async () => {

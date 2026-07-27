@@ -5,6 +5,8 @@ import { finishCrawlTelemetry, safePublicUrl, startCrawlTelemetry } from "@/app/
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import { estimateAiTokenCost } from "@/app/lib/telemetry/ai-pricing";
 import type { AiTokenUsage } from "@/app/lib/telemetry/ai-pricing";
+import { persistWebsiteSourceRecords } from "@/app/lib/ai-engine/crawler/websiteSourceRecordStore";
+import { locateWebsiteEvidence } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
 import {
   AI_BUILDER_MAX_FINAL_INPUT_CHARACTERS,
   assertSafeWebsiteExtractionInput,
@@ -142,7 +144,7 @@ function canonicalizeUrl(value: unknown): string {
   }
 }
 
-function normalizeKnowledge(value: unknown, crawledPages: Map<string, string>) {
+function normalizeKnowledge(value: unknown, crawledPages: Map<string, string>, crawl: Pick<Awaited<ReturnType<typeof crawlBusinessWebsite>>,"sourceDocuments"|"sourceBlocks"|"crawlAttempt">) {
   const knowledge = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const rawFacts = Array.isArray(knowledge.facts) ? knowledge.facts : [];
   const facts = rawFacts.flatMap((rawFact) => {
@@ -160,7 +162,8 @@ function normalizeKnowledge(value: unknown, crawledPages: Map<string, string>) {
       const url = normalizeText(item.url);
       const excerpt = normalizeText(item.excerpt);
       const pageText = crawledPages.get(canonicalizeUrl(url));
-      return url && excerpt && pageText?.includes(excerpt) ? [{ url, excerpt }] : [];
+      if(!url||!excerpt||!pageText?.includes(excerpt))return [];
+      return [{url,excerpt,...locateWebsiteEvidence(url,excerpt,crawl.sourceDocuments,crawl.sourceBlocks,crawl.crawlAttempt.id)}];
     });
 
     if (!category || !title || !factValue || !confidence || !factCategories.has(category) || !confidenceLevels.has(confidence) || !evidence.length) {
@@ -324,7 +327,8 @@ export async function POST(request: Request) {
     crawlStartedAt = new Date().toISOString();
     const crawl = await crawlBusinessWebsite(website, (pagesCrawled, pagesDiscovered) => {
       send({ type: "crawl_progress", pagesCrawled, pagesDiscovered });
-    });
+    },{crawlAttemptId:attemptId,crawlStartedAt});
+    await persistWebsiteSourceRecords(crawl.crawlAttempt,crawl.sourceDocuments,crawl.sourceBlocks);
     crawlDiagnostics = crawl.diagnostics;
     const crawlCompletedAt = new Date().toISOString();
     const telemetryFinish = performance.now();
@@ -337,7 +341,7 @@ export async function POST(request: Request) {
 
     const extractionUnits = crawl.pages.map((page, index) => ({
       pageNumber: index + 1,
-      sourceIdentifier: `crawl-page-${index + 1}`,
+      sourceIdentifier: page.sourceDocumentId ?? `crawl-page-${index + 1}`,
       url: page.url,
       pageType: page.pageType,
       title: page.title,
@@ -403,7 +407,7 @@ export async function POST(request: Request) {
           continue;
         }
         const batch = JSON.parse(response.output_text.trim()) as Omit<ExtractedWebsiteBatch, "knowledge"> & { knowledge: unknown };
-        extractedBatches.push({ ...batch, knowledge: normalizeKnowledge(batch.knowledge, crawledPages) });
+        extractedBatches.push({ ...batch, knowledge: normalizeKnowledge(batch.knowledge, crawledPages, crawl) });
       } catch (error) {
         console.error("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, model, durationMs: performance.now() - callStarted, success: false, error: error instanceof Error ? error.message : String(error) });
         if (!isContextWindowError(error)) throw error;
@@ -443,8 +447,11 @@ export async function POST(request: Request) {
         url: page.url,
         title: page.title,
         pageType: page.pageType,
+        sourceDocumentId:page.sourceDocumentId,
       })),
       warnings: crawl.warnings,
+      sourceDocuments:crawl.sourceDocuments,
+      sourceBlocks:crawl.sourceBlocks,
       crawlAttemptId: attemptId,
       timings,
     });

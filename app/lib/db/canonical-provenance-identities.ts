@@ -75,7 +75,7 @@ export function manualEvidenceIdentity(snapshotId: string, block: AiBuilderSessi
 }
 
 export function websiteEvidenceIdentity(snapshotId: string, fact: PersistedWebsiteKnowledge["knowledge"]["facts"][number], evidence: PersistedWebsiteKnowledge["knowledge"]["facts"][number]["evidence"][number]): string {
-  return canonicalId("evidence", snapshotId, fingerprint({ category: fact.category, title: fact.title, value: fact.value, confidence: fact.confidence, url: evidence.url, excerpt: evidence.excerpt }));
+  return canonicalId("evidence", snapshotId, fingerprint({ category: fact.category, title: fact.title, value: fact.value, confidence: fact.confidence, url: evidence.url, excerpt: evidence.excerpt, sourceDocumentId:evidence.sourceDocumentId??null,sourceBlockId:evidence.sourceBlockId??null }));
 }
 
 export function manualCompatibilityMetadata(projectId: string, legacyIntakeBlockId?: string): { legacyProjectId: string; legacyIntakeBlockId?: string } {

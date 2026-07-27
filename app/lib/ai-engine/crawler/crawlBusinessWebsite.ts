@@ -4,12 +4,14 @@ import { createHash } from "node:crypto";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { Readable } from "node:stream";
+import { buildTextBlocks, CRAWLER_VERSION, EXTRACTION_VERSION, sha256, stableSourceDocumentId, type WebsiteCrawlAttemptRecord, type WebsiteDiscoveryMethod, type WebsiteSourceBlockRecord, type WebsiteSourceDocumentRecord } from "./websiteSourceRecords";
 
 export type CrawledBusinessPage = {
   url: string;
   title: string;
   pageType: string;
   text: string;
+  sourceDocumentId?: string;
 };
 
 export type BusinessWebsiteCrawlResult = {
@@ -18,6 +20,9 @@ export type BusinessWebsiteCrawlResult = {
   pages: CrawledBusinessPage[];
   warnings: string[];
   diagnostics: BusinessWebsiteCrawlDiagnostics;
+  crawlAttempt: WebsiteCrawlAttemptRecord;
+  sourceDocuments: WebsiteSourceDocumentRecord[];
+  sourceBlocks: WebsiteSourceBlockRecord[];
 };
 
 export type BusinessWebsiteCrawlDiagnostics = {
@@ -550,8 +555,8 @@ function isEligiblePdf(url: URL, discoveryText = ""): boolean {
   return PDF_DURABLE_SIGNAL.test(evidence) && !PDF_EDITORIAL_SIGNAL.test(evidence);
 }
 
-type FetchedPdf = { bytes: Uint8Array; resolvedUrl: URL; truncated: boolean };
-type ParsedPdf = { text: string; title?: string; pagesParsed: number; truncated: boolean };
+type FetchedPdf = { bytes: Uint8Array; resolvedUrl: URL; truncated: boolean; redirectChain?:string[];contentType?:string;fetchedAt?:string };
+type ParsedPdf = { text: string; title?: string; pagesParsed: number; truncated: boolean; pages?:{pageNumber:number;text:string}[] };
 class PdfSkippedError extends Error { constructor(message: string, readonly truncated = false, readonly bytesDownloaded = 0) { super(message); } }
 type PdfFetchOutcome =
   | { status: "success"; document: FetchedPdf; bytesDownloaded?: number }
@@ -563,6 +568,7 @@ async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<Pdf
   const timeout = setTimeout(() => controller.abort(), PDF_LIMITS.fetchTimeoutMs);
   try {
     let current = url;
+    const redirectChain:string[]=[];
     const originalHost = normalizeHost(url.hostname);
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
       if ((current.protocol !== "http:" && current.protocol !== "https:") || normalizeHost(current.hostname) !== originalHost) {
@@ -576,7 +582,7 @@ async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<Pdf
         const location = response.headers.get("location");
         await cancelBody(response.body);
         if (!location || redirects === MAX_REDIRECTS) { restrictions.push({ type: "redirect_blocked", url: current.toString(), status: response.status }); return { status: "skipped" }; }
-        current = new URL(location, current);
+        redirectChain.push(current.toString()); current = new URL(location, current);
         continue;
       }
       if (!response.ok) { await cancelBody(response.body); return { status: "failed" }; }
@@ -601,7 +607,7 @@ async function fetchPdf(url: URL, restrictions: CrawlRestriction[]): Promise<Pdf
         restrictions.push({ type: "unsupported_content_type", url: current.toString(), status: response.status });
         return { status: "skipped", bytesDownloaded: bytes.byteLength };
       }
-      return { status: "success", document: { bytes, resolvedUrl: current, truncated: false }, bytesDownloaded: bytes.byteLength };
+      return { status: "success", document: { bytes, resolvedUrl: current, truncated: false, redirectChain, contentType:type, fetchedAt:new Date().toISOString() }, bytesDownloaded: bytes.byteLength };
     }
     return { status: "skipped" };
   } catch (error) {
@@ -627,7 +633,7 @@ async function parsePdf(bytes: Uint8Array): Promise<ParsedPdf> {
     const extraction = (async () => {
       const document = await task.promise;
       const pageLimit = Math.min(document.numPages, PDF_LIMITS.pages);
-      const lines: string[] = [];
+      const lines: string[] = []; const pages:{pageNumber:number;text:string}[]=[];
       let characters = 0;
       for (let number = 1; number <= pageLimit && characters < PDF_LIMITS.characters; number += 1) {
         const page = await document.getPage(number);
@@ -637,14 +643,16 @@ async function parsePdf(bytes: Uint8Array): Promise<ParsedPdf> {
             ? item.str
             : "",
         ).join(" ");
-        lines.push(pageText); characters += pageText.length + 2;
+        const remaining=Math.max(0,PDF_LIMITS.characters-characters);
+        const boundedPageText=pageText.slice(0,remaining);
+        lines.push(boundedPageText); pages.push({pageNumber:number,text:boundedPageText}); characters += boundedPageText.length + 2;
       }
       const metadata = await document.getMetadata().catch(() => null);
       const raw = lines.join("\n\n").replace(/\0/g, "").replace(/[ \t\f\v]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
       const text = raw.length > PDF_LIMITS.characters ? raw.slice(0, PDF_LIMITS.characters).replace(/\s+\S*$/s, "").trim() : raw;
       const info = metadata?.info;
       const title = info && typeof info === "object" && "Title" in info && typeof info.Title === "string" ? info.Title : undefined;
-      return { text, title, pagesParsed: lines.length, truncated: document.numPages > lines.length || raw.length > PDF_LIMITS.characters };
+      return { text, title, pagesParsed: lines.length, truncated: document.numPages > lines.length || raw.length > PDF_LIMITS.characters, pages };
     })();
     return await Promise.race([extraction, timeout]);
   } finally { if (timer) clearTimeout(timer); await task.destroy(); }
@@ -679,7 +687,7 @@ export async function fetchHtml(
   restrictions: CrawlRestriction[],
   initialDestinationValidated = false,
   requestResource: SafeRequest = requestSafeDestination,
-): Promise<{ html: string; resolvedUrl: URL } | null> {
+): Promise<{ html: string; resolvedUrl: URL; redirectChain?:string[];contentType?:string;fetchedAt?:string } | null> {
   // Kept for dependency compatibility; the socket-level request always repeats
   // validation so an earlier check can never substitute for address pinning.
   void initialDestinationValidated;
@@ -687,7 +695,7 @@ export async function fetchHtml(
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    let current = url;
+    let current = url; const redirectChain:string[]=[];
 
     for (
       let redirectCount = 0;
@@ -707,7 +715,7 @@ export async function fetchHtml(
         const location = response.headers.get("location");
         await cancelBody(response.body);
         if (!location || redirectCount === MAX_REDIRECTS) { restrictions.push({type:"redirect_blocked",url:current.toString(),status:response.status}); return null; }
-        current = new URL(location, current);
+        redirectChain.push(current.toString()); current = new URL(location, current);
         continue;
       }
 
@@ -740,7 +748,7 @@ export async function fetchHtml(
         throw error;
       }
       const html = new TextDecoder().decode(bytes);
-      return { html, resolvedUrl: current };
+      return { html, resolvedUrl: current, redirectChain, contentType:contentType.split(";",1)[0]||"text/html", fetchedAt:new Date().toISOString() };
     }
 
     return null;
@@ -1229,6 +1237,8 @@ export async function crawlBusinessWebsite(
     renderPage?: (url: URL, timeoutMs: number, signal?: AbortSignal) => Promise<RenderedHtml | null>;
     createBrowserRenderer?: (assertSafe: DestinationSafetyCheck, baseHost: string, renderHost?: string) => Promise<BrowserRenderer>;
     browserLimits?: Partial<BrowserLimits>;
+    crawlAttemptId?: string;
+    crawlStartedAt?: string;
   } = {},
 ): Promise<BusinessWebsiteCrawlResult> {
   const now = dependencies.now ?? (() => performance.now());
@@ -1239,6 +1249,8 @@ export async function crawlBusinessWebsite(
   const assertSafe = dependencies.assertSafe ?? assertSafeDestination;
   const browserLimits: BrowserLimits = { ...BROWSER_LIMITS, ...dependencies.browserLimits };
   const totalStarted = now();
+  const crawlAttemptId = dependencies.crawlAttemptId ?? crypto.randomUUID();
+  const crawlStartedAt = dependencies.crawlStartedAt ?? new Date().toISOString();
   const timings: BusinessWebsiteCrawlTimings = { initialUrlResolutionMs: 0, homepageFetchMs: 0, sitemapDiscoveryMs: 0, pageDiscoveryMs: 0, pageCrawlingMs: 0, pdfFetchMs: 0, pdfParseMs: 0, contentExtractionMs: 0, totalCrawlDurationMs: 0 };
   const duplicateDiagnostics = { canonicalUrlsDetected: 0, canonicalDuplicatesSkipped: 0, redirectDuplicatesSkipped: 0, exactDuplicatesSkipped: 0, nearDuplicatesSkipped: 0, alternateVariantsSkipped: 0, alternateLinksRejected: 0, alternateLinksNotSelected: 0, alternatePagesDeduplicated: 0, repeatedBoilerplateOccurrencesDiscounted: 0 };
   const structuredDiagnostics = { jsonLdBlocksDetected: 0, jsonLdBlocksParsed: 0, malformedJsonLdBlocksIgnored: 0, supportedStructuredEntitiesDetected: 0, structuredFactsRetained: 0, structuredFactsDeduplicated: 0 };
@@ -1302,10 +1314,12 @@ export async function crawlBusinessWebsite(
   const finalUrls = new Set<string>();
   const sitemapDiscovered = new Set<string>();
   const pdfCandidates = new Set<string>();
-  const addPdfCandidate = (url: string) => { if (!pdfCandidates.has(url)) { pdfCandidates.add(url); pdfDiagnostics.pdfsDiscovered += 1; } };
+  const pdfDiscovery=new Map<string,{method:WebsiteDiscoveryMethod;parent:string|null}>();
+  const addPdfCandidate = (url: string,method:WebsiteDiscoveryMethod="pdf_link",parent:string|null=null) => { if (!pdfCandidates.has(url)) { pdfCandidates.add(url);pdfDiscovery.set(url,{method,parent}); pdfDiagnostics.pdfsDiscovered += 1; } };
   const localizedUrls = new Set<string>();
-  type RetainedPage = { page: CrawledBusinessPage; finalUrl: string; identity: string; priority: number; blocks: ReturnType<typeof textBlocks>; structuredFacts: number; semantic:SemanticDiagnostics };
+  type RetainedPage = { page: CrawledBusinessPage; finalUrl: string; identity: string; priority: number; blocks: ReturnType<typeof textBlocks>; structuredFacts: number; semantic:SemanticDiagnostics; sourceDocument:WebsiteSourceDocumentRecord; sourceBlocks:WebsiteSourceBlockRecord[] };
   const retained: RetainedPage[] = [];
+  const discovery = new Map<string,{method:WebsiteDiscoveryMethod;parent:string|null}>([[dedupeUrl(requestedEntry.toString()),{method:"submitted",parent:null}]]);
   const blockCounts = new Map<string, number>();
   let preferredLanguage = (requested.searchParams.get("lang") ?? "").toLowerCase();
   const syncPages = () => { pages.splice(0, pages.length, ...retained.map((record) => record.page)); };
@@ -1316,12 +1330,13 @@ export async function crawlBusinessWebsite(
   const meaningfulFor = (record: Pick<RetainedPage, "blocks">) => normalizeText(record.blocks
     .filter((block) => block.protected || (blockCounts.get(block.key) ?? 0) < 3)
     .map((block) => block.text).join(" "));
-  const enqueue = (value: string, front = false, alreadyClassified = false) => {
+  const enqueue = (value: string, front = false, alreadyClassified = false, method:WebsiteDiscoveryMethod="unknown", parent:string|null=null) => {
     let parsed: URL;
     try { parsed = new URL(value); } catch { return; }
     if (!alreadyClassified && !isDiscoverableBusinessUrl(parsed)) return;
     const normalized = dedupeUrl(parsed.toString());
     discoveredHtmlUrls.add(normalized);
+    if (!discovery.has(normalized)) discovery.set(normalized,{method,parent});
     if (!visited.has(normalized) && !queued.has(normalized)) { queued.add(normalized); front ? queue.unshift(normalized) : queue.push(normalized); }
   };
   const normalizeSitemapPage = (value: string, sitemapUrl: URL): string | null => {
@@ -1331,7 +1346,7 @@ export async function crawlBusinessWebsite(
       (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
       normalizeHost(parsed.hostname) !== baseHost
     ) return null;
-    if (isEligiblePdf(parsed)) { addPdfCandidate(dedupePdfUrl(parsed.toString())); return null; }
+    if (isEligiblePdf(parsed)) { addPdfCandidate(dedupePdfUrl(parsed.toString()),"sitemap",sitemapUrl.toString()); return null; }
     if (isDocumentOrAsset(parsed) || !isDiscoverableBusinessUrl(parsed)) return null;
     const normalized = dedupeUrl(parsed.toString());
     sitemapDiscovered.add(normalized);
@@ -1458,8 +1473,10 @@ export async function crawlBusinessWebsite(
       browserDiagnostics.browserRenderDurationMs += duration;
     }
   };
-  const processFetched = async (fetched: { html: string; resolvedUrl: URL }) => {
+  const processFetched = async (fetched: { html: string; resolvedUrl: URL;redirectChain?:string[];contentType?:string;fetchedAt?:string }) => {
+      const sourceHtml=fetched.html; const staticMetadata=fetched;
       fetched = await maybeRender(fetched);
+      const wasRendered=fetched.html!==sourceHtml;
       const finalUrl = dedupeUrl(fetched.resolvedUrl.toString());
       if (finalUrls.has(finalUrl)) { pagesSkipped += 1; duplicateDiagnostics.redirectDuplicatesSkipped += 1; return; }
       finalUrls.add(finalUrl);
@@ -1495,7 +1512,7 @@ export async function crawlBusinessWebsite(
       duplicateDiagnostics.repeatedBoilerplateOccurrencesDiscounted = Array.from(blockCounts).reduce((total, [key, count]) =>
         total + (count >= 3 && !protectedBlocks.has(key) ? count : 0), 0);
       const discoveryStarted = now();
-      for (const pdf of discoverPdfLinks(fetched.html, fetched.resolvedUrl, baseHost)) addPdfCandidate(pdf);
+      for (const pdf of discoverPdfLinks(fetched.html, fetched.resolvedUrl, baseHost)) addPdfCandidate(pdf,"pdf_link",fetched.resolvedUrl.toString());
       timings.pageDiscoveryMs += Math.max(0, now() - discoveryStarted);
       if (text.length < 80) { pagesSkipped += 1; return; }
       const pageType = inferPageType(fetched.resolvedUrl, title);
@@ -1505,13 +1522,19 @@ export async function crawlBusinessWebsite(
       const actualCanonicalDestination = finalUrl === identity;
       const priority = (core ? 10_000 : supplementary ? 300 : 100) + (actualCanonicalDestination ? 1_000 : 0) + (sitemapDiscovered.has(finalUrl) && core ? 500 : 0) + Math.max(0, 200 - new URL(identity).pathname.length) - (localized ? 200 : 0);
       const retainedText = structured.text ? `${text}\n\n${structured.text}` : text;
-      const candidate: RetainedPage = { page: { url: identity, title, pageType, text: retainedText }, finalUrl, identity, priority, blocks, structuredFacts: structured.factsRetained, semantic:semantic.diagnostics };
+      const htmlLanguage = (fetched.html.match(/<html\b[^>]*\blang\s*=\s*["']([^"']+)/i)?.[1] ?? "").toLowerCase();
+      const sourceHash=sha256(wasRendered?fetched.html:sourceHtml); const actualFetchedUrl=fetched.resolvedUrl.toString(); const sourceDocumentId=stableSourceDocumentId(crawlAttemptId,actualFetchedUrl,sourceHash);
+      const discovered=discovery.get(dedupeUrl(fetched.resolvedUrl.toString()))??(retained.length===0?{method:"submitted" as const,parent:null}:{method:"unknown" as const,parent:null});
+      const renderRedirect=wasRendered&&staticMetadata.resolvedUrl.toString()!==actualFetchedUrl?[staticMetadata.resolvedUrl.toString()]:[];
+      const sourceDocument:WebsiteSourceDocumentRecord={schemaVersion:1,id:sourceDocumentId,crawlAttemptId,actualFetchedUrl,canonicalUrl:canonical??null,redirectChain:[...(staticMetadata.redirectChain??[]),...renderRedirect],sourceType:wasRendered?"rendered_html":"html",contentType:wasRendered?"text/html":staticMetadata.contentType??"text/html",status:"retained",fetchedAt:wasRendered?new Date().toISOString():staticMetadata.fetchedAt??new Date().toISOString(),sourceContentHash:sourceHash,extractedContentHash:sha256(retainedText),language:htmlLanguage||null,sourceTruncated:false,extractionTruncated:Boolean(semantic.diagnostics.extractionOutputTruncated),discoveryMethod:discovered.method,discoveredFromUrl:discovered.parent};
+      const visibleBlocks=buildTextBlocks({documentId:sourceDocumentId,attemptId:crawlAttemptId,text,method:"semantic_html",preserveWhole:true});
+      const jsonBlocks=structured.text?buildTextBlocks({documentId:sourceDocumentId,attemptId:crawlAttemptId,text:structured.text.replace(/^Structured business data:\n/,""),method:"json_ld",type:"json_ld_fact"}):[];
+      const candidate: RetainedPage = { page: { url: identity, title, pageType, text: retainedText, sourceDocumentId }, finalUrl, identity, priority, blocks, structuredFacts: structured.factsRetained, semantic:semantic.diagnostics,sourceDocument,sourceBlocks:visibleBlocks.concat(jsonBlocks) };
 
       const htmlDiscoveryStarted = now();
-      for (const discovered of discoverInternalLinks(fetched.html, fetched.resolvedUrl, baseHost).reverse()) enqueue(discovered, true, true);
+      for (const discovered of discoverInternalLinks(fetched.html, fetched.resolvedUrl, baseHost).reverse()) enqueue(discovered, true, true,"html_link",finalUrl);
       timings.pageDiscoveryMs += Math.max(0, now() - htmlDiscoveryStarted);
 
-      const htmlLanguage = (fetched.html.match(/<html\b[^>]*\blang\s*=\s*["']([^"']+)/i)?.[1] ?? "").toLowerCase();
       if (!preferredLanguage && retained.length === 0) preferredLanguage = htmlLanguage || (relations.alternates.some((item) => item.language === "x-default") ? "x-default" : "");
       const preferredAlternate = relations.alternates.find((item) => preferredLanguage && (item.language === preferredLanguage || (preferredLanguage !== "x-default" && item.language.split("-")[0] === preferredLanguage.split("-")[0])))
         ?? (preferredLanguage === "x-default" ? relations.alternates.find((item) => item.language === "x-default") : undefined);
@@ -1520,7 +1543,7 @@ export async function crawlBusinessWebsite(
         if (!safeAlternate) { duplicateDiagnostics.alternateVariantsSkipped += 1; duplicateDiagnostics.alternateLinksRejected += 1; continue; }
         if (alternate !== preferredAlternate || safeAlternate === identity || localizedUrls.size >= 1) { duplicateDiagnostics.alternateVariantsSkipped += 1; duplicateDiagnostics.alternateLinksNotSelected += 1; continue; }
         localizedUrls.add(safeAlternate);
-        enqueue(safeAlternate, true, true);
+        enqueue(safeAlternate, true, true,"alternate",finalUrl);
       }
 
       let duplicate = retained.find((record) => record.identity === identity);
@@ -1552,7 +1575,7 @@ export async function crawlBusinessWebsite(
       syncPages();
       reportPageProgress();
   };
-  const processFetchedSafely = async (fetched: { html: string; resolvedUrl: URL }) => {
+  const processFetchedSafely = async (fetched: { html: string; resolvedUrl: URL;redirectChain?:string[];contentType?:string;fetchedAt?:string }) => {
     pagesExtractionAttempted += 1;
     const extractionStarted = now();
     try { await processFetched(fetched); pagesExtractionSucceeded += 1; }
@@ -1565,13 +1588,13 @@ export async function crawlBusinessWebsite(
   };
 
   try {
-  if (dedupeUrl(originRoot.toString()) !== dedupeUrl(requestedEntry.toString())) enqueue(originRoot.toString(), false, true);
-  for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString());
+  if (dedupeUrl(originRoot.toString()) !== dedupeUrl(requestedEntry.toString())) enqueue(originRoot.toString(), false, true,"priority_path",requestedEntry.toString());
+  for (const path of PRIORITY_PATHS.slice(1)) enqueue(new URL(path, homepageResolved.origin).toString(),false,false,"priority_path",homepageResolved.toString());
   if (homepageHtml) await processFetchedSafely({ html: homepageHtml, resolvedUrl: homepageResolved });
   const sitemapStarted = now();
   const sitemapPages = await discoverSitemapPages();
   timings.sitemapDiscoveryMs += Math.max(0, now() - sitemapStarted);
-  for (const sitemapPage of sitemapPages) enqueue(sitemapPage);
+  for (const sitemapPage of sitemapPages) enqueue(sitemapPage,false,false,"sitemap",new URL("/sitemap.xml",homepageResolved.origin).toString());
 
   while (queue.length > 0 && pageFetchAttempts < MAX_PAGES) {
     const batch: URL[] = [];
@@ -1669,7 +1692,17 @@ export async function crawlBusinessWebsite(
       const metadataTitle = (parsed.title ?? "").replace(/\0/g, "").replace(/\s+/g, " ").trim();
       const title = metadataTitle.length >= 3 && !/^(?:untitled|document|microsoft word)$/i.test(metadataTitle) ? metadataTitle.slice(0, 300) : pdfFilenameTitle(fetched.resolvedUrl);
       const blocks = textBlocks(text);
-      const candidate: RetainedPage = { page:{ url:finalUrl, title, pageType:"document", text }, finalUrl, identity:finalUrl, priority:10, blocks, structuredFacts:0, semantic:{headingsRetained:0,paragraphsRetained:0,listItemsRetained:0,tablesRetained:0,tableRowsRetained:0,definitionEntriesRetained:0,visibleFaqsRetained:0,hiddenElementsIgnored:0,semanticBlocksDeduplicated:0,extractionOutputTruncated:0} };
+      const sourceHash=sha256(fetched.bytes); const actualFetchedUrl=fetched.resolvedUrl.toString(); const sourceDocumentId=stableSourceDocumentId(crawlAttemptId,actualFetchedUrl,sourceHash);
+      const pdfOrigin=pdfDiscovery.get(candidateUrl)??{method:"unknown" as const,parent:null};
+      const sourceDocument:WebsiteSourceDocumentRecord={schemaVersion:1,id:sourceDocumentId,crawlAttemptId,actualFetchedUrl,canonicalUrl:null,redirectChain:fetched.redirectChain??[],sourceType:"pdf",contentType:fetched.contentType??"application/pdf",status:"retained",fetchedAt:fetched.fetchedAt??new Date().toISOString(),sourceContentHash:sourceHash,extractedContentHash:sha256(text),language:null,sourceTruncated:Boolean(fetched.truncated),extractionTruncated:Boolean(parsed.truncated||parsed.pagesParsed>PDF_LIMITS.pages||parsed.text.length>PDF_LIMITS.characters),discoveryMethod:pdfOrigin.method,discoveredFromUrl:pdfOrigin.parent};
+      let remainingBlockCharacters=PDF_LIMITS.characters;
+      const sourceBlocks=(parsed.pages?.length?parsed.pages:[{pageNumber:1,text}]).flatMap(page=>{
+        if(remainingBlockCharacters<=0)return [];
+        const boundedPageText=page.text.slice(0,remainingBlockCharacters);
+        remainingBlockCharacters-=boundedPageText.length;
+        return buildTextBlocks({documentId:sourceDocumentId,attemptId:crawlAttemptId,text:boundedPageText,method:"pdf_text",type:"pdf_page_text",pageNumber:page.pageNumber,preserveWhole:true});
+      });
+      const candidate: RetainedPage = { page:{ url:finalUrl, title, pageType:"document", text, sourceDocumentId }, finalUrl, identity:finalUrl, priority:10, blocks, structuredFacts:0, semantic:{headingsRetained:0,paragraphsRetained:0,listItemsRetained:0,tablesRetained:0,tableRowsRetained:0,definitionEntriesRetained:0,visibleFaqsRetained:0,hiddenElementsIgnored:0,semanticBlocksDeduplicated:0,extractionOutputTruncated:0},sourceDocument,sourceBlocks };
       const meaningful = normalizeText(text);
       const fingerprint = createHash("sha256").update(meaningful).digest("hex");
       let duplicate = retained.find((record) => createHash("sha256").update(meaningfulFor(record)).digest("hex") === fingerprint);
@@ -1703,6 +1736,9 @@ export async function crawlBusinessWebsite(
     resolvedUrl: homepageResolved.toString(),
     pages,
     warnings,
+    crawlAttempt:{schemaVersion:1,id:crawlAttemptId,requestedUrl:websiteUrl.trim(),normalizedSubmittedUrl:requested.toString(),resolvedEntryUrl:homepageResolved.toString(),startedAt:crawlStartedAt,completedAt:new Date().toISOString(),crawlerVersion:CRAWLER_VERSION,extractionVersion:EXTRACTION_VERSION,status:warnings.length||pagesFailed||pagesExtractionFailed||restrictions.length?"partial":"completed",budgets:{htmlPages:MAX_PAGES,concurrency:MAX_CONCURRENT_FETCHES,htmlBytes:MAX_HTML_BYTES,sitemapFetches:MAX_SITEMAP_FETCHES,pdfDocuments:PDF_LIMITS.documents,pdfBytes:PDF_LIMITS.bytes,pdfPages:PDF_LIMITS.pages,browserPages:browserLimits.pages,browserTimeMs:browserLimits.totalTimeMs},restrictions},
+    sourceDocuments:retained.map(record=>record.sourceDocument),
+    sourceBlocks:retained.flatMap(record=>record.sourceBlocks),
     diagnostics: {
       pagesDiscovered: discoveredHtmlUrls.size,
       pagesProcessed: pagesExtractionSucceeded,

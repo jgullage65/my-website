@@ -14,6 +14,7 @@ import type {
   WebsiteKnowledgeFact,
   WebsiteKnowledgePage,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
 import {
   WEBSITE_KNOWLEDGE_SECTION_LABELS,
   WEBSITE_KNOWLEDGE_SECTION_ORDER,
@@ -41,6 +42,8 @@ type WebsiteImportPayload = {
   knowledge?: StructuredWebsiteKnowledge;
   pages?: WebsiteKnowledgePage[];
   warnings?: string[];
+  sourceDocuments?:WebsiteSourceDocumentRecord[];
+  sourceBlocks?:WebsiteSourceBlockRecord[];
   error?: { message?: string };
 };
 
@@ -185,6 +188,8 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         warnings: payload.warnings ?? [],
         importedAt: new Date().toISOString(),
         crawlAttemptId: payload.crawlAttemptId,
+        sourceDocuments:payload.sourceDocuments??[],
+        sourceBlocks:payload.sourceBlocks??[],
       };
 
       onChange({

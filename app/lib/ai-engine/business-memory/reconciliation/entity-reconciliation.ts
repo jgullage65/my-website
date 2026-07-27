@@ -50,8 +50,8 @@ export function validateMerge(command: MergeCommand, revision: number, entities:
 
 export type SourceEntityOwnership = { id: string; sourceEntityId: string; resolvedEntityId: string };
 export type AssertionOwnership = { id: string; assertionId: string; resolvedEntityId: string };
-export type BusinessMemorySource = { id: string; canonicalSourceId: string; origin: string; sourceEntryId: string | null; intakeBlockId: string | null; url: string | null; label: string | null; capturedAt: string; crawlAttemptId: string | null };
-export type BusinessMemoryEvidence = { id: string; sourceId: string; canonicalEvidenceId: string; excerpt: string; url: string | null; capturedAt: string };
+export type BusinessMemorySource = { id: string; canonicalSourceId: string; origin: string; sourceEntryId: string | null; intakeBlockId: string | null; url: string | null; label: string | null; capturedAt: string; crawlAttemptId: string | null; sourceDocumentId?:string|null };
+export type BusinessMemoryEvidence = { id: string; sourceId: string; canonicalEvidenceId: string; excerpt: string; url: string | null; capturedAt: string; sourceBlockId?:string|null };
 export type AssertionSourceLink = { id: string; assertionId: string; sourceId: string };
 export type AssertionEvidenceLink = { id: string; assertionId: string; evidenceId: string };
 export type ConflictAssertionLink = { id: string; conflictId: string; assertionId: string };

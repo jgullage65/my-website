@@ -14,6 +14,7 @@ import {
   type StructuredWebsiteKnowledge,
   reconcileStructuredWebsiteKnowledge,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import { normalizeWebsiteSourceBlocks,normalizeWebsiteSourceDocuments } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,8 @@ type WebsiteKnowledgeRequest = {
   warnings?: unknown;
   importedAt?: unknown;
   crawlAttemptId?: unknown;
+  sourceDocuments?:unknown;
+  sourceBlocks?:unknown;
 };
 
 type IntakeRequestBody = {
@@ -93,7 +96,9 @@ function normalizeSubmittedWebsiteKnowledge(value: unknown): StructuredWebsiteKn
       const item = entry as Record<string, unknown>;
       const url = normalizeWebsiteUrl(item.url);
       const excerpt = normalizeBoundedText(item.excerpt, 2_000);
-      return url && excerpt ? [{ url, excerpt }] : [];
+      const sourceDocumentId=normalizeBoundedText(item.sourceDocumentId,200),sourceBlockId=normalizeBoundedText(item.sourceBlockId,200),crawlAttemptId=normalizeBoundedText(item.crawlAttemptId,200);
+      const coordinates=item.sourceCoordinates&&typeof item.sourceCoordinates==="object"&&!Array.isArray(item.sourceCoordinates)?item.sourceCoordinates as Record<string,unknown>:undefined;
+      return url && excerpt ? [{ url, excerpt,...(sourceDocumentId?{sourceDocumentId}:{}),...(sourceBlockId?{sourceBlockId}:{}),...(crawlAttemptId?{crawlAttemptId}:{}),...(coordinates?{sourceCoordinates:Object.fromEntries(Object.entries(coordinates).filter(([,v])=>typeof v==="number"&&Number.isFinite(v)))}:{}) }] : [];
     });
 
     if (!websiteKnowledgeCategories.has(category) || !title || !factValue || !websiteKnowledgeConfidenceLevels.has(confidence) || !evidence.length) return [];
@@ -127,6 +132,8 @@ function normalizePersistedWebsiteKnowledge(params: {
   resolvedUrl: string;
   pages: unknown;
   warnings: unknown;
+  sourceDocuments:unknown;
+  sourceBlocks:unknown;
 }): PersistedWebsiteKnowledge | null {
   const knowledge = normalizeSubmittedWebsiteKnowledge(params.knowledge);
   if (!knowledge) return null;
@@ -137,14 +144,26 @@ function normalizePersistedWebsiteKnowledge(params: {
     const url = normalizeWebsiteUrl(item.url);
     const title = normalizeBoundedText(item.title, 500);
     const pageType = normalizeBoundedText(item.pageType, 100);
-    return url ? [{ url, title, pageType }] : [];
+    const sourceDocumentId=normalizeBoundedText(item.sourceDocumentId,200);
+    return url ? [{ url, title, pageType,...(sourceDocumentId?{sourceDocumentId}:{}) }] : [];
   });
   const warnings = (Array.isArray(params.warnings) ? params.warnings : []).slice(0, 100)
     .map((warning) => normalizeBoundedText(warning, 500))
     .filter(Boolean);
+  const normalizedAttemptId=normalizeBoundedText(params.crawlAttemptId,200);
+  const sourceDocuments=normalizeWebsiteSourceDocuments(params.sourceDocuments,normalizedAttemptId);
+  const sourceBlocks=normalizeWebsiteSourceBlocks(params.sourceBlocks,normalizedAttemptId,sourceDocuments);
+  const documentsById=new Map(sourceDocuments.map(item=>[item.id,item]));
+  const blocksById=new Map(sourceBlocks.map(item=>[item.id,item]));
+  const verifiedKnowledge={...knowledge,facts:knowledge.facts.map(fact=>({...fact,evidence:fact.evidence.map(evidence=>{
+    const sourceDocument=evidence.sourceDocumentId?documentsById.get(evidence.sourceDocumentId):undefined;
+    const sourceBlock=evidence.sourceBlockId?blocksById.get(evidence.sourceBlockId):undefined;
+    if(!sourceDocument||sourceDocument.crawlAttemptId!==normalizedAttemptId||(evidence.sourceBlockId&&(!sourceBlock||sourceBlock.sourceDocumentId!==sourceDocument.id)))return {url:evidence.url,excerpt:evidence.excerpt};
+    return {url:evidence.url,excerpt:evidence.excerpt,sourceDocumentId:sourceDocument.id,crawlAttemptId:normalizedAttemptId,...(sourceBlock?{sourceBlockId:sourceBlock.id,sourceCoordinates:sourceBlock.coordinates}:{})};
+  })}))};
 
   return {
-    schema_version: 1,
+    schema_version: 2,
     document_version: 1,
     current_crawl_attempt_id: normalizeBoundedText(params.crawlAttemptId, 200) || null,
     imported_at: normalizeBoundedText(params.importedAt, 100) || null,
@@ -152,7 +171,9 @@ function normalizePersistedWebsiteKnowledge(params: {
     resolved_url: normalizeWebsiteUrl(params.resolvedUrl) || null,
     pages,
     warnings,
-    knowledge,
+    knowledge:verifiedKnowledge,
+    source_documents:sourceDocuments,
+    source_blocks:sourceBlocks,
   };
 }
 
@@ -276,6 +297,8 @@ export async function POST(request: Request) {
     resolvedUrl: websiteSourceUrl,
     pages: websiteKnowledge?.pages,
     warnings: websiteKnowledge?.warnings,
+    sourceDocuments:websiteKnowledge?.sourceDocuments,
+    sourceBlocks:websiteKnowledge?.sourceBlocks,
   });
 
   const effectiveProductsServices =
