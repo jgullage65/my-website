@@ -421,174 +421,168 @@ export default function AiBuilderReview({
               Business knowledge
             </p>
 
-            {grouped.map(([sectionKey, section]) => {
-              const singleItem = section.entries.length === 1;
+            {grouped.map(([sectionKey, section]) => (
+              <section key={sectionKey}>
+                <SectionDivider label={section.label} />
 
-              return (
-                <section key={sectionKey}>
-                  <SectionDivider label={section.label} />
+                <div className="grid grid-cols-1 gap-4">
+                  {section.entries.map(({ entry }) => {
+                    const entryRenderKey = `context_entry:${entry.id}`;
+                    const editing = editingEntry === entryRenderKey;
+                    const pending = isPending("context_entry", entry.id);
+                    const expanded = expandedItems.has(entryRenderKey);
 
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    {section.entries.map(({ entry }) => {
-                      const entryRenderKey = `context_entry:${entry.id}`;
-                      const editing = editingEntry === entryRenderKey;
-                      const pending = isPending("context_entry", entry.id);
-                      const expanded = expandedItems.has(entryRenderKey);
-
-                      return (
-                        <article
-                          key={entryRenderKey}
-                          onClick={() => setSelectedItem(entryRenderKey)}
-                          className={`${panelClassName} ${
-                            singleItem ? "md:col-start-1 md:col-end-2 md:justify-self-center md:w-full" : ""
-                          }`}
-                        >
-                          <div className="px-5 py-4 sm:px-6 sm:py-5">
-                            {editing ? (
-                              <div className="space-y-3">
-                                <input
-                                  value={entryDrafts[entryRenderKey]?.title ?? entry.title}
-                                  onChange={(event) =>
-                                    setEntryDrafts((drafts) => ({
-                                      ...drafts,
-                                      [entryRenderKey]: {
-                                        ...(drafts[entryRenderKey] ?? {
-                                          title: entry.title,
-                                          content: entry.content,
-                                        }),
-                                        title: event.target.value,
-                                      },
-                                    }))
-                                  }
-                                  className="w-full rounded-xl border border-white/[0.08] bg-[#020202] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none transition focus:border-amber-300/35"
-                                />
-                                <textarea
-                                  rows={5}
-                                  value={entryDrafts[entryRenderKey]?.content ?? entry.content}
-                                  onChange={(event) =>
-                                    setEntryDrafts((drafts) => ({
-                                      ...drafts,
-                                      [entryRenderKey]: {
-                                        ...(drafts[entryRenderKey] ?? {
-                                          title: entry.title,
-                                          content: entry.content,
-                                        }),
-                                        content: event.target.value,
-                                      },
-                                    }))
-                                  }
-                                  className="w-full resize-y rounded-xl border border-white/[0.08] bg-[#020202] px-4 py-3 text-left text-sm leading-6 text-white outline-none transition focus:border-amber-300/35"
-                                />
-                              </div>
-                            ) : (
-                              <>
-                                <h4 className="text-center text-base font-semibold leading-6 text-white">
-                                  {entry.title}
-                                </h4>
-                                <CollapsibleReviewText
-                                  expanded={expanded}
-                                  onToggle={() => toggleExpanded(entryRenderKey)}
-                                  className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-center text-sm leading-6 text-slate-300"
-                                >
-                                  {entry.content}
-                                </CollapsibleReviewText>
-                              </>
-                            )}
-                          </div>
-
-                          <ItemActions>
-                            {entry.status === "proposed" ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void submit({
-                                    itemId: entry.id,
-                                    itemKind: "context_entry",
-                                    expectedCurrentState: entry.status,
-                                    kind: "approve",
-                                  })
-                                }
-                                className={approveActionClassName}
-                                disabled={pending}
-                              >
-                                Approve
-                              </button>
-                            ) : null}
-
-                            {entry.status === "archived" ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  void submit({
-                                    itemId: entry.id,
-                                    itemKind: "context_entry",
-                                    expectedCurrentState: entry.status,
-                                    kind: "restore",
-                                  })
-                                }
-                                className={approveActionClassName}
-                                disabled={pending}
-                              >
-                                Restore
-                              </button>
-                            ) : null}
-
-                            {entry.status !== "archived" ? (
-                              <button
-                                type="button"
-                                className={itemActionClassName}
-                                disabled={pending}
-                                onClick={() => {
-                                  if (editing) {
-                                    const draft = entryDrafts[entryRenderKey] ?? {
-                                      title: entry.title,
-                                      content: entry.content,
-                                    };
-                                    void submit({
-                                      itemId: entry.id,
-                                      itemKind: "context_entry",
-                                      expectedCurrentState: entry.status,
-                                      kind: "correct",
-                                      correction: {
-                                        itemKind: "context_entry",
-                                        ...draft,
-                                      },
-                                    });
-                                    setEditingEntry(null);
-                                  } else {
-                                    setEntryDrafts((drafts) => ({
-                                      ...drafts,
-                                      [entryRenderKey]: {
+                    return (
+                      <article
+                        key={entryRenderKey}
+                        onClick={() => setSelectedItem(entryRenderKey)}
+                        className={panelClassName}
+                      >
+                        <div className="px-5 py-4 sm:px-6 sm:py-5">
+                          {editing ? (
+                            <div className="space-y-3">
+                              <input
+                                value={entryDrafts[entryRenderKey]?.title ?? entry.title}
+                                onChange={(event) =>
+                                  setEntryDrafts((drafts) => ({
+                                    ...drafts,
+                                    [entryRenderKey]: {
+                                      ...(drafts[entryRenderKey] ?? {
                                         title: entry.title,
                                         content: entry.content,
-                                      },
-                                    }));
-                                    setEditingEntry(entryRenderKey);
-                                  }
-                                }}
+                                      }),
+                                      title: event.target.value,
+                                    },
+                                  }))
+                                }
+                                className="w-full rounded-xl border border-white/[0.08] bg-[#020202] px-4 py-3 text-center text-sm font-semibold text-amber-200 outline-none transition focus:border-amber-300/35"
+                              />
+                              <textarea
+                                rows={5}
+                                value={entryDrafts[entryRenderKey]?.content ?? entry.content}
+                                onChange={(event) =>
+                                  setEntryDrafts((drafts) => ({
+                                    ...drafts,
+                                    [entryRenderKey]: {
+                                      ...(drafts[entryRenderKey] ?? {
+                                        title: entry.title,
+                                        content: entry.content,
+                                      }),
+                                      content: event.target.value,
+                                    },
+                                  }))
+                                }
+                                className="w-full resize-y rounded-xl border border-white/[0.08] bg-[#020202] px-4 py-3 text-left text-sm leading-6 text-white outline-none transition focus:border-amber-300/35"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <h4 className="text-center text-base font-semibold leading-6 text-white">
+                                {entry.title}
+                              </h4>
+                              <CollapsibleReviewText
+                                expanded={expanded}
+                                onToggle={() => toggleExpanded(entryRenderKey)}
+                                className="mx-auto mt-3 max-w-[72ch] whitespace-pre-wrap text-center text-sm leading-6 text-slate-300"
                               >
-                                {editing ? "Save" : "Edit"}
-                              </button>
-                            ) : null}
+                                {entry.content}
+                              </CollapsibleReviewText>
+                            </>
+                          )}
+                        </div>
 
-                            {entry.status !== "archived" ? (
-                              <button
-                                type="button"
-                                className={itemActionClassName}
-                                disabled={pending}
-                                onClick={() => void removeEntry("knowledge", entry)}
-                              >
-                                Remove
-                              </button>
-                            ) : null}
-                          </ItemActions>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </section>
-              );
-            })}
+                        <ItemActions>
+                          {entry.status === "proposed" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void submit({
+                                  itemId: entry.id,
+                                  itemKind: "context_entry",
+                                  expectedCurrentState: entry.status,
+                                  kind: "approve",
+                                })
+                              }
+                              className={approveActionClassName}
+                              disabled={pending}
+                            >
+                              Approve
+                            </button>
+                          ) : null}
+
+                          {entry.status === "archived" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void submit({
+                                  itemId: entry.id,
+                                  itemKind: "context_entry",
+                                  expectedCurrentState: entry.status,
+                                  kind: "restore",
+                                })
+                              }
+                              className={approveActionClassName}
+                              disabled={pending}
+                            >
+                              Restore
+                            </button>
+                          ) : null}
+
+                          {entry.status !== "archived" ? (
+                            <button
+                              type="button"
+                              className={itemActionClassName}
+                              disabled={pending}
+                              onClick={() => {
+                                if (editing) {
+                                  const draft = entryDrafts[entryRenderKey] ?? {
+                                    title: entry.title,
+                                    content: entry.content,
+                                  };
+                                  void submit({
+                                    itemId: entry.id,
+                                    itemKind: "context_entry",
+                                    expectedCurrentState: entry.status,
+                                    kind: "correct",
+                                    correction: {
+                                      itemKind: "context_entry",
+                                      ...draft,
+                                    },
+                                  });
+                                  setEditingEntry(null);
+                                } else {
+                                  setEntryDrafts((drafts) => ({
+                                    ...drafts,
+                                    [entryRenderKey]: {
+                                      title: entry.title,
+                                      content: entry.content,
+                                    },
+                                  }));
+                                  setEditingEntry(entryRenderKey);
+                                }
+                              }}
+                            >
+                              {editing ? "Save" : "Edit"}
+                            </button>
+                          ) : null}
+
+                          {entry.status !== "archived" ? (
+                            <button
+                              type="button"
+                              className={itemActionClassName}
+                              disabled={pending}
+                              onClick={() => void removeEntry("knowledge", entry)}
+                            >
+                              Remove
+                            </button>
+                          ) : null}
+                        </ItemActions>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </section>
         ) : null}
 
@@ -598,7 +592,7 @@ export default function AiBuilderReview({
               Generated Q&amp;A
             </p>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4">
               {visibleFaqEntries.map(({ faq }) => {
                 const faqRenderKey = `faq:${faq.id}`;
                 const editing = editingFaq === faqRenderKey;
