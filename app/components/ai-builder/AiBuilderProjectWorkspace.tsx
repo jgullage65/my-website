@@ -443,25 +443,28 @@ export default function AiBuilderProjectWorkspace({
               role="dialog"
               aria-modal="true"
               aria-label="Business Knowledge review"
-              className="flex max-h-[90dvh] w-full max-w-[1040px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]"
+              className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]"
             >
-              <div className="flex flex-none items-center justify-between border-b border-white/[0.08] px-6 py-4">
-                <div>
+              <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-24 py-4 text-center">
+                <div className="min-w-0 text-center">
                   <h2 className="text-base font-semibold text-white">Business Knowledge</h2>
                   <p className="mt-1 text-xs text-slate-500">Review and govern the assistant’s business memory</p>
                 </div>
-                <button type="button" onClick={closeReview} className="rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Done</button>
+                <button type="button" onClick={closeReview} className="absolute right-6 top-1/2 -translate-y-1/2 rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Done</button>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                {reviewStatus}
-                <AiBuilderReview
-                  session={session}
-                  onReviewCommand={submitReviewCommand}
-                  pendingReviewItems={pendingReviewItems}
-                  onBack={closeReview}
-                  onLaunchChat={() => undefined}
-                  showLaunchChat={false}
-                />
+                <div className="mx-auto w-full max-w-[700px] [&>div>section:first-of-type>div]:!grid-cols-1">
+                  {reviewStatus}
+                  <AiBuilderReview
+                    session={session}
+                    onReviewCommand={submitReviewCommand}
+                    pendingReviewItems={pendingReviewItems}
+                    onBack={closeReview}
+                    onLaunchChat={() => undefined}
+                    showLaunchChat={false}
+                    embedded
+                  />
+                </div>
               </div>
             </section>
           </div>
