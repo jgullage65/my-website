@@ -4,6 +4,8 @@ export type AiBuilderModelChoice = {
   id: string;
   provider: string;
   displayName: string;
+  /** Retained in the server projection for compatibility; intentionally not rendered. */
+  recommended: boolean;
   highUsage: boolean;
 };
 
