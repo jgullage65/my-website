@@ -11,6 +11,7 @@ export type RetrievedKnowledge={
 };
 
 export type ChatResponse={
+ model?: { id:string; provider:string; displayName:string };
   answer:string;
   citations:string[];
   diagnostics:ChatDiagnostics;

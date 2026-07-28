@@ -9,6 +9,7 @@ type Props = {
   complete: boolean;
   percent: number;
   onReview: () => void;
+  embedded?: boolean;
 };
 
 const pendingSteps = [
@@ -20,7 +21,7 @@ const pendingSteps = [
 ];
 
 const shellClassName =
-  "relative overflow-hidden bg-[#000000] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-amber-300/20 min-[1200px]:px-6 min-[1200px]:py-6 min-[1200px]:shadow-[0_24px_90px_rgba(0,0,0,0.34),0_0_50px_rgba(245,158,11,0.06)]";
+  "relative overflow-hidden bg-[#050505] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-2xl min-[1200px]:border min-[1200px]:border-white/[0.08] min-[1200px]:px-6 min-[1200px]:py-6";
 
 export default function AiBuilderProgress({
   builder,
@@ -28,6 +29,7 @@ export default function AiBuilderProgress({
   complete,
   percent,
   onReview,
+  embedded = false,
 }: Props) {
   const progress = session?.buildProgress ?? [];
   const awaitingApprovalCount = session
@@ -36,19 +38,16 @@ export default function AiBuilderProgress({
     : 0;
 
   return (
-    <div className="w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl">
-      <section className={shellClassName}>
-        <AiBuilderAuthCta suppressSignOut={!complete} />
-        <div className="pointer-events-none absolute inset-x-0 top-[-8rem] mx-auto h-56 max-w-3xl rounded-full bg-amber-400/10 blur-[90px]" />
+    <div className={embedded ? "w-full" : "w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl"}>
+      <section className={embedded ? "w-full" : shellClassName}>
+        {!embedded ? <AiBuilderAuthCta /> : null}
 
-        <div className="relative text-center">
+        <div className={embedded ? "relative border-b border-white/[0.08] pb-5" : "relative text-center"}>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300 sm:text-sm">
             {complete ? "Your AI is ready" : "Building your AI system"}
           </p>
 
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-white sm:text-5xl min-[1200px]:mt-2 min-[1200px]:text-4xl">
-            {builder.businessName}
-          </h1>
+          {!embedded ? <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl min-[1200px]:mt-2 min-[1200px]:text-3xl">{builder.businessName}</h1> : null}
 
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg min-[1200px]:mt-2 min-[1200px]:text-base min-[1200px]:leading-6">
             {complete
@@ -73,7 +72,7 @@ export default function AiBuilderProgress({
             return (
               <article
                 key={`${message}-${index}`}
-                className="rounded-[22px] border border-amber-300/25 bg-black/20 p-5 shadow-inner shadow-black/20 min-[1200px]:rounded-2xl min-[1200px]:p-4"
+                className="rounded-2xl border border-white/[0.08] bg-black p-5 min-[1200px]:p-4"
               >
                 <div className="flex flex-col items-center justify-center gap-2 text-center min-[1200px]:gap-1.5">
                   <span className="text-sm font-semibold text-white sm:text-base min-[1200px]:text-sm">
@@ -91,7 +90,7 @@ export default function AiBuilderProgress({
                 </div>
 
                 <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/[0.08] min-[1200px]:mt-3 min-[1200px]:h-2">
-                  <div className="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 shadow-[0_0_16px_rgba(245,158,11,0.35)] transition-[width] duration-300" style={{ width: `${stepPercent}%` }} />
+                  <div className="h-full rounded-full bg-amber-300 transition-[width] duration-300" style={{ width: `${stepPercent}%` }} />
                 </div>
               </article>
             );

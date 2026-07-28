@@ -503,7 +503,7 @@ select {
 /* Keep Clerk fields on-brand in desktop browsers and during autofill. */
 .cl-formFieldInput {
   color: var(--text) !important;
-  background-color: #020611 !important;
+  background-color: #020202 !important;
   border-color: rgba(212, 175, 55, 0.22) !important;
   box-shadow: none !important;
   color-scheme: dark;
@@ -519,7 +519,7 @@ select {
 .cl-formFieldInput:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--text) !important;
   caret-color: var(--text);
-  box-shadow: 0 0 0 1000px #020611 inset !important;
+  box-shadow: 0 0 0 1000px #020202 inset !important;
   transition: background-color 9999s ease-out 0s;
 }
 

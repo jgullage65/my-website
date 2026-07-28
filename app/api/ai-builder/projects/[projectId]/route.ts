@@ -83,14 +83,13 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
+    const sql = getSql();
     let chatThread: {
       id: string;
       messages: StoredChatMessage[];
     } | null = null;
 
     if (project.initialThread) {
-      const sql = getSql();
-
       const messageRows = (await sql`
         SELECT
           id,
@@ -148,6 +147,11 @@ export async function GET(_request: Request, context: RouteContext) {
       };
     }
 
+    const [crawlDiagnostics,generationDiagnostics]=await Promise.all([
+      sql`SELECT status,attempt_number,started_at,completed_at,duration_ms,pages_discovered,pages_processed,pages_skipped,pages_failed,warnings,errors,restrictions,failure_stage FROM ai_builder_crawl_telemetry WHERE project_id=${normalizedProjectId} ORDER BY started_at DESC LIMIT 10`.catch(()=>[] as DatabaseRow[]),
+      sql`SELECT status,attempt_number,started_at,completed_at,duration_ms,model,knowledge_count,faq_count,retry_count,input_tokens,output_tokens,total_tokens,warnings,errors,failure_stage FROM ai_builder_generation_telemetry WHERE project_id=${normalizedProjectId} ORDER BY started_at DESC LIMIT 10`.catch(()=>[] as DatabaseRow[]),
+    ]) as [DatabaseRow[],DatabaseRow[]];
+
     return NextResponse.json({
       ok: true,
       projectId: project.session.id,
@@ -161,6 +165,7 @@ export async function GET(_request: Request, context: RouteContext) {
       },
       websiteKnowledge: project.websiteKnowledge,
       chatThread,
+      diagnostics: { crawls:crawlDiagnostics, generations:generationDiagnostics },
     });
   } catch (error) {
     if (isAuthenticationRequired(error)) return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
