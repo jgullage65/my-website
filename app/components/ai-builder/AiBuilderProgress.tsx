@@ -42,7 +42,7 @@ export default function AiBuilderProgress({
       <section className={embedded ? "w-full" : shellClassName}>
         {!embedded ? <AiBuilderAuthCta /> : null}
 
-        <div className={embedded ? "relative border-b border-white/[0.08] pb-5" : "relative text-center"}>
+        <div className={embedded ? "relative border-b border-white/[0.08] pb-5 text-center" : "relative text-center"}>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300 sm:text-sm">
             {complete ? "Your AI is ready" : "Building your AI system"}
           </p>
