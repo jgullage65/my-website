@@ -14,7 +14,7 @@ const steps = [
 const reasons = [
   "See exactly what the assistant knows before you test it.",
   "Keep website sources, manual knowledge, and Q&A in one project.",
-  "Nothing is published from this demo.",
+  "Test your business knowledge across multiple models and choose which one is best before deployment.",
 ] as const;
 
 export default function AiBuilderLanding() {
