@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import AiBuilderAuthCta, { aiBuilderCornerCtaClassName } from "./AiBuilderAuthCta";
+import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
+import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import type {
   BuilderState,
   UserKnowledge,
@@ -68,6 +70,12 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
   const [importError, setImportError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [showWebsiteKnowledge, setShowWebsiteKnowledge] = useState(false);
+  const [modelId,setModelId]=useState("");
+  const [modelChoices,setModelChoices]=useState<AiBuilderModelChoice[]>([]);
+  const {showConfirm,confirmDialogNode}=useCanonicalConfirm();
+
+  useEffect(()=>{void fetch("/api/ai-builder/models?purpose=crawl").then(response=>response.json()).then(payload=>{if(payload.ok){setModelChoices(payload.models);setModelId(payload.defaultModelId);}}).catch(()=>undefined);},[]);
+  async function selectModel(next:string){const choice=modelChoices.find(model=>model.id===next);if(!choice||importing)return;if(choice.highUsage){const confirmed=await showConfirm({title:"Use GPT-5.5 Pro?",message:"GPT-5.5 Pro uses significantly more AI usage than the other available models. Continue?",cancelLabel:"Cancel",confirmLabel:"Use GPT-5.5 Pro"});if(!confirmed)return;}setModelId(next);}
 
   useEffect(() => {
     if (!importing || importStage !== "processing") return;
@@ -112,7 +120,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
       const response = await fetch("/api/ai-builder/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ website }),
+        body: JSON.stringify({ website, modelId }),
       });
 
       if (!response.ok || !response.body) {
@@ -247,10 +255,11 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 
         <div className="mt-12 space-y-6 min-[1200px]:mt-0 min-[1200px]:grid min-[1200px]:grid-cols-[minmax(25rem,0.8fr)_minmax(34rem,1.2fr)] min-[1200px]:items-start min-[1200px]:gap-x-10 min-[1200px]:gap-y-8 min-[1200px]:space-y-0">
           <div className="space-y-6 min-[1200px]:self-start min-[1200px]:pt-7">
-            <header className="text-center">
+            <header className="grid justify-items-center gap-2 text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
                 AI Builder
               </p>
+              <AiBuilderModelSelect models={modelChoices} value={modelId} disabled={importing} onChange={next=>void selectModel(next)} />
             </header>
 
             <section>
@@ -373,14 +382,6 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Final step</p>
               <h3 className="mt-2 text-xl font-semibold text-white">Ready to build your AI?</h3>
-              <div className="relative mt-4">
-                <select aria-label="AI model" defaultValue="" className={`${inputClassName} appearance-none px-12`}>
-                  <option value="" disabled>Select your AI model</option>
-                </select>
-                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400">
-                  <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
               <button type="button" disabled={!valid || importing} onClick={onBuild} className={`${aiBuilderCornerCtaClassName} mt-4 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0`}>Build My AI</button>
             </div>
           </section>
@@ -390,6 +391,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
       {showWebsiteKnowledge && value.websiteKnowledge ? (
         <WebsiteKnowledgeModal knowledge={value.websiteKnowledge} onClose={() => setShowWebsiteKnowledge(false)} />
       ) : null}
+      {confirmDialogNode}
     </div>
   );
 }
