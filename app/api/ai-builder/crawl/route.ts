@@ -4,6 +4,7 @@ import { resolveModel, type ModelDefinition } from "@/app/lib/ai-engine/models/r
 import { BusinessWebsiteCrawlError, crawlBusinessWebsite, resolveCrawledBusinessName } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
 import { finishCrawlTelemetry, safePublicUrl, startCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
+import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { estimateAiTokenCost } from "@/app/lib/telemetry/ai-pricing";
 import type { AiTokenUsage } from "@/app/lib/telemetry/ai-pricing";
 import { persistWebsiteSourceRecords } from "@/app/lib/ai-engine/crawler/websiteSourceRecordStore";
@@ -304,8 +305,12 @@ export async function POST(request: Request) {
 
   const website = normalizeText(body.website);
   const projectId = normalizeText(body.projectId);
-  const project = projectId && !internalWorker ? await getAiBuilderProject(projectId) : null;
-  if (projectId && !internalWorker && !project) return errorResponse(404,"project_not_found","This AI Builder project could not be found.");
+  const project = projectId && !internalWorker
+    ? await getAiBuilderProject(projectId)
+    : null;
+  if (projectId && !internalWorker && !project) {
+    return errorResponse(404, "project_not_found", "This AI Builder project could not be found.");
+  }
   const previousKnowledge = project?.websiteKnowledge ?? null;
   if (!website) {
     return errorResponse(400, "website_required", "Add a website before importing business information.");
@@ -353,13 +358,28 @@ export async function POST(request: Request) {
     crawlRecorded = true;
     send({ type: "crawl_complete", pagesCrawled: crawl.diagnostics.pagesRetained, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
     send({ type: "progress", percent: 70 });
+    const previousBlockText = new Set(
+      (previousKnowledge?.source_blocks ?? []).map((block) =>
+        normalizeText(block.normalizedText),
+      ),
+    );
+    const extractionPlan = {
+      mode: previousKnowledge ? "recrawl" as const : "initial" as const,
+      preservedFacts: previousKnowledge?.knowledge.facts ?? [],
+      blockChanges: crawl.sourceBlocks.map((block) => ({
+        state: previousBlockText.has(normalizeText(block.normalizedText))
+          ? "unchanged" as const
+          : "added" as const,
+      })),
+      extractionBlocks: crawl.sourceBlocks,
+    };
     const sourceDocumentsById = new Map(
       crawl.sourceDocuments.map((document) => [document.id, document]),
     );
     const crawledPagesByUrl = new Map(
       crawl.pages.map((page) => [canonicalizeUrl(page.url), page]),
     );
-    const extractionUnits = crawl.sourceBlocks.map((block, index) => {
+    const extractionUnits = extractionPlan.extractionBlocks.map((block, index) => {
       const document = sourceDocumentsById.get(block.sourceDocumentId);
       if (!document) {
         throw new Error("website_source_block_document_missing");
