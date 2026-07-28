@@ -246,7 +246,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
         </Link>
 
         <div className="mt-12 space-y-6 min-[1200px]:mt-0 min-[1200px]:grid min-[1200px]:grid-cols-[minmax(25rem,0.8fr)_minmax(34rem,1.2fr)] min-[1200px]:items-start min-[1200px]:gap-x-10 min-[1200px]:gap-y-8 min-[1200px]:space-y-0">
-          <div className="space-y-6 min-[1200px]:self-start">
+          <div className="space-y-6 min-[1200px]:self-start min-[1200px]:pt-7">
             <header className="text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
                 AI Builder
@@ -369,13 +369,19 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
             </div>
           </section>
 
-          <section className={`${cardClassName} relative overflow-hidden text-center min-[1200px]:col-span-2 min-[1200px]:row-start-2 min-[1200px]:w-full min-[1200px]:max-w-[30rem] min-[1200px]:justify-self-center`}>
-            <div className="absolute inset-x-0 bottom-[-7rem] mx-auto h-40 max-w-xl rounded-full bg-amber-400/12 blur-[80px]" />
-            <div className="relative">
+          <section className={`${cardClassName} mx-auto text-center min-[1200px]:col-span-2 min-[1200px]:row-start-2 min-[1200px]:w-full min-[1200px]:max-w-[44rem] min-[1200px]:justify-self-center min-[1200px]:py-4`}>
+            <div>
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Final step</p>
-              <h3 className="mt-2 text-2xl font-semibold text-white">Ready to build your AI?</h3>
-              <button type="button" disabled={!valid || importing} onClick={onBuild} className="mt-5 min-w-0 rounded-2xl border border-amber-300/15 bg-[#080808] px-4 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0">Build My AI</button>
-              <p className="mt-3 text-xs leading-5 text-slate-500">{valid ? "Everything required is ready." : "Add your business name, industry, products or services, and ideal customers to continue."}</p>
+              <h3 className="mt-2 text-xl font-semibold text-white">Ready to build your AI?</h3>
+              <div className="relative mt-4">
+                <select aria-label="AI model" defaultValue="" className={`${inputClassName} appearance-none px-12`}>
+                  <option value="" disabled>Select your AI model</option>
+                </select>
+                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400">
+                  <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <button type="button" disabled={!valid || importing} onClick={onBuild} className={`${aiBuilderCornerCtaClassName} mt-4 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0`}>Build My AI</button>
             </div>
           </section>
         </div>
