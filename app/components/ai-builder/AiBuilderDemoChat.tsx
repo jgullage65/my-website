@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { KnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
+import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import type {
   ChatDiagnostics,
   ChatResponse,
@@ -135,6 +136,8 @@ export default function AiBuilderDemoChat({
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modelId,setModelId]=useState("");
+  const [modelChoices,setModelChoices]=useState<AiBuilderModelChoice[]>([]);
   const [promotingMessageId, setPromotingMessageId] = useState<string | null>(null);
   const [purchaseInterestSubmitted, setPurchaseInterestSubmitted] =
     useState(false);
@@ -151,6 +154,9 @@ export default function AiBuilderDemoChat({
     scrollTop: number;
   } | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
+
+  useEffect(()=>{void fetch("/api/ai-builder/models?purpose=test-assistant").then(r=>r.json()).then(payload=>{if(payload.ok){setModelChoices(payload.models);setModelId(payload.defaultModelId);}}).catch(()=>undefined);},[]);
+  async function selectModel(next:string){const choice=modelChoices.find(x=>x.id===next);if(!choice||sending)return;if(choice.highUsage){const confirmed=await showConfirm({title:"Use GPT-5.5 Pro?",message:"GPT-5.5 Pro uses significantly more AI usage than the other available models. Continue?",cancelLabel:"Cancel",confirmLabel:"Use GPT-5.5 Pro"});if(!confirmed)return;}setModelId(next);}
 
   useEffect(() => {
     const root = modalRootRef.current;
@@ -438,6 +444,7 @@ export default function AiBuilderDemoChat({
           threadId: chatThread.id,
           idempotencyKey: logicalSubmission.idempotencyKey,
           message: normalizedMessage,
+          modelId,
         }),
       });
 
@@ -528,10 +535,11 @@ export default function AiBuilderDemoChat({
 
   return (
     <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#000000] xl:static xl:z-auto xl:h-full xl:bg-transparent">
-      <header className="relative flex flex-none items-center justify-center border-b border-white/10 px-5 py-5 sm:px-8 xl:hidden">
-        <p className="text-center text-sm font-black uppercase tracking-[0.28em] text-amber-300">
+      <header className="relative flex flex-none flex-col items-center justify-center gap-2 border-b border-white/10 bg-black px-5 py-3 pr-14 sm:px-8 sm:pr-16">
+        <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.24em] text-amber-300">
           Live assistant test
         </p>
+        <AiBuilderModelSelect models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} />
         <button
           type="button"
           onClick={onBack}
