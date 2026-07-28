@@ -90,7 +90,12 @@ export default function AiBuilderProjects() {
         if (!contentType.includes("application/json")) throw new Error("Your projects could not be loaded. Please sign in again.");
         const payload = await response.json();
         if (!response.ok || !payload.ok) throw new Error(payload.error?.message ?? "Projects could not be loaded.");
-        const hydrated = await Promise.all((payload.projects as Project[]).map(async (project) => {
+        const listedProjects = payload.projects as Project[];
+        if (!listedProjects.length) {
+          if (!cancelled) router.replace("/ai-builder?new=1");
+          return;
+        }
+        const hydrated = await Promise.all(listedProjects.map(async (project) => {
           try {
             const projectResponse = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, { cache: "no-store" });
             const projectPayload = await projectResponse.json();
@@ -111,7 +116,7 @@ export default function AiBuilderProjects() {
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, router]);
 
   async function beginProjectCreation() {
     if (projects.length < PROJECT_LIMIT) {
