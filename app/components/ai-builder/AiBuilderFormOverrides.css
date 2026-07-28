@@ -70,10 +70,6 @@
     grid-template-columns: 190px minmax(0,1fr) 430px;
   }
 
-  .ai-builder-shell__content > div.hidden > aside:first-child > div:last-child {
-    display: none;
-  }
-
   .ai-builder-shell__content > div.hidden > main {
     display: flex;
     min-height: 0;
@@ -118,6 +114,11 @@
     min-height: 0;
     max-height: none;
     flex: 1 1 auto;
+  }
+
+  .ai-builder-shell__content > div.hidden > aside:last-child form > div.mx-auto.mb-3.flex.max-w-3xl.flex-wrap.items-center.justify-between.gap-3 > label,
+  .ai-builder-shell__content > div.hidden > aside:last-child form > div.mx-auto.mb-3.flex.max-w-3xl.flex-wrap.items-center.justify-between.gap-3 > span {
+    display: none;
   }
 }
 
