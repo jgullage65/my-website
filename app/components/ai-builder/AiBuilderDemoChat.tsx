@@ -10,6 +10,7 @@ import {
 } from "react";
 import type { KnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
+import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import type {
   ChatDiagnostics,
   ChatResponse,
@@ -146,7 +147,7 @@ export default function AiBuilderDemoChat({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [modelId,setModelId]=useState("");
-  const [modelChoices,setModelChoices]=useState<ModelChoice[]>([]);
+  const [modelChoices,setModelChoices]=useState<AiBuilderModelChoice[]>([]);
   const [promotingMessageId, setPromotingMessageId] = useState<string | null>(null);
   const [purchaseInterestSubmitted, setPurchaseInterestSubmitted] =
     useState(false);
@@ -544,11 +545,11 @@ export default function AiBuilderDemoChat({
 
   return (
     <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#000000] xl:static xl:z-auto xl:h-full xl:bg-transparent">
-      <header className="relative flex flex-none flex-col items-center justify-center gap-3 border-b border-white/10 px-5 py-4 pr-14 sm:flex-row sm:gap-5 sm:px-8 sm:pr-16 xl:hidden">
-        <p className="text-center text-sm font-black uppercase tracking-[0.28em] text-amber-300">
+      <header className="relative flex flex-none flex-col items-center justify-center gap-2 border-b border-white/10 bg-black px-5 py-3 pr-14 sm:px-8 sm:pr-16">
+        <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.24em] text-amber-300">
           Live assistant test
         </p>
-        <ModelSelectControl models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} />
+        <AiBuilderModelSelect models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} />
         <button
           type="button"
           onClick={onBack}
