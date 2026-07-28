@@ -618,6 +618,16 @@ export async function getAiBuilderProject(
   });
 }
 
+/** Stores the merged crawl document without rewriting reviewed project rows. */
+export async function persistMergedWebsiteKnowledge(projectId:string,knowledge:PersistedWebsiteKnowledge):Promise<void>{
+  const identity=await requireClerkIdentity();
+  await ensureAiBuilderSchema();
+  const sql=getSql();
+  const serialized=JSON.stringify(knowledge);
+  const rows=await sql`UPDATE ai_builder_projects SET internal_fields=jsonb_set(COALESCE(internal_fields,'{}'::jsonb),'{website_knowledge}',${serialized}::jsonb,TRUE),updated_at=NOW() WHERE id=${projectId} AND clerk_user_id=${identity.userId} AND archived_at IS NULL RETURNING id` as unknown as Array<Record<string,unknown>>;
+  if(!rows.length)throw new Error("ai_builder_project_not_found");
+}
+
 export async function listAiBuilderProjects(): Promise<AiBuilderProjectSummary[]> {
   const identity = await requireClerkIdentity();
   const clerkUserId = identity.userId;
