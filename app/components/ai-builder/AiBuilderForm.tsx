@@ -245,17 +245,17 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           ← AI Projects
         </Link>
 
-        <header className="mt-12 text-center min-[1200px]:mt-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
-            AI Builder
-          </p>
-        </header>
-
-        <div className="mt-5 space-y-6 min-[1200px]:mt-8 min-[1200px]:grid min-[1200px]:grid-cols-[minmax(25rem,0.95fr)_minmax(15rem,0.62fr)_minmax(34rem,1.35fr)] min-[1200px]:items-center min-[1200px]:gap-6 min-[1200px]:space-y-0">
+        <div className="mt-12 space-y-6 min-[1200px]:mt-0 min-[1200px]:grid min-[1200px]:grid-cols-[minmax(25rem,0.8fr)_minmax(34rem,1.2fr)] min-[1200px]:items-start min-[1200px]:gap-x-10 min-[1200px]:gap-y-8 min-[1200px]:space-y-0">
           <div className="space-y-6 min-[1200px]:self-start">
+            <header className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
+                AI Builder
+              </p>
+            </header>
+
             <section>
               <article className={`${cardClassName} relative overflow-hidden text-center`}>
-              <div className="relative">
+                <div className="relative">
                 <span
                   className={`absolute right-0 top-0 rounded-full border px-3 py-1 text-xs font-semibold max-[640px]:-right-2 max-[640px]:-top-2 ${
                     value.websiteKnowledge
@@ -317,7 +317,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                     View imported knowledge →
                   </button>
                 ) : null}
-              </div>
+                </div>
               </article>
             </section>
 
@@ -339,7 +339,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
             </section>
           </div>
 
-          <section className="min-w-0 space-y-5 min-[1200px]:col-start-3 min-[1200px]:row-start-1 min-[1200px]:space-y-5">
+          <section className="min-w-0 space-y-5 min-[1200px]:col-start-2 min-[1200px]:row-start-1 min-[1200px]:space-y-5">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Your expertise</p>
               <p className="mt-2 text-sm leading-6 text-slate-400">Your answers always take priority over imported website knowledge.</p>
@@ -366,11 +366,10 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <KnowledgeCard title="Additional Business Knowledge" fill>
                 <textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} />
               </KnowledgeCard>
-
             </div>
           </section>
 
-          <section className={`${cardClassName} relative overflow-hidden text-center min-[1200px]:col-start-2 min-[1200px]:row-start-1 min-[1200px]:self-center`}>
+          <section className={`${cardClassName} relative overflow-hidden text-center min-[1200px]:col-span-2 min-[1200px]:row-start-2 min-[1200px]:w-full min-[1200px]:max-w-[30rem] min-[1200px]:justify-self-center`}>
             <div className="absolute inset-x-0 bottom-[-7rem] mx-auto h-40 max-w-xl rounded-full bg-amber-400/12 blur-[80px]" />
             <div className="relative">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Final step</p>
