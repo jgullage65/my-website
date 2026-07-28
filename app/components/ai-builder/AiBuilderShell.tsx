@@ -15,34 +15,51 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
   return (
     <>
       <style jsx global>{`
-        @media (max-width: 1199.99px) {
-          body[data-ai-builder-workspace="true"] .ai-builder-shell {
-            width: 100vw;
-            min-height: calc(100dvh - 56px);
-          }
+        body[data-ai-builder-workspace="true"] {
+          background: #000;
+        }
 
-          body[data-ai-builder-workspace="true"] .ai-builder-shell__content {
-            width: 100%;
-            max-width: none;
-            min-height: calc(100dvh - 56px);
-            margin: 0;
-            padding: 0;
-          }
+        body[data-ai-builder-workspace="true"] footer {
+          display: none;
+        }
+
+        body[data-ai-builder-workspace="true"] .site-page-shell {
+          min-height: 0;
+          background: #000;
+        }
+
+        body[data-ai-builder-workspace="true"] .ai-builder-shell {
+          width: 100%;
+          min-height: calc(100dvh - 56px);
+          background: #000;
+        }
+
+        body[data-ai-builder-workspace="true"] .ai-builder-shell__content {
+          width: 100%;
+          max-width: none;
+          min-height: calc(100dvh - 56px);
+          margin: 0;
+          padding: 0;
+          background: #000;
         }
 
         @media (min-width: 1280px) {
-          body[data-ai-builder-workspace="true"] footer {
-            display: none;
+          body[data-ai-builder-workspace="true"] .ai-builder-shell {
+            height: calc(100dvh - 56px);
+            min-height: 0;
+            overflow: hidden;
           }
 
-          body[data-ai-builder-workspace="true"] .site-page-shell {
+          body[data-ai-builder-workspace="true"] .ai-builder-shell__content {
+            height: 100%;
             min-height: 0;
+            overflow: hidden;
           }
         }
       `}</style>
 
-      <section className="ai-builder-shell relative min-h-screen text-white xl:h-[calc(100dvh-56px)] xl:min-h-0 xl:overflow-hidden xl:rounded-none">
-        <div className="ai-builder-shell__content mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-20 xl:h-full xl:max-w-none xl:overflow-hidden xl:rounded-none xl:px-0 xl:py-0">
+      <section className="ai-builder-shell relative w-full bg-black text-white">
+        <div className="ai-builder-shell__content w-full bg-black">
           <ImpersonationBanner />
           {children}
         </div>
