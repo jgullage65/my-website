@@ -242,11 +242,19 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
   if (!projects.length) return <div className="mt-5 rounded-xl border border-white/[.08] bg-[#050505] px-6 py-10 text-center"><p className="text-sm text-slate-400">No {archived ? "archived" : "active"} projects.</p></div>;
 
   return <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{projects.map((project) => (
-    <article key={project.id} className="relative flex min-h-[164px] flex-col rounded-xl border border-white/[.09] bg-[#070707] p-4 transition hover:border-amber-300/25">
-      <div className="flex items-start justify-between gap-3">
+    <article key={project.id} className="relative rounded-xl border border-white/[.09] bg-[#070707] px-4 py-3 transition hover:border-amber-300/25">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(112px,.72fr)_minmax(112px,.72fr)_auto] items-start gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-base font-black text-white">{project.businessName}</h3>
           <p className="mt-1 truncate text-xs text-slate-500">{domain(project.website)}</p>
+        </div>
+        <div className="min-w-0 text-center">
+          <p className="text-[9px] font-black uppercase tracking-[.12em] text-[var(--gold)]">Knowledge model</p>
+          <p className="mt-1 truncate text-[11px] font-semibold text-white" title={project.model || "Not available"}>{project.model || "Not available"}</p>
+        </div>
+        <div className="min-w-0 text-center">
+          <p className="text-[9px] font-black uppercase tracking-[.12em] text-[var(--gold)]">Created</p>
+          <p className="mt-1 truncate text-[11px] font-semibold text-white" title={date(project.createdAt)}>{date(project.createdAt)}</p>
         </div>
         <div className="relative shrink-0">
           <button type="button" aria-label={`Actions for ${project.businessName}`} aria-haspopup="menu" aria-expanded={menu === project.id} onClick={() => setMenu(menu === project.id ? null : project.id)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black text-base text-slate-300 transition hover:border-amber-300/30 hover:text-white">•••</button>
@@ -256,18 +264,7 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/[.07] pt-3">
-        <div className="min-w-0 text-center">
-          <p className="text-[9px] font-black uppercase tracking-[.12em] text-[var(--gold)]">Knowledge model</p>
-          <p className="mt-1 truncate text-[11px] font-semibold text-white" title={project.model || "Not available"}>{project.model || "Not available"}</p>
-        </div>
-        <div className="min-w-0 text-center">
-          <p className="text-[9px] font-black uppercase tracking-[.12em] text-[var(--gold)]">Created</p>
-          <p className="mt-1 truncate text-[11px] font-semibold text-white" title={date(project.createdAt)}>{date(project.createdAt)}</p>
-        </div>
-      </div>
-
-      <div className="mt-auto pt-4 text-center">
+      <div className="mt-3 border-t border-white/[.07] pt-2 text-center">
         {!archived ? <Link href={`/ai-builder?projectId=${encodeURIComponent(project.id)}`} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30">Open project</Link> : <button type="button" disabled={busy === project.id} onClick={() => onRestore(project)} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30 disabled:opacity-50">Restore</button>}
       </div>
     </article>
