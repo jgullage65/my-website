@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
+import { SignOutButton, useAuth } from "@clerk/nextjs";
 import { useEffect, useMemo, useState } from "react";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderLanding from "./AiBuilderLanding";
@@ -117,6 +117,7 @@ export default function AiBuilderProjects() {
     <AiBuilderShell>
       {confirmDialogNode}
       <div className="relative w-full bg-[#000000] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:mx-auto min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
+        {isSignedIn ? <div className="flex justify-end"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="rounded-lg border border-white/10 bg-black px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:text-white">Sign out</button></SignOutButton></div> : null}
         <div className={`${!isSignedIn ? "pt-14 sm:pt-0" : ""} text-center`}>
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
           <p className="mx-auto mt-3 max-w-2xl text-slate-400">Continue building and refining your business AI systems.</p>
