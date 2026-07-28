@@ -129,48 +129,6 @@
   .ai-builder-shell__content > div.hidden > aside:last-child form > div.mx-auto.mb-3.flex.max-w-3xl.flex-wrap.items-center.justify-between.gap-3 > span {
     display: none;
   }
-
-  section.space-y-7:has(> p:first-child + section) {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    gap: 1.75rem;
-  }
-
-  section.space-y-7:has(> p:first-child + section) > p:first-child {
-    grid-column: 1 / -1;
-  }
-
-  section.space-y-7:has(> p:first-child + section) > section:has(> div > article:nth-child(2)) {
-    grid-column: 1 / -1;
-  }
-
-  section.space-y-7:has(> p:first-child + section) > section:not(:has(> div > article:nth-child(2))) > div.grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  section.space-y-7:has(> p:first-child + section) > section:not(:has(> div > article:nth-child(2))) article {
-    display: flex;
-    min-height: 15rem;
-    flex-direction: column;
-  }
-
-  section.space-y-7:has(> p:first-child + section) > section:not(:has(> div > article:nth-child(2))) article > div:first-child {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-  }
-
-  section.space-y-7:has(> p:first-child + section) > section:not(:has(> div > article:nth-child(2))) article h4 {
-    display: flex;
-    min-height: 3rem;
-    align-items: center;
-    justify-content: center;
-  }
-
-  section.space-y-7:has(> p:first-child + section) > section:not(:has(> div > article:nth-child(2))) article h4 + p {
-    min-height: 4.5rem;
-  }
 }
 
 @media (max-width: 639px) {
