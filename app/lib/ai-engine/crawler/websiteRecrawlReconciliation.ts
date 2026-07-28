@@ -89,7 +89,9 @@ const hash=(value:unknown)=>createHash("sha256").update(typeof value==="string"?
 const stableId=(prefix:string,...values:string[])=>`${prefix}_${hash(values.map(normalized).join("\0"))}`;
 const comparableUrl=(value:string)=>{try{const url=new URL(value);url.hash="";url.hostname=url.hostname.toLowerCase();if(url.pathname!=="/")url.pathname=url.pathname.replace(/\/+$/g,"");return url.toString();}catch{return normalized(value);}};
 const coordinates=(block:WebsiteSourceBlockRecord)=>canonicalWebsiteRecrawlJson(block.coordinates);
-const factMaterial=(fact:WebsiteKnowledgeFact)=>({category:fact.category,title:normalized(fact.title),value:normalized(fact.value),confidence:fact.confidence,evidence:fact.evidence.map(evidence=>({url:comparableUrl(evidence.url),excerpt:normalized(evidence.excerpt),sourceDocumentId:evidence.sourceDocumentId??null,sourceBlockId:evidence.sourceBlockId??null})).sort((a,b)=>compare(canonicalWebsiteRecrawlJson(a),canonicalWebsiteRecrawlJson(b)))});
+// Version IDs contain the immutable attempt identity; fact equality must use the
+// logical evidence content or every unchanged recrawl would manufacture a change.
+const factMaterial=(fact:WebsiteKnowledgeFact)=>({category:fact.category,title:normalized(fact.title),value:normalized(fact.value),confidence:fact.confidence,evidence:fact.evidence.map(evidence=>({url:comparableUrl(evidence.url),excerpt:normalized(evidence.excerpt)})).sort((a,b)=>compare(canonicalWebsiteRecrawlJson(a),canonicalWebsiteRecrawlJson(b)))});
 
 function group<T extends LogicalItem>(items:readonly T[]):Map<string,T[]> {
   const result=new Map<string,T[]>();
@@ -114,6 +116,45 @@ function compareItems(kind:WebsiteRecrawlItemKind,previous:readonly LogicalItem[
 
 function documents(knowledge:PersistedWebsiteKnowledge):Array<LogicalItem&{record:WebsiteSourceDocumentRecord}>{
   return (knowledge.source_documents??[]).map(record=>({record,logicalBase:comparableUrl(record.canonicalUrl??record.actualFetchedUrl),versionId:record.id,hash:hash({sourceType:record.sourceType,sourceContentHash:record.sourceContentHash,extractedContentHash:record.extractedContentHash,language:record.language,sourceTruncated:record.sourceTruncated,extractionTruncated:record.extractionTruncated})}));
+}
+
+export type WebsiteRecrawlExtractionPlan={
+  mode:"initial"|"recrawl";
+  sourceChanges:WebsiteRecrawlChange[];
+  blockChanges:WebsiteRecrawlChange[];
+  extractionBlocks:WebsiteSourceBlockRecord[];
+  preservedFacts:WebsiteKnowledgeFact[];
+  telemetry:{totalDocuments:number;addedDocuments:number;changedDocuments:number;unchangedDocuments:number;removedDocuments:number;totalBlocks:number;addedBlocks:number;changedBlocks:number;unchangedBlocks:number;removedBlocks:number;blocksSentToLlm:number;blocksSkippedUnchanged:number};
+};
+
+/** Plans extraction with the exact logical identities used by reconciliation. */
+export function planWebsiteRecrawlExtraction(input:{previous?:PersistedWebsiteKnowledge|null;current:PersistedWebsiteKnowledge}):WebsiteRecrawlExtractionPlan{
+  const currentDocuments=documents(input.current),currentDocumentLogical=new Map(currentDocuments.map(item=>[item.record.id,item.logicalBase]));
+  const currentBlocks=blocks(input.current,currentDocumentLogical);
+  if(!input.previous){
+    const sourceChanges=currentDocuments.map(item=>({kind:"source_document" as const,logicalId:stableId("source_document_logical",item.logicalBase,"0"),state:"added" as const,previousVersionId:null,currentVersionId:item.versionId,previousHash:null,currentHash:item.hash}));
+    const blockChanges=currentBlocks.map(item=>({kind:"source_block" as const,logicalId:stableId("source_block_logical",item.logicalBase,"0"),state:"added" as const,previousVersionId:null,currentVersionId:item.versionId,previousHash:null,currentHash:item.hash}));
+    return {mode:"initial",sourceChanges,blockChanges,extractionBlocks:currentBlocks.map(item=>item.record),preservedFacts:[],telemetry:counts(sourceChanges,blockChanges,currentDocuments.length,currentBlocks.length)};
+  }
+  const previousDocuments=documents(input.previous),previousDocumentLogical=new Map(previousDocuments.map(item=>[item.record.id,item.logicalBase]));
+  const previousBlocks=blocks(input.previous,previousDocumentLogical);
+  const sourceChanges=compareItems("source_document",previousDocuments,currentDocuments),blockChanges=compareItems("source_block",previousBlocks,currentBlocks);
+  const unchangedDocuments=new Map(sourceChanges.filter(change=>change.state==="unchanged"&&change.previousVersionId&&change.currentVersionId).map(change=>[change.previousVersionId!,change.currentVersionId!]));
+  const unchangedBlocks=new Map(blockChanges.filter(change=>change.state==="unchanged"&&change.previousVersionId&&change.currentVersionId).map(change=>[change.previousVersionId!,change.currentVersionId!]));
+  const currentDocumentById=new Map((input.current.source_documents??[]).map(item=>[item.id,item]));
+  const currentBlockById=new Map((input.current.source_blocks??[]).map(item=>[item.id,item]));
+  const preservedFacts=input.previous.knowledge.facts.flatMap(fact=>{
+    if(!fact.evidence.every(evidence=>evidence.sourceBlockId?unchangedBlocks.has(evidence.sourceBlockId):evidence.sourceDocumentId?unchangedDocuments.has(evidence.sourceDocumentId):false))return [];
+    return [{...fact,evidence:fact.evidence.map(evidence=>{const sourceBlockId=evidence.sourceBlockId?unchangedBlocks.get(evidence.sourceBlockId):undefined;const sourceDocumentId=evidence.sourceDocumentId?unchangedDocuments.get(evidence.sourceDocumentId):undefined;const block=sourceBlockId?currentBlockById.get(sourceBlockId):undefined;return {...evidence,sourceDocumentId,sourceBlockId,crawlAttemptId:input.current.current_crawl_attempt_id??undefined,...(block?{sourceCoordinates:block.coordinates}:{}),url:sourceDocumentId?(currentDocumentById.get(sourceDocumentId)?.canonicalUrl??currentDocumentById.get(sourceDocumentId)?.actualFetchedUrl??evidence.url):evidence.url};})}];
+  });
+  const extractionIds=new Set(blockChanges.filter(change=>change.state==="added"||change.state==="changed").map(change=>change.currentVersionId));
+  return {mode:"recrawl",sourceChanges,blockChanges,extractionBlocks:currentBlocks.filter(item=>extractionIds.has(item.versionId)).map(item=>item.record),preservedFacts,telemetry:counts(sourceChanges,blockChanges,currentDocuments.length,currentBlocks.length)};
+}
+
+function counts(sourceChanges:WebsiteRecrawlChange[],blockChanges:WebsiteRecrawlChange[],totalDocuments:number,totalBlocks:number):WebsiteRecrawlExtractionPlan["telemetry"]{
+  const number=(items:WebsiteRecrawlChange[],state:WebsiteRecrawlChangeState)=>items.filter(item=>item.state===state).length;
+  const sent=number(blockChanges,"added")+number(blockChanges,"changed");
+  return {totalDocuments,addedDocuments:number(sourceChanges,"added"),changedDocuments:number(sourceChanges,"changed"),unchangedDocuments:number(sourceChanges,"unchanged"),removedDocuments:number(sourceChanges,"removed"),totalBlocks,addedBlocks:number(blockChanges,"added"),changedBlocks:number(blockChanges,"changed"),unchangedBlocks:number(blockChanges,"unchanged"),removedBlocks:number(blockChanges,"removed"),blocksSentToLlm:sent,blocksSkippedUnchanged:number(blockChanges,"unchanged")};
 }
 function blocks(knowledge:PersistedWebsiteKnowledge,documentLogicalById:Map<string,string>):Array<LogicalItem&{record:WebsiteSourceBlockRecord}>{
   return (knowledge.source_blocks??[]).flatMap(record=>{const document=documentLogicalById.get(record.sourceDocumentId);return document?[{record,logicalBase:`${document}\0${record.type}\0${record.extractionMethod}\0${coordinates(record)}`,versionId:record.id,hash:hash(normalized(record.normalizedText))}]:[];});

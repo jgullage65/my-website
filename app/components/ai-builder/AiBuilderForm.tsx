@@ -22,6 +22,7 @@ import {
 
 type Props = {
   value: BuilderState;
+  projectId?: string | null;
   onChange: (value: BuilderState) => void;
   onBuild: () => void;
 };
@@ -60,7 +61,7 @@ const inputClassName =
 const cardClassName =
   "rounded-2xl border border-amber-300/20 bg-[#070707]/88 p-5 shadow-[0_14px_42px_rgba(0,0,0,0.2)]";
 
-export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
+export default function AiBuilderForm({ value, projectId, onChange, onBuild }: Props) {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [crawlPages, setCrawlPages] = useState(0);
@@ -112,7 +113,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
       const response = await fetch("/api/ai-builder/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ website }),
+        body: JSON.stringify({ website, ...(projectId ? { projectId } : {}) }),
       });
 
       if (!response.ok || !response.body) {
