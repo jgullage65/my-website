@@ -345,6 +345,30 @@ export async function POST(request: Request) {
     await persistWebsiteSourceRecords(crawl.crawlAttempt,crawl.sourceDocuments,crawl.sourceBlocks);
     crawlDiagnostics = crawl.diagnostics;
     const crawlCompletedAt = new Date().toISOString();
+    const currentBase = {
+      schema_version: 2 as const,
+      document_version: previousKnowledge?.document_version ?? 1,
+      current_crawl_attempt_id: crawl.crawlAttempt.id,
+      imported_at: crawlCompletedAt,
+      requested_url: crawl.requestedUrl,
+      resolved_url: crawl.resolvedUrl,
+      pages: crawl.pages.map((page) => ({
+        url: page.url,
+        title: page.title,
+        pageType: page.pageType,
+        sourceDocumentId: page.sourceDocumentId,
+      })),
+      warnings: crawl.warnings,
+      knowledge: previousKnowledge?.knowledge ?? {
+        facts: [],
+        coverage: Object.fromEntries(
+          WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.map((field) => [field, 0]),
+        ) as import("@/app/lib/ai-engine/knowledge/websiteKnowledge").WebsiteKnowledgeCoverage,
+        unresolvedQuestions: [],
+      },
+      source_documents: crawl.sourceDocuments,
+      source_blocks: crawl.sourceBlocks,
+    };
     const telemetryFinish = performance.now();
     await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed||crawl.diagnostics.pagesExtractionFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,diagnostics:crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
     persistenceMs += performance.now() - telemetryFinish;
