@@ -1,18 +1,13 @@
 import { runOpenAiEvaluation } from "../providers/openaiEvaluationRunner";
 import { buildAssistantQualityEvaluationPrompt } from "./buildEvaluationPrompt";
 import type { AssistantQualityEvaluationContext } from "./evidenceContracts";
-import type { AssistantQualityQuestionEvaluation } from "./evaluationContracts";
+import type {
+  AssistantQualityEvaluatorMetadata,
+  AssistantQualityQuestionEvaluation,
+} from "./evaluationContracts";
 import { parseAssistantQualityEvaluationResponse } from "./parseEvaluationResponse";
 
 export type AssistantQualityEvaluatorProvider = "openai";
-
-export type AssistantQualityEvaluatorMetadata = {
-  provider: AssistantQualityEvaluatorProvider;
-  model: string;
-  startedAt: string;
-  completedAt: string;
-  durationMs: number;
-};
 
 export type EvaluateAssistantQualityQuestionInput = {
   context: AssistantQualityEvaluationContext;
@@ -59,26 +54,30 @@ export async function evaluateAssistantQualityQuestion({
       providerResult.response,
     );
     const completedAt = new Date();
+    const evaluator: AssistantQualityEvaluatorMetadata = {
+      provider: providerResult.provider,
+      model: providerResult.model,
+      startedAt: startedAtIso,
+      completedAt: completedAt.toISOString(),
+      durationMs: Math.max(0, completedAt.getTime() - startedAt.getTime()),
+    };
 
     return {
       evaluation: {
         runId: context.runId,
         questionId: context.question.id,
+        status: "completed",
         overallScore: parsed.overallScore,
         passed: parsed.passed,
         summary: parsed.summary,
         strengths: parsed.strengths,
         issues: parsed.issues,
         dimensions: parsed.dimensions,
+        evaluator,
+        errorCode: null,
         evaluatedAt: completedAt.toISOString(),
       },
-      evaluator: {
-        provider: providerResult.provider,
-        model: providerResult.model,
-        startedAt: startedAtIso,
-        completedAt: completedAt.toISOString(),
-        durationMs: Math.max(0, completedAt.getTime() - startedAt.getTime()),
-      },
+      evaluator,
     };
   } catch (error) {
     throw normalizeEvaluatorError(error);
