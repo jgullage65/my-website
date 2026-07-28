@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { WEBSITE_KNOWLEDGE_COVERAGE_FIELDS, type PersistedWebsiteKnowledge, type WebsiteKnowledgeFact } from "../knowledge/websiteKnowledge";
 import type { BusinessMemory } from "../business-memory/contracts";
-import { reconcileWebsiteRecrawl } from "./websiteRecrawlReconciliation";
+import { planWebsiteRecrawlExtraction, reconcileWebsiteRecrawl } from "./websiteRecrawlReconciliation";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "./websiteSourceRecords";
 
 const time="2026-07-27T00:00:00.000Z";
@@ -41,3 +41,26 @@ test("deterministically reconciles source, block, fact, removal, conflict, corre
 test("requires two distinct immutable crawl attempts",()=>{const empty=knowledge("same",[],[],[]);assert.throws(()=>reconcileWebsiteRecrawl({previous:empty,current:empty}),/distinct_attempts/);});
 
 test("only treats removals as authoritative when an unrestricted completed attempt is explicitly approved",()=>{const previous=knowledge("old",[],[],[fact("policy","Returns","Thirty days","old-doc","old-block")]),current=knowledge("new",[],[],[]);const attempt={schemaVersion:1 as const,id:"new",requestedUrl:"https://example.test/",normalizedSubmittedUrl:"https://example.test/",resolvedEntryUrl:"https://example.test/",startedAt:time,completedAt:time,crawlerVersion:"test",extractionVersion:"test",status:"completed" as const,budgets:{pages:1},restrictions:[]};assert.equal(reconcileWebsiteRecrawl({previous,current,currentCrawlAttempt:attempt}).removals.authoritative,false);assert.equal(reconcileWebsiteRecrawl({previous,current,currentCrawlAttempt:attempt,authorizeRemovals:true}).removals.authoritative,true);assert.equal(reconcileWebsiteRecrawl({previous,current,currentCrawlAttempt:{...attempt,status:"partial",restrictions:[{type:"timeout",url:"https://example.test/"}]},authorizeRemovals:true}).removals.authoritative,false);assert.throws(()=>reconcileWebsiteRecrawl({previous,current,currentCrawlAttempt:{...attempt,id:"other"}}),/attempt_mismatch/);});
+
+test("plans full initial extraction and zero-call unchanged recrawls",()=>{
+  const oldDoc=document("crawl-old","old-doc","https://example.test/services","same"),newDoc=document("crawl-new","new-doc","https://example.test/services","same");
+  const oldBlock=block("crawl-old","old-block",oldDoc.id,"Stable service"),newBlock=block("crawl-new","new-block",newDoc.id,"Stable service");
+  const current=knowledge("crawl-new",[newDoc],[newBlock],[]);
+  assert.deepEqual(planWebsiteRecrawlExtraction({current}).extractionBlocks.map(item=>item.id),["new-block"]);
+  const plan=planWebsiteRecrawlExtraction({previous:knowledge("crawl-old",[oldDoc],[oldBlock],[fact("service","Stable","Stable service",oldDoc.id,oldBlock.id)]),current});
+  assert.equal(plan.mode,"recrawl");assert.equal(plan.telemetry.blocksSentToLlm,0);assert.equal(plan.telemetry.blocksSkippedUnchanged,1);assert.equal(plan.preservedFacts.length,1);
+  assert.equal(plan.preservedFacts[0]!.evidence[0]!.sourceBlockId,"new-block");assert.equal(plan.preservedFacts[0]!.evidence[0]!.crawlAttemptId,"crawl-new");
+  const reconciled=reconcileWebsiteRecrawl({previous:knowledge("crawl-old",[oldDoc],[oldBlock],[fact("service","Stable","Stable service",oldDoc.id,oldBlock.id)]),current:{...current,knowledge:{...current.knowledge,facts:plan.preservedFacts}}});
+  assert.equal(reconciled.factChanges[0]!.state,"unchanged");assert.equal(reconciled.factChanges.filter(change=>change.state!=="unchanged").length,0);
+});
+
+test("extracts only added and changed blocks and is order-independent",()=>{
+  const oldA=document("crawl-old","old-a","https://example.test/a","one"),oldB=document("crawl-old","old-b","https://example.test/b","two"),oldRemoved=document("crawl-old","old-r","https://example.test/r","gone");
+  const newA=document("crawl-new","new-a","https://example.test/a","changed"),newB=document("crawl-new","new-b","https://example.test/b","two"),newAdded=document("crawl-new","new-c","https://example.test/c","added");
+  const previous=knowledge("crawl-old",[oldA,oldB,oldRemoved],[block("crawl-old","old-ab",oldA.id,"Before"),block("crawl-old","old-bb",oldB.id,"Stable"),block("crawl-old","old-rb",oldRemoved.id,"Gone")],[]);
+  const current=knowledge("crawl-new",[newA,newB,newAdded],[block("crawl-new","new-ab",newA.id,"After"),block("crawl-new","new-bb",newB.id,"Stable"),block("crawl-new","new-cb",newAdded.id,"Added")],[]);
+  const plan=planWebsiteRecrawlExtraction({previous,current});
+  assert.deepEqual(plan.extractionBlocks.map(item=>item.id).sort(),["new-ab","new-cb"]);assert.equal(plan.telemetry.unchangedBlocks,1);assert.equal(plan.telemetry.removedBlocks,1);
+  const reordered=planWebsiteRecrawlExtraction({previous:{...previous,source_documents:[...previous.source_documents!].reverse(),source_blocks:[...previous.source_blocks!].reverse()},current:{...current,source_documents:[...current.source_documents!].reverse(),source_blocks:[...current.source_blocks!].reverse()}});
+  assert.deepEqual(reordered.blockChanges,plan.blockChanges);assert.deepEqual(reordered.extractionBlocks.map(item=>item.id).sort(),plan.extractionBlocks.map(item=>item.id).sort());
+});
