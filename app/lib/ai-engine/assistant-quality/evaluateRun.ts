@@ -1,10 +1,22 @@
-import type { AssistantQualityQuestionResult } from "./contracts";
+import type { AssistantQualityEvaluationContext } from "./evidenceContracts";
 import {
   ASSISTANT_QUALITY_EVALUATION_DIMENSIONS,
   type AssistantQualityDimensionEvaluation,
   type AssistantQualityQuestionEvaluation,
   type AssistantQualityRunEvaluation,
 } from "./evaluationContracts";
+import {
+  evaluateAssistantQualityQuestion,
+  type AssistantQualityEvaluatorProvider,
+} from "./evaluateQuestion";
+
+export type EvaluateAssistantQualityRunInput = {
+  runId: string;
+  contexts: AssistantQualityEvaluationContext[];
+  provider?: AssistantQualityEvaluatorProvider;
+  model?: string | null;
+  passingScore?: number;
+};
 
 function createNotScoredDimensions(
   rationale: string,
@@ -18,88 +30,177 @@ function createNotScoredDimensions(
   }));
 }
 
-function evaluateExecutionFailure(
-  result: AssistantQualityQuestionResult,
+function normalizeErrorCode(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim().slice(0, 200);
+  }
+
+  return "assistant_quality_evaluation_failed";
+}
+
+function createExecutionFailureEvaluation(
+  context: AssistantQualityEvaluationContext,
 ): AssistantQualityQuestionEvaluation {
-  const issue = result.errorCode
-    ? `Execution failed: ${result.errorCode}`
-    : "Execution failed before an assistant answer was produced.";
+  const errorCode =
+    context.result.errorCode?.trim() || "assistant_quality_execution_failed";
+  const evaluatedAt = new Date().toISOString();
 
   return {
-    runId: result.runId,
-    questionId: result.questionId,
+    runId: context.runId,
+    questionId: context.question.id,
+    status: "execution_failed",
     overallScore: 0,
     passed: false,
-    summary: "The assistant could not complete this validation question.",
+    summary: "The assistant could not complete this certification question.",
     strengths: [],
-    issues: [issue],
+    issues: [`Execution failed: ${errorCode}`],
     dimensions: createNotScoredDimensions(
       "This dimension was not scored because the assistant execution failed.",
     ),
-    evaluatedAt: new Date().toISOString(),
+    evaluator: null,
+    errorCode,
+    evaluatedAt,
   };
 }
 
-function createPendingEvaluation(
-  result: AssistantQualityQuestionResult,
+function createEvaluationFailureEvaluation(
+  context: AssistantQualityEvaluationContext,
+  error: unknown,
 ): AssistantQualityQuestionEvaluation {
+  const errorCode = normalizeErrorCode(error);
+  const evaluatedAt = new Date().toISOString();
+
   return {
-    runId: result.runId,
-    questionId: result.questionId,
+    runId: context.runId,
+    questionId: context.question.id,
+    status: "evaluation_failed",
     overallScore: null,
     passed: null,
-    summary: "The assistant answer is ready for evidence-aware quality evaluation.",
+    summary: "The assistant answered, but the certification engine could not score this question.",
     strengths: [],
-    issues: [],
+    issues: [`Evaluation failed: ${errorCode}`],
     dimensions: createNotScoredDimensions(
-      "This dimension requires the evidence-aware evaluator and has not been scored yet.",
+      "This dimension was not scored because the certification evaluation failed.",
     ),
-    evaluatedAt: new Date().toISOString(),
+    evaluator: null,
+    errorCode,
+    evaluatedAt,
   };
 }
 
-export function evaluateAssistantQualityRun(
-  runId: string,
-  results: AssistantQualityQuestionResult[],
-): AssistantQualityRunEvaluation {
+function validateInput({
+  runId,
+  contexts,
+  passingScore,
+}: Pick<EvaluateAssistantQualityRunInput, "runId" | "contexts" | "passingScore">): string {
   const normalizedRunId = runId.trim();
 
-  if (!normalizedRunId) {
+  if (!normalizedRunId || contexts.length === 0) {
     throw new Error("invalid_assistant_quality_evaluation_request");
   }
 
-  const evaluations = results.map((result) =>
-    result.status === "failed"
-      ? evaluateExecutionFailure(result)
-      : createPendingEvaluation(result),
-  );
+  if (
+    !Number.isInteger(passingScore) ||
+    passingScore === undefined ||
+    passingScore < 0 ||
+    passingScore > 100
+  ) {
+    throw new Error("invalid_assistant_quality_passing_score");
+  }
 
-  const scoredEvaluations = evaluations.filter(
-    (evaluation): evaluation is AssistantQualityQuestionEvaluation & { overallScore: number } =>
-      evaluation.overallScore !== null,
+  const questionIds = new Set<string>();
+
+  for (const context of contexts) {
+    if (context.runId !== normalizedRunId || context.result.runId !== normalizedRunId) {
+      throw new Error("assistant_quality_run_evaluation_context_mismatch");
+    }
+
+    if (questionIds.has(context.question.id)) {
+      throw new Error("duplicate_assistant_quality_evaluation_question");
+    }
+
+    questionIds.add(context.question.id);
+  }
+
+  return normalizedRunId;
+}
+
+export async function evaluateAssistantQualityRun({
+  runId,
+  contexts,
+  provider = "openai",
+  model = null,
+  passingScore = 80,
+}: EvaluateAssistantQualityRunInput): Promise<AssistantQualityRunEvaluation> {
+  const normalizedRunId = validateInput({
+    runId,
+    contexts,
+    passingScore,
+  });
+  const orderedContexts = [...contexts].sort(
+    (left, right) => left.question.sequence - right.question.sequence,
   );
-  const completedQuestionCount = results.filter(
-    (result) => result.status === "completed",
+  const evaluations: AssistantQualityQuestionEvaluation[] = [];
+
+  for (const context of orderedContexts) {
+    if (context.result.status !== "completed") {
+      evaluations.push(createExecutionFailureEvaluation(context));
+      continue;
+    }
+
+    try {
+      const result = await evaluateAssistantQualityQuestion({
+        context,
+        provider,
+        model,
+      });
+
+      evaluations.push(result.evaluation);
+    } catch (error) {
+      evaluations.push(createEvaluationFailureEvaluation(context, error));
+    }
+  }
+
+  const completedEvaluations = evaluations.filter(
+    (evaluation): evaluation is AssistantQualityQuestionEvaluation & {
+      status: "completed";
+      overallScore: number;
+      passed: boolean;
+    } =>
+      evaluation.status === "completed" &&
+      evaluation.overallScore !== null &&
+      evaluation.passed !== null,
+  );
+  const failedQuestionCount = evaluations.filter(
+    (evaluation) => evaluation.status === "execution_failed",
   ).length;
-  const failedQuestionCount = results.filter(
-    (result) => result.status === "failed",
+  const evaluationFailureCount = evaluations.filter(
+    (evaluation) => evaluation.status === "evaluation_failed",
   ).length;
-  const overallScore = scoredEvaluations.length
+  const overallScore = completedEvaluations.length
     ? Math.round(
-        scoredEvaluations.reduce((total, evaluation) => total + evaluation.overallScore, 0) /
-          scoredEvaluations.length,
+        completedEvaluations.reduce(
+          (total, evaluation) => total + evaluation.overallScore,
+          0,
+        ) / completedEvaluations.length,
       )
     : null;
+  const passed =
+    overallScore === null
+      ? null
+      : failedQuestionCount === 0 &&
+        evaluationFailureCount === 0 &&
+        completedEvaluations.length === evaluations.length &&
+        completedEvaluations.every((evaluation) => evaluation.passed) &&
+        overallScore >= passingScore;
 
   return {
     runId: normalizedRunId,
     overallScore,
-    passed:
-      overallScore === null
-        ? null
-        : failedQuestionCount === 0 && overallScore >= 80,
-    completedQuestionCount,
+    passed,
+    completedQuestionCount: completedEvaluations.length,
     failedQuestionCount,
+    evaluationFailureCount,
     evaluations,
     evaluatedAt: new Date().toISOString(),
   };
