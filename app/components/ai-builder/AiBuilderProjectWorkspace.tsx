@@ -461,7 +461,7 @@ export default function AiBuilderProjectWorkspace({
                 <button type="button" onClick={closeReview} className="absolute right-6 top-1/2 -translate-y-1/2 rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Done</button>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                <div className="mx-auto w-full max-w-[700px] [&>div>section:first-of-type>div]:!grid-cols-1">
+                <div className="mx-auto w-full max-w-[700px]">
                   {reviewStatus}
                   <AiBuilderReview
                     session={session}
