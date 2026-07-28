@@ -347,14 +347,31 @@ export async function POST(request: Request) {
     crawlRecorded = true;
     send({ type: "crawl_complete", pagesCrawled: crawl.diagnostics.pagesRetained, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
     send({ type: "progress", percent: 70 });
-    const extractionUnits = crawl.pages.map((page, index) => ({
-      pageNumber: index + 1,
-      sourceIdentifier: block.id,
-      url: document.canonicalUrl??document.actualFetchedUrl,
-      pageType: page?.pageType??(document.sourceType==="pdf"?"document":"page"),
-      title: page?.title??"",
-      text: block.normalizedText,
-    };});
+    const sourceDocumentsById = new Map(
+      crawl.sourceDocuments.map((document) => [document.id, document]),
+    );
+    const crawledPagesByUrl = new Map(
+      crawl.pages.map((page) => [canonicalizeUrl(page.url), page]),
+    );
+    const extractionUnits = crawl.sourceBlocks.map((block, index) => {
+      const document = sourceDocumentsById.get(block.sourceDocumentId);
+      if (!document) {
+        throw new Error("website_source_block_document_missing");
+      }
+
+      const sourceUrl = document.canonicalUrl ?? document.actualFetchedUrl;
+      const page = crawledPagesByUrl.get(canonicalizeUrl(sourceUrl));
+      return {
+        pageNumber: index + 1,
+        sourceIdentifier: block.id,
+        url: sourceUrl,
+        pageType:
+          page?.pageType ??
+          (document.sourceType === "pdf" ? "document" : "page"),
+        title: page?.title ?? "",
+        text: block.normalizedText,
+      };
+    });
     aiExtractionUnits = extractionUnits.length;
     const crawledPages = new Map(crawl.pages.map((page) => [
       canonicalizeUrl(page.url),
