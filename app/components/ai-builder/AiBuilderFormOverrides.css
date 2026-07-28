@@ -129,6 +129,66 @@
   .ai-builder-shell__content > div.hidden > aside:last-child form > div.mx-auto.mb-3.flex.max-w-3xl.flex-wrap.items-center.justify-between.gap-3 > span {
     display: none;
   }
+
+  .ai-builder-shell__content > div.hidden > main:has([class~="space-y-5"]) > div.relative {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    height: 100dvh;
+    padding: 0;
+    overflow: visible;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(12px);
+  }
+
+  .ai-builder-shell__content > div.hidden > main:has([class~="space-y-5"]) > div.relative > div:first-child {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(1000px, calc(100vw - 72px));
+    height: min(90dvh, 920px);
+    max-height: 90dvh;
+    transform: translate(-50%, -50%);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    background: #030303;
+    padding: 0 28px 34px;
+    box-shadow: 0 32px 110px rgba(0, 0, 0, 0.72), 0 0 55px rgba(245, 158, 11, 0.055);
+  }
+
+  .ai-builder-shell__content > div.hidden > main:has([class~="space-y-5"]) > div.relative > div:first-child > div:last-child {
+    display: none;
+  }
+
+  .ai-builder-shell__content > div.hidden > main:has([class~="space-y-5"]) [class~="space-y-5"] > section:first-of-type {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    margin: 0 -28px;
+    padding: 22px 28px 24px;
+    border-bottom-color: rgba(255, 255, 255, 0.09);
+    background: rgba(3, 3, 3, 0.96);
+    backdrop-filter: blur(18px);
+  }
+
+  .ai-builder-shell__content > div.hidden > main:has([class~="space-y-5"]) [class~="space-y-5"] > section:first-of-type > div:first-of-type {
+    margin-top: 0;
+  }
+
+  .ai-builder-shell__content > div.hidden > main:has([class~="space-y-5"]) section.space-y-7 > section > div.grid,
+  .ai-builder-shell__content > div.hidden > main:has([class~="space-y-5"]) section:has(> p:first-child) > div.grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ai-builder-shell__content > div.hidden > main:has([class~="space-y-5"]) section.space-y-7 article,
+  .ai-builder-shell__content > div.hidden > main:has([class~="space-y-5"]) section:has(> p:first-child) article {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: none;
+    justify-self: stretch;
+  }
 }
 
 @media (max-width: 639px) {
