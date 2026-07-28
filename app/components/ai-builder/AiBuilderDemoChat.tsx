@@ -79,6 +79,16 @@ type ChatApiPayload = {
     message?: string;
   };
 };
+type ModelChoice={id:string;provider:string;displayName:string;recommended:boolean;highUsage:boolean};
+
+function ModelSelectControl({models,value,disabled,onChange,className=""}:{models:ModelChoice[];value:string;disabled:boolean;onChange:(modelId:string)=>void;className?:string}) {
+  return <label className={`flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-300 ${className}`}>
+    <span className="shrink-0">Active model</span>
+    <select aria-label="Active AI model" value={value} disabled={disabled||!value} onChange={event=>onChange(event.target.value)} className="min-w-0 max-w-[13rem] rounded-lg border border-amber-300/20 bg-black px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50">
+      {Array.from(new Set(models.map(model=>model.provider))).map(provider=><optgroup key={provider} label={provider}>{models.filter(model=>model.provider===provider).map(model=><option key={model.id} value={model.id}>{model.displayName}{model.recommended?" · Recommended":""}{model.highUsage?" · High AI Usage":""}</option>)}</optgroup>)}
+    </select>
+  </label>;
+}
 
 function createMessageId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random()
@@ -135,6 +145,8 @@ export default function AiBuilderDemoChat({
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modelId,setModelId]=useState("");
+  const [modelChoices,setModelChoices]=useState<ModelChoice[]>([]);
   const [promotingMessageId, setPromotingMessageId] = useState<string | null>(null);
   const [purchaseInterestSubmitted, setPurchaseInterestSubmitted] =
     useState(false);
@@ -151,6 +163,9 @@ export default function AiBuilderDemoChat({
     scrollTop: number;
   } | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
+
+  useEffect(()=>{void fetch("/api/ai-builder/models?purpose=test-assistant").then(r=>r.json()).then(payload=>{if(payload.ok){setModelChoices(payload.models);setModelId(payload.defaultModelId);}}).catch(()=>undefined);},[]);
+  async function selectModel(next:string){const choice=modelChoices.find(x=>x.id===next);if(!choice||sending)return;if(choice.highUsage){const confirmed=await showConfirm({title:"Use GPT-5.5 Pro?",message:"GPT-5.5 Pro uses significantly more AI usage than the other available models. Continue?",cancelLabel:"Cancel",confirmLabel:"Use GPT-5.5 Pro"});if(!confirmed)return;}setModelId(next);}
 
   useEffect(() => {
     const root = modalRootRef.current;
@@ -438,6 +453,7 @@ export default function AiBuilderDemoChat({
           threadId: chatThread.id,
           idempotencyKey: logicalSubmission.idempotencyKey,
           message: normalizedMessage,
+          modelId,
         }),
       });
 
@@ -528,10 +544,11 @@ export default function AiBuilderDemoChat({
 
   return (
     <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#000000] xl:static xl:z-auto xl:h-full xl:bg-transparent">
-      <header className="relative flex flex-none items-center justify-center border-b border-white/10 px-5 py-5 sm:px-8 xl:hidden">
+      <header className="relative flex flex-none flex-col items-center justify-center gap-3 border-b border-white/10 px-5 py-4 pr-14 sm:flex-row sm:gap-5 sm:px-8 sm:pr-16 xl:hidden">
         <p className="text-center text-sm font-black uppercase tracking-[0.28em] text-amber-300">
           Live assistant test
         </p>
+        <ModelSelectControl models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} />
         <button
           type="button"
           onClick={onBack}
@@ -612,6 +629,7 @@ export default function AiBuilderDemoChat({
           ) : null}
 
           <div className="mx-auto mb-3 flex max-w-3xl flex-wrap items-center justify-between gap-3">
+            <ModelSelectControl models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} className="hidden xl:flex" />
             <button
               type="button"
               onClick={() =>
