@@ -14,6 +14,11 @@ export type AssistantQualityEvaluationRating =
   | "poor"
   | "not_scored";
 
+export type AssistantQualityEvaluationStatus =
+  | "completed"
+  | "execution_failed"
+  | "evaluation_failed";
+
 export type AssistantQualityDimensionEvaluation = {
   dimension: AssistantQualityEvaluationDimension;
   score: number | null;
@@ -22,15 +27,26 @@ export type AssistantQualityDimensionEvaluation = {
   evidence: string[];
 };
 
+export type AssistantQualityEvaluatorMetadata = {
+  provider: string;
+  model: string;
+  startedAt: string;
+  completedAt: string;
+  durationMs: number;
+};
+
 export type AssistantQualityQuestionEvaluation = {
   runId: string;
   questionId: string;
+  status: AssistantQualityEvaluationStatus;
   overallScore: number | null;
   passed: boolean | null;
   summary: string;
   strengths: string[];
   issues: string[];
   dimensions: AssistantQualityDimensionEvaluation[];
+  evaluator: AssistantQualityEvaluatorMetadata | null;
+  errorCode: string | null;
   evaluatedAt: string;
 };
 
@@ -40,6 +56,7 @@ export type AssistantQualityRunEvaluation = {
   passed: boolean | null;
   completedQuestionCount: number;
   failedQuestionCount: number;
+  evaluationFailureCount: number;
   evaluations: AssistantQualityQuestionEvaluation[];
   evaluatedAt: string;
 };
