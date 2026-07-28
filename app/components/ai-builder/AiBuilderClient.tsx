@@ -386,17 +386,17 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   };
 
   const desktopWorkspace = session && knowledgePack ? (
-    <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/10 bg-[#020202] xl:grid xl:grid-cols-[190px_minmax(0,1fr)_430px]">
-      <aside className="border-r border-white/10 bg-[#050505] p-4">
+    <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
+      <aside className="border-r border-white/[0.08] bg-[#050505] px-4 py-5">
         <button
           type="button"
           onClick={() => window.location.assign("/ai-builder")}
-          className="mb-6 text-sm font-semibold text-slate-400 transition hover:text-white"
+          className="mb-7 inline-flex items-center text-xs font-semibold text-slate-500 transition hover:text-white"
         >
           ← All Projects
         </button>
-        <p className="px-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Project</p>
-        <nav className="mt-3 space-y-1">
+        <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-600">Project workspace</p>
+        <nav className="mt-3 space-y-0.5">
           {([
             ["dashboard", "Dashboard"],
             ["insights", "Project Insights"],
@@ -409,10 +409,10 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
               key={value}
               type="button"
               onClick={() => setWorkspaceTab(value)}
-              className={`w-full rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
+              className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
                 workspaceTab === value
-                  ? "border border-amber-300/25 bg-amber-300/10 text-amber-200"
-                  : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+                  ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
+                  : "text-slate-500 hover:bg-white/[0.035] hover:text-slate-200"
               }`}
             >
               {label}
@@ -422,12 +422,13 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       </aside>
 
       <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
-        <header className="flex flex-none justify-center border-b border-white/10 px-5 py-3 text-center">
+        <header className="flex min-h-[68px] flex-none items-center border-b border-white/[0.08] px-6 py-3">
           <div className="min-w-0 max-w-full">
-            <h1 className="text-lg font-bold text-amber-300">
+            <p className="text-[0.62rem] font-bold uppercase tracking-[0.18em] text-slate-600">{workspaceTab === "insights" ? "Project Insights" : workspaceTab === "knowledge" ? "Business Knowledge" : workspaceTab}</p>
+            <h1 className="mt-1 truncate text-base font-bold text-slate-100">
               {builder.businessName || "AI Builder Project"}
             </h1>
-            <p className="mt-1 break-all text-xs leading-5 text-slate-500">
+            <p className="mt-0.5 truncate text-xs leading-5 text-slate-600">
               {builder.website || builder.industry}
             </p>
           </div>
@@ -457,7 +458,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                       : saveError}
                 </div>
               ) : null}
-              <div className="[&>div]:max-w-none [&>div]:space-y-5 [&_.max-w-3xl]:max-w-none [&_.max-w-4xl]:max-w-none [&_.max-w-5xl]:max-w-none">
+              <div className="[&>div]:max-w-none [&>div]:space-y-5 [&>div]:rounded-none [&>div]:border-0 [&>div]:bg-transparent [&>div]:px-0 [&>div]:pt-0 [&>div]:shadow-none [&_.max-w-3xl]:max-w-none [&_.max-w-4xl]:max-w-none [&_.max-w-5xl]:max-w-none">
                 <AiBuilderReview
                   session={session}
                   onReviewCommand={submitReviewCommand}
@@ -490,11 +491,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         </AiBuilderDesktopScrollArea>
       </main>
 
-      <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#050505] p-4">
-        <div className="mb-4 flex-none text-center">
-          <p className="text-sm font-bold text-white">Test Your AI Assistant</p>
-        </div>
-        <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:first-of-type]:hidden [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-2xl [&>div>section:last-of-type]:border-white/10 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
+      <aside className="flex min-h-0 flex-col border-l border-white/[0.08] bg-[#050505] px-4 pb-4 pt-5">
+        <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-2xl [&>div>section:last-of-type]:border-white/[0.08] [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
           <AiBuilderDemoChat
             knowledge={knowledgePack}
             projectId={session.id}
