@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
+import { runModel } from "@/app/lib/ai-engine/models/runModel";
+import { resolveModel, type ModelDefinition } from "@/app/lib/ai-engine/models/registry";
 import { BusinessWebsiteCrawlError, crawlBusinessWebsite, resolveCrawledBusinessName } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
 import { finishCrawlTelemetry, safePublicUrl, startCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
@@ -280,10 +281,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: { code: "authentication_required", message: "Sign in to use AI Builder." } }, { status: 401 });
     }
   }
-  let body: { website?: unknown };
+  let body: { website?: unknown; modelId?: unknown };
 
   try {
-    body = (await request.json()) as { website?: unknown };
+    body = (await request.json()) as { website?: unknown; modelId?: unknown };
   } catch {
     return errorResponse(400, "invalid_json", "The request body must be valid JSON.");
   }
@@ -293,10 +294,8 @@ export async function POST(request: Request) {
     return errorResponse(400, "website_required", "Add a website before importing business information.");
   }
 
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) {
-    return errorResponse(503, "openai_not_configured", "The AI builder is not configured yet.");
-  }
+  let selectedModel:ModelDefinition; try { selectedModel=resolveModel(body.modelId,"crawl"); } catch(error) { return errorResponse(400,error instanceof Error?error.message:"model_unknown","That AI model is not available for website import."); }
+  if (!process.env.PERPLEXITY_API_KEY?.trim()) return errorResponse(503,"model_gateway_not_configured","The AI builder is not configured yet.");
 
   const encoder = new TextEncoder();
   const attemptId = crypto.randomUUID();
@@ -312,7 +311,7 @@ export async function POST(request: Request) {
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
 
       let crawlRecorded = false;
-      let model = process.env.AI_BUILDER_CRAWLER_MODEL?.trim() || "gpt-5-mini";
+      let model = selectedModel.id;
       let usage: AiTokenUsage | undefined;
       let aiCalls = 0;
       let aiExtractionUnits = 0;
@@ -337,8 +336,6 @@ export async function POST(request: Request) {
     crawlRecorded = true;
     send({ type: "crawl_complete", pagesCrawled: crawl.diagnostics.pagesRetained, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
     send({ type: "progress", percent: 70 });
-    const client = new OpenAI({ apiKey });
-
     const extractionUnits = crawl.pages.map((page, index) => ({
       pageNumber: index + 1,
       sourceIdentifier: page.sourceDocumentId ?? `crawl-page-${index + 1}`,
@@ -367,46 +364,27 @@ export async function POST(request: Request) {
       const callStarted = performance.now();
       try {
         aiCalls += 1;
-        const response = await client.responses.create({
-          model,
-          instructions: extractionInstructions,
-          input,
-          text: {
-            format: {
-              type: "json_schema",
-              name: "ai_builder_website_import",
-              strict: true,
-              schema: extractionSchema,
-            },
-          },
-        });
-        console.info("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, inputTokenCount: response.usage?.input_tokens, outputTokenCount: response.usage?.output_tokens, model: response.model || model, durationMs: performance.now() - callStarted, success: true });
-        model = response.model || model;
+        const response = await runModel({modelId:model,purpose:"crawl",instructions:`${extractionInstructions} Return only JSON matching this schema: ${JSON.stringify(extractionSchema)}`,messages:[{role:"user",content:input}],signal:request.signal});
+        console.info("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, inputTokenCount: response.usage.inputTokens, outputTokenCount: response.usage.outputTokens, model: response.modelId, durationMs: performance.now() - callStarted, success: true });
         if (response.usage) {
           const batchUsage = {
-            inputTokens: response.usage.input_tokens,
-            outputTokens: response.usage.output_tokens,
-            totalTokens: response.usage.total_tokens,
+            inputTokens: response.usage.inputTokens,
+            outputTokens: response.usage.outputTokens,
+            totalTokens: response.usage.totalTokens,
           };
           usage = {
             inputTokens: (usage?.inputTokens ?? 0) + batchUsage.inputTokens,
             outputTokens: (usage?.outputTokens ?? 0) + batchUsage.outputTokens,
             totalTokens: (usage?.totalTokens ?? 0) + batchUsage.totalTokens,
           };
-          const batchCost = estimateAiTokenCost(response.model || model, batchUsage);
+          const batchCost = estimateAiTokenCost(model, batchUsage);
           if (batchCost) {
             hasCostEstimate = true;
             estimatedInputCostUsd += batchCost.inputCostUsd;
             estimatedOutputCostUsd += batchCost.outputCostUsd;
           }
         }
-        if (response.incomplete_details?.reason === "max_output_tokens") {
-          const split = splitExtractionUnits(units);
-          if (!split) throw new Error("AI extraction could not produce a complete response for a single content unit.");
-          pendingBatches.unshift(split[0], split[1]);
-          continue;
-        }
-        const batch = JSON.parse(response.output_text.trim()) as Omit<ExtractedWebsiteBatch, "knowledge"> & { knowledge: unknown };
+        const batch = JSON.parse(response.text) as Omit<ExtractedWebsiteBatch, "knowledge"> & { knowledge: unknown };
         extractedBatches.push({ ...batch, knowledge: normalizeKnowledge(batch.knowledge, crawledPages, crawl) });
       } catch (error) {
         console.error("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, model, durationMs: performance.now() - callStarted, success: false, error: error instanceof Error ? error.message : String(error) });
