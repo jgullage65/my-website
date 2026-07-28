@@ -18,7 +18,14 @@ import {
 import {
   WEBSITE_KNOWLEDGE_CATEGORIES,
   WEBSITE_KNOWLEDGE_COVERAGE_FIELDS,
+  websiteFactIdentity,
+  type PersistedWebsiteKnowledge,
+  type WebsiteKnowledgeFact,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import { getAiBuilderProject, persistMergedWebsiteKnowledge } from "@/app/lib/db/ai-builder-repository";
+import { planWebsiteRecrawlExtraction, reconcileWebsiteRecrawl } from "@/app/lib/ai-engine/crawler/websiteRecrawlReconciliation";
+import { persistWebsiteRecrawlReconciliation } from "@/app/lib/ai-engine/crawler/websiteRecrawlReconciliationStore";
+import { buildBusinessMemory } from "@/app/lib/ai-engine/business-memory/buildBusinessMemory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -296,6 +303,10 @@ export async function POST(request: Request) {
   }
 
   const website = normalizeText(body.website);
+  const projectId = normalizeText(body.projectId);
+  const project = projectId && !internalWorker ? await getAiBuilderProject(projectId) : null;
+  if (projectId && !internalWorker && !project) return errorResponse(404,"project_not_found","This AI Builder project could not be found.");
+  const previousKnowledge = project?.websiteKnowledge ?? null;
   if (!website) {
     return errorResponse(400, "website_required", "Add a website before importing business information.");
   }
@@ -418,7 +429,17 @@ export async function POST(request: Request) {
       }
     }
     const extracted = mergeExtractedBatches(extractedBatches);
-    const knowledge = extracted.knowledge;
+    const deltaFacts=extracted.knowledge.facts as WebsiteKnowledgeFact[];
+    const mergedFacts=new Map(extractionPlan.preservedFacts.map(fact=>[websiteFactIdentity(fact),fact]));
+    for(const fact of deltaFacts)mergedFacts.set(websiteFactIdentity(fact),fact);
+    const knowledge={facts:Array.from(mergedFacts.values()).sort((a,b)=>websiteFactIdentity(a).localeCompare(websiteFactIdentity(b))),coverage:extractionPlan.mode==="recrawl"?previousKnowledge!.knowledge.coverage:extracted.knowledge.coverage,unresolvedQuestions:extractionPlan.mode==="recrawl"?Array.from(new Set([...previousKnowledge!.knowledge.unresolvedQuestions,...extracted.knowledge.unresolvedQuestions])).sort():extracted.knowledge.unresolvedQuestions};
+    const currentKnowledge:PersistedWebsiteKnowledge={...currentBase,document_version:extractionPlan.mode==="recrawl"&&deltaFacts.length===0&&extractionPlan.blockChanges.every(change=>change.state==="unchanged")?previousKnowledge!.document_version:currentBase.document_version+(extractionPlan.mode==="recrawl"?1:0),knowledge};
+    if(extractionPlan.mode==="recrawl"){
+      const reconciliation=reconcileWebsiteRecrawl({previous:previousKnowledge!,current:currentKnowledge,currentCrawlAttempt:crawl.crawlAttempt,businessMemory:project?buildBusinessMemory({session:project.session,websiteKnowledge:previousKnowledge}):undefined});
+      await persistWebsiteRecrawlReconciliation(projectId,reconciliation);
+      await persistMergedWebsiteKnowledge(projectId,currentKnowledge);
+    }
+    console.info("AI_BUILDER_RECRAWL_EXTRACTION",{attemptId,projectId:projectId||null,mode:extractionPlan.mode,...extractionPlan.telemetry,aiCalls,inputTokens:usage?.inputTokens??0,outputTokens:usage?.outputTokens??0,estimatedAiCostUsd:hasCostEstimate?estimatedInputCostUsd+estimatedOutputCostUsd:null});
     const aiKnowledgeExtractionMs = performance.now() - aiStarted;
     aiExtractionDurationMs = aiKnowledgeExtractionMs;
     const timings = {
