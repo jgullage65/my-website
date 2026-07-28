@@ -80,6 +80,16 @@ type ChatApiPayload = {
     message?: string;
   };
 };
+type ModelChoice={id:string;provider:string;displayName:string;recommended:boolean;highUsage:boolean};
+
+function ModelSelectControl({models,value,disabled,onChange,className=""}:{models:ModelChoice[];value:string;disabled:boolean;onChange:(modelId:string)=>void;className?:string}) {
+  return <label className={`flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-300 ${className}`}>
+    <span className="shrink-0">Active model</span>
+    <select aria-label="Active AI model" value={value} disabled={disabled||!value} onChange={event=>onChange(event.target.value)} className="min-w-0 max-w-[13rem] rounded-lg border border-amber-300/20 bg-black px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-50">
+      {Array.from(new Set(models.map(model=>model.provider))).map(provider=><optgroup key={provider} label={provider}>{models.filter(model=>model.provider===provider).map(model=><option key={model.id} value={model.id}>{model.displayName}{model.recommended?" · Recommended":""}{model.highUsage?" · High AI Usage":""}</option>)}</optgroup>)}
+    </select>
+  </label>;
+}
 
 function createMessageId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random()
@@ -620,6 +630,7 @@ export default function AiBuilderDemoChat({
           ) : null}
 
           <div className="mx-auto mb-3 flex max-w-3xl flex-wrap items-center justify-between gap-3">
+            <ModelSelectControl models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} className="hidden xl:flex" />
             <button
               type="button"
               onClick={() =>
