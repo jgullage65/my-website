@@ -136,7 +136,7 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
                 knowledge: payload.websiteKnowledge.knowledge,
                 pages: payload.websiteKnowledge.pages,
                 warnings: payload.websiteKnowledge.warnings,
-                importedAt: payload.websiteKnowledge.imported_at,
+                importedAt: payload.websiteKnowledge.imported_at ?? "",
                 crawlAttemptId: payload.websiteKnowledge.current_crawl_attempt_id ?? undefined,
                 sourceDocuments: payload.websiteKnowledge.source_documents,
                 sourceBlocks: payload.websiteKnowledge.source_blocks,
