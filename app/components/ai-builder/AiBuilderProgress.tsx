@@ -9,6 +9,7 @@ type Props = {
   complete: boolean;
   percent: number;
   onReview: () => void;
+  embedded?: boolean;
 };
 
 const pendingSteps = [
@@ -28,6 +29,7 @@ export default function AiBuilderProgress({
   complete,
   percent,
   onReview,
+  embedded = false,
 }: Props) {
   const progress = session?.buildProgress ?? [];
   const awaitingApprovalCount = session
@@ -36,18 +38,16 @@ export default function AiBuilderProgress({
     : 0;
 
   return (
-    <div className="w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl">
-      <section className={shellClassName}>
-        <AiBuilderAuthCta suppressSignOut={!complete} />
+    <div className={embedded ? "w-full" : "w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl"}>
+      <section className={embedded ? "w-full" : shellClassName}>
+        {!embedded ? <AiBuilderAuthCta suppressSignOut={!complete} /> : null}
 
-        <div className="relative text-center">
+        <div className={embedded ? "relative border-b border-white/[0.08] pb-5" : "relative text-center"}>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300 sm:text-sm">
             {complete ? "Your AI is ready" : "Building your AI system"}
           </p>
 
-          <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl min-[1200px]:mt-2 min-[1200px]:text-3xl">
-            {builder.businessName}
-          </h1>
+          {!embedded ? <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl min-[1200px]:mt-2 min-[1200px]:text-3xl">{builder.businessName}</h1> : null}
 
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg min-[1200px]:mt-2 min-[1200px]:text-base min-[1200px]:leading-6">
             {complete

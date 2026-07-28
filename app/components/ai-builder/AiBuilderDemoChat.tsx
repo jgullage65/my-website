@@ -545,7 +545,7 @@ export default function AiBuilderDemoChat({
 
   return (
     <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#000000] xl:static xl:z-auto xl:h-full xl:bg-transparent">
-      <header className="relative flex flex-none flex-col items-center justify-center gap-2 border-b border-white/10 bg-black px-5 py-3 pr-14 sm:px-8 sm:pr-16">
+      <header className="relative flex min-h-[76px] flex-none flex-col items-center justify-center gap-1.5 border-b border-white/[0.08] bg-black px-5 py-2 pr-14 sm:px-8 sm:pr-16">
         <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.24em] text-amber-300">
           Live assistant test
         </p>
@@ -554,13 +554,13 @@ export default function AiBuilderDemoChat({
           type="button"
           onClick={onBack}
           aria-label="Close live assistant test"
-          className="absolute right-5 top-1/2 -translate-y-1/2 text-3xl font-light leading-none text-slate-300 transition hover:text-white"
+          className="absolute right-5 top-1/2 -translate-y-1/2 text-3xl font-light leading-none text-slate-300 transition hover:text-white xl:hidden"
         >
           ×
         </button>
       </header>
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#000000] xl:rounded-[30px] xl:border xl:border-white/10 xl:shadow-[0_24px_90px_rgba(0,0,0,0.34)]">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[#000000]">
         <div className="relative min-h-0 flex-1">
           <div
             ref={chatScrollRef}
