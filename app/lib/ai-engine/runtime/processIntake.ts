@@ -103,7 +103,7 @@ import type {
       },
       {
         stage: "building_memory",
-        message: "Proposed business memory prepared for review",
+        message: "Proposed memory for review",
         completed: true,
         count: result.proposedContext.entries.length,
         createdAt,
