@@ -70,6 +70,15 @@
     grid-template-columns: 190px minmax(0,1fr) 430px;
   }
 
+  .ai-builder-shell__content > div.hidden > aside:first-child {
+    min-height: 0;
+  }
+
+  .ai-builder-shell__content > div.hidden > aside:first-child > div:last-child {
+    display: block;
+    flex: 0 0 auto;
+  }
+
   .ai-builder-shell__content > div.hidden > main {
     display: flex;
     min-height: 0;
