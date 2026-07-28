@@ -1,4 +1,5 @@
 import AiBuilderClient from "@/app/components/ai-builder/AiBuilderClient";
+import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 import AiBuilderProjects from "@/app/components/ai-builder/AiBuilderProjects";
 
 type PageProps = {
@@ -14,9 +15,9 @@ export default function Page({ searchParams }: PageProps) {
 
   if (!normalizedProjectId && !newProject) return <AiBuilderProjects />;
 
-  return (
-    <AiBuilderClient
-      initialProjectId={normalizedProjectId}
-    />
-  );
+  if (normalizedProjectId) {
+    return <AiBuilderProjectWorkspace projectId={normalizedProjectId} />;
+  }
+
+  return <AiBuilderClient />;
 }
