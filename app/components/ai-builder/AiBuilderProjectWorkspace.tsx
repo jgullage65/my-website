@@ -15,23 +15,24 @@ import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderPr
 import AiBuilderReview from "./AiBuilderReview";
 import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
 
- type WorkspaceTab = "dashboard" | "insights" | "overview" | "knowledge" | "sources" | "settings";
- type SaveStatus = "idle" | "saving" | "saved" | "error";
+type WorkspaceTab = "dashboard" | "insights" | "overview" | "knowledge" | "sources" | "settings";
+type PersistedWorkspaceTab = Exclude<WorkspaceTab, "knowledge">;
+type SaveStatus = "idle" | "saving" | "saved" | "error";
 
- type StoredChatMessage = {
+type StoredChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   citations?: string[];
   createdAt: string;
- };
+};
 
- type ChatThread = {
+type ChatThread = {
   id: string;
   messages: StoredChatMessage[];
- };
+};
 
- type ProjectResponse = {
+type ProjectResponse = {
   ok?: boolean;
   session?: AiBuilderSession;
   builder?: {
@@ -44,32 +45,33 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
   chatThread?: ChatThread | null;
   diagnostics?: ProjectDiagnostics;
   error?: { message?: string };
- };
+};
 
- type Props = {
+type Props = {
   projectId: string;
   reviewOpen?: boolean;
- };
+  initialTab?: PersistedWorkspaceTab;
+};
 
- const WORKSPACE_ITEMS: ReadonlyArray<readonly [WorkspaceTab, string]> = [
+const WORKSPACE_ITEMS: ReadonlyArray<readonly [WorkspaceTab, string]> = [
   ["dashboard", "Dashboard"],
   ["insights", "Project Insights"],
   ["overview", "Overview"],
   ["knowledge", "Business Knowledge"],
   ["sources", "Sources"],
   ["settings", "Settings"],
- ];
+];
 
- const WORKSPACE_DESCRIPTIONS: Record<WorkspaceTab, string> = {
+const WORKSPACE_DESCRIPTIONS: Record<WorkspaceTab, string> = {
   dashboard: "Priorities, readiness, and recent project changes",
   insights: "Crawl, generation, governance, and activity diagnostics",
   overview: "Build status and generated project totals",
   knowledge: "Review and govern the assistant’s business memory",
   sources: "Connected source material and website imports",
   settings: "Project configuration and preferences",
- };
+};
 
- const EMPTY_BUILDER: BuilderState = {
+const EMPTY_BUILDER: BuilderState = {
   businessName: "",
   industry: "",
   website: "",
@@ -81,9 +83,9 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
   },
   websiteKnowledge: null,
   crawlAttemptIds: [],
- };
+};
 
- async function fetchProject(projectId: string): Promise<ProjectResponse> {
+async function fetchProject(projectId: string): Promise<ProjectResponse> {
   const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(projectId)}`, {
     cache: "no-store",
   });
@@ -92,10 +94,14 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
     throw new Error(payload.error?.message || "The AI Builder project could not be loaded.");
   }
   return payload;
- }
+}
 
- export default function AiBuilderProjectWorkspace({ projectId, reviewOpen = false }: Props) {
-  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(reviewOpen ? "overview" : "dashboard");
+export default function AiBuilderProjectWorkspace({
+  projectId,
+  reviewOpen = false,
+  initialTab = "dashboard",
+}: Props) {
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(initialTab);
   const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
   const [builder, setBuilder] = useState<BuilderState>(EMPTY_BUILDER);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
@@ -167,8 +173,10 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
   }, [mobileWorkspaceMenuOpen]);
 
   const closeReview = useCallback(() => {
-    window.location.assign(`/ai-builder?projectId=${encodeURIComponent(projectId)}`);
-  }, [projectId]);
+    window.location.assign(
+      `/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=${encodeURIComponent(workspaceTab)}`,
+    );
+  }, [projectId, workspaceTab]);
 
   useEffect(() => {
     if (!reviewOpen) return;
@@ -271,8 +279,10 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
   }, []);
 
   const openReview = useCallback(() => {
-    window.location.assign(`/ai-builder/review?projectId=${encodeURIComponent(projectId)}`);
-  }, [projectId]);
+    window.location.assign(
+      `/ai-builder/review?projectId=${encodeURIComponent(projectId)}&returnTab=${encodeURIComponent(workspaceTab)}`,
+    );
+  }, [projectId, workspaceTab]);
 
   const selectWorkspaceTab = useCallback((nextTab: WorkspaceTab) => {
     setMobileWorkspaceMenuOpen(false);
@@ -280,8 +290,13 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
       openReview();
       return;
     }
+
     setWorkspaceTab(nextTab);
-  }, [openReview]);
+    const url = new URL(window.location.href);
+    url.searchParams.set("projectId", projectId);
+    url.searchParams.set("tab", nextTab);
+    window.history.replaceState(null, "", url.toString());
+  }, [openReview, projectId]);
 
   const knowledgePack = useMemo(
     () => (session?.status === "ready" ? buildKnowledgePack(session) : null),
@@ -322,9 +337,7 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
   if (!session || !knowledgePack) {
     return (
       <AiBuilderShell>
-        <div className="mx-auto max-w-2xl rounded-2xl border border-white/10 bg-black p-8 text-center text-slate-400">
-          Loading AI project...
-        </div>
+        <div className="h-full min-h-[70vh] w-full bg-[#020202]" aria-hidden="true" />
       </AiBuilderShell>
     );
   }
@@ -502,4 +515,4 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
       </div>
     </AiBuilderShell>
   );
- }
+}
