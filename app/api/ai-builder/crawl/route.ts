@@ -202,6 +202,12 @@ type ExtractedWebsiteBatch = {
   knowledge: ReturnType<typeof normalizeKnowledge>;
 };
 
+type CrawlRequestBody = {
+  website?: unknown;
+  modelId?: unknown;
+  projectId?: unknown;
+};
+
 function splitTextInHalf(value: string): [string, string] {
   let midpoint = Math.floor(value.length / 2);
   if (midpoint > 0 && midpoint < value.length && /[\uD800-\uDBFF]/.test(value[midpoint - 1] ?? "") && /[\uDC00-\uDFFF]/.test(value[midpoint] ?? "")) midpoint += 1;
@@ -288,10 +294,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: { code: "authentication_required", message: "Sign in to use AI Builder." } }, { status: 401 });
     }
   }
-  let body: { website?: unknown; modelId?: unknown };
+  let body: CrawlRequestBody;
 
   try {
-    body = (await request.json()) as { website?: unknown; modelId?: unknown };
+    body = (await request.json()) as CrawlRequestBody;
   } catch {
     return errorResponse(400, "invalid_json", "The request body must be valid JSON.");
   }
