@@ -25,6 +25,7 @@ type Props = {
   onBack: () => void;
   onLaunchChat: () => void;
   showLaunchChat?: boolean;
+  embedded?: boolean;
 };
 
 const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
@@ -159,6 +160,7 @@ export default function AiBuilderReview({
   onBack,
   onLaunchChat,
   showLaunchChat = true,
+  embedded = false,
 }: Props) {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editingFaq, setEditingFaq] = useState<string | null>(null);
@@ -341,9 +343,9 @@ export default function AiBuilderReview({
     session.status === "ready" && session.contextCounts.approved > 0;
 
   return (
-    <div className="relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
+    <div className={embedded ? "relative w-full space-y-5" : "relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]"}>
       {confirmDialogNode}
-      <AiBuilderAuthCta />
+      {!embedded ? <AiBuilderAuthCta /> : null}
 
       {bulkFailureMessage ? (
         <p
@@ -355,9 +357,9 @@ export default function AiBuilderReview({
       ) : null}
 
       <section className="border-b border-white/[0.075] pb-6 pt-4 sm:pt-2">
-        <p className="text-center text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">
+        {!embedded ? <p className="text-center text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">
           Business memory review
-        </p>
+        </p> : null}
 
         <div className={`mt-6 grid grid-cols-1 gap-3 ${showLaunchChat ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           <button type="button" onClick={onBack} className={canonicalButtonClassName}>

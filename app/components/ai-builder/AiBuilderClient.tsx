@@ -16,6 +16,8 @@ import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
 import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
+import AiBuilderDashboard from "./AiBuilderDashboard";
+import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import "./AiBuilderFormOverrides.css";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
@@ -55,7 +57,7 @@ export type BuilderState = {
 };
 
 type BuilderStep = "form" | "loading" | "building" | "results" | "review" | "chat";
-type WorkspaceTab = "overview" | "knowledge" | "sources" | "settings";
+type WorkspaceTab = "dashboard" | "insights" | "overview" | "knowledge" | "sources" | "settings";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export type ReviewCommandPending = ReadonlySet<string>;
@@ -86,6 +88,7 @@ type ProjectResponse = {
   };
   websiteKnowledge?: PersistedWebsiteKnowledge | null;
   chatThread?: ChatThread | null;
+  diagnostics?: ProjectDiagnostics;
   error?: { code?: string; message?: string };
 };
 
@@ -107,6 +110,24 @@ const initial: BuilderState = {
   crawlAttemptIds: [],
 };
 
+const WORKSPACE_ITEMS: ReadonlyArray<readonly [WorkspaceTab, string]> = [
+  ["dashboard", "Dashboard"],
+  ["insights", "Project Insights"],
+  ["overview", "Overview"],
+  ["knowledge", "Business Knowledge"],
+  ["sources", "Sources"],
+  ["settings", "Settings"],
+];
+
+const WORKSPACE_DESCRIPTIONS: Record<WorkspaceTab, string> = {
+  dashboard: "Priorities, readiness, and recent project changes",
+  insights: "Crawl, generation, governance, and activity diagnostics",
+  overview: "Build status and generated project totals",
+  knowledge: "Review and govern the assistant’s business memory",
+  sources: "Connected source material and website imports",
+  settings: "Project configuration and preferences",
+};
+
 async function fetchProject(projectId: string): Promise<ProjectResponse> {
   const response = await fetch(
     `/api/ai-builder/projects/${encodeURIComponent(projectId)}`,
@@ -121,10 +142,12 @@ async function fetchProject(projectId: string): Promise<ProjectResponse> {
 
 export default function AiBuilderClient({ initialProjectId = null }: Props) {
   const [step, setStep] = useState<BuilderStep>(initialProjectId ? "loading" : "form");
-  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("knowledge");
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("dashboard");
+  const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
   const [builder, setBuilder] = useState(initial);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [chatThread, setChatThread] = useState<ChatThread | null>(null);
+  const [diagnostics,setDiagnostics]=useState<ProjectDiagnostics|null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -235,6 +258,15 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     if (session) authoritativeRevisionRef.current = session.governanceRevision ?? 0;
   }, [session]);
 
+  useEffect(() => {
+    if (!mobileWorkspaceMenuOpen) return;
+    const closeMenu = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileWorkspaceMenuOpen(false);
+    };
+    window.addEventListener("keydown", closeMenu);
+    return () => window.removeEventListener("keydown", closeMenu);
+  }, [mobileWorkspaceMenuOpen]);
+
   const navigateToStep = useCallback((nextStep: BuilderStep) => {
     setStep(nextStep);
     if (nextStep === "results" || nextStep === "review" || nextStep === "chat") {
@@ -246,6 +278,18 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     });
   }, []);
+
+  const selectWorkspaceTab = useCallback((nextTab: WorkspaceTab) => {
+    setWorkspaceTab(nextTab);
+    setMobileWorkspaceMenuOpen(false);
+    if (nextTab === "knowledge") {
+      navigateToStep("review");
+    } else if (nextTab === "overview") {
+      navigateToStep("results");
+    } else if (step === "review") {
+      navigateToStep("results");
+    }
+  }, [navigateToStep, step]);
 
   useEffect(() => {
     if (step !== "building") return;
@@ -273,6 +317,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         if (!active || !payload.session) return;
         setSession(payload.session);
         setChatThread(payload.chatThread ?? null);
+        setDiagnostics(payload.diagnostics ?? null);
         setBuilder((current) => ({
           ...current,
           businessName: payload.builder?.businessName ?? current.businessName,
@@ -359,6 +404,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         const savedProject = await fetchProject(projectId);
         setSession(savedProject.session ?? payload.session);
         setChatThread(savedProject.chatThread ?? null);
+        setDiagnostics(savedProject.diagnostics ?? null);
       } catch (projectLoadError) {
         console.error("AI_BUILDER_NEW_PROJECT_RELOAD_FAILED", {
           projectId,
@@ -380,31 +426,30 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   };
 
   const desktopWorkspace = session && knowledgePack ? (
-    <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/10 bg-[#020202] xl:grid xl:grid-cols-[190px_minmax(0,1fr)_430px]">
-      <aside className="border-r border-white/10 bg-[#050505] p-4">
+    <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
+      <aside className="border-r border-white/[0.08] bg-[#050505] px-4 py-5">
         <button
           type="button"
           onClick={() => window.location.assign("/ai-builder")}
-          className="mb-6 text-sm font-semibold text-slate-400 transition hover:text-white"
+          className="mb-7 inline-flex items-center text-xs font-semibold text-slate-500 transition hover:text-white"
         >
           ← All Projects
         </button>
-        <p className="px-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Project</p>
-        <nav className="mt-3 space-y-1">
-          {([
-            ["overview", "Overview"],
-            ["knowledge", "Business Knowledge"],
-            ["sources", "Sources"],
-            ["settings", "Settings"],
-          ] as const).map(([value, label]) => (
+        <div className="mb-5 border-b border-white/[0.08] px-3 pb-5">
+          <p className="truncate text-sm font-semibold text-slate-200">{builder.businessName || "AI Builder Project"}</p>
+          <p className="mt-1 truncate text-xs text-slate-600">{builder.website || builder.industry || "Project workspace"}</p>
+        </div>
+        <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-600">Workspace</p>
+        <nav className="mt-3 space-y-0.5">
+          {WORKSPACE_ITEMS.map(([value, label]) => (
             <button
               key={value}
               type="button"
-              onClick={() => setWorkspaceTab(value)}
-              className={`w-full rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
+              onClick={() => selectWorkspaceTab(value)}
+              className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
                 workspaceTab === value
-                  ? "border border-amber-300/25 bg-amber-300/10 text-amber-200"
-                  : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+                  ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
+                  : "text-slate-500 hover:bg-white/[0.035] hover:text-slate-200"
               }`}
             >
               {label}
@@ -414,19 +459,19 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       </aside>
 
       <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
-        <header className="flex flex-none justify-center border-b border-white/10 px-5 py-3 text-center">
+        <header className="flex min-h-[76px] flex-none items-center border-b border-white/[0.08] px-6 py-3 min-[1400px]:px-8">
           <div className="min-w-0 max-w-full">
-            <h1 className="text-lg font-bold text-amber-300">
-              {builder.businessName || "AI Builder Project"}
-            </h1>
-            <p className="mt-1 break-all text-xs leading-5 text-slate-500">
-              {builder.website || builder.industry}
-            </p>
+            <h1 className="truncate text-base font-semibold text-slate-100">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</h1>
+            <p className="mt-1 truncate text-xs leading-5 text-slate-500">{WORKSPACE_DESCRIPTIONS[workspaceTab]}</p>
           </div>
         </header>
 
         <AiBuilderDesktopScrollArea>
-          {workspaceTab === "knowledge" ? (
+          {workspaceTab === "dashboard" ? (
+            <AiBuilderDashboard session={session} websiteKnowledge={builder.websiteKnowledge ? {schema_version:2,document_version:1,current_crawl_attempt_id:builder.websiteKnowledge.crawlAttemptId??null,imported_at:builder.websiteKnowledge.importedAt,requested_url:builder.websiteKnowledge.requestedUrl,resolved_url:builder.websiteKnowledge.resolvedUrl,pages:builder.websiteKnowledge.pages,warnings:builder.websiteKnowledge.warnings,knowledge:builder.websiteKnowledge.knowledge??{facts:[],coverage:{} as PersistedWebsiteKnowledge["knowledge"]["coverage"],unresolvedQuestions:[]},source_documents:builder.websiteKnowledge.sourceDocuments,source_blocks:builder.websiteKnowledge.sourceBlocks}:null} messages={chatThread?.messages??[]} diagnostics={diagnostics} onNavigate={(destination)=>{if(destination==="assistant"){document.querySelector<HTMLTextAreaElement>('textarea[placeholder^="Ask about"]')?.focus();return;}setWorkspaceTab(destination);}} />
+          ) : workspaceTab === "insights" ? (
+            <AiBuilderProjectInsights session={session} diagnostics={diagnostics} messageCount={chatThread?.messages.length??0} />
+          ) : workspaceTab === "knowledge" ? (
             <>
               {reviewSaveStatus !== "idle" || saveError ? (
                 <div
@@ -445,7 +490,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                       : saveError}
                 </div>
               ) : null}
-              <div className="[&>div]:max-w-none [&>div]:space-y-5 [&_.max-w-3xl]:max-w-none [&_.max-w-4xl]:max-w-none [&_.max-w-5xl]:max-w-none">
+              <div>
                 <AiBuilderReview
                   session={session}
                   onReviewCommand={submitReviewCommand}
@@ -453,6 +498,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                   onBack={() => setWorkspaceTab("overview")}
                   onLaunchChat={() => undefined}
                   showLaunchChat={false}
+                  embedded
                 />
               </div>
             </>
@@ -463,6 +509,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
               complete
               percent={100}
               onReview={() => setWorkspaceTab("knowledge")}
+              embedded
             />
           ) : (
             <div className="flex min-h-full items-center justify-center rounded-3xl border border-white/10 bg-[#000000] p-8 text-center">
@@ -478,11 +525,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         </AiBuilderDesktopScrollArea>
       </main>
 
-      <aside className="flex min-h-0 flex-col border-l border-white/10 bg-[#050505] p-4">
-        <div className="mb-4 flex-none text-center">
-          <p className="text-sm font-bold text-white">Test Your AI Assistant</p>
-        </div>
-        <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:first-of-type]:hidden [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-2xl [&>div>section:last-of-type]:border-white/10 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
+      <aside className="flex min-h-0 flex-col border-l border-white/[0.08] bg-black">
+        <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
           <AiBuilderDemoChat
             knowledge={knowledgePack}
             projectId={session.id}
@@ -518,23 +562,45 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       {session && (step === "results" || step === "review" || step === "chat") ? desktopWorkspace : null}
 
       <div className="xl:hidden">
-        {step === "results" && session ? (
-          <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={() => navigateToStep("review")} />
-        ) : null}
+        {session && knowledgePack && step !== "chat" ? (
+          <div className="min-h-[70vh] bg-black">
+            <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-between gap-4 border-b border-white/[0.08] bg-black/95 px-4 backdrop-blur sm:px-6">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-white">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</p>
+                <p className="mt-0.5 truncate text-xs text-slate-500">{builder.businessName || "AI Builder Project"}</p>
+              </div>
+              <button type="button" onClick={() => setMobileWorkspaceMenuOpen(true)} aria-haspopup="dialog" aria-expanded={mobileWorkspaceMenuOpen} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/[0.1] bg-[#080808] px-3.5 text-xs font-semibold text-slate-200">
+                <span aria-hidden="true" className="text-base leading-none">☰</span>
+                Workspace
+              </button>
+            </header>
 
-        {step === "review" && session ? (
-          <>
-            {reviewSaveStatus !== "idle" || saveError ? (
-              <div className={`mx-auto mb-4 max-w-5xl rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-white/[0.08] bg-[#050505] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">
-                {reviewSaveStatus === "saving" ? "Applying review command..." : reviewSaveStatus === "saved" ? "Review command applied." : saveError}
+            {mobileWorkspaceMenuOpen ? (
+              <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
+                <aside role="dialog" aria-modal="true" aria-label="Project workspace navigation" className="ml-auto flex h-full w-[min(22rem,88vw)] flex-col border-l border-white/[0.1] bg-[#050505] p-5 shadow-[-20px_0_60px_rgba(0,0,0,.45)]">
+                  <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-5">
+                    <div className="min-w-0"><p className="truncate text-sm font-semibold text-white">{builder.businessName || "AI Builder Project"}</p><p className="mt-1 truncate text-xs text-slate-500">{builder.website || builder.industry || "Project workspace"}</p></div>
+                    <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} aria-label="Close workspace menu" className="text-2xl font-light leading-none text-slate-400 hover:text-white">×</button>
+                  </div>
+                  <nav className="mt-5 space-y-1">
+                    {WORKSPACE_ITEMS.map(([value, label]) => <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className={`relative w-full rounded-lg px-3 py-3 text-left text-sm font-semibold transition ${workspaceTab === value ? "bg-white/[0.06] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300" : "text-slate-400 hover:bg-white/[0.035] hover:text-white"}`}>{label}</button>)}
+                  </nav>
+                </aside>
               </div>
             ) : null}
-            <AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={() => navigateToStep("results")} onLaunchChat={() => navigateToStep("chat")} />
-          </>
+
+            <main className="px-4 py-5 sm:px-6 sm:py-6">
+              {workspaceTab === "dashboard" ? <AiBuilderDashboard session={session} websiteKnowledge={builder.websiteKnowledge ? {schema_version:2,document_version:1,current_crawl_attempt_id:builder.websiteKnowledge.crawlAttemptId??null,imported_at:builder.websiteKnowledge.importedAt,requested_url:builder.websiteKnowledge.requestedUrl,resolved_url:builder.websiteKnowledge.resolvedUrl,pages:builder.websiteKnowledge.pages,warnings:builder.websiteKnowledge.warnings,knowledge:builder.websiteKnowledge.knowledge??{facts:[],coverage:{} as PersistedWebsiteKnowledge["knowledge"]["coverage"],unresolvedQuestions:[]},source_documents:builder.websiteKnowledge.sourceDocuments,source_blocks:builder.websiteKnowledge.sourceBlocks}:null} messages={chatThread?.messages??[]} diagnostics={diagnostics} onNavigate={(destination)=>{if(destination==="assistant"){navigateToStep("chat");return;}selectWorkspaceTab(destination);}} /> : null}
+              {workspaceTab === "insights" ? <AiBuilderProjectInsights session={session} diagnostics={diagnostics} messageCount={chatThread?.messages.length??0} /> : null}
+              {workspaceTab === "overview" ? <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={() => selectWorkspaceTab("knowledge")} /> : null}
+              {workspaceTab === "knowledge" ? <>{reviewSaveStatus !== "idle" || saveError ? <div className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-white/[0.08] bg-[#050505] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">{reviewSaveStatus === "saving" ? "Applying review command..." : reviewSaveStatus === "saved" ? "Review command applied." : saveError}</div> : null}<AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={() => selectWorkspaceTab("overview")} onLaunchChat={() => navigateToStep("chat")} /></> : null}
+              {workspaceTab === "sources" || workspaceTab === "settings" ? <div className="flex min-h-[50vh] items-center justify-center rounded-2xl border border-white/[0.08] bg-[#050505] p-6 text-center"><div><p className="text-xs font-semibold uppercase tracking-[.18em] text-amber-300">{workspaceTab}</p><p className="mt-3 text-sm leading-6 text-slate-400">{WORKSPACE_DESCRIPTIONS[workspaceTab]}</p></div></div> : null}
+            </main>
+          </div>
         ) : null}
 
         {step === "chat" && knowledgePack && session ? (
-          <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => navigateToStep("review")} />
+          <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => { setWorkspaceTab("knowledge"); navigateToStep("review"); }} />
         ) : null}
       </div>
     </AiBuilderShell>
