@@ -286,8 +286,16 @@ export default function AiBuilderProjectWorkspace({
 
   const selectWorkspaceTab = useCallback((nextTab: WorkspaceTab) => {
     setMobileWorkspaceMenuOpen(false);
+
     if (nextTab === "knowledge") {
-      openReview();
+      if (!reviewOpen) openReview();
+      return;
+    }
+
+    if (reviewOpen) {
+      window.location.assign(
+        `/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=${encodeURIComponent(nextTab)}`,
+      );
       return;
     }
 
@@ -296,7 +304,7 @@ export default function AiBuilderProjectWorkspace({
     url.searchParams.set("projectId", projectId);
     url.searchParams.set("tab", nextTab);
     window.history.replaceState(null, "", url.toString());
-  }, [openReview, projectId]);
+  }, [openReview, projectId, reviewOpen]);
 
   const knowledgePack = useMemo(
     () => (session?.status === "ready" ? buildKnowledgePack(session) : null),
