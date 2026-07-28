@@ -11,7 +11,8 @@ import type {
   ChatRequest,
   ChatResponse,
 } from "@/app/lib/ai-engine/chat";
-import { runOpenAiChat } from "@/app/lib/ai-engine/providers/openaiChatRunner";
+import { runModel } from "@/app/lib/ai-engine/models/runModel";
+import { resolveModel } from "@/app/lib/ai-engine/models/registry";
 import { ensureAiBuilderSchema } from "@/app/lib/db/ai-builder-schema";
 import { getSql } from "@/app/lib/db/client";
 import { getAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
@@ -42,6 +43,7 @@ type PersistentChatRequest = Omit<ChatRequest, "knowledge"> & {
   projectId?: string;
   threadId?: string;
   idempotencyKey?: string;
+  modelId?: string;
 };
 
 type DatabaseRow = Record<string, unknown>;
@@ -367,10 +369,9 @@ export async function POST(request: Request) {
       runtimeContext,
     );
 
-    const answer = await runOpenAiChat({
-      systemPrompt,
-      message,
-    });
+    const selectedModel=resolveModel(body.modelId,"test-assistant");
+    const generated=await runModel({modelId:selectedModel.id,purpose:"test-assistant",instructions:systemPrompt,messages:[{role:"user",content:message}],signal:request.signal});
+    const answer=generated.text;
 
     const response: ChatResponse = {
       answer: conflict.unresolvedConflictGroups.length ? `I found conflicting approved information regarding this topic. ${answer}` : answer,
@@ -385,6 +386,7 @@ export async function POST(request: Request) {
         conversationMemory: { available: runtimeContext.conversationMemory.available, selectedItemCount: runtimeContext.conversationMemory.items.length, selectedCategories: runtimeContext.conversationMemory.selectedCategories, excludedConflict: runtimeContext.conversationMemory.excludedConflict, retrievalDurationMs: runtimeContext.conversationMemory.retrievalDurationMs },
         structuredRetrieval: { engineVersion: retrieved.engineVersion, intent: retrieved.query.intent, directCandidateCount: retrieved.diagnostics.directCandidateCount, relationshipExpansionCount: retrieved.diagnostics.relationshipExpansionCount, relationshipCandidateCount: retrieved.diagnostics.relationshipCandidateCount, totalCandidateCount: retrieved.diagnostics.totalCandidateCount, evidenceSelectedCount: retrieved.diagnostics.evidenceSelectedCount, sourceSelectedCount: retrieved.diagnostics.sourceSelectedCount, selectedDirectCount: retrieved.diagnostics.selectedDirectCount, selectedRelatedCount: retrieved.diagnostics.selectedRelatedCount, retrievalDurationMs: retrieved.diagnostics.retrievalDurationMs, selectedResultCount: retrieved.items.length, selectedCategoryCounts: retrieved.diagnostics.selectedCategoryCounts, topScoreBands: retrieved.diagnostics.topScoreBands },
       },
+      model: { id:generated.modelId, provider:generated.provider, displayName:selectedModel.displayName },
     };
 
     const persistedMessages = persistenceContext && owned
