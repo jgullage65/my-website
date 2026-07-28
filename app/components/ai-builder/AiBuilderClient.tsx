@@ -16,6 +16,8 @@ import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
 import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
+import AiBuilderDashboard from "./AiBuilderDashboard";
+import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import "./AiBuilderFormOverrides.css";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
@@ -55,7 +57,7 @@ export type BuilderState = {
 };
 
 type BuilderStep = "form" | "loading" | "building" | "results" | "review" | "chat";
-type WorkspaceTab = "overview" | "knowledge" | "sources" | "settings";
+type WorkspaceTab = "dashboard" | "insights" | "overview" | "knowledge" | "sources" | "settings";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export type ReviewCommandPending = ReadonlySet<string>;
@@ -86,6 +88,7 @@ type ProjectResponse = {
   };
   websiteKnowledge?: PersistedWebsiteKnowledge | null;
   chatThread?: ChatThread | null;
+  diagnostics?: ProjectDiagnostics;
   error?: { code?: string; message?: string };
 };
 
@@ -121,10 +124,11 @@ async function fetchProject(projectId: string): Promise<ProjectResponse> {
 
 export default function AiBuilderClient({ initialProjectId = null }: Props) {
   const [step, setStep] = useState<BuilderStep>(initialProjectId ? "loading" : "form");
-  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("knowledge");
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("dashboard");
   const [builder, setBuilder] = useState(initial);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [chatThread, setChatThread] = useState<ChatThread | null>(null);
+  const [diagnostics,setDiagnostics]=useState<ProjectDiagnostics|null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -273,6 +277,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         if (!active || !payload.session) return;
         setSession(payload.session);
         setChatThread(payload.chatThread ?? null);
+        setDiagnostics(payload.diagnostics ?? null);
         setBuilder((current) => ({
           ...current,
           businessName: payload.builder?.businessName ?? current.businessName,
@@ -359,6 +364,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         const savedProject = await fetchProject(projectId);
         setSession(savedProject.session ?? payload.session);
         setChatThread(savedProject.chatThread ?? null);
+        setDiagnostics(savedProject.diagnostics ?? null);
       } catch (projectLoadError) {
         console.error("AI_BUILDER_NEW_PROJECT_RELOAD_FAILED", {
           projectId,
@@ -392,6 +398,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         <p className="px-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Project</p>
         <nav className="mt-3 space-y-1">
           {([
+            ["dashboard", "Dashboard"],
+            ["insights", "Project Insights"],
             ["overview", "Overview"],
             ["knowledge", "Business Knowledge"],
             ["sources", "Sources"],
@@ -426,7 +434,11 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         </header>
 
         <AiBuilderDesktopScrollArea>
-          {workspaceTab === "knowledge" ? (
+          {workspaceTab === "dashboard" ? (
+            <AiBuilderDashboard session={session} businessName={builder.businessName} industry={builder.industry} website={builder.website} websiteKnowledge={builder.websiteKnowledge ? {schema_version:2,document_version:1,current_crawl_attempt_id:builder.websiteKnowledge.crawlAttemptId??null,imported_at:builder.websiteKnowledge.importedAt,requested_url:builder.websiteKnowledge.requestedUrl,resolved_url:builder.websiteKnowledge.resolvedUrl,pages:builder.websiteKnowledge.pages,warnings:builder.websiteKnowledge.warnings,knowledge:builder.websiteKnowledge.knowledge??{facts:[],coverage:{} as PersistedWebsiteKnowledge["knowledge"]["coverage"],unresolvedQuestions:[]},source_documents:builder.websiteKnowledge.sourceDocuments,source_blocks:builder.websiteKnowledge.sourceBlocks}:null} messageCount={chatThread?.messages.length??0} onNavigate={(destination)=>{if(destination==="assistant"){document.querySelector<HTMLTextAreaElement>('textarea[placeholder^="Ask about"]')?.focus();return;}setWorkspaceTab(destination);}} />
+          ) : workspaceTab === "insights" ? (
+            <AiBuilderProjectInsights session={session} diagnostics={diagnostics} messageCount={chatThread?.messages.length??0} />
+          ) : workspaceTab === "knowledge" ? (
             <>
               {reviewSaveStatus !== "idle" || saveError ? (
                 <div
