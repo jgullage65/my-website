@@ -19,12 +19,12 @@ const clerkAppearance = {
   },
   variables: {
     colorPrimary: "#d4af37",
-    colorPrimaryForeground: "#030713",
-    colorBackground: "#030713",
+    colorPrimaryForeground: "#000000",
+    colorBackground: "#000000",
     colorForeground: "#ebf0ff",
-    colorMuted: "#081226",
+    colorMuted: "#050505",
     colorMutedForeground: "#a0aac8",
-    colorInput: "#020611",
+    colorInput: "#020202",
     colorInputForeground: "#ebf0ff",
     colorBorder: "rgba(212, 175, 55, 0.22)",
     colorRing: "#f59e0b",
@@ -44,7 +44,7 @@ const clerkAppearance = {
       borderRadius: "24px",
     },
     card: {
-      background: "#030713",
+      background: "#000000",
       border: "1px solid rgba(245, 158, 11, 0.22)",
       borderRadius: "24px",
       boxShadow:
@@ -63,7 +63,7 @@ const clerkAppearance = {
       color: "#a0aac8",
     },
     socialButtonsBlockButton: {
-      background: "#081226",
+      background: "#050505",
       border: "1px solid rgba(245, 158, 11, 0.18)",
       color: "#ffffff",
       boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
@@ -83,13 +83,13 @@ const clerkAppearance = {
       fontWeight: "700",
     },
     formFieldInput: {
-      background: "#020611",
+      background: "#020202",
       border: "1px solid rgba(212, 175, 55, 0.22)",
       color: "#ebf0ff",
       boxShadow: "none",
     },
     formButtonPrimary: {
-      background: "#081226",
+      background: "#050505",
       border: "1px solid rgba(245, 158, 11, 0.28)",
       color: "#ffffff",
       boxShadow:
@@ -101,7 +101,7 @@ const clerkAppearance = {
       fontWeight: "700",
     },
     identityPreview: {
-      background: "#081226",
+      background: "#050505",
       border: "1px solid rgba(212, 175, 55, 0.18)",
     },
     identityPreviewText: {
@@ -110,7 +110,7 @@ const clerkAppearance = {
     modalCloseButton: {
       color: "#d4af37",
       border: "1px solid rgba(245, 158, 11, 0.22)",
-      background: "#030713",
+      background: "#000000",
     },
   },
 };

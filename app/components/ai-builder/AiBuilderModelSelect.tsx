@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useMemo, useRef, useState } from "react";
+
 export type AiBuilderModelChoice = {
   id: string;
   provider: string;
@@ -19,15 +21,39 @@ const providerNames: Record<string, string> = {
 };
 
 export default function AiBuilderModelSelect({models,value,disabled,onChange,className=""}:{models:AiBuilderModelChoice[];value:string;disabled:boolean;onChange:(modelId:string)=>void;className?:string}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selected = models.find((model) => model.id === value);
+  const groups = useMemo(() => Array.from(new Set(models.map((model) => model.provider))), [models]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent && event.key !== "Escape") return;
+      if (event instanceof MouseEvent && rootRef.current?.contains(event.target as Node)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
+
   return (
-    <label className={`grid min-w-0 justify-items-center gap-1.5 ${className}`}>
+    <div ref={rootRef} className={`relative grid min-w-0 justify-items-center gap-1.5 ${className}`}>
       <span className="text-center text-[0.64rem] font-bold uppercase tracking-[0.2em] text-slate-400">Active model</span>
-      <span className="relative block">
-        <select aria-label="Active AI model" value={value} disabled={disabled||!value} onChange={event=>onChange(event.target.value)} className="h-10 w-[min(21rem,calc(100vw-5rem))] appearance-none rounded-xl border border-amber-300/25 bg-black px-4 pr-10 text-center text-sm font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,.3),inset_0_1px_0_rgba(255,255,255,.04)] outline-none transition hover:border-amber-300/45 focus:border-amber-300/60 focus:ring-2 focus:ring-amber-300/10 disabled:cursor-not-allowed disabled:opacity-50">
-          {Array.from(new Set(models.map(model=>model.provider))).map(provider=><optgroup key={provider} label={providerNames[provider]??provider}>{models.filter(model=>model.provider===provider).map(model=><option key={model.id} value={model.id}>{model.displayName}{model.highUsage?" · High AI Usage":""}</option>)}</optgroup>)}
-        </select>
-        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-200/70"><path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      </span>
-    </label>
+      <button type="button" aria-haspopup="listbox" aria-expanded={open} disabled={disabled || !value} onClick={() => setOpen((current) => !current)} className="cta-raised relative h-10 w-[min(21rem,calc(100vw-3rem))] rounded-lg border border-amber-300/20 bg-black px-10 text-center text-sm font-semibold text-white outline-none transition hover:border-amber-300/40 focus-visible:border-amber-300/45 disabled:cursor-not-allowed disabled:opacity-50">
+        <span className="block truncate">{selected?.displayName || "Select a model"}</span>
+        <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-amber-200/70 transition ${open ? "rotate-180" : ""}`}><path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </button>
+      {open ? <div role="listbox" aria-label="Available AI models" className="absolute left-1/2 top-full z-[100] mt-2 max-h-[min(28rem,65vh)] w-[min(21rem,calc(100vw-3rem))] -translate-x-1/2 overflow-y-auto rounded-xl border border-amber-300/20 bg-[#050505] p-2 shadow-[0_24px_70px_rgba(0,0,0,.75)]">
+        {groups.map((provider) => <div key={provider} className="py-1 first:pt-0 last:pb-0">
+          <p className="px-3 pb-1.5 pt-2 text-left text-[0.62rem] font-bold uppercase tracking-[0.18em] text-slate-500">{providerNames[provider] ?? provider}</p>
+          <div className="space-y-0.5">{models.filter((model) => model.provider === provider).map((model) => <button key={model.id} type="button" role="option" aria-selected={model.id === value} onClick={() => { setOpen(false); onChange(model.id); }} className={`flex min-h-10 w-full items-center justify-between gap-3 rounded-lg border px-3 text-left text-sm transition ${model.id === value ? "border-amber-300/20 bg-black text-white" : "border-transparent text-slate-300 hover:border-white/[0.08] hover:bg-black hover:text-white"}`}><span className="min-w-0 truncate">{model.displayName}</span>{model.highUsage ? <span className="shrink-0 text-[0.58rem] font-bold uppercase tracking-[0.08em] text-amber-200">High usage</span> : null}</button>)}</div>
+        </div>)}
+      </div> : null}
+    </div>
   );
 }

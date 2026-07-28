@@ -128,7 +128,7 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
       <div
         ref={scrollRef}
         tabIndex={0}
-        className="h-full overflow-y-auto overscroll-contain px-5 pb-8 pt-6 pr-8 sm:px-6 sm:pt-7 min-[1400px]:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-full overflow-y-auto overscroll-contain px-5 pb-8 pt-6 pr-8 outline-none sm:px-6 sm:pt-7 min-[1400px]:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {children}
       </div>

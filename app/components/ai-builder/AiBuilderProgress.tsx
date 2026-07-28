@@ -40,7 +40,7 @@ export default function AiBuilderProgress({
   return (
     <div className={embedded ? "w-full" : "w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl"}>
       <section className={embedded ? "w-full" : shellClassName}>
-        {!embedded ? <AiBuilderAuthCta suppressSignOut={!complete} /> : null}
+        {!embedded ? <AiBuilderAuthCta /> : null}
 
         <div className={embedded ? "relative border-b border-white/[0.08] pb-5" : "relative text-center"}>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300 sm:text-sm">

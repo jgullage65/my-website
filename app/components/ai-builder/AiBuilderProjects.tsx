@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { useEffect, useMemo, useState } from "react";
 import AiBuilderShell from "./AiBuilderShell";
-import AiBuilderAuthCta from "./AiBuilderAuthCta";
+import AiBuilderLanding from "./AiBuilderLanding";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 
 type Project = {
@@ -16,9 +16,6 @@ type Project = {
 };
 
 const PROJECT_LIMIT = 3;
-
-const authButtonClassName =
-  "cta-raised inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111]";
 
 function date(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -112,26 +109,14 @@ export default function AiBuilderProjects() {
     finally { setBusy(null); setMenu(null); }
   }
 
+  if (isLoaded && !isSignedIn) {
+    return <AiBuilderShell><AiBuilderLanding /></AiBuilderShell>;
+  }
+
   return (
     <AiBuilderShell>
       {confirmDialogNode}
       <div className="relative w-full bg-[#000000] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:mx-auto min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
-        {isSignedIn ? (
-          <AiBuilderAuthCta />
-        ) : (
-          <div className="absolute right-4 top-4 z-10 flex gap-2 sm:right-6 lg:right-8">
-            <SignInButton mode="modal" forceRedirectUrl="/ai-builder">
-              <button type="button" className={authButtonClassName}>
-                Sign In
-              </button>
-            </SignInButton>
-            <SignUpButton mode="modal" forceRedirectUrl="/ai-builder">
-              <button type="button" className={authButtonClassName}>
-                Sign Up
-              </button>
-            </SignUpButton>
-          </div>
-        )}
         <div className={`${!isSignedIn ? "pt-14 sm:pt-0" : ""} text-center`}>
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
           <p className="mx-auto mt-3 max-w-2xl text-slate-400">Continue building and refining your business AI systems.</p>

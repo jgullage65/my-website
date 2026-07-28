@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SignOutButton } from "@clerk/nextjs";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
@@ -427,7 +428,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
 
   const desktopWorkspace = session && knowledgePack ? (
     <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
-      <aside className="border-r border-white/[0.08] bg-[#050505] px-4 py-5">
+      <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
         <button
           type="button"
           onClick={() => window.location.assign("/ai-builder")}
@@ -456,11 +457,16 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
             </button>
           ))}
         </nav>
+        <div className="mt-auto border-t border-white/[0.08] pt-4">
+          <SignOutButton redirectUrl="/ai-builder">
+            <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-slate-500 transition hover:bg-white/[0.035] hover:text-slate-200">Sign out</button>
+          </SignOutButton>
+        </div>
       </aside>
 
       <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
-        <header className="flex min-h-[76px] flex-none items-center border-b border-white/[0.08] px-6 py-3 min-[1400px]:px-8">
-          <div className="min-w-0 max-w-full">
+        <header className="flex min-h-[76px] flex-none items-center justify-center border-b border-white/[0.08] px-6 py-3 text-center min-[1400px]:px-8">
+          <div className="min-w-0 max-w-full text-center">
             <h1 className="truncate text-base font-semibold text-slate-100">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</h1>
             <p className="mt-1 truncate text-xs leading-5 text-slate-500">{WORKSPACE_DESCRIPTIONS[workspaceTab]}</p>
           </div>
@@ -564,27 +570,29 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       <div className="xl:hidden">
         {session && knowledgePack && step !== "chat" ? (
           <div className="min-h-[70vh] bg-black">
-            <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-between gap-4 border-b border-white/[0.08] bg-black/95 px-4 backdrop-blur sm:px-6">
-              <div className="min-w-0">
+            <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-black/95 px-16 text-center backdrop-blur">
+              <button type="button" onClick={() => setMobileWorkspaceMenuOpen(true)} aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={mobileWorkspaceMenuOpen} className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-lg text-slate-200 sm:left-6">
+                <span aria-hidden="true" className="leading-none">☰</span>
+              </button>
+              <div className="min-w-0 text-center">
                 <p className="truncate text-sm font-semibold text-white">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</p>
                 <p className="mt-0.5 truncate text-xs text-slate-500">{builder.businessName || "AI Builder Project"}</p>
               </div>
-              <button type="button" onClick={() => setMobileWorkspaceMenuOpen(true)} aria-haspopup="dialog" aria-expanded={mobileWorkspaceMenuOpen} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-white/[0.1] bg-[#080808] px-3.5 text-xs font-semibold text-slate-200">
-                <span aria-hidden="true" className="text-base leading-none">☰</span>
-                Workspace
-              </button>
             </header>
 
             {mobileWorkspaceMenuOpen ? (
-              <div className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
-                <aside role="dialog" aria-modal="true" aria-label="Project workspace navigation" className="ml-auto flex h-full w-[min(22rem,88vw)] flex-col border-l border-white/[0.1] bg-[#050505] p-5 shadow-[-20px_0_60px_rgba(0,0,0,.45)]">
-                  <div className="flex items-start justify-between gap-4 border-b border-white/[0.08] pb-5">
-                    <div className="min-w-0"><p className="truncate text-sm font-semibold text-white">{builder.businessName || "AI Builder Project"}</p><p className="mt-1 truncate text-xs text-slate-500">{builder.website || builder.industry || "Project workspace"}</p></div>
+              <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
+                <aside role="dialog" aria-modal="true" aria-label="Project workspace navigation" className="flex h-full w-[min(220px,86vw)] flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]">
+                  <div className="mb-7 flex items-center justify-between gap-3">
+                    <button type="button" onClick={() => window.location.assign("/ai-builder")} className="inline-flex text-xs font-semibold text-slate-500 transition hover:text-white">← All Projects</button>
                     <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} aria-label="Close workspace menu" className="text-2xl font-light leading-none text-slate-400 hover:text-white">×</button>
                   </div>
-                  <nav className="mt-5 space-y-1">
-                    {WORKSPACE_ITEMS.map(([value, label]) => <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className={`relative w-full rounded-lg px-3 py-3 text-left text-sm font-semibold transition ${workspaceTab === value ? "bg-white/[0.06] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300" : "text-slate-400 hover:bg-white/[0.035] hover:text-white"}`}>{label}</button>)}
+                  <div className="mb-5 border-b border-white/[0.08] px-3 pb-5"><p className="truncate text-sm font-semibold text-slate-200">{builder.businessName || "AI Builder Project"}</p><p className="mt-1 truncate text-xs text-slate-600">{builder.website || builder.industry || "Project workspace"}</p></div>
+                  <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-600">Workspace</p>
+                  <nav className="mt-3 space-y-0.5">
+                    {WORKSPACE_ITEMS.map(([value, label]) => <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${workspaceTab === value ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300" : "text-slate-500 hover:bg-white/[0.035] hover:text-slate-200"}`}>{label}</button>)}
                   </nav>
+                  <div className="mt-auto border-t border-white/[0.08] pt-4"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-slate-500 transition hover:bg-white/[0.035] hover:text-slate-200">Sign out</button></SignOutButton></div>
                 </aside>
               </div>
             ) : null}
