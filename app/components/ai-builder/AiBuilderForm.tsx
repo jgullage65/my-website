@@ -245,16 +245,17 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
           ← AI Projects
         </Link>
 
-        <header className="mt-12 text-center min-[1200px]:mt-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
-            AI Builder
-          </p>
-        </header>
+        <div className="mt-12 space-y-6 min-[1200px]:mt-0 min-[1200px]:grid min-[1200px]:grid-cols-[minmax(25rem,0.8fr)_minmax(34rem,1.2fr)] min-[1200px]:items-start min-[1200px]:gap-x-10 min-[1200px]:gap-y-8 min-[1200px]:space-y-0">
+          <div className="space-y-6 min-[1200px]:self-start">
+            <header className="text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">
+                AI Builder
+              </p>
+            </header>
 
-        <div className="mt-5 space-y-6 min-[1200px]:mt-4">
-          <section className="min-[1200px]:mx-auto min-[1200px]:w-[42%] min-[1200px]:min-w-[32rem] min-[1200px]:max-w-[40rem]">
-            <article className={`${cardClassName} relative overflow-hidden text-center`}>
-              <div className="relative">
+            <section>
+              <article className={`${cardClassName} relative overflow-hidden text-center`}>
+                <div className="relative">
                 <span
                   className={`absolute right-0 top-0 rounded-full border px-3 py-1 text-xs font-semibold max-[640px]:-right-2 max-[640px]:-top-2 ${
                     value.websiteKnowledge
@@ -316,34 +317,35 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
                     View imported knowledge →
                   </button>
                 ) : null}
+                </div>
+              </article>
+            </section>
+
+            <section className={`${cardClassName} mx-auto text-center min-[1200px]:w-full min-[1200px]:py-4`}>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Communication style</p>
+              <h3 className="mt-2 text-xl font-semibold text-white">How should your AI sound?</h3>
+              <div className="relative mt-4">
+                <select className={`${inputClassName} appearance-none px-12`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
+                  <option>Professional</option>
+                  <option>Friendly</option>
+                  <option>Consultative</option>
+                  <option>Direct</option>
+                  <option>Warm</option>
+                </select>
+                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400">
+                  <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </div>
-            </article>
-          </section>
+            </section>
+          </div>
 
-          <section className={`${cardClassName} mx-auto text-center min-[1200px]:w-[42%] min-[1200px]:min-w-[32rem] min-[1200px]:max-w-[40rem] min-[1200px]:py-4`}>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Communication style</p>
-            <h3 className="mt-2 text-xl font-semibold text-white">How should your AI sound?</h3>
-            <div className="relative mt-4">
-              <select className={`${inputClassName} appearance-none px-12`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
-                <option>Professional</option>
-                <option>Friendly</option>
-                <option>Consultative</option>
-                <option>Direct</option>
-                <option>Warm</option>
-              </select>
-              <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400">
-                <path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-          </section>
-
-          <section className="min-w-0 space-y-5 min-[1200px]:space-y-7">
+          <section className="min-w-0 space-y-5 min-[1200px]:col-start-2 min-[1200px]:row-start-1 min-[1200px]:space-y-5">
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Your expertise</p>
               <p className="mt-2 text-sm leading-6 text-slate-400">Your answers always take priority over imported website knowledge.</p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-5 min-[1200px]:gap-x-6 min-[1200px]:gap-y-8">
+            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-2 min-[1200px]:gap-4">
               <KnowledgeCard title="Business profile">
                 <Field label="Business name" required>
                   <input className={inputClassName} placeholder="JG Creative Studio" value={value.businessName} onChange={(event) => updateProfile("businessName", event.target.value)} />
@@ -364,16 +366,16 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
               <KnowledgeCard title="Additional Business Knowledge" fill>
                 <textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} />
               </KnowledgeCard>
+            </div>
+          </section>
 
-              <section className={`${cardClassName} relative overflow-hidden text-center`}>
-                <div className="absolute inset-x-0 bottom-[-7rem] mx-auto h-40 max-w-xl rounded-full bg-amber-400/12 blur-[80px]" />
-                <div className="relative">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Final step</p>
-                  <h3 className="mt-2 text-2xl font-semibold text-white">Ready to build your AI?</h3>
-                  <button type="button" disabled={!valid || importing} onClick={onBuild} className="mt-5 min-w-0 rounded-2xl border border-amber-300/15 bg-[#080808] px-4 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0">Build My AI</button>
-                  <p className="mt-3 text-xs leading-5 text-slate-500">{valid ? "Everything required is ready." : "Add your business name, industry, products or services, and ideal customers to continue."}</p>
-                </div>
-              </section>
+          <section className={`${cardClassName} relative overflow-hidden text-center min-[1200px]:col-span-2 min-[1200px]:row-start-2 min-[1200px]:w-full min-[1200px]:max-w-[30rem] min-[1200px]:justify-self-center`}>
+            <div className="absolute inset-x-0 bottom-[-7rem] mx-auto h-40 max-w-xl rounded-full bg-amber-400/12 blur-[80px]" />
+            <div className="relative">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Final step</p>
+              <h3 className="mt-2 text-2xl font-semibold text-white">Ready to build your AI?</h3>
+              <button type="button" disabled={!valid || importing} onClick={onBuild} className="mt-5 min-w-0 rounded-2xl border border-amber-300/15 bg-[#080808] px-4 py-3.5 font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0">Build My AI</button>
+              <p className="mt-3 text-xs leading-5 text-slate-500">{valid ? "Everything required is ready." : "Add your business name, industry, products or services, and ideal customers to continue."}</p>
             </div>
           </section>
         </div>
@@ -389,7 +391,7 @@ export default function AiBuilderForm({ value, onChange, onBuild }: Props) {
 function KnowledgeCard({ title, children, fill = false }: { title: string; children: ReactNode; fill?: boolean }) {
   return (
     <article className={`${cardClassName} ${fill ? "min-[1200px]:flex min-[1200px]:h-full min-[1200px]:flex-col" : ""}`}>
-      <h3 className="text-center text-lg font-semibold text-amber-300">{title}</h3>
+      <h3 className="text-center text-lg font-semibold text-white">{title}</h3>
       <div className={`${fill ? "min-[1200px]:mt-2 min-[1200px]:flex min-[1200px]:flex-1 min-[1200px]:flex-col" : "mt-4 grid gap-4"}`}>{children}</div>
     </article>
   );
