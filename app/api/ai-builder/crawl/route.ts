@@ -396,6 +396,15 @@ export async function POST(request: Request) {
           : "added" as const,
       })),
       extractionBlocks: crawl.sourceBlocks,
+      telemetry: {
+        previousBlockCount: previousKnowledge?.source_blocks?.length ?? 0,
+        currentBlockCount: crawl.sourceBlocks.length,
+        unchangedBlockCount: crawl.sourceBlocks.filter((block) =>
+          previousBlockText.has(normalizeText(block.normalizedText)),
+        ).length,
+        extractionBlockCount: crawl.sourceBlocks.length,
+        preservedFactCount: previousKnowledge?.knowledge.facts.length ?? 0,
+      },
     };
     const sourceDocumentsById = new Map(
       crawl.sourceDocuments.map((document) => [document.id, document]),
