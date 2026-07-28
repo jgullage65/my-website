@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 
 type PageProps = {
@@ -11,7 +12,7 @@ export default function Page({ searchParams }: PageProps) {
   const normalizedProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
 
   if (!normalizedProjectId) {
-    return <AiBuilderProjectWorkspace projectId="" reviewOpen />;
+    redirect("/ai-builder");
   }
 
   return <AiBuilderProjectWorkspace projectId={normalizedProjectId} reviewOpen />;
