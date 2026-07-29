@@ -17,7 +17,7 @@ const Check = () => (
 );
 
 const ShellLabel = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-[10px] font-black uppercase tracking-[.24em] text-amber-300">{children}</p>
+  <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">{children}</p>
 );
 
 const DashboardProductPreview = () => (
@@ -180,32 +180,32 @@ export default function AiBuilderLanding() {
         <section className="relative grid w-full items-stretch gap-5 xl:grid-cols-[minmax(390px,.58fr)_minmax(0,1.42fr)] 2xl:gap-6">
           <div className="flex h-full flex-col justify-center rounded-[24px] bg-[#020202] px-7 py-10 sm:px-10 xl:px-12">
             <ShellLabel>Arkena AI Builder</ShellLabel>
-            <h1 className="mt-5 text-4xl font-semibold leading-[.98] tracking-[-.055em] text-white sm:text-6xl 2xl:text-7xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
-            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">Choose the model that learns your business, review what it finds, and use the same approved Business Brain across every assistant you create.</p>
-            <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{["Choose GPT, Claude, Gemini, or Grok", "Import the website without losing your expertise", "Review and govern every knowledge item", "Test the assistant before anyone else uses it"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}</div>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Build your Business Brain</button></SignUpButton><SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Sign in</button></SignInButton></div>
+            <h1 className="mt-4 max-w-xl text-3xl font-medium leading-[1.02] tracking-[-.035em] text-white sm:text-4xl 2xl:text-5xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-slate-400">Choose the model that learns your business, review what it finds, and use the same approved Business Brain across every assistant you create.</p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{["Choose GPT, Claude, Gemini, or Grok", "Import the website without losing your expertise", "Review and govern every knowledge item", "Test the assistant before anyone else uses it"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}</div>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Build your Business Brain</button></SignUpButton><SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Sign in</button></SignInButton></div>
           </div>
           <DashboardProductPreview />
         </section>
 
         <section className="relative mt-5 grid w-full items-stretch gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)] 2xl:gap-6">
           <BuilderProductPreview />
-          <div className="flex h-full flex-col justify-center rounded-[24px] bg-[#020202] px-7 py-10 sm:px-10 xl:px-12"><ShellLabel>Website intelligence</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Bring in the website. Keep your expertise in control.</h2><p className="mt-5 text-base leading-7 text-slate-400">Arkena safely crawls the public website, organizes what matters, and keeps imported knowledge separate from the information only you can provide.</p><div className="mt-7 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">{["Products, services, pricing, FAQs, policies, and structured data", "Your answers always take priority over imported website knowledge", "The crawl result becomes a reviewable source, not hidden model context"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}</div></div>
+          <div className="flex h-full flex-col justify-center rounded-[24px] bg-[#020202] px-7 py-10 sm:px-10 xl:px-12"><ShellLabel>Website intelligence</ShellLabel><h2 className="mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Bring in the website. Keep your expertise in control.</h2><p className="mt-4 text-base leading-7 text-slate-400">Arkena safely crawls the public website, organizes what matters, and keeps imported knowledge separate from the information only you can provide.</p><div className="mt-6 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">{["Products, services, pricing, FAQs, policies, and structured data", "Your answers always take priority over imported website knowledge", "The crawl result becomes a reviewable source, not hidden model context"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}</div></div>
         </section>
 
         <section className="relative mt-5 grid w-full items-stretch gap-5 xl:grid-cols-2 2xl:gap-6">
           <div className="grid h-full gap-5 rounded-[24px] bg-[#020202] p-5 lg:grid-cols-[.72fr_1.28fr] xl:grid-cols-1 2xl:grid-cols-[.72fr_1.28fr]">
-            <div className="flex flex-col justify-center px-2 py-3"><ShellLabel>Model freedom</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-4xl">Pick the model that builds it. Change the model that answers.</h2><p className="mt-5 text-base leading-7 text-slate-400">The Business Brain is the stable layer. GPT, Claude, Gemini, and Grok can all work from the same approved business knowledge.</p></div>
+            <div className="flex flex-col justify-center px-2 py-3"><ShellLabel>Model freedom</ShellLabel><h2 className="mt-3 text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Pick the model that builds it. Change the model that answers.</h2><p className="mt-4 text-base leading-7 text-slate-400">The Business Brain is the stable layer. GPT, Claude, Gemini, and Grok can all work from the same approved business knowledge.</p></div>
             <ModelProductPreview />
           </div>
           <div className="grid h-full gap-5 rounded-[24px] bg-[#020202] p-5 lg:grid-cols-[1.28fr_.72fr] xl:grid-cols-1 2xl:grid-cols-[1.28fr_.72fr]">
             <ReviewProductPreview />
-            <div className="flex flex-col justify-center px-2 py-3"><ShellLabel>Review and approval</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-4xl">Nothing becomes business memory until you review it.</h2><p className="mt-5 text-base leading-7 text-slate-400">Edit what is wrong, remove what should not be used, and approve the knowledge you trust.</p></div>
+            <div className="flex flex-col justify-center px-2 py-3"><ShellLabel>Review and approval</ShellLabel><h2 className="mt-3 text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Nothing becomes business memory until you review it.</h2><p className="mt-4 text-base leading-7 text-slate-400">Edit what is wrong, remove what should not be used, and approve the knowledge you trust.</p></div>
           </div>
         </section>
 
         <section className="relative mt-5 grid w-full items-stretch gap-5 rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 shadow-[0_36px_110px_rgba(0,0,0,.55)] lg:grid-cols-[.7fr_1.3fr] xl:p-8">
-          <div className="flex flex-col justify-center"><ShellLabel>Use it your way</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Your Brain should not belong to one chatbot.</h2><p className="mt-5 max-w-2xl text-base leading-7 text-slate-400">Host the assistant with Arkena, test it inside the workspace, add it to a website, or export the approved knowledge as a Knowledge Pack.</p><div className="mt-7 flex flex-col gap-3 sm:flex-row"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Start building</button></SignUpButton><SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Open existing Brain</button></SignInButton></div></div>
+          <div className="flex flex-col justify-center"><ShellLabel>Use it your way</ShellLabel><h2 className="mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Your Brain should not belong to one chatbot.</h2><p className="mt-4 max-w-2xl text-base leading-7 text-slate-400">Host the assistant with Arkena, test it inside the workspace, add it to a website, or export the approved knowledge as a Knowledge Pack.</p><div className="mt-6 flex flex-col gap-3 sm:flex-row"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Start building</button></SignUpButton><SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Open existing Brain</button></SignInButton></div></div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{["Hosted assistant", "Website widget", "Knowledge Pack", "Any AI model"].map((label) => <div key={label} className={dashboardPanel}><p className="text-sm font-semibold text-white">{label}</p><p className="mt-2 text-xs leading-5 text-slate-500">Powered by the same approved business knowledge.</p><div className={`mt-4 w-fit ${aiBuilderCornerCtaClassName}`}>Open</div></div>)}</div>
         </section>
       </main>
