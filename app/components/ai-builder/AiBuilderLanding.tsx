@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import { SignUpButton } from "@clerk/nextjs";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
 import type { BuilderState } from "./AiBuilderClient";
@@ -8,9 +8,6 @@ import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 
 const primaryButton =
   "cta-raised inline-flex min-h-12 items-center justify-center rounded-xl border border-amber-300/20 bg-[#080808] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,.28),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-[#111111]";
-const secondaryButton =
-  "inline-flex min-h-12 items-center justify-center rounded-xl border border-amber-300/15 bg-transparent px-5 py-3 text-sm font-bold text-slate-300 transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:text-white";
-
 const demoSession: AiBuilderSession = {
   id: "landing-demo",
   status: "ready",
@@ -149,10 +146,21 @@ export default function AiBuilderLanding() {
         <div className="relative flex min-h-[calc(100dvh-136px)] flex-col">
         <section className="grid w-full items-center gap-8 xl:grid-cols-[minmax(360px,.58fr)_minmax(0,1.42fr)] 2xl:gap-10">
           <div className="max-w-xl">
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Arkena AI Builder</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Arkena AI Business Brain</p>
             <h1 className="mt-4 text-3xl font-medium leading-[1.04] tracking-[-.035em] text-white sm:text-4xl xl:text-5xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
-            <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that learns your business, review what it finds, and use the same approved Business Brain across every assistant you create.</p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Build your Business Brain</button></SignUpButton><SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Sign in</button></SignInButton></div>
+            <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
+            <div className="mt-7"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Build Your Business Brain</button></SignUpButton></div>
+
+            <div className="mt-8 grid gap-6 border-t border-white/[0.07] pt-6 sm:grid-cols-2">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Model freedom</p>
+                <p className="mt-3 text-sm leading-6 text-slate-400">Build your Business Brain with the model you choose today. Switch the model that answers tomorrow without rebuilding your business knowledge.</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Review and approval</p>
+                <p className="mt-3 text-sm leading-6 text-slate-400">Nothing becomes Business Memory until you approve it. Edit what isn’t right, remove what doesn’t belong, and trust what you keep.</p>
+              </div>
+            </div>
           </div>
           <AiBuilderSurfaceShowcase session={demoSession} builder={demoBuilder} models={models} autoAdvance className="min-w-0" />
         </section>
@@ -172,18 +180,6 @@ export default function AiBuilderLanding() {
         </div>
 
         <section className="relative mt-12 grid w-full gap-x-12 gap-y-12 border-t border-white/[0.07] pt-10 lg:grid-cols-2">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Model freedom</p>
-            <h2 className="mt-3 text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Pick the model that builds it. Change the model that answers.</h2>
-            <p className="mt-4 text-base leading-7 text-slate-400">The Business Brain is the stable layer. GPT, Claude, Gemini, and Grok can all work from the same approved business knowledge.</p>
-          </div>
-
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Review and approval</p>
-            <h2 className="mt-3 text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Nothing becomes business memory until you review it.</h2>
-            <p className="mt-4 text-base leading-7 text-slate-400">Edit what is wrong, remove what should not be used, and approve the knowledge you trust.</p>
-          </div>
-
           <div className="rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 text-center shadow-[0_36px_110px_rgba(0,0,0,.55)] xl:p-8">
             <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Website intelligence</p>
             <h2 className="mx-auto mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Bring in the website. Keep your expertise in control.</h2>
