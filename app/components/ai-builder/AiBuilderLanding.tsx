@@ -151,14 +151,14 @@ export default function AiBuilderLanding() {
             <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
             <div className="mt-7"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Build Your Business Brain</button></SignUpButton></div>
 
-            <div className="mt-8 grid gap-6 border-t border-white/[0.07] pt-6 sm:grid-cols-2">
+            <div className="mt-8 grid gap-7 border-t border-white/[0.07] pt-6">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Model freedom</p>
-                <p className="mt-3 text-sm leading-6 text-slate-400">Build your Business Brain with the model you choose today. Switch the model that answers tomorrow without rebuilding your business knowledge.</p>
+                <p className="mt-3 text-base leading-7 text-slate-400">Build your Business Brain with the model you choose today. Switch the model that answers tomorrow without rebuilding your business knowledge.</p>
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Review and approval</p>
-                <p className="mt-3 text-sm leading-6 text-slate-400">Nothing becomes Business Memory until you approve it. Edit what isn’t right, remove what doesn’t belong, and trust what you keep.</p>
+                <p className="mt-3 text-base leading-7 text-slate-400">Nothing becomes Business Memory until you approve it. Edit what isn’t right, remove what doesn’t belong, and trust what you keep.</p>
               </div>
             </div>
           </div>
