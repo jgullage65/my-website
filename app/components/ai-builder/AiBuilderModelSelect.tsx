@@ -20,8 +20,8 @@ const providerNames: Record<string, string> = {
   deepseek: "DeepSeek",
 };
 
-export default function AiBuilderModelSelect({models,value,disabled,onChange,className=""}:{models:AiBuilderModelChoice[];value:string;disabled:boolean;onChange:(modelId:string)=>void;className?:string}) {
-  const [open, setOpen] = useState(false);
+export default function AiBuilderModelSelect({models,value,disabled,onChange,className="",defaultOpen=false}:{models:AiBuilderModelChoice[];value:string;disabled:boolean;onChange:(modelId:string)=>void;className?:string;defaultOpen?:boolean}) {
+  const [open, setOpen] = useState(defaultOpen);
   const rootRef = useRef<HTMLDivElement>(null);
   const selected = models.find((model) => model.id === value);
   const groups = useMemo(() => Array.from(new Set(models.map((model) => model.provider))), [models]);
