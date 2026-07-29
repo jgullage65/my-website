@@ -211,7 +211,7 @@ export default function AiBuilderLanding() {
                   elements: {
                     rootBox: "w-full max-w-sm",
                     cardBox: "w-full shadow-none",
-                    card: "w-full border-0 bg-transparent p-0 shadow-none",
+                    card: "w-full rounded-[24px] border border-white/[0.08] bg-[#050505] shadow-none",
                     headerTitle: "text-white",
                     headerSubtitle: "text-slate-400",
                     socialButtonsBlockButton: "border-white/[0.08] bg-[#080808] text-white hover:bg-[#111111]",
@@ -230,23 +230,23 @@ export default function AiBuilderLanding() {
               />
             </div>
 
-            <form className="rounded-[24px] border border-amber-300/15 bg-[#020202] p-5 shadow-[0_24px_70px_rgba(0,0,0,.35)] sm:p-6">
+            <form className="rounded-[24px] border border-amber-300/12 bg-[#020202] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:p-6">
               <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Contact</p>
               <h3 className="mt-3 text-xl font-medium tracking-[-.02em] text-white">Have a question?</h3>
               <p className="mt-2 text-sm leading-6 text-slate-400">Send a quick note and we’ll get back to you.</p>
 
               <div className="mt-6 grid gap-4">
-                <label className="grid gap-2 text-sm font-medium text-slate-300">
+                <label className="grid gap-2 text-center text-sm font-medium text-slate-300">
                   Name
-                  <input type="text" name="name" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-amber-300/30" placeholder="Your name" />
+                  <input type="text" name="name" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="Your name" />
                 </label>
-                <label className="grid gap-2 text-sm font-medium text-slate-300">
+                <label className="grid gap-2 text-center text-sm font-medium text-slate-300">
                   Email
-                  <input type="email" name="email" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-amber-300/30" placeholder="you@example.com" />
+                  <input type="email" name="email" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="you@example.com" />
                 </label>
-                <label className="grid gap-2 text-sm font-medium text-slate-300">
+                <label className="grid gap-2 text-center text-sm font-medium text-slate-300">
                   Message
-                  <textarea name="message" rows={4} className="resize-none rounded-xl border border-amber-300/10 bg-[#070707] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-amber-300/30" placeholder="What can we help with?" />
+                  <textarea name="message" rows={4} className="resize-none rounded-xl border border-amber-300/10 bg-[#070707] px-4 py-3 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="What can we help with?" />
                 </label>
               </div>
 
