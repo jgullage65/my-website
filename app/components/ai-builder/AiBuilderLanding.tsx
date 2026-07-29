@@ -1,6 +1,6 @@
 "use client";
 
-import { SignUpButton } from "@clerk/nextjs";
+import { SignIn } from "@clerk/nextjs";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
 import type { BuilderState } from "./AiBuilderClient";
@@ -149,7 +149,7 @@ export default function AiBuilderLanding() {
             <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Arkena AI Business Brain</p>
             <h1 className="mt-4 text-3xl font-medium leading-[1.04] tracking-[-.035em] text-white sm:text-4xl xl:text-5xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
             <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
-            <div className="mt-7"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Build Your Business Brain</button></SignUpButton></div>
+            <div className="mt-7"><a href="/pricing" className={primaryButton}>Build Your Business Brain</a></div>
 
             <div className="mt-8 grid gap-7 border-t border-white/[0.07] pt-6">
               <div>
@@ -181,26 +181,52 @@ export default function AiBuilderLanding() {
 
         <section className="relative mt-12 grid w-full gap-x-12 gap-y-12 border-t border-white/[0.07] pt-10 lg:grid-cols-2">
           <div className="rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 text-center shadow-[0_36px_110px_rgba(0,0,0,.55)] xl:p-8">
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Website intelligence</p>
-            <h2 className="mx-auto mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Bring in the website. Keep your expertise in control.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400">Arkena safely crawls the public website, organizes what matters, and keeps imported knowledge separate from the information only you can provide.</p>
-            <div className="mx-auto mt-6 grid max-w-lg gap-4 text-left">
-              {["Products, services, pricing, FAQs, policies, and structured data", "Your answers always take priority over imported website knowledge", "The crawl result becomes a reviewable source, not hidden model context"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}
-            </div>
-          </div>
-
-          <div className="rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 text-center shadow-[0_36px_110px_rgba(0,0,0,.55)] xl:p-8">
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Keep what you built</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Keep what you build</p>
             <h2 className="mx-auto mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Your Business Brain should not be locked to one AI.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400">Use it inside Arkena, add it to your website, download a readable PDF, or export the approved knowledge for another AI platform.</p>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-300">Use it inside Arkena, add it to your website, download a readable PDF, or export the approved knowledge for another AI platform.</p>
+            <div className="mx-auto mt-8 grid max-w-xl gap-5 text-left sm:grid-cols-2">
               {[
                 ["Arkena Assistant", "Use the approved Business Brain inside Arkena."],
                 ["Website Assistant", "Put the same approved knowledge on your website."],
                 ["Business Brain PDF", "Download a readable copy of the knowledge you approved."],
                 ["Knowledge Pack", "Export the approved knowledge for another AI platform."],
-              ].map(([label, copy]) => <div key={label} className="rounded-2xl border border-white/[0.07] bg-[#050505] p-5 text-left"><p className="text-sm font-semibold text-white">{label}</p><p className="mt-2 text-xs leading-5 text-slate-500">{copy}</p></div>)}
+              ].map(([label, copy]) => (
+                <div key={label} className="flex items-start gap-3">
+                  <Check />
+                  <div>
+                    <p className="text-sm font-semibold text-white">{label}</p>
+                    <p className="mt-1 text-sm leading-6 text-slate-400">{copy}</p>
+                  </div>
+                </div>
+              ))}
             </div>
+          </div>
+
+          <div className="flex min-h-[430px] items-center justify-center rounded-[28px] border border-white/[0.08] bg-[#020202] p-4 shadow-[0_36px_110px_rgba(0,0,0,.55)] sm:p-6 xl:p-8">
+            <SignIn
+              routing="hash"
+              forceRedirectUrl="/ai-builder"
+              appearance={{
+                elements: {
+                  rootBox: "w-full max-w-md",
+                  cardBox: "w-full shadow-none",
+                  card: "w-full border border-white/[0.08] bg-[#050505] shadow-none",
+                  headerTitle: "text-white",
+                  headerSubtitle: "text-slate-400",
+                  socialButtonsBlockButton: "border-white/[0.08] bg-[#080808] text-white hover:bg-[#111111]",
+                  socialButtonsBlockButtonText: "text-white",
+                  dividerLine: "bg-white/[0.08]",
+                  dividerText: "text-slate-500",
+                  formFieldLabel: "text-slate-300",
+                  formFieldInput: "border-white/[0.08] bg-[#080808] text-white",
+                  formButtonPrimary: "border border-amber-300/20 bg-[#080808] text-white hover:bg-[#111111]",
+                  footerActionText: "text-slate-400",
+                  footerActionLink: "text-amber-300 hover:text-amber-200",
+                  identityPreviewText: "text-white",
+                  identityPreviewEditButton: "text-amber-300",
+                },
+              }}
+            />
           </div>
         </section>
       </main>
