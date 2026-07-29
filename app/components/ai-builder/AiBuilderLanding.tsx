@@ -179,7 +179,7 @@ export default function AiBuilderLanding() {
         </section>
         </div>
 
-        <section className="relative mt-12 grid w-full gap-x-12 gap-y-12 border-t border-white/[0.07] pt-10 lg:grid-cols-2">
+        <section className="relative mt-12 grid w-full gap-x-12 gap-y-12 border-t border-white/[0.07] pt-10 lg:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)]">
           <div className="rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 text-center shadow-[0_36px_110px_rgba(0,0,0,.55)] xl:p-8">
             <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Keep what you build</p>
             <h2 className="mx-auto mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Your Business Brain should not be locked to one AI.</h2>
@@ -202,31 +202,56 @@ export default function AiBuilderLanding() {
             </div>
           </div>
 
-          <div className="flex min-h-[430px] items-center justify-center rounded-[28px] border border-white/[0.08] bg-[#020202] p-4 shadow-[0_36px_110px_rgba(0,0,0,.55)] sm:p-6 xl:p-8">
-            <SignIn
-              routing="hash"
-              forceRedirectUrl="/ai-builder"
-              appearance={{
-                elements: {
-                  rootBox: "w-full max-w-md",
-                  cardBox: "w-full shadow-none",
-                  card: "w-full border border-white/[0.08] bg-[#050505] shadow-none",
-                  headerTitle: "text-white",
-                  headerSubtitle: "text-slate-400",
-                  socialButtonsBlockButton: "border-white/[0.08] bg-[#080808] text-white hover:bg-[#111111]",
-                  socialButtonsBlockButtonText: "text-white",
-                  dividerLine: "bg-white/[0.08]",
-                  dividerText: "text-slate-500",
-                  formFieldLabel: "text-slate-300",
-                  formFieldInput: "border-white/[0.08] bg-[#080808] text-white",
-                  formButtonPrimary: "border border-amber-300/20 bg-[#080808] text-white hover:bg-[#111111]",
-                  footerActionText: "text-slate-400",
-                  footerActionLink: "text-amber-300 hover:text-amber-200",
-                  identityPreviewText: "text-white",
-                  identityPreviewEditButton: "text-amber-300",
-                },
-              }}
-            />
+          <div className="grid items-start gap-8 lg:grid-cols-[minmax(280px,.9fr)_minmax(320px,1.1fr)]">
+            <div className="flex justify-start lg:-ml-2 xl:-ml-4">
+              <SignIn
+                routing="hash"
+                forceRedirectUrl="/ai-builder"
+                appearance={{
+                  elements: {
+                    rootBox: "w-full max-w-sm",
+                    cardBox: "w-full shadow-none",
+                    card: "w-full border-0 bg-transparent p-0 shadow-none",
+                    headerTitle: "text-white",
+                    headerSubtitle: "text-slate-400",
+                    socialButtonsBlockButton: "border-white/[0.08] bg-[#080808] text-white hover:bg-[#111111]",
+                    socialButtonsBlockButtonText: "text-white",
+                    dividerLine: "bg-white/[0.08]",
+                    dividerText: "text-slate-500",
+                    formFieldLabel: "text-slate-300",
+                    formFieldInput: "border-white/[0.08] bg-[#080808] text-white",
+                    formButtonPrimary: "border border-amber-300/20 bg-[#080808] text-white hover:bg-[#111111]",
+                    footerActionText: "text-slate-400",
+                    footerActionLink: "text-amber-300 hover:text-amber-200",
+                    identityPreviewText: "text-white",
+                    identityPreviewEditButton: "text-amber-300",
+                  },
+                }}
+              />
+            </div>
+
+            <form className="rounded-[24px] border border-amber-300/15 bg-[#020202] p-5 shadow-[0_24px_70px_rgba(0,0,0,.35)] sm:p-6">
+              <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Contact</p>
+              <h3 className="mt-3 text-xl font-medium tracking-[-.02em] text-white">Have a question?</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-400">Send a quick note and we’ll get back to you.</p>
+
+              <div className="mt-6 grid gap-4">
+                <label className="grid gap-2 text-sm font-medium text-slate-300">
+                  Name
+                  <input type="text" name="name" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-amber-300/30" placeholder="Your name" />
+                </label>
+                <label className="grid gap-2 text-sm font-medium text-slate-300">
+                  Email
+                  <input type="email" name="email" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-amber-300/30" placeholder="you@example.com" />
+                </label>
+                <label className="grid gap-2 text-sm font-medium text-slate-300">
+                  Message
+                  <textarea name="message" rows={4} className="resize-none rounded-xl border border-amber-300/10 bg-[#070707] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-amber-300/30" placeholder="What can we help with?" />
+                </label>
+              </div>
+
+              <button type="button" className={`${primaryButton} mt-5 w-full`}>Send Message</button>
+            </form>
           </div>
         </section>
       </main>
