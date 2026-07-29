@@ -148,17 +148,17 @@ export default function AiBuilderLanding() {
           <div className="max-w-xl">
             <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Arkena AI Business Brain</p>
             <h1 className="mt-4 text-3xl font-medium leading-[1.04] tracking-[-.035em] text-white sm:text-4xl xl:text-5xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
-            <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
+            <p className="mt-5 text-base leading-7 text-slate-400">Build a Business Brain from your website and the knowledge only you can provide. Review every insight before it becomes Business Memory, then choose the AI model that uses it.</p>
             <div className="mt-7"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Build Your Business Brain</button></SignUpButton></div>
 
             <div className="mt-8 grid gap-7 border-t border-white/[0.07] pt-6">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Model freedom</p>
-                <p className="mt-3 text-base leading-7 text-slate-400">Build your Business Brain with the model you choose today. Switch the model that answers tomorrow without rebuilding your business knowledge.</p>
+                <p className="mt-3 text-base leading-7 text-slate-400">Your Business Brain stays in Arkena. GPT, Claude, Gemini, Grok, and future models can use the same approved knowledge.</p>
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Review and approval</p>
-                <p className="mt-3 text-base leading-7 text-slate-400">Nothing becomes Business Memory until you approve it. Edit what isn’t right, remove what doesn’t belong, and trust what you keep.</p>
+                <p className="mt-3 text-base leading-7 text-slate-400">Nothing becomes Business Memory until you approve it. Edit what is wrong, remove what should not be used, and keep only the knowledge you trust.</p>
               </div>
             </div>
           </div>
@@ -170,7 +170,7 @@ export default function AiBuilderLanding() {
             ["Choose the model", "Use GPT, Claude, Gemini, or Grok without rebuilding the business context."],
             ["Import the website", "Bring in public pages while keeping owner expertise separate and in control."],
             ["Review everything", "Edit, remove, and approve the knowledge before it becomes business memory."],
-            ["Use one Business Brain", "Test it, host it, or reuse the approved knowledge across assistants."],
+            ["Keep the Business Brain", "Use the approved knowledge inside Arkena, on your website, or outside the platform."],
           ].map(([title, copy]) => (
             <article key={title} className="rounded-2xl border border-white/[0.07] bg-[#050505] p-5">
               <div className="flex items-start gap-3"><Check /><div><h2 className="text-sm font-semibold text-white">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{copy}</p></div></div>
@@ -190,10 +190,17 @@ export default function AiBuilderLanding() {
           </div>
 
           <div className="rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 text-center shadow-[0_36px_110px_rgba(0,0,0,.55)] xl:p-8">
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Use it your way</p>
-            <h2 className="mx-auto mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Your Brain should not belong to one chatbot.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400">Host the assistant with Arkena, test it inside the workspace, add it to a website, or export the approved knowledge as a Knowledge Pack.</p>
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">{["Hosted assistant", "Website widget", "Knowledge Pack", "Any AI model"].map((label) => <div key={label} className="rounded-2xl border border-white/[0.07] bg-[#050505] p-5 text-left"><p className="text-sm font-semibold text-white">{label}</p><p className="mt-2 text-xs leading-5 text-slate-500">Powered by the same approved business knowledge.</p></div>)}</div>
+            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Keep what you built</p>
+            <h2 className="mx-auto mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Your Business Brain should not be locked to one AI.</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400">Use it inside Arkena, add it to your website, download a readable PDF, or export the approved knowledge for another AI platform.</p>
+            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+              {[
+                ["Arkena Assistant", "Use the approved Business Brain inside Arkena."],
+                ["Website Assistant", "Put the same approved knowledge on your website."],
+                ["Business Brain PDF", "Download a readable copy of the knowledge you approved."],
+                ["Knowledge Pack", "Export the approved knowledge for another AI platform."],
+              ].map(([label, copy]) => <div key={label} className="rounded-2xl border border-white/[0.07] bg-[#050505] p-5 text-left"><p className="text-sm font-semibold text-white">{label}</p><p className="mt-2 text-xs leading-5 text-slate-500">{copy}</p></div>)}
+            </div>
           </div>
         </section>
       </main>
