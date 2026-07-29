@@ -343,20 +343,20 @@ export default function AiBuilderReview({
     session.status === "ready" && session.contextCounts.approved > 0;
 
   const actionGridClassName = embedded
-    ? "mt-6 grid grid-cols-1 gap-3"
+    ? "mt-6 grid grid-cols-1 gap-3 xl:grid-cols-2"
     : `mt-6 grid grid-cols-1 gap-3 ${showLaunchChat ? "sm:grid-cols-3" : "sm:grid-cols-2"}`;
   const summaryGridClassName = embedded
     ? "mt-6 grid grid-cols-2 gap-3"
     : "mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4";
 
   return (
-    <div className={embedded ? "relative w-full space-y-5" : "relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]"}>
+    <div className={embedded ? "relative w-full space-y-5 xl:grid xl:grid-cols-2 xl:items-start xl:gap-6 xl:space-y-0" : "relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]"}>
       {confirmDialogNode}
       {!embedded ? <AiBuilderAuthCta /> : null}
 
       {bulkFailureMessage ? (
         <p
-          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200"
+          className={`rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200 ${embedded?"xl:col-span-2":""}`}
           role="alert"
         >
           {bulkFailureMessage}
@@ -421,7 +421,7 @@ export default function AiBuilderReview({
         </div>
       </section>
 
-      <div>
+      <div className={embedded ? "xl:contents" : ""}>
         {grouped.length ? (
           <section className="space-y-7">
             <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
@@ -594,7 +594,7 @@ export default function AiBuilderReview({
         ) : null}
 
         {visibleFaqEntries.length ? (
-          <section className="mt-8 space-y-4">
+          <section className={embedded ? "mt-8 space-y-4 xl:mt-0" : "mt-8 space-y-4"}>
             <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
               Generated Q&amp;A
             </p>

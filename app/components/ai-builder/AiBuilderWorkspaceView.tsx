@@ -29,6 +29,7 @@ export type AiBuilderWorkspaceViewProps = {
   projectId?: string | null;
   pendingReviewItems?: ReviewCommandPending;
   embeddedReview?: boolean;
+  dashboardShowcase?: boolean;
   showLaunchChat?: boolean;
   onBuilderChange?: (builder: BuilderState) => void;
   onBuild?: () => void;
@@ -51,7 +52,7 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   const inert = demo ? "pointer-events-none" : "";
 
   if (props.activeView === "dashboard") {
-    return <AiBuilderDashboard session={props.session} websiteKnowledge={props.websiteKnowledge ?? null} messages={props.messages ?? []} diagnostics={props.diagnostics ?? null} onNavigate={demo ? noop : props.onNavigate ?? noop} />;
+    return <AiBuilderDashboard session={props.session} websiteKnowledge={props.websiteKnowledge ?? null} messages={props.messages ?? []} diagnostics={props.diagnostics ?? null} onNavigate={demo ? noop : props.onNavigate ?? noop} showcase={props.dashboardShowcase} />;
   }
 
   if (props.activeView === "builder") {
