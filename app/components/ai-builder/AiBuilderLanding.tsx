@@ -171,6 +171,10 @@ export default function AiBuilderLanding() {
             ["Import the website", "Bring in public pages while keeping owner expertise separate and in control."],
             ["Review everything", "Edit, remove, and approve the knowledge before it becomes business memory."],
             ["Use one Business Brain", "Test it, host it, or reuse the approved knowledge across assistants."],
+            ["Deploy Your Assistant", "Choose a plan, connect your API key, and bring your Business Brain online."],
+            ["Business Brain PDF", "Generate a polished PDF of your approved Business Brain to review, archive, or share with your team."],
+            ["Create for Others", "Train, review, and deploy Business Brains for anyone from a single workspace."],
+            ["Expand Your Business Brain", "Expand your Business Brain expertise across new assistants, tools, and experiences as the platform grows."],
           ].map(([title, copy]) => (
             <article key={title} className="rounded-2xl border border-white/[0.07] bg-[#050505] p-5">
               <div className="flex items-start gap-3"><Check /><div><h2 className="text-sm font-semibold text-white">{title}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{copy}</p></div></div>
@@ -180,29 +184,7 @@ export default function AiBuilderLanding() {
         </div>
 
         <section className="relative mt-12 grid w-full gap-x-12 gap-y-12 border-t border-white/[0.07] pt-10 lg:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)]">
-          <div className="rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 text-center shadow-[0_36px_110px_rgba(0,0,0,.55)] xl:p-8">
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Keep what you build</p>
-            <h2 className="mx-auto mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Your Business Brain should not be locked to one AI.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-300">Use it inside Arkena, add it to your website, download a readable PDF, or export the approved knowledge for another AI platform.</p>
-            <div className="mx-auto mt-8 grid max-w-xl gap-5 text-left sm:grid-cols-2">
-              {[
-                ["Arkena Assistant", "Use the approved Business Brain inside Arkena."],
-                ["Website Assistant", "Put the same approved knowledge on your website."],
-                ["Business Brain PDF", "Download a readable copy of the knowledge you approved."],
-                ["Knowledge Pack", "Export the approved knowledge for another AI platform."],
-              ].map(([label, copy]) => (
-                <div key={label} className="flex items-start gap-3">
-                  <Check />
-                  <div>
-                    <p className="text-sm font-semibold text-white">{label}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-400">{copy}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid items-start gap-8 lg:grid-cols-[minmax(280px,.9fr)_minmax(320px,1.1fr)]">
+          <div className="grid items-start gap-8 lg:col-start-2 lg:grid-cols-[minmax(280px,.9fr)_minmax(320px,1.1fr)]">
             <div className="flex w-full max-w-sm justify-start overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#050505] lg:-ml-2 xl:-ml-4">
               <SignIn
                 routing="hash"
