@@ -2,12 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
-import AiBuilderDashboard from "./AiBuilderDashboard";
-import AiBuilderForm from "./AiBuilderForm";
-import AiBuilderReview from "./AiBuilderReview";
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import AiBuilderModelSelect from "./AiBuilderModelSelect";
+import AiBuilderWorkspaceView from "./AiBuilderWorkspaceView";
 
 export const AI_BUILDER_SHOWCASE_SLIDES = [
   { id: "dashboard", label: "Dashboard" },
@@ -60,26 +58,14 @@ export default function AiBuilderSurfaceShowcase({
 
   const surface = useMemo(() => {
     if (activeSlide === "dashboard") {
-      return (
-        <AiBuilderDashboard
-          session={session}
-          websiteKnowledge={null}
-          messages={[]}
-          diagnostics={null}
-          onNavigate={() => undefined}
-        />
-      );
+      return <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} />;
     }
 
     if (activeSlide === "builder") {
       return (
-        <div className="pointer-events-none origin-top scale-[0.68] sm:scale-[0.76] xl:scale-[0.62] 2xl:scale-[0.72]">
+        <div className="pointer-events-none origin-top-left scale-[0.68] sm:scale-[0.76] xl:scale-[0.62] 2xl:scale-[0.72]">
           <div className="w-[147%] sm:w-[132%] xl:w-[161%] 2xl:w-[139%]">
-            <AiBuilderForm
-              value={builderValue}
-              onChange={setBuilderValue}
-              onBuild={() => undefined}
-            />
+            <AiBuilderWorkspaceView mode="demo" activeView="builder" session={session} builder={builderValue} />
           </div>
         </div>
       );
@@ -87,17 +73,9 @@ export default function AiBuilderSurfaceShowcase({
 
     if (activeSlide === "review") {
       return (
-        <div className="pointer-events-none origin-top scale-[0.76] sm:scale-[0.84] xl:scale-[0.7] 2xl:scale-[0.8]">
+        <div className="pointer-events-none origin-top-left scale-[0.76] sm:scale-[0.84] xl:scale-[0.7] 2xl:scale-[0.8]">
           <div className="w-[132%] sm:w-[119%] xl:w-[143%] 2xl:w-[125%]">
-            <AiBuilderReview
-              session={session}
-              onReviewCommand={async () => undefined}
-              pendingReviewItems={new Set()}
-              onBack={() => undefined}
-              onLaunchChat={() => undefined}
-              showLaunchChat={false}
-              embedded
-            />
+            <AiBuilderWorkspaceView mode="demo" activeView="review" session={session} builder={builderValue} embeddedReview />
           </div>
         </div>
       );
@@ -119,7 +97,7 @@ export default function AiBuilderSurfaceShowcase({
   return (
     <div className={className}>
       <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-        <div className="h-[430px] overflow-hidden">{surface}</div>
+        <div className="h-[clamp(430px,calc(100dvh-360px),620px)] overflow-hidden">{surface}</div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-2">
         {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (

@@ -27,6 +27,7 @@ type Props = {
   projectId?: string | null;
   onChange: (value: BuilderState) => void;
   onBuild: () => void;
+  demoMode?: boolean;
 };
 
 type WebsiteImportPayload = {
@@ -63,7 +64,7 @@ const inputClassName =
 const cardClassName =
   "rounded-2xl border border-amber-300/20 bg-[#070707]/88 p-5 shadow-[0_14px_42px_rgba(0,0,0,0.2)]";
 
-export default function AiBuilderForm({ value, projectId, onChange, onBuild }: Props) {
+export default function AiBuilderForm({ value, projectId, onChange, onBuild, demoMode = false }: Props) {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [crawlPages, setCrawlPages] = useState(0);
@@ -75,7 +76,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild }: P
   const [modelChoices,setModelChoices]=useState<AiBuilderModelChoice[]>([]);
   const {showConfirm,confirmDialogNode}=useCanonicalConfirm();
 
-  useEffect(()=>{void fetch("/api/ai-builder/models?purpose=crawl").then(response=>response.json()).then(payload=>{if(payload.ok){setModelChoices(payload.models);setModelId(payload.defaultModelId);}}).catch(()=>undefined);},[]);
+  useEffect(()=>{if (demoMode) return; void fetch("/api/ai-builder/models?purpose=crawl").then(response=>response.json()).then(payload=>{if(payload.ok){setModelChoices(payload.models);setModelId(payload.defaultModelId);}}).catch(()=>undefined);},[demoMode]);
   async function selectModel(next:string){const choice=modelChoices.find(model=>model.id===next);if(!choice||importing)return;if(choice.highUsage){const confirmed=await showConfirm({title:"Use GPT-5.5 Pro?",message:"GPT-5.5 Pro uses significantly more AI usage than the other available models. Continue?",cancelLabel:"Cancel",confirmLabel:"Use GPT-5.5 Pro"});if(!confirmed)return;}setModelId(next);}
 
   useEffect(() => {
@@ -107,6 +108,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild }: P
   };
 
   const importWebsite = async () => {
+    if (demoMode) return;
     const website = value.website.trim();
     if (!website || importing) return;
 
