@@ -178,19 +178,19 @@ export default function AiBuilderLanding() {
             <p className="mt-4 text-base leading-7 text-slate-400">The Business Brain is the stable layer. GPT, Claude, Gemini, and Grok can all work from the same approved business knowledge.</p>
           </div>
 
-          <div className="text-center">
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Website intelligence</p>
-            <h2 className="mx-auto mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Bring in the website. Keep your expertise in control.</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400">Arkena safely crawls the public website, organizes what matters, and keeps imported knowledge separate from the information only you can provide.</p>
-            <div className="mx-auto mt-6 grid max-w-2xl gap-4 text-left">
-              {["Products, services, pricing, FAQs, policies, and structured data", "Your answers always take priority over imported website knowledge", "The crawl result becomes a reviewable source, not hidden model context"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}
-            </div>
-          </div>
-
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Review and approval</p>
             <h2 className="mt-3 text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Nothing becomes business memory until you review it.</h2>
             <p className="mt-4 text-base leading-7 text-slate-400">Edit what is wrong, remove what should not be used, and approve the knowledge you trust.</p>
+          </div>
+
+          <div className="rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 text-center shadow-[0_36px_110px_rgba(0,0,0,.55)] xl:p-8">
+            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Website intelligence</p>
+            <h2 className="mx-auto mt-3 max-w-xl text-2xl font-medium leading-tight tracking-[-.025em] text-white sm:text-3xl">Bring in the website. Keep your expertise in control.</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400">Arkena safely crawls the public website, organizes what matters, and keeps imported knowledge separate from the information only you can provide.</p>
+            <div className="mx-auto mt-6 grid max-w-lg gap-4 text-left">
+              {["Products, services, pricing, FAQs, policies, and structured data", "Your answers always take priority over imported website knowledge", "The crawl result becomes a reviewable source, not hidden model context"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}
+            </div>
           </div>
 
           <div className="rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 text-center shadow-[0_36px_110px_rgba(0,0,0,.55)] xl:p-8">
