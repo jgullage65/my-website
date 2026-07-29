@@ -36,6 +36,11 @@ export default function AiBuilderSurfaceShowcase({
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [builderValue, setBuilderValue] = useState(builder);
   const [selectedModel, setSelectedModel] = useState(models[0]?.id ?? "");
+  const surfaceHeight = activeSlide === "builder"
+    ? "h-[760px] sm:h-[820px] xl:h-[760px] 2xl:h-[820px]"
+    : activeSlide === "review"
+      ? "h-[650px] sm:h-[700px] xl:h-[660px] 2xl:h-[720px]"
+      : "h-[500px] sm:h-[540px]";
 
   useEffect(() => {
     setBuilderValue(builder);
@@ -97,7 +102,7 @@ export default function AiBuilderSurfaceShowcase({
   return (
     <div className={className}>
       <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-        <div className="h-[430px] overflow-hidden">{surface}</div>
+        <div className={`overflow-hidden ${surfaceHeight}`}>{surface}</div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-2">
         {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (
