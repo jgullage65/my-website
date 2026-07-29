@@ -156,7 +156,7 @@ export default function AiBuilderLanding() {
           <AiBuilderSurfaceShowcase session={demoSession} builder={demoBuilder} models={models} autoAdvance className="min-w-0" />
         </section>
 
-        <section className="relative mt-10 grid w-full gap-4 border-t border-white/[0.07] pt-8 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="relative mt-6 grid w-full gap-4 border-t border-white/[0.07] pt-6 sm:grid-cols-2 xl:grid-cols-4">
           {[
             ["Choose the model", "Use GPT, Claude, Gemini, or Grok without rebuilding the business context."],
             ["Import the website", "Bring in public pages while keeping owner expertise separate and in control."],

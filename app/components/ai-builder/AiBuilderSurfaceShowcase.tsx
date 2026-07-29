@@ -68,7 +68,7 @@ export default function AiBuilderSurfaceShowcase({
 
     if (activeSlide === "builder") {
       return (
-        <div className="pointer-events-none origin-top scale-[0.68] sm:scale-[0.76] xl:scale-[0.62] 2xl:scale-[0.72]">
+        <div className="pointer-events-none origin-top-left scale-[0.68] sm:scale-[0.76] xl:scale-[0.62] 2xl:scale-[0.72]">
           <div className="w-[147%] sm:w-[132%] xl:w-[161%] 2xl:w-[139%]">
             <AiBuilderWorkspaceView mode="demo" activeView="builder" session={session} builder={builderValue} />
           </div>
@@ -78,7 +78,7 @@ export default function AiBuilderSurfaceShowcase({
 
     if (activeSlide === "review") {
       return (
-        <div className="pointer-events-none origin-top scale-[0.76] sm:scale-[0.84] xl:scale-[0.7] 2xl:scale-[0.8]">
+        <div className="pointer-events-none origin-top-left scale-[0.76] sm:scale-[0.84] xl:scale-[0.7] 2xl:scale-[0.8]">
           <div className="w-[132%] sm:w-[119%] xl:w-[143%] 2xl:w-[125%]">
             <AiBuilderWorkspaceView mode="demo" activeView="review" session={session} builder={builderValue} embeddedReview />
           </div>
@@ -102,7 +102,7 @@ export default function AiBuilderSurfaceShowcase({
   return (
     <div className={className}>
       <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-        <div className={`overflow-hidden ${surfaceHeight}`}>{surface}</div>
+        <div className="h-[clamp(430px,calc(100dvh-300px),680px)] overflow-hidden">{surface}</div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-2">
         {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (
