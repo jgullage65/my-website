@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SignOutButton, useAuth } from "@clerk/nextjs";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderLanding from "./AiBuilderLanding";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
@@ -39,7 +39,7 @@ function domain(value: string | null) {
   }
 }
 
-export default function AiBuilderProjects() {
+export default function AiBuilderProjects({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void } = {}) {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -202,10 +202,11 @@ export default function AiBuilderProjects() {
   if (isLoaded && !isSignedIn) return <AiBuilderShell><AiBuilderLanding /></AiBuilderShell>;
 
   return (
-    <AiBuilderShell>
+    <ProjectsFrame embedded={embedded}>
       {confirmDialogNode}
-      <div className="contents min-[1200px]:fixed min-[1200px]:inset-0 min-[1200px]:z-[100] min-[1200px]:flex min-[1200px]:items-center min-[1200px]:justify-center min-[1200px]:bg-black/75 min-[1200px]:p-8 min-[1200px]:backdrop-blur-md">
-      <section className="relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:flex min-[1200px]:max-h-[90dvh] min-[1200px]:max-w-[1100px] min-[1200px]:flex-col min-[1200px]:overflow-y-auto min-[1200px]:rounded-[24px] min-[1200px]:border min-[1200px]:border-white/[0.1] min-[1200px]:bg-[#030303] min-[1200px]:px-10 min-[1200px]:py-6 min-[1200px]:shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
+      <div role="presentation" className="contents min-[1200px]:fixed min-[1200px]:inset-0 min-[1200px]:z-[100] min-[1200px]:flex min-[1200px]:items-center min-[1200px]:justify-center min-[1200px]:bg-black/75 min-[1200px]:p-8 min-[1200px]:backdrop-blur-md">
+      <section role="dialog" aria-modal="true" aria-label="AI Builder projects" className="relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:flex min-[1200px]:max-h-[90dvh] min-[1200px]:max-w-[1100px] min-[1200px]:flex-col min-[1200px]:overflow-y-auto min-[1200px]:rounded-[24px] min-[1200px]:border min-[1200px]:border-white/[0.1] min-[1200px]:bg-[#030303] min-[1200px]:px-10 min-[1200px]:py-6 min-[1200px]:shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
+        {onClose ? <button type="button" onClick={onClose} className="absolute right-6 top-4 z-10 hidden rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white min-[1200px]:inline-flex">Done</button> : null}
         <div className="relative text-center">
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
           <h1 className="mt-2 text-2xl font-black tracking-[-.035em] text-white sm:text-3xl min-[1200px]:mt-1">Projects</h1>
@@ -238,8 +239,12 @@ export default function AiBuilderProjects() {
         ) : null}
       </section>
       </div>
-    </AiBuilderShell>
+    </ProjectsFrame>
   );
+}
+
+function ProjectsFrame({ embedded, children }: { embedded: boolean; children: ReactNode }) {
+  return embedded ? <>{children}</> : <AiBuilderShell>{children}</AiBuilderShell>;
 }
 
 function ViewButton({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {

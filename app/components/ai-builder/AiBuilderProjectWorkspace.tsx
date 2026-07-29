@@ -12,6 +12,7 @@ import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
+import AiBuilderProjects from "./AiBuilderProjects";
 import AiBuilderReview from "./AiBuilderReview";
 import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
 
@@ -102,6 +103,7 @@ export default function AiBuilderProjectWorkspace({
   initialTab = "dashboard",
 }: Props) {
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(initialTab);
+  const [projectsOpen, setProjectsOpen] = useState(false);
   const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
   const [builder, setBuilder] = useState<BuilderState>(EMPTY_BUILDER);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
@@ -171,6 +173,15 @@ export default function AiBuilderProjectWorkspace({
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [mobileWorkspaceMenuOpen]);
+
+  useEffect(() => {
+    if (!projectsOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProjectsOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [projectsOpen]);
 
   const closeReview = useCallback(() => {
     window.location.assign(
@@ -400,7 +411,7 @@ export default function AiBuilderProjectWorkspace({
     <AiBuilderShell>
       <div className="relative hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
         <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
-          <button type="button" onClick={() => window.location.assign("/ai-builder")} className="mb-7 inline-flex text-xs font-semibold text-white transition hover:text-amber-200">← All Projects</button>
+          <button type="button" onClick={() => setProjectsOpen(true)} className="mb-7 inline-flex text-xs font-semibold text-white transition hover:text-amber-200">← All Projects</button>
           <div className="mb-5 border-b border-white/[0.08] px-3 pb-5 text-center">
             <p className="truncate text-sm font-semibold text-white">{builder.businessName || "AI Builder Project"}</p>
           </div>
@@ -442,6 +453,8 @@ export default function AiBuilderProjectWorkspace({
             <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => undefined} />
           </div>
         </aside>
+
+        {projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
 
         {reviewOpen ? (
           <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">

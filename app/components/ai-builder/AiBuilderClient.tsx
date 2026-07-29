@@ -19,6 +19,7 @@ import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
+import AiBuilderProjects from "./AiBuilderProjects";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import "./AiBuilderFormOverrides.css";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
@@ -144,6 +145,7 @@ async function fetchProject(projectId: string): Promise<ProjectResponse> {
 export default function AiBuilderClient({ initialProjectId = null }: Props) {
   const [step, setStep] = useState<BuilderStep>(initialProjectId ? "loading" : "form");
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("dashboard");
+  const [projectsOpen, setProjectsOpen] = useState(false);
   const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
   const [builder, setBuilder] = useState(initial);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
@@ -267,6 +269,15 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     window.addEventListener("keydown", closeMenu);
     return () => window.removeEventListener("keydown", closeMenu);
   }, [mobileWorkspaceMenuOpen]);
+
+  useEffect(() => {
+    if (!projectsOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProjectsOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [projectsOpen]);
 
   const navigateToStep = useCallback((nextStep: BuilderStep) => {
     setStep(nextStep);
@@ -431,7 +442,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
         <button
           type="button"
-          onClick={() => window.location.assign("/ai-builder")}
+          onClick={() => setProjectsOpen(true)}
           className="mb-7 inline-flex items-center text-xs font-semibold text-white transition hover:text-amber-200"
         >
           ← All Projects
@@ -539,6 +550,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           />
         </div>
       </aside>
+
+      {projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
     </div>
   ) : null;
 
