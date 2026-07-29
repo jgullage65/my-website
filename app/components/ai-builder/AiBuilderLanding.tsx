@@ -203,7 +203,7 @@ export default function AiBuilderLanding() {
           </div>
 
           <div className="grid items-start gap-8 lg:grid-cols-[minmax(280px,.9fr)_minmax(320px,1.1fr)]">
-            <div className="flex justify-start lg:-ml-2 xl:-ml-4">
+            <div className="flex w-full max-w-sm justify-start overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#050505] lg:-ml-2 xl:-ml-4">
               <SignIn
                 routing="hash"
                 forceRedirectUrl="/ai-builder"
@@ -211,7 +211,7 @@ export default function AiBuilderLanding() {
                   elements: {
                     rootBox: "w-full max-w-sm",
                     cardBox: "w-full shadow-none",
-                    card: "w-full rounded-[24px] border border-white/[0.08] bg-[#050505] shadow-none",
+                    card: "w-full rounded-none border-0 bg-[#050505] shadow-none",
                     headerTitle: "text-white",
                     headerSubtitle: "text-slate-400",
                     socialButtonsBlockButton: "border-white/[0.08] bg-[#080808] text-white hover:bg-[#111111]",
@@ -230,7 +230,7 @@ export default function AiBuilderLanding() {
               />
             </div>
 
-            <form className="rounded-[24px] border border-amber-300/12 bg-[#020202] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:p-6">
+            <form className="rounded-[24px] border border-white/[0.08] bg-[#020202] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:p-6">
               <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Contact</p>
               <h3 className="mt-3 text-xl font-medium tracking-[-.02em] text-white">Have a question?</h3>
               <p className="mt-2 text-sm leading-6 text-slate-400">Send a quick note and we’ll get back to you.</p>
