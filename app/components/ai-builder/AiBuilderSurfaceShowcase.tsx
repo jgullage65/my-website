@@ -36,11 +36,7 @@ export default function AiBuilderSurfaceShowcase({
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [builderValue, setBuilderValue] = useState(builder);
   const [selectedModel, setSelectedModel] = useState(models[0]?.id ?? "");
-  const surfaceHeight = activeSlide === "builder"
-    ? "h-[760px] sm:h-[820px] xl:h-[760px] 2xl:h-[820px]"
-    : activeSlide === "review"
-      ? "h-[650px] sm:h-[700px] xl:h-[660px] 2xl:h-[720px]"
-      : "h-[500px] sm:h-[540px]";
+  const [showDashboardInsights, setShowDashboardInsights] = useState(false);
 
   useEffect(() => {
     setBuilderValue(builder);
@@ -52,18 +48,36 @@ export default function AiBuilderSurfaceShowcase({
 
   useEffect(() => {
     if (!autoAdvance) return;
-    const timer = window.setInterval(() => {
+    const timer = window.setTimeout(() => {
       setActiveSlide((current) => {
         const index = AI_BUILDER_SHOWCASE_SLIDES.findIndex((slide) => slide.id === current);
         return AI_BUILDER_SHOWCASE_SLIDES[(index + 1) % AI_BUILDER_SHOWCASE_SLIDES.length]!.id;
       });
-    }, 6500);
-    return () => window.clearInterval(timer);
-  }, [autoAdvance]);
+    }, activeSlide === "dashboard" ? 13_000 : 6500);
+    return () => window.clearTimeout(timer);
+  }, [activeSlide, autoAdvance]);
+
+  useEffect(() => {
+    setShowDashboardInsights(false);
+    if (activeSlide !== "dashboard") return;
+    const timer = window.setTimeout(() => setShowDashboardInsights(true), 6500);
+    return () => window.clearTimeout(timer);
+  }, [activeSlide]);
 
   const surface = useMemo(() => {
     if (activeSlide === "dashboard") {
-      return <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} />;
+      return (
+        <div className={`h-full transition-transform duration-700 ease-in-out ${showDashboardInsights ? "-translate-y-full" : "translate-y-0"}`}>
+          <div className="h-full pb-5">
+            <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} dashboardShowcase />
+          </div>
+          {showDashboardInsights ? (
+            <div className="h-full overflow-hidden pt-5">
+              <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builderValue} />
+            </div>
+          ) : null}
+        </div>
+      );
     }
 
     if (activeSlide === "builder") {
@@ -77,13 +91,7 @@ export default function AiBuilderSurfaceShowcase({
     }
 
     if (activeSlide === "review") {
-      return (
-        <div className="pointer-events-none origin-top-left scale-[0.76] sm:scale-[0.84] xl:scale-[0.7] 2xl:scale-[0.8]">
-          <div className="w-[132%] sm:w-[119%] xl:w-[143%] 2xl:w-[125%]">
-            <AiBuilderWorkspaceView mode="demo" activeView="review" session={session} builder={builderValue} embeddedReview />
-          </div>
-        </div>
-      );
+      return <AiBuilderWorkspaceView mode="demo" activeView="review" session={session} builder={builderValue} embeddedReview />;
     }
 
     return (
@@ -97,7 +105,7 @@ export default function AiBuilderSurfaceShowcase({
         />
       </div>
     );
-  }, [activeSlide, builderValue, models, selectedModel, session]);
+  }, [activeSlide, builderValue, models, selectedModel, session, showDashboardInsights]);
 
   return (
     <div className={className}>
