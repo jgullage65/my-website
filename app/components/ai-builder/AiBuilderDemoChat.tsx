@@ -37,6 +37,7 @@ type Props = {
   projectId: string;
   chatThread: ChatThread | null;
   onBack: () => void;
+  demoMode?: boolean;
 };
 
 type ChatMessage = {
@@ -134,6 +135,7 @@ export default function AiBuilderDemoChat({
   projectId,
   chatThread,
   onBack,
+  demoMode = false,
 }: Props) {
   const retrySubmissionRef = useRef<{message:string;idempotencyKey:string}|null>(null);
   const modalRootRef = useRef<HTMLDivElement>(null);
@@ -165,7 +167,7 @@ export default function AiBuilderDemoChat({
   } | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
-  useEffect(()=>{void fetch("/api/ai-builder/models?purpose=test-assistant").then(r=>r.json()).then(payload=>{if(payload.ok){setModelChoices(payload.models);setModelId(payload.defaultModelId);}}).catch(()=>undefined);},[]);
+  useEffect(()=>{if (demoMode) return; void fetch("/api/ai-builder/models?purpose=test-assistant").then(r=>r.json()).then(payload=>{if(payload.ok){setModelChoices(payload.models);setModelId(payload.defaultModelId);}}).catch(()=>undefined);},[demoMode]);
   async function selectModel(next:string){const choice=modelChoices.find(x=>x.id===next);if(!choice||sending)return;if(choice.highUsage){const confirmed=await showConfirm({title:"Use GPT-5.5 Pro?",message:"GPT-5.5 Pro uses significantly more AI usage than the other available models. Continue?",cancelLabel:"Cancel",confirmLabel:"Use GPT-5.5 Pro"});if(!confirmed)return;}setModelId(next);}
 
   useEffect(() => {
@@ -298,6 +300,7 @@ export default function AiBuilderDemoChat({
   };
 
   useEffect(() => {
+    if (demoMode) return;
     let cancelled = false;
 
     const loadPurchaseInterestStatus = async () => {
@@ -326,7 +329,7 @@ export default function AiBuilderDemoChat({
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [demoMode, projectId]);
 
   const showAlreadySubmittedModal = async () => {
     await showConfirm({
@@ -342,6 +345,7 @@ export default function AiBuilderDemoChat({
   const showPurchaseInterestModal = async (
     source: "limit" | "cta" = "limit",
   ) => {
+    if (demoMode) return;
     if (purchaseInterestSubmitted) {
       await showAlreadySubmittedModal();
       return;
@@ -401,6 +405,7 @@ export default function AiBuilderDemoChat({
   };
 
   const promoteForReview = async (item: ChatMessage) => {
+    if (demoMode) return;
     if (!chatThread || item.role !== "user" || promotingMessageId) return;
     const statement = item.content.trim();
     if (!statement) return;
@@ -415,6 +420,7 @@ export default function AiBuilderDemoChat({
 
   const sendMessage = async (event: FormEvent) => {
     event.preventDefault();
+    if (demoMode) return;
 
     const normalizedMessage = message.trim();
 
