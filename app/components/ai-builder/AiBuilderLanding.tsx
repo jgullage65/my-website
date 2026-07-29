@@ -21,53 +21,61 @@ const ShellLabel = ({ children }: { children: React.ReactNode }) => (
 );
 
 const DashboardProductPreview = () => (
-  <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-black shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-    <div className="grid aspect-[16/9] min-h-[350px] grid-cols-[98px_minmax(0,1fr)_165px] max-[900px]:grid-cols-[82px_minmax(0,1fr)] max-[900px]:[&_.assistant-pane]:hidden">
-      <aside className="border-r border-white/[0.08] bg-[#020202] p-3">
+  <div className="h-full overflow-hidden rounded-[24px] border border-white/[0.08] bg-black shadow-[0_28px_90px_rgba(0,0,0,.58)]">
+    <div className="grid h-full min-h-[430px] grid-cols-[116px_minmax(0,1fr)_210px] max-[1050px]:grid-cols-[94px_minmax(0,1fr)] max-[1050px]:[&_.assistant-pane]:hidden">
+      <aside className="border-r border-white/[0.08] bg-[#020202] p-4">
         <p className="text-[9px] text-slate-500">← All Projects</p>
-        <p className="mt-4 text-[11px] font-bold text-white">JG Creative Studio</p>
+        <p className="mt-5 text-xs font-bold text-white">JG Creative Studio</p>
         <p className="mt-1 truncate text-[9px] text-slate-600">jgecreativestudios.com</p>
-        <p className="mt-6 text-[8px] font-black uppercase tracking-[.18em] text-slate-600">Workspace</p>
-        <div className="mt-2 space-y-1 text-[8px] font-semibold">
+        <p className="mt-7 text-[8px] font-black uppercase tracking-[.18em] text-slate-600">Workspace</p>
+        <div className="mt-3 space-y-1 text-[9px] font-semibold">
           {["Dashboard", "Project Insights", "Overview", "Business Knowledge", "Sources", "Settings"].map((item, index) => (
-            <div key={item} className={`rounded-md px-2 py-1.5 ${index === 0 ? "border-l-2 border-amber-300 bg-white/[0.03] text-amber-100" : "text-slate-500"}`}>{item}</div>
+            <div key={item} className={`rounded-md px-2 py-2 ${index === 0 ? "border-l-2 border-amber-300 bg-white/[0.03] text-amber-100" : "text-slate-500"}`}>{item}</div>
           ))}
         </div>
       </aside>
 
-      <section className="min-w-0 bg-black p-3">
-        <section className="border-b border-white/[.08] pb-4 text-center">
+      <section className="min-w-0 bg-black p-4">
+        <section className="border-b border-white/[.08] pb-5 text-center">
           <p className="text-[9px] font-bold uppercase tracking-[.18em] text-amber-300">Project readiness</p>
-          <h2 className="mt-1.5 text-sm font-semibold tracking-[-.03em] text-white">Ready for testing</h2>
-          <p className="mx-auto mt-1 max-w-md text-[9px] leading-4 text-slate-500">The knowledge is prepared. Test real questions to validate the assistant.</p>
-          <p className="mt-2 text-[9px] font-semibold text-slate-300">4 of 5 readiness checks complete</p>
-          <div className="mx-auto mt-2 flex max-w-xl flex-wrap justify-center gap-x-3 gap-y-1 text-[8px] font-medium">
+          <h2 className="mt-2 text-base font-semibold tracking-[-.03em] text-white">Ready for testing</h2>
+          <p className="mx-auto mt-1.5 max-w-xl text-[10px] leading-5 text-slate-500">The knowledge is prepared. Test real questions to validate the assistant.</p>
+          <p className="mt-2 text-[10px] font-semibold text-slate-300">4 of 5 readiness checks complete</p>
+          <div className="mx-auto mt-3 flex max-w-2xl flex-wrap justify-center gap-x-4 gap-y-1.5 text-[9px] font-medium">
             {["Source connected", "Knowledge generated", "Review complete", "Build completed"].map((item) => <span key={item} className="text-amber-200">✓ {item}</span>)}
             <span className="text-slate-600">○ Assistant tested</span>
           </div>
         </section>
-        <div className="mt-3 grid gap-3 md:grid-cols-[1.1fr_.9fr]">
-          <section className={`${dashboardPanel} p-3.5`}>
-            <h3 className="text-center text-xs font-semibold text-white">Needs attention</h3>
+        <div className="mt-4 grid gap-4 md:grid-cols-[1.15fr_.85fr]">
+          <section className={`${dashboardPanel} p-4`}>
+            <h3 className="text-center text-sm font-semibold text-white">Needs attention</h3>
             <div className="mt-2 divide-y divide-white/[.07]">
               {["No website source connected", "Assistant has not been tested"].map((label) => (
-                <div key={label} className="py-2.5"><p className="text-[10px] font-semibold text-white">{label}</p><p className="mt-1 text-[9px] leading-4 text-slate-500">{label.startsWith("No website") ? "Import a website to broaden the assistant’s source material." : "Run a few real customer questions before launch."}</p></div>
+                <div key={label} className="py-3"><p className="text-xs font-semibold text-white">{label}</p><p className="mt-1 text-[10px] leading-5 text-slate-500">{label.startsWith("No website") ? "Import a website to broaden the assistant’s source material." : "Run a few real customer questions before launch."}</p></div>
               ))}
             </div>
           </section>
-          <section className={`${dashboardPanel} p-3.5 text-center`}>
-            <h3 className="text-xs font-semibold text-white">Last AI build</h3>
-            <p className="mt-2 text-[9px] text-slate-500">Built Jul 18, 2026, 9:54 PM</p>
-            <div className="mt-3 flex flex-wrap justify-center gap-2"><span className="rounded-full border border-white/10 bg-black px-3 py-1.5 text-[9px] font-semibold text-slate-200">✓ 0 Approved Q&A</span></div>
+          <section className={`${dashboardPanel} p-4 text-center`}>
+            <h3 className="text-sm font-semibold text-white">Last AI build</h3>
+            <p className="mt-2 text-[10px] text-slate-500">Built Jul 18, 2026, 9:54 PM</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2"><span className="rounded-full border border-white/10 bg-black px-3 py-1.5 text-[10px] font-semibold text-slate-200">✓ 0 Approved Q&A</span></div>
+          </section>
+          <section className={`${dashboardPanel} p-4 text-center`}>
+            <h3 className="text-sm font-semibold text-white">Knowledge source mix</h3>
+            <p className="mt-3 text-[10px] leading-5 text-slate-500">Website and owner expertise remain separate, visible, and governable.</p>
+          </section>
+          <section className={`${dashboardPanel} p-4`}>
+            <h3 className="text-center text-sm font-semibold text-white">Recent project changes</h3>
+            <div className="mt-2 divide-y divide-white/[.07] text-[10px] text-slate-400"><div className="py-2.5">Website knowledge imported</div><div className="py-2.5">3 Q&A items approved</div></div>
           </section>
         </div>
       </section>
 
-      <aside className="assistant-pane border-l border-white/[0.08] bg-[#020202] p-3">
+      <aside className="assistant-pane border-l border-white/[0.08] bg-[#020202] p-4">
         <div className="text-center"><ShellLabel>Live assistant test</ShellLabel><p className="mt-2 text-[8px] font-black uppercase tracking-[.2em] text-slate-500">Active model</p></div>
         <button type="button" className={`${modelButton} mt-2 text-[10px]`}>Claude Sonnet<span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-200/70">⌄</span></button>
         <div className="mt-4 rounded-2xl border border-amber-300/20 bg-[#070707] p-3 text-[10px] leading-5 text-slate-200">Hi, I’m LeadForge AI. Ask me anything about this business.</div>
-        <div className="mt-20 border-t border-white/[0.06] pt-3">
+        <div className="mt-28 border-t border-white/[0.06] pt-3">
           <div className={`mb-3 w-fit ${aiBuilderCornerCtaClassName}`}>Buy This AI Assistant</div>
           <div className="rounded-2xl border border-amber-300/20 bg-[#070707] p-3 text-[9px] leading-5 text-slate-600">Ask about services, pricing, policies, or the business...</div>
         </div>
@@ -77,8 +85,8 @@ const DashboardProductPreview = () => (
 );
 
 const BuilderProductPreview = () => (
-  <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-    <div className="grid gap-4 xl:grid-cols-[.72fr_1.28fr]">
+  <div className="h-full overflow-hidden rounded-[24px] border border-white/[0.08] bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
+    <div className="grid h-full gap-4 xl:grid-cols-[.72fr_1.28fr]">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
         <div className="sm:col-span-2 xl:col-span-1 text-center"><ShellLabel>AI Builder</ShellLabel><p className="mt-2 text-[0.64rem] font-bold uppercase tracking-[0.2em] text-slate-400">Active model</p><button type="button" className={`${modelButton} mt-1.5`}>GPT-5.5<span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-200/70">⌄</span></button></div>
         <article className="rounded-2xl border border-amber-300/20 bg-[#070707]/88 p-5 text-center shadow-[0_14px_42px_rgba(0,0,0,0.2)]">
@@ -117,19 +125,18 @@ const BuilderProductPreview = () => (
 );
 
 const ModelProductPreview = () => (
-  <div className="rounded-[24px] border border-white/[0.08] bg-black p-5 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-    <div className="relative mx-auto grid max-w-sm justify-items-center gap-1.5">
-      <span className="text-center text-[0.64rem] font-bold uppercase tracking-[0.2em] text-slate-400">Active model</span>
-      <button type="button" className={modelButton}>GPT-5.5<span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-200/70">⌃</span></button>
-      <div className="mt-2 grid w-full gap-2 rounded-xl border border-amber-300/20 bg-[#050505] p-2 shadow-[0_24px_70px_rgba(0,0,0,.75)] sm:grid-cols-2">
+  <div className="h-full rounded-[24px] border border-white/[0.08] bg-black p-5 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
+    <div className="relative grid h-full grid-rows-[auto_1fr] gap-4">
+      <div className="grid justify-items-center gap-1.5"><span className="text-center text-[0.64rem] font-bold uppercase tracking-[0.2em] text-slate-400">Active model</span><button type="button" className={`${modelButton} max-w-md`}>GPT-5.5<span className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-200/70">⌃</span></button></div>
+      <div className="grid w-full gap-3 rounded-xl border border-amber-300/20 bg-[#050505] p-3 shadow-[0_24px_70px_rgba(0,0,0,.75)] sm:grid-cols-2 lg:grid-cols-4">
         {[
           ["OpenAI", ["GPT-5 mini", "GPT-5", "GPT-5.5", "GPT-5.5 Pro"]],
           ["Anthropic", ["Claude Haiku", "Claude Sonnet", "Claude Opus"]],
           ["Google", ["Gemini 2.5 Flash", "Gemini 2.5 Pro"]],
           ["xAI", ["Grok Fast", "Grok"]],
         ].map(([provider, items]) => (
-          <div key={provider as string} className="rounded-lg bg-black/40 p-1.5">
-            <p className="px-2 pb-1.5 pt-1 text-left text-[0.62rem] font-bold uppercase tracking-[0.18em] text-slate-500">{provider}</p>
+          <div key={provider as string} className="rounded-lg bg-black/40 p-2">
+            <p className="px-2 pb-2 pt-1 text-left text-[0.62rem] font-bold uppercase tracking-[0.18em] text-slate-500">{provider}</p>
             <div className="space-y-0.5">{(items as string[]).map((item) => <div key={item} className={`flex min-h-9 w-full items-center justify-between gap-3 rounded-lg border px-2.5 text-left text-xs ${item === "GPT-5.5" ? "border-amber-300/20 bg-black text-white" : "border-transparent text-slate-300"}`}><span>{item}</span>{item === "GPT-5.5 Pro" ? <span className="text-[0.52rem] font-bold uppercase tracking-[0.08em] text-amber-200">High usage</span> : null}</div>)}</div>
           </div>
         ))}
@@ -139,8 +146,8 @@ const ModelProductPreview = () => (
 );
 
 const ReviewProductPreview = () => (
-  <div className="rounded-[24px] border border-white/[0.08] bg-black p-5 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-    <div className="mx-auto max-w-5xl rounded-[22px] bg-[#020202]">
+  <div className="h-full rounded-[24px] border border-white/[0.08] bg-black p-5 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
+    <div className="h-full rounded-[22px] bg-[#020202]">
       <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
         <div className="text-center"><p className="text-sm font-semibold text-white">Business Knowledge</p><p className="mt-1 text-[10px] text-slate-600">Review and govern the assistant’s business memory</p></div>
         <div className={aiBuilderCornerCtaClassName}>Done</div>
@@ -167,42 +174,39 @@ const ReviewProductPreview = () => (
 export default function AiBuilderLanding() {
   return (
     <div className="h-full overflow-y-auto bg-black text-white">
-      <main className="relative overflow-hidden px-5 pb-24 pt-10 sm:px-8 sm:pt-14 xl:px-14 xl:pb-28 xl:pt-16 min-[1500px]:px-20">
+      <main className="relative overflow-hidden px-3 pb-16 pt-8 sm:px-4 sm:pt-10 lg:px-5 xl:px-6 2xl:px-8">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.018)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:linear-gradient(to_bottom,black,transparent_64%)]" />
 
-        <section className="relative mx-auto grid w-full max-w-7xl items-center gap-12 lg:grid-cols-[minmax(0,.72fr)_minmax(660px,1.28fr)] lg:gap-14">
-          <div className="max-w-2xl">
+        <section className="relative grid w-full items-stretch gap-5 xl:grid-cols-[minmax(390px,.58fr)_minmax(0,1.42fr)] 2xl:gap-6">
+          <div className="flex h-full flex-col justify-center rounded-[24px] bg-[#020202] px-7 py-10 sm:px-10 xl:px-12">
             <ShellLabel>Arkena AI Builder</ShellLabel>
-            <h1 className="mt-5 text-4xl font-semibold leading-[.98] tracking-[-.055em] text-white sm:text-6xl xl:text-7xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-slate-400 sm:text-lg">Choose the model that learns your business, review what it finds, and use the same approved Business Brain across every assistant you create.</p>
-            <div className="mt-7 grid max-w-xl gap-3 sm:grid-cols-2">{["Choose GPT, Claude, Gemini, or Grok", "Import the website without losing your expertise", "Review and govern every knowledge item", "Test the assistant before anyone else uses it"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}</div>
+            <h1 className="mt-5 text-4xl font-semibold leading-[.98] tracking-[-.055em] text-white sm:text-6xl 2xl:text-7xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
+            <p className="mt-6 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg">Choose the model that learns your business, review what it finds, and use the same approved Business Brain across every assistant you create.</p>
+            <div className="mt-7 grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">{["Choose GPT, Claude, Gemini, or Grok", "Import the website without losing your expertise", "Review and govern every knowledge item", "Test the assistant before anyone else uses it"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}</div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Build your Business Brain</button></SignUpButton><SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Sign in</button></SignInButton></div>
           </div>
           <DashboardProductPreview />
         </section>
 
-        <section className="relative mx-auto mt-20 grid max-w-7xl items-center gap-10 border-t border-white/[0.07] pt-16 xl:grid-cols-[1.12fr_.88fr] xl:gap-14">
+        <section className="relative mt-5 grid w-full items-stretch gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,.65fr)] 2xl:gap-6">
           <BuilderProductPreview />
-          <div><ShellLabel>Website intelligence</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Bring in the website. Keep your expertise in control.</h2><p className="mt-5 max-w-xl text-base leading-7 text-slate-400">Arkena safely crawls the public website, organizes what matters, and keeps imported knowledge separate from the information only you can provide.</p><div className="mt-7 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">{["Products, services, pricing, FAQs, policies, and structured data", "Your answers always take priority over imported website knowledge", "The crawl result becomes a reviewable source, not hidden model context"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}</div></div>
+          <div className="flex h-full flex-col justify-center rounded-[24px] bg-[#020202] px-7 py-10 sm:px-10 xl:px-12"><ShellLabel>Website intelligence</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Bring in the website. Keep your expertise in control.</h2><p className="mt-5 text-base leading-7 text-slate-400">Arkena safely crawls the public website, organizes what matters, and keeps imported knowledge separate from the information only you can provide.</p><div className="mt-7 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">{["Products, services, pricing, FAQs, policies, and structured data", "Your answers always take priority over imported website knowledge", "The crawl result becomes a reviewable source, not hidden model context"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}</div></div>
         </section>
 
-        <section className="relative mx-auto mt-20 grid max-w-7xl gap-10 border-t border-white/[0.07] pt-16 xl:grid-cols-2 xl:gap-14">
-          <div className="grid items-center gap-10 lg:grid-cols-[.88fr_1.12fr] xl:grid-cols-1">
-            <div><ShellLabel>Model freedom</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Pick the model that builds it. Change the model that answers.</h2><p className="mt-5 max-w-xl text-base leading-7 text-slate-400">The Business Brain is the stable layer. GPT, Claude, Gemini, and Grok can all work from the same approved business knowledge.</p><div className="mt-7 grid gap-4 sm:grid-cols-2"><div className={dashboardPanel}><p className="text-sm font-semibold text-white">One Brain</p><p className="mt-2 text-sm leading-6 text-slate-500">No rebuilding company context every time the model changes.</p></div><div className={dashboardPanel}><p className="text-sm font-semibold text-white">Real comparison</p><p className="mt-2 text-sm leading-6 text-slate-500">Test which model represents the business most accurately.</p></div></div></div>
+        <section className="relative mt-5 grid w-full items-stretch gap-5 xl:grid-cols-2 2xl:gap-6">
+          <div className="grid h-full gap-5 rounded-[24px] bg-[#020202] p-5 lg:grid-cols-[.72fr_1.28fr] xl:grid-cols-1 2xl:grid-cols-[.72fr_1.28fr]">
+            <div className="flex flex-col justify-center px-2 py-3"><ShellLabel>Model freedom</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-4xl">Pick the model that builds it. Change the model that answers.</h2><p className="mt-5 text-base leading-7 text-slate-400">The Business Brain is the stable layer. GPT, Claude, Gemini, and Grok can all work from the same approved business knowledge.</p></div>
             <ModelProductPreview />
           </div>
-
-          <div className="grid items-center gap-10 lg:grid-cols-[1.12fr_.88fr] xl:grid-cols-1">
+          <div className="grid h-full gap-5 rounded-[24px] bg-[#020202] p-5 lg:grid-cols-[1.28fr_.72fr] xl:grid-cols-1 2xl:grid-cols-[1.28fr_.72fr]">
             <ReviewProductPreview />
-            <div><ShellLabel>Review and approval</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Nothing becomes business memory until you review it.</h2><p className="mt-5 max-w-xl text-base leading-7 text-slate-400">The review screen gives you direct control over the Business Brain. Edit what is wrong, remove what should not be used, and approve the knowledge you trust.</p><div className="mt-7 grid gap-4 sm:grid-cols-3 xl:grid-cols-1">{["Business knowledge grouped into clear review sections", "Source-backed facts remain visible and governable", "The final Brain reflects the business owner’s decisions"].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}</div></div>
+            <div className="flex flex-col justify-center px-2 py-3"><ShellLabel>Review and approval</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-4xl">Nothing becomes business memory until you review it.</h2><p className="mt-5 text-base leading-7 text-slate-400">Edit what is wrong, remove what should not be used, and approve the knowledge you trust.</p></div>
           </div>
         </section>
 
-        <section className="relative mx-auto mt-20 max-w-7xl overflow-hidden rounded-[32px] border border-white/[0.08] bg-[#020202] px-6 py-10 shadow-[0_36px_110px_rgba(0,0,0,.55)] sm:px-10 lg:px-14">
-          <div className="grid items-center gap-10 lg:grid-cols-[.9fr_1.1fr]">
-            <div><ShellLabel>Use it your way</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Your Brain should not belong to one chatbot.</h2><p className="mt-5 max-w-xl text-base leading-7 text-slate-400">Host the assistant with Arkena, test it inside the workspace, add it to a website, or export the approved knowledge as a Knowledge Pack.</p><div className="mt-7 flex flex-col gap-3 sm:flex-row"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Start building</button></SignUpButton><SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Open existing Brain</button></SignInButton></div></div>
-            <div className="grid gap-4 sm:grid-cols-2">{["Hosted assistant", "Website widget", "Knowledge Pack", "Any AI model"].map((label) => <div key={label} className={dashboardPanel}><p className="text-sm font-semibold text-white">{label}</p><p className="mt-2 text-xs leading-5 text-slate-500">Powered by the same approved business knowledge.</p><div className={`mt-4 w-fit ${aiBuilderCornerCtaClassName}`}>Open</div></div>)}</div>
-          </div>
+        <section className="relative mt-5 grid w-full items-stretch gap-5 rounded-[28px] border border-white/[0.08] bg-[#020202] p-6 shadow-[0_36px_110px_rgba(0,0,0,.55)] lg:grid-cols-[.7fr_1.3fr] xl:p-8">
+          <div className="flex flex-col justify-center"><ShellLabel>Use it your way</ShellLabel><h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Your Brain should not belong to one chatbot.</h2><p className="mt-5 max-w-2xl text-base leading-7 text-slate-400">Host the assistant with Arkena, test it inside the workspace, add it to a website, or export the approved knowledge as a Knowledge Pack.</p><div className="mt-7 flex flex-col gap-3 sm:flex-row"><SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Start building</button></SignUpButton><SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Open existing Brain</button></SignInButton></div></div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{["Hosted assistant", "Website widget", "Knowledge Pack", "Any AI model"].map((label) => <div key={label} className={dashboardPanel}><p className="text-sm font-semibold text-white">{label}</p><p className="mt-2 text-xs leading-5 text-slate-500">Powered by the same approved business knowledge.</p><div className={`mt-4 w-fit ${aiBuilderCornerCtaClassName}`}>Open</div></div>)}</div>
         </section>
       </main>
     </div>
