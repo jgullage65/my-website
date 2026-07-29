@@ -204,7 +204,8 @@ export default function AiBuilderProjects() {
   return (
     <AiBuilderShell>
       {confirmDialogNode}
-      <div className="relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:mx-auto min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:py-6 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
+      <div className="contents min-[1200px]:fixed min-[1200px]:inset-0 min-[1200px]:z-[100] min-[1200px]:flex min-[1200px]:items-center min-[1200px]:justify-center min-[1200px]:bg-black/75 min-[1200px]:p-8 min-[1200px]:backdrop-blur-md">
+      <section className="relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:flex min-[1200px]:max-h-[90dvh] min-[1200px]:max-w-[1100px] min-[1200px]:flex-col min-[1200px]:overflow-y-auto min-[1200px]:rounded-[24px] min-[1200px]:border min-[1200px]:border-white/[0.1] min-[1200px]:bg-[#030303] min-[1200px]:px-10 min-[1200px]:py-6 min-[1200px]:shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
         <div className="relative text-center">
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
           <h1 className="mt-2 text-2xl font-black tracking-[-.035em] text-white sm:text-3xl min-[1200px]:mt-1">Projects</h1>
@@ -235,6 +236,7 @@ export default function AiBuilderProjects() {
             <ProjectGrid projects={visibleProjects} archived={view === "archived"} menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
           </div>
         ) : null}
+      </section>
       </div>
     </AiBuilderShell>
   );
