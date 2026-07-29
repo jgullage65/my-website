@@ -30,14 +30,14 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
 
         body[data-ai-builder-workspace="true"] .ai-builder-shell {
           width: 100%;
-          min-height: calc(100dvh - 56px);
+          min-height: 100dvh;
           background: #000;
         }
 
         body[data-ai-builder-workspace="true"] .ai-builder-shell__content {
           width: 100%;
           max-width: none;
-          min-height: calc(100dvh - 56px);
+          min-height: 100dvh;
           margin: 0;
           padding: 0;
           background: #000;
@@ -45,7 +45,7 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
 
         @media (min-width: 1280px) {
           body[data-ai-builder-workspace="true"] .ai-builder-shell {
-            height: calc(100dvh - 56px);
+            height: 100dvh;
             min-height: 0;
             overflow: hidden;
           }

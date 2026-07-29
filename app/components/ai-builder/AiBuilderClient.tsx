@@ -19,6 +19,7 @@ import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
+import AiBuilderProjects from "./AiBuilderProjects";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import "./AiBuilderFormOverrides.css";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
@@ -144,6 +145,7 @@ async function fetchProject(projectId: string): Promise<ProjectResponse> {
 export default function AiBuilderClient({ initialProjectId = null }: Props) {
   const [step, setStep] = useState<BuilderStep>(initialProjectId ? "loading" : "form");
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("dashboard");
+  const [projectsOpen, setProjectsOpen] = useState(false);
   const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
   const [builder, setBuilder] = useState(initial);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
@@ -267,6 +269,15 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     window.addEventListener("keydown", closeMenu);
     return () => window.removeEventListener("keydown", closeMenu);
   }, [mobileWorkspaceMenuOpen]);
+
+  useEffect(() => {
+    if (!projectsOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProjectsOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [projectsOpen]);
 
   const navigateToStep = useCallback((nextStep: BuilderStep) => {
     setStep(nextStep);
@@ -431,16 +442,15 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
         <button
           type="button"
-          onClick={() => window.location.assign("/ai-builder")}
-          className="mb-7 inline-flex items-center text-xs font-semibold text-slate-500 transition hover:text-white"
+          onClick={() => setProjectsOpen(true)}
+          className="mb-7 inline-flex items-center text-xs font-semibold text-white transition hover:text-amber-200"
         >
           ← All Projects
         </button>
-        <div className="mb-5 border-b border-white/[0.08] px-3 pb-5">
-          <p className="truncate text-sm font-semibold text-slate-200">{builder.businessName || "AI Builder Project"}</p>
-          <p className="mt-1 truncate text-xs text-slate-600">{builder.website || builder.industry || "Project workspace"}</p>
+        <div className="mb-5 border-b border-white/[0.08] px-3 pb-5 text-center">
+          <p className="truncate text-sm font-semibold text-white">{builder.businessName || "AI Builder Project"}</p>
         </div>
-        <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-600">Workspace</p>
+        <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
         <nav className="mt-3 space-y-0.5">
           {WORKSPACE_ITEMS.map(([value, label]) => (
             <button
@@ -450,7 +460,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
               className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
                 workspaceTab === value
                   ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
-                  : "text-slate-500 hover:bg-white/[0.035] hover:text-slate-200"
+                  : "text-white hover:bg-white/[0.035]"
               }`}
             >
               {label}
@@ -459,7 +469,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         </nav>
         <div className="mt-auto border-t border-white/[0.08] pt-4">
           <SignOutButton redirectUrl="/ai-builder">
-            <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-slate-500 transition hover:bg-white/[0.035] hover:text-slate-200">Sign out</button>
+            <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
           </SignOutButton>
         </div>
       </aside>
@@ -467,8 +477,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
         <header className="flex min-h-[76px] flex-none items-center justify-center border-b border-white/[0.08] px-6 py-3 text-center min-[1400px]:px-8">
           <div className="min-w-0 max-w-full text-center">
-            <h1 className="truncate text-base font-semibold text-slate-100">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</h1>
-            <p className="mt-1 truncate text-xs leading-5 text-slate-500">{WORKSPACE_DESCRIPTIONS[workspaceTab]}</p>
+            <h1 className="truncate text-xl font-semibold text-slate-100">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</h1>
           </div>
         </header>
 
@@ -541,6 +550,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           />
         </div>
       </aside>
+
+      {projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
     </div>
   ) : null;
 

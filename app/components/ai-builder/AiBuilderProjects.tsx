@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SignOutButton, useAuth } from "@clerk/nextjs";
-import { useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderLanding from "./AiBuilderLanding";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
@@ -39,7 +39,7 @@ function domain(value: string | null) {
   }
 }
 
-export default function AiBuilderProjects() {
+export default function AiBuilderProjects({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void } = {}) {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -202,13 +202,15 @@ export default function AiBuilderProjects() {
   if (isLoaded && !isSignedIn) return <AiBuilderShell><AiBuilderLanding /></AiBuilderShell>;
 
   return (
-    <AiBuilderShell>
+    <ProjectsFrame embedded={embedded}>
       {confirmDialogNode}
-      <div className="relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:mx-auto min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
+      <div role="presentation" className="contents min-[1200px]:fixed min-[1200px]:inset-0 min-[1200px]:z-[100] min-[1200px]:flex min-[1200px]:items-center min-[1200px]:justify-center min-[1200px]:bg-black/75 min-[1200px]:p-8 min-[1200px]:backdrop-blur-md">
+      <section role="dialog" aria-modal="true" aria-label="AI Builder projects" className="relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:flex min-[1200px]:max-h-[90dvh] min-[1200px]:max-w-[1100px] min-[1200px]:flex-col min-[1200px]:overflow-y-auto min-[1200px]:rounded-[24px] min-[1200px]:border min-[1200px]:border-white/[0.1] min-[1200px]:bg-[#030303] min-[1200px]:px-10 min-[1200px]:py-6 min-[1200px]:shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
+        {onClose ? <button type="button" onClick={onClose} className="absolute right-6 top-4 z-10 hidden rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white min-[1200px]:inline-flex">Done</button> : null}
         <div className="relative text-center">
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
-          <h1 className="mt-2 text-2xl font-black tracking-[-.035em] text-white sm:text-3xl">Projects</h1>
-          {isSignedIn ? <SignOutButton redirectUrl="/ai-builder"><button type="button" className="absolute right-0 top-0 rounded-lg border border-white/10 bg-black px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:text-white">Sign out</button></SignOutButton> : null}
+          <h1 className="mt-2 text-2xl font-black tracking-[-.035em] text-white sm:text-3xl min-[1200px]:mt-1">Projects</h1>
+          {isSignedIn ? <SignOutButton redirectUrl="/ai-builder"><button type="button" className="absolute right-0 top-0 rounded-lg border border-white/10 bg-black px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:text-white min-[1200px]:hidden">Sign out</button></SignOutButton> : null}
         </div>
 
         {error ? <div className="mt-6 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
@@ -222,21 +224,27 @@ export default function AiBuilderProjects() {
         ) : null}
 
         {isSignedIn && !loading && projects.length ? (
-          <div className="mt-8">
-            <div className="flex flex-col gap-4 border-b border-white/[.08] pb-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-8 min-[1200px]:mt-3">
+            <div className="flex flex-col gap-4 border-b border-white/[.08] pb-5 sm:flex-row sm:items-center sm:justify-between min-[1200px]:justify-center min-[1200px]:gap-2 min-[1200px]:pb-3">
               <div className="flex items-center gap-2 rounded-xl border border-white/[.08] bg-[#050505] p-1.5">
                 <ViewButton active={view === "active"} label="Active" count={openProjects.length} onClick={() => { setView("active"); setMenu(null); }} />
                 <ViewButton active={view === "archived"} label="Archived" count={archivedProjects.length} onClick={() => { setView("archived"); setMenu(null); }} />
               </div>
+              <SignOutButton redirectUrl="/ai-builder"><button type="button" className="hidden rounded-lg border border-white/10 bg-black px-3.5 py-3 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:text-white min-[1200px]:inline-flex">Sign out</button></SignOutButton>
               <button type="button" onClick={() => void beginProjectCreation()} className="inline-flex items-center justify-center rounded-lg border border-amber-300/20 bg-[#080808] px-5 py-3 text-sm font-black text-white transition hover:border-amber-300/35">New AI Builder Project</button>
             </div>
 
             <ProjectGrid projects={visibleProjects} archived={view === "archived"} menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
           </div>
         ) : null}
+      </section>
       </div>
-    </AiBuilderShell>
+    </ProjectsFrame>
   );
+}
+
+function ProjectsFrame({ embedded, children }: { embedded: boolean; children: ReactNode }) {
+  return embedded ? <>{children}</> : <AiBuilderShell>{children}</AiBuilderShell>;
 }
 
 function ViewButton({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
@@ -246,7 +254,7 @@ function ViewButton({ active, label, count, onClick }: { active: boolean; label:
 function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArchive, onRestore }: { projects: Project[]; archived: boolean; menu: string | null; busy: string | null; setMenu: (id: string | null) => void; onRename: (project: Project) => void; onArchive: (project: Project) => void; onRestore: (project: Project) => void }) {
   if (!projects.length) return <div className="mt-5 rounded-xl border border-white/[.08] bg-[#050505] px-6 py-10 text-center"><p className="text-sm text-slate-400">No {archived ? "archived" : "active"} projects.</p></div>;
 
-  return <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{projects.map((project) => (
+  return <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-2">{projects.map((project) => (
     <article key={project.id} className="relative rounded-xl border border-white/[.09] bg-[#070707] px-4 py-3 transition hover:border-amber-300/25">
       <div className="grid grid-cols-[minmax(0,1fr)_minmax(112px,.72fr)_minmax(112px,.72fr)_auto] items-start gap-3">
         <div className="min-w-0">

@@ -22,7 +22,7 @@ export default function SiteChrome({ children, year }: { children: ReactNode; ye
 
   return (
     <div className={`relative z-10 overflow-x-hidden ${isAiBuilder ? "xl:h-dvh xl:min-h-0 xl:overflow-hidden" : "min-h-screen"}`}>
-      <header className="sticky top-0 z-50 border-b border-[rgba(212,175,55,0.16)] bg-[rgba(3,7,19,0.78)] backdrop-blur-xl">
+      {!isAiBuilder ? <header className="sticky top-0 z-50 border-b border-[rgba(212,175,55,0.16)] bg-[rgba(3,7,19,0.78)] backdrop-blur-xl">
         <div className="relative mx-auto flex min-h-14 w-[calc(100%-1.5rem)] max-w-[90rem] items-center justify-between gap-5 px-4 py-2 min-[1200px]:w-[calc(100%-3rem)] min-[1200px]:px-6">
           <Link href="/" className="group flex min-w-0 items-center gap-3">
             <Image
@@ -68,9 +68,9 @@ export default function SiteChrome({ children, year }: { children: ReactNode; ye
             <SiteNavLinks mobile />
           </div>
         </nav>
-      </header>
+      </header> : null}
 
-      <main className={isAiBuilder ? "site-page-shell xl:h-[calc(100dvh-56px)] xl:min-h-0 xl:overflow-hidden" : "site-page-shell min-h-[70vh]"}>
+      <main className={isAiBuilder ? "site-page-shell min-h-dvh xl:h-dvh xl:min-h-0 xl:overflow-hidden" : "site-page-shell min-h-[70vh]"}>
         {children}
       </main>
 
