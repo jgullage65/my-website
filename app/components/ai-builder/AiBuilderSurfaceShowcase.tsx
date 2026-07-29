@@ -36,6 +36,11 @@ export default function AiBuilderSurfaceShowcase({
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [builderValue, setBuilderValue] = useState(builder);
   const [selectedModel, setSelectedModel] = useState(models[0]?.id ?? "");
+  const surfaceHeight = activeSlide === "builder"
+    ? "h-[760px] sm:h-[820px] xl:h-[760px] 2xl:h-[820px]"
+    : activeSlide === "review"
+      ? "h-[650px] sm:h-[700px] xl:h-[660px] 2xl:h-[720px]"
+      : "h-[500px] sm:h-[540px]";
 
   useEffect(() => {
     setBuilderValue(builder);
