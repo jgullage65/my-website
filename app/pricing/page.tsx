@@ -195,7 +195,7 @@ function PriceCard({
 }) {
   return (
     <article className="relative flex h-full flex-col rounded-[1.35rem] border border-[rgba(212,175,55,.14)] bg-[linear-gradient(145deg,rgba(9,16,32,.96),rgba(2,5,14,.99))] p-6 shadow-[0_28px_80px_rgba(0,0,0,.34)]">
-      <h3 className="text-center text-2xl font-black tracking-[-.04em] text-white">{option.title}</h3>
+      <h3 className="text-center text-2xl font-medium tracking-[-.04em] text-white">{option.title}</h3>
       <p className="mt-3 text-center text-3xl font-black text-[var(--gold)]">{option.price}</p>
       <p
         className={`mt-3 text-sm leading-6 text-[var(--muted)] ${
@@ -230,7 +230,7 @@ function PriceCard({
 
 export default function PricingPage() {
   return (
-    <main className="overflow-hidden bg-[#030713] text-white">
+    <main className="overflow-hidden bg-[#020817] text-white">
       <div className="border-t border-[rgba(212,175,55,.10)]">
         {pricingSections.map((section) => {
           const centerCardContent =
@@ -241,10 +241,10 @@ export default function PricingPage() {
             section.eyebrow === "AI Systems";
 
           return (
-            <section key={section.eyebrow} className="mx-auto max-w-[94rem] border-b border-[rgba(212,175,55,.10)] px-5 py-14 sm:px-8 lg:px-10 lg:py-16">
+            <section key={section.eyebrow} className="max-[640px]:px-[0.1px] mx-auto max-w-[94rem] border-b border-[rgba(212,175,55,.10)] px-5 py-14 sm:px-8 lg:px-10 lg:py-16">
               <div className="mx-auto max-w-5xl text-center">
                 <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">{section.eyebrow}</p>
-                <h2 className="mt-4 text-3xl font-black tracking-[-.05em] sm:text-5xl">{section.title}</h2>
+                <h2 className="mt-4 text-2xl font-medium tracking-[-.05em] sm:text-3xl">{section.title}</h2>
                 <p className="mx-auto mt-4 max-w-3xl leading-7 text-[var(--muted)]">{section.description}</p>
               </div>
 
@@ -267,10 +267,10 @@ export default function PricingPage() {
         })}
       </div>
 
-      <section className="mx-auto max-w-[94rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
+      <section className="max-[640px]:px-[0.1px] mx-auto max-w-[94rem] px-5 py-16 sm:px-8 lg:px-10 lg:py-20">
         <div className="mx-auto max-w-5xl rounded-[1.75rem] border border-[rgba(212,175,55,.18)] bg-[linear-gradient(145deg,rgba(11,20,40,.98),rgba(3,7,19,.98))] px-6 py-10 text-center shadow-[0_32px_100px_rgba(0,0,0,.38)] sm:px-10 sm:py-14">
           <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">Ready when you are</p>
-          <h2 className="mt-4 text-3xl font-black tracking-[-.05em] sm:text-5xl">Tell me what you want to build.</h2>
+          <h2 className="mt-4 text-2xl font-medium tracking-[-.05em] sm:text-3xl">Tell me what you want to build.</h2>
           <p className="mx-auto mt-4 max-w-2xl leading-7 text-[var(--muted)]">
             I will recommend the simplest option that fits your goals and send a clear custom quote before any work begins.
           </p>

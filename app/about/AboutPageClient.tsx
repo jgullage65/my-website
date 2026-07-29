@@ -98,7 +98,7 @@ function PortraitCard() {
             <p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">
               Founder
             </p>
-            <h2 className="mt-2 text-2xl font-black tracking-[-.04em] text-white">
+            <h2 className="mt-2 text-2xl font-medium tracking-[-.04em] text-white">
               James Gullage
             </h2>
             <p className="mt-1 text-sm leading-6 text-[var(--muted)]">
@@ -113,8 +113,8 @@ function PortraitCard() {
 
 export default function AboutPageClient() {
   return (
-    <div className="overflow-hidden bg-[#030713] text-white">
-      <Section className="relative mx-auto grid max-w-[94rem] gap-12 px-5 pb-16 pt-16 sm:px-8 lg:grid-cols-[.82fr_1.18fr] lg:px-10 lg:pb-24 lg:pt-24">
+    <div className="overflow-hidden bg-[#020817] text-white">
+      <Section className="max-[640px]:px-[0.1px] relative mx-auto grid max-w-[94rem] gap-12 px-5 pb-16 pt-16 sm:px-8 lg:grid-cols-[.82fr_1.18fr] lg:px-10 lg:pb-24 lg:pt-24">
         <div className="absolute inset-x-0 top-0 h-[52rem] bg-[radial-gradient(circle_at_12%_18%,rgba(212,175,55,.16),transparent_28rem),radial-gradient(circle_at_82%_12%,rgba(14,22,62,.72),transparent_38rem)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
 
@@ -124,7 +124,7 @@ export default function AboutPageClient() {
           <p className="text-xs font-black uppercase tracking-[.34em] text-[var(--gold)]">
             About JG Creative Studio
           </p>
-          <h1 className="mx-auto mt-5 max-w-4xl text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-6xl xl:text-[5.25rem]">
+          <h1 className="mx-auto mt-5 max-w-4xl text-3xl font-medium leading-[.94] tracking-[-.065em] sm:text-4xl xl:text-5xl">
             A creative technology studio for{" "}
             <span className="text-[var(--gold)]">modern business.</span>
           </h1>
@@ -146,7 +146,7 @@ export default function AboutPageClient() {
         </motion.div>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 text-center sm:px-8 lg:px-10">
+      <Section className="max-[640px]:px-[0.1px] mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 text-center sm:px-8 lg:px-10">
         <motion.p
           variants={fadeUp}
           className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]"
@@ -155,7 +155,7 @@ export default function AboutPageClient() {
         </motion.p>
         <motion.h2
           variants={fadeUp}
-          className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl"
+          className="mx-auto mt-4 max-w-4xl text-2xl font-medium tracking-[-.055em] sm:text-3xl"
         >
           Clear thinking, <span className="text-[var(--gold)]">polished design</span>,
           and systems that support the real workflow.
@@ -167,7 +167,7 @@ export default function AboutPageClient() {
               key={item.title}
               className="rounded-[1.35rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-6 text-center shadow-[0_28px_80px_rgba(0,0,0,.34)]"
             >
-              <h3 className="text-2xl font-black tracking-[-.04em] text-[var(--gold)]">
+              <h3 className="text-2xl font-medium tracking-[-.04em] text-[var(--gold)]">
                 {item.title}
               </h3>
               <p className="mt-4 text-sm leading-7 text-[var(--muted)]">
@@ -178,12 +178,12 @@ export default function AboutPageClient() {
         </div>
       </Section>
 
-      <Section className="mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-10">
+      <Section className="max-[640px]:px-[0.1px] mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-10">
         <motion.div variants={fadeUp} className="self-center text-center">
           <p className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">
             Why it started
           </p>
-          <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl">
+          <h2 className="mx-auto mt-4 max-w-3xl text-2xl font-medium leading-[.96] tracking-[-.055em] sm:text-3xl">
             <span className="text-[var(--gold)]">Better businesses</span> deserve
             better digital systems.
           </h2>

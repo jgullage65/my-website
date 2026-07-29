@@ -81,7 +81,7 @@ export default function ContactPageClient() {
   }, []);
 
   return (
-    <main className="fixed inset-0 z-[81] flex h-[100dvh] w-screen touch-none flex-col overflow-hidden overscroll-none bg-[#030713] text-white min-[1200px]:static min-[1200px]:block min-[1200px]:min-h-screen min-[1200px]:w-auto min-[1200px]:touch-auto min-[1200px]:overflow-visible min-[1200px]:overscroll-auto">
+    <main className="fixed inset-0 z-[81] flex h-[100dvh] w-screen touch-none flex-col overflow-hidden overscroll-none bg-[#020817] text-white min-[1200px]:static min-[1200px]:block min-[1200px]:min-h-screen min-[1200px]:w-auto min-[1200px]:touch-auto min-[1200px]:overflow-visible min-[1200px]:overscroll-auto">
       <style jsx global>{`
         .contact-field:-webkit-autofill,
         .contact-field:-webkit-autofill:hover,
@@ -114,7 +114,7 @@ export default function ContactPageClient() {
         }
       `}</style>
 
-      <section className="flex min-h-0 w-full flex-1 flex-col min-[1200px]:mx-auto min-[1200px]:max-w-5xl min-[1200px]:px-6 min-[1200px]:py-16">
+      <section className="max-[640px]:px-[0.1px] flex min-h-0 w-full flex-1 flex-col min-[1200px]:mx-auto min-[1200px]:max-w-5xl min-[1200px]:px-6 min-[1200px]:py-16">
         <section className={card}>
           <header className="relative mb-10 space-y-3 text-center">
             <button
@@ -125,7 +125,7 @@ export default function ContactPageClient() {
             >
               ✕
             </button>
-            <h1 className="text-4xl font-black tracking-[-.045em] text-[var(--gold)] min-[1200px]:text-5xl">Contact</h1>
+            <h1 className="text-3xl font-medium tracking-[-.045em] text-[var(--gold)] min-[1200px]:text-5xl">Contact</h1>
             <p className="mx-auto max-w-2xl text-lg leading-8 text-[var(--muted)]">
               Ready to get started? Send a message and I’ll respond as soon as possible.
             </p>
