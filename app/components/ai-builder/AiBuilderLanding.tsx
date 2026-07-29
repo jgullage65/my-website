@@ -3,350 +3,333 @@
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 
 const primaryButton =
-  "cta-raised inline-flex min-h-12 items-center justify-center rounded-xl border border-amber-300/25 bg-amber-300 px-5 py-3 text-sm font-black text-black transition duration-300 hover:-translate-y-0.5 hover:bg-amber-200";
+  "cta-raised inline-flex min-h-12 items-center justify-center rounded-xl border border-amber-300/20 bg-[#080808] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,.28),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-[#111111]";
 
 const secondaryButton =
-  "inline-flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-bold text-white transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-white/[0.06]";
+  "inline-flex min-h-12 items-center justify-center rounded-xl border border-white/10 bg-transparent px-5 py-3 text-sm font-bold text-slate-300 transition duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:text-white";
 
 const Check = () => (
-  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-amber-300/30 bg-amber-300/10 text-[11px] font-black text-amber-200">
+  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-amber-300/20 bg-[#070707] text-[11px] font-black text-amber-200">
     ✓
   </span>
 );
 
-const ModelChip = ({ name, active = false }: { name: string; active?: boolean }) => (
-  <span
-    className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-      active
-        ? "border-amber-300/40 bg-amber-300/12 text-amber-200 shadow-[0_0_24px_rgba(251,191,36,.12)]"
-        : "border-white/10 bg-black/40 text-slate-400"
-    }`}
-  >
-    {name}
-  </span>
+const ShellLabel = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-[10px] font-black uppercase tracking-[.24em] text-amber-300">{children}</p>
+);
+
+const WorkspacePreview = () => (
+  <div className="overflow-hidden rounded-[26px] border border-white/[0.09] bg-black shadow-[0_28px_90px_rgba(0,0,0,.6)]">
+    <div className="grid min-h-[470px] grid-cols-[118px_minmax(0,1fr)_190px] max-[900px]:grid-cols-[92px_minmax(0,1fr)] max-[900px]:[&_.assistant-pane]:hidden">
+      <aside className="border-r border-white/[0.08] bg-[#020202] p-4">
+        <p className="text-[10px] text-slate-500">← All Projects</p>
+        <div className="mt-5">
+          <p className="text-xs font-bold text-white">JG Creative Studio</p>
+          <p className="mt-1 truncate text-[10px] text-slate-600">jgecreativestudios.com</p>
+        </div>
+        <p className="mt-7 text-[9px] font-black uppercase tracking-[.18em] text-slate-600">Workspace</p>
+        <div className="mt-3 space-y-2 text-[10px] font-semibold">
+          {[
+            "Dashboard",
+            "Project Insights",
+            "Overview",
+            "Business Knowledge",
+            "Sources",
+            "Settings",
+          ].map((item, index) => (
+            <div key={item} className={`rounded-lg px-2 py-2 ${index === 0 ? "border-l-2 border-amber-300 bg-white/[0.05] text-amber-100" : "text-slate-500"}`}>
+              {item}
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      <section className="min-w-0 bg-black">
+        <div className="border-b border-white/[0.07] px-5 py-4 text-center">
+          <p className="text-sm font-semibold text-white">Dashboard</p>
+          <p className="mt-1 text-[10px] text-slate-600">Priorities, readiness, and recent project changes</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-3 border-b border-white/[0.07] px-4 py-3 text-[9px] text-slate-600">
+          {[
+            "Source connected",
+            "Knowledge generated",
+            "Review complete",
+            "Build completed",
+            "Assistant tested",
+          ].map((item, index) => (
+            <span key={item} className={index > 0 && index < 4 ? "text-amber-200" : ""}>{index > 0 && index < 4 ? "✓ " : "○ "}{item}</span>
+          ))}
+        </div>
+        <div className="grid gap-3 p-4 md:grid-cols-2">
+          <article className="min-h-36 rounded-2xl border border-white/[0.08] bg-[#030303] p-4">
+            <h3 className="text-center text-sm font-semibold text-white">Needs attention</h3>
+            <div className="mt-5 space-y-4 text-[11px]">
+              <div>
+                <p className="font-semibold text-white">No website source connected</p>
+                <p className="mt-1 text-slate-600">Import a website to broaden the assistant’s source material.</p>
+              </div>
+              <div className="border-t border-white/[0.06] pt-4">
+                <p className="font-semibold text-white">Assistant has not been tested</p>
+                <p className="mt-1 text-slate-600">Run a few real customer questions before launch.</p>
+              </div>
+            </div>
+          </article>
+          <article className="min-h-36 rounded-2xl border border-white/[0.08] bg-[#030303] p-4 text-center">
+            <h3 className="text-sm font-semibold text-white">Last AI build</h3>
+            <p className="mt-3 text-xs text-slate-600">Built Jul 18, 2026, 9:54 PM</p>
+            <div className="mx-auto mt-5 w-fit rounded-lg border border-amber-300/15 px-3 py-2 text-[11px] font-semibold text-white">✓ 0 Approved Q&A</div>
+          </article>
+          <article className="min-h-44 rounded-2xl border border-white/[0.08] bg-[#030303] p-4 text-center">
+            <h3 className="text-sm font-semibold text-white">Knowledge source mix</h3>
+            <p className="mt-5 text-[11px] leading-5 text-slate-600">Source composition will appear after knowledge is generated.</p>
+            <div className="mx-auto mt-5 w-fit rounded-lg border border-amber-300/15 px-3 py-2 text-[11px] font-semibold text-white">Inspect source material</div>
+          </article>
+          <article className="min-h-44 rounded-2xl border border-white/[0.08] bg-[#030303] p-4">
+            <h3 className="text-center text-sm font-semibold text-white">Recent project changes</h3>
+            <div className="mt-4 space-y-3 text-[10px]">
+              {["How can I contact LeadForge for support?", "Are subscriptions refundable?", "What features are included in LeadForge?"].map((item) => (
+                <div key={item} className="grid grid-cols-[90px_1fr] gap-3 border-t border-white/[0.05] pt-3">
+                  <span className="font-black uppercase tracking-[.08em] text-amber-200">Q&A archived</span>
+                  <span className="text-slate-400">{item}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <aside className="assistant-pane border-l border-white/[0.08] bg-[#020202] p-4">
+        <div className="text-center">
+          <ShellLabel>Live assistant test</ShellLabel>
+          <p className="mt-2 text-[9px] font-black uppercase tracking-[.22em] text-slate-500">Active model</p>
+        </div>
+        <div className="mt-3 rounded-lg border border-amber-300/25 bg-black px-3 py-2.5 text-center text-[11px] font-semibold text-white">Claude Sonnet⌄</div>
+        <div className="mt-6 rounded-2xl border border-amber-300/20 bg-[#070707] p-3 text-[11px] leading-5 text-slate-200">Hi, I’m LeadForge AI. Ask me anything about this business.</div>
+        <div className="mt-40 border-t border-white/[0.06] pt-4">
+          <div className="mb-3 w-fit rounded-lg border border-amber-300/20 px-3 py-2 text-[10px] font-semibold text-white">Buy This AI Assistant</div>
+          <div className="rounded-2xl border border-amber-300/20 bg-[#070707] p-3 text-[10px] leading-5 text-slate-600">Ask about services, pricing, policies, or the business...</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+);
+
+const BuilderPreview = () => (
+  <div className="overflow-hidden rounded-[26px] border border-white/[0.09] bg-black p-5 shadow-[0_28px_90px_rgba(0,0,0,.6)]">
+    <div className="grid gap-5 lg:grid-cols-[.8fr_1.2fr]">
+      <div className="space-y-4">
+        <div className="text-center">
+          <ShellLabel>AI Builder</ShellLabel>
+          <p className="mt-2 text-[9px] font-black uppercase tracking-[.22em] text-slate-500">Active model</p>
+          <div className="mx-auto mt-2 max-w-[270px] rounded-lg border border-amber-300/25 bg-black px-4 py-2.5 text-xs font-semibold text-white">GPT-5.5⌄</div>
+        </div>
+        <article className="rounded-2xl border border-amber-300/20 bg-[#050505] p-4 text-center">
+          <ShellLabel>Connect your website</ShellLabel>
+          <p className="mx-auto mt-3 max-w-md text-xs leading-5 text-slate-500">We safely crawl public pages and organize the useful information into a read-only source.</p>
+          <div className="mt-4 rounded-xl border border-white/10 bg-black px-4 py-3 text-xs text-slate-400">https://yourbusiness.com</div>
+          <div className="mx-auto mt-3 max-w-xs rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-3 text-xs font-semibold text-white">Import Website</div>
+        </article>
+        <article className="rounded-2xl border border-amber-300/20 bg-[#050505] p-4 text-center">
+          <ShellLabel>Communication style</ShellLabel>
+          <p className="mt-3 text-sm font-semibold text-white">How should your AI sound?</p>
+          <div className="mt-4 rounded-xl border border-white/10 bg-black px-4 py-3 text-xs text-slate-300">Professional⌄</div>
+        </article>
+      </div>
+      <div>
+        <div className="text-center">
+          <ShellLabel>Your expertise</ShellLabel>
+          <p className="mt-2 text-xs text-slate-500">Your answers always take priority over imported website knowledge.</p>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {[
+            ["Business profile", "JG Creative Studio\nWeb design and AI automation agency"],
+            ["Products & Services", "Describe services, packages, deliverables, pricing structure, and what each option is for."],
+            ["Ideal Customers", "Describe your best-fit customers, industries, locations, needs, and goals."],
+            ["Additional Business Knowledge", "Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know."],
+          ].map(([title, copy]) => (
+            <article key={title} className="min-h-40 rounded-2xl border border-amber-300/18 bg-[#050505] p-4 text-center">
+              <h3 className="text-sm font-semibold text-white">{title}</h3>
+              <div className="mt-4 whitespace-pre-line rounded-xl border border-white/10 bg-black px-4 py-4 text-xs leading-5 text-slate-400">{copy}</div>
+            </article>
+          ))}
+        </div>
+        <article className="mx-auto mt-4 max-w-xl rounded-2xl border border-amber-300/18 bg-[#050505] p-4 text-center">
+          <ShellLabel>Final step</ShellLabel>
+          <p className="mt-3 text-sm font-semibold text-white">Ready to build your AI?</p>
+          <div className="mx-auto mt-4 w-fit rounded-lg border border-white/10 px-4 py-2 text-xs text-slate-500">Build My AI</div>
+        </article>
+      </div>
+    </div>
+  </div>
+);
+
+const ReviewPreview = () => (
+  <div className="rounded-[26px] border border-white/[0.09] bg-black p-5 shadow-[0_28px_90px_rgba(0,0,0,.6)]">
+    <div className="mx-auto max-w-2xl rounded-[24px] border border-white/[0.09] bg-[#020202]">
+      <div className="flex items-center justify-between border-b border-white/[0.07] px-5 py-4">
+        <div className="text-center">
+          <p className="text-sm font-semibold text-white">Business Knowledge</p>
+          <p className="mt-1 text-[10px] text-slate-600">Review and govern the assistant’s business memory</p>
+        </div>
+        <div className="rounded-lg border border-white/10 px-3 py-2 text-[10px] font-semibold text-white">Done</div>
+      </div>
+      <div className="space-y-6 p-5">
+        {[
+          ["Mission / Value Proposition", "Tagline / value proposition", "Premium websites. AI systems built for real business."],
+          ["Products", "AI Systems (product)", "Custom AI copilots, customer support AI, internal knowledge assistants, CRM automation, scheduling systems, dashboards, and multi-step workflows."],
+          ["Customer Segments", "Served customer types", "Businesses that need sharper digital presence and operational tools; pricing explicitly references established businesses."],
+        ].map(([section, title, copy]) => (
+          <div key={section}>
+            <div className="mb-3 flex items-center gap-3"><div className="h-px flex-1 bg-white/[0.06]" /><p className="text-[9px] font-black uppercase tracking-[.24em] text-slate-400">{section}</p><div className="h-px flex-1 bg-white/[0.06]" /></div>
+            <article className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#050505] text-center">
+              <div className="p-5">
+                <h3 className="text-sm font-semibold text-white">{title}</h3>
+                <p className="mx-auto mt-3 max-w-xl text-xs leading-6 text-slate-400">{copy}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 border-t border-white/[0.07] p-3 text-[10px] font-semibold text-white">
+                <div className="rounded-lg border border-amber-300/15 px-3 py-2">Edit</div>
+                <div className="rounded-lg border border-amber-300/15 px-3 py-2">Remove</div>
+              </div>
+            </article>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+const ModelMenuPreview = () => (
+  <div className="rounded-[26px] border border-white/[0.09] bg-black p-5 shadow-[0_28px_90px_rgba(0,0,0,.6)]">
+    <p className="text-center text-[9px] font-black uppercase tracking-[.22em] text-slate-500">Active model</p>
+    <div className="mx-auto mt-3 max-w-sm rounded-lg border border-amber-300/25 bg-black px-4 py-3 text-center text-sm font-semibold text-white">GPT-5.5⌃</div>
+    <div className="mx-auto mt-2 max-w-sm rounded-2xl border border-amber-300/20 bg-[#020202] p-4 text-sm">
+      {[
+        ["OpenAI", ["GPT-5 mini", "GPT-5", "GPT-5.5", "GPT-5.5 Pro"]],
+        ["Anthropic", ["Claude Haiku", "Claude Sonnet", "Claude Opus"]],
+        ["Google", ["Gemini 2.5 Flash", "Gemini 2.5 Pro"]],
+        ["xAI", ["Grok Fast", "Grok"]],
+      ].map(([group, items]) => (
+        <div key={group as string} className="mb-4 last:mb-0">
+          <p className="text-[9px] font-black uppercase tracking-[.2em] text-slate-500">{group}</p>
+          <div className="mt-2 space-y-1 text-slate-300">
+            {(items as string[]).map((item) => (
+              <div key={item} className={`flex items-center justify-between rounded-lg px-2 py-1.5 ${item === "GPT-5.5" ? "border border-amber-300/20 bg-white/[0.02] text-white" : ""}`}>
+                <span>{item}</span>{item === "GPT-5.5 Pro" ? <span className="text-[9px] font-black uppercase tracking-[.12em] text-amber-200">High usage</span> : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
 );
 
 export default function AiBuilderLanding() {
   return (
     <div className="h-full overflow-y-auto bg-black text-white">
-      <main className="relative overflow-hidden px-5 pb-20 pt-10 sm:px-8 sm:pt-14 xl:px-14 xl:pb-28 xl:pt-16 min-[1500px]:px-20">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-[760px] bg-[radial-gradient(circle_at_72%_18%,rgba(245,158,11,.14),transparent_28%),radial-gradient(circle_at_14%_8%,rgba(255,255,255,.05),transparent_22%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:44px_44px] [mask-image:linear-gradient(to_bottom,black,transparent_76%)]" />
+      <main className="relative overflow-hidden px-5 pb-24 pt-10 sm:px-8 sm:pt-14 xl:px-14 xl:pb-28 xl:pt-16 min-[1500px]:px-20">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.018)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:linear-gradient(to_bottom,black,transparent_64%)]" />
 
-        <section className="relative mx-auto grid w-full max-w-7xl items-center gap-14 lg:grid-cols-[minmax(0,.88fr)_minmax(520px,1.12fr)] lg:gap-16">
+        <section className="relative mx-auto grid w-full max-w-7xl items-center gap-14 lg:grid-cols-[minmax(0,.78fr)_minmax(560px,1.22fr)] lg:gap-16">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/20 bg-amber-300/[0.06] px-3 py-1.5 text-xs font-black uppercase tracking-[.2em] text-amber-200">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-300" />
-              Arkena AI Builder
-            </div>
-
-            <h1 className="mt-6 text-4xl font-semibold leading-[.98] tracking-[-.055em] text-white sm:text-6xl xl:text-7xl">
+            <ShellLabel>Arkena AI Builder</ShellLabel>
+            <h1 className="mt-5 text-4xl font-semibold leading-[.98] tracking-[-.055em] text-white sm:text-6xl xl:text-7xl">
               Build the Brain.
-              <span className="block bg-gradient-to-r from-amber-100 via-amber-300 to-amber-500 bg-clip-text text-transparent">
-                Keep the knowledge.
-              </span>
+              <span className="block text-slate-400">Keep the knowledge.</span>
             </h1>
-
             <p className="mt-6 max-w-xl text-base leading-7 text-slate-400 sm:text-lg">
-              Choose the model that learns your business, review every fact it finds, then use the same approved Business Brain anywhere you want.
+              Choose the model that learns your business, review what it finds, and use the same approved Business Brain across every assistant you create.
             </p>
-
             <div className="mt-7 grid max-w-xl gap-3 sm:grid-cols-2">
               {[
-                "Pick the model that builds it",
-                "Approve knowledge before it is used",
-                "Compare answers across AI models",
-                "Host it, embed it, or export it",
+                "Choose GPT, Claude, Gemini, or Grok",
+                "Import the website without losing your expertise",
+                "Review and govern every knowledge item",
+                "Test the assistant before anyone else uses it",
               ].map((item) => (
-                <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300">
-                  <Check />
-                  <span>{item}</span>
-                </div>
+                <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>
               ))}
             </div>
-
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <SignUpButton mode="modal" forceRedirectUrl="/ai-builder">
-                <button type="button" className={primaryButton}>Build your Business Brain</button>
-              </SignUpButton>
-              <SignInButton mode="modal" forceRedirectUrl="/ai-builder">
-                <button type="button" className={secondaryButton}>Sign in</button>
-              </SignInButton>
+              <SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Build your Business Brain</button></SignUpButton>
+              <SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Sign in</button></SignInButton>
             </div>
           </div>
-
-          <div className="relative mx-auto w-full max-w-3xl lg:mx-0">
-            <div className="pointer-events-none absolute -inset-12 rounded-full bg-amber-400/[0.07] blur-3xl" />
-            <div className="relative min-h-[520px] overflow-hidden rounded-[30px] border border-white/10 bg-[#050505]/95 p-3 shadow-[0_40px_120px_rgba(0,0,0,.72),0_0_0_1px_rgba(245,158,11,.04)] sm:p-4">
-              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/60 to-transparent" />
-              <div className="flex items-center justify-between rounded-2xl border border-white/[0.07] bg-black/70 px-4 py-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[.18em] text-slate-500">Business Brain</p>
-                  <p className="mt-1 text-sm font-semibold text-white">Acme Growth Studio</p>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-emerald-300">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-300" />
-                  Live build
-                </div>
-              </div>
-
-              <div className="mt-3 grid gap-3 md:grid-cols-[.92fr_1.08fr]">
-                <div className="space-y-3">
-                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-black uppercase tracking-[.16em] text-amber-200">Source crawl</p>
-                      <span className="text-xs text-slate-500">18 pages</span>
-                    </div>
-                    <div className="mt-4 space-y-3">
-                      {[
-                        ["Services", "Mapped"],
-                        ["Pricing", "Verified"],
-                        ["FAQ", "Extracted"],
-                        ["Policies", "Linked"],
-                      ].map(([label, status], index) => (
-                        <div key={label} className="relative overflow-hidden rounded-xl border border-white/[0.07] bg-black/50 px-3 py-3">
-                          <div className="flex items-center justify-between gap-4">
-                            <span className="text-sm font-semibold text-slate-200">{label}</span>
-                            <span className="text-[11px] font-bold text-amber-200">{status}</span>
-                          </div>
-                          <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/[0.05]">
-                            <div
-                              className="h-full animate-[pulse_2.8s_ease-in-out_infinite] rounded-full bg-gradient-to-r from-amber-500 to-amber-200"
-                              style={{ width: `${72 + index * 7}%`, animationDelay: `${index * 160}ms` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
-                    <p className="text-xs font-black uppercase tracking-[.16em] text-slate-500">Choose the builder</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <ModelChip name="GPT" active />
-                      <ModelChip name="Claude" />
-                      <ModelChip name="Gemini" />
-                      <ModelChip name="Open model" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="relative rounded-2xl border border-white/[0.08] bg-[linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.015))] p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[.16em] text-slate-500">Knowledge review</p>
-                      <p className="mt-1 text-sm font-semibold text-white">Approve before the Brain goes live</p>
-                    </div>
-                    <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-2.5 py-1 text-[11px] font-black text-emerald-200">12 approved</span>
-                  </div>
-
-                  <div className="mt-4 space-y-3">
-                    {[
-                      ["Primary service", "AI-assisted lead generation for agencies"],
-                      ["Pricing", "Monthly plans from $99"],
-                      ["Ideal customer", "Small agencies and solo operators"],
-                    ].map(([title, copy], index) => (
-                      <div key={title} className="rounded-xl border border-white/[0.08] bg-black/50 p-3 transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/25">
-                        <div className="flex items-start gap-3">
-                          <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-amber-300/25 bg-amber-300/10 text-xs font-black text-amber-200">{index + 1}</span>
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-[.14em] text-slate-500">{title}</p>
-                            <p className="mt-1 text-sm leading-6 text-slate-200">{copy}</p>
-                          </div>
-                        </div>
-                        <div className="mt-3 flex items-center gap-2 pl-9 text-[11px] font-bold">
-                          <span className="rounded-md border border-emerald-300/20 bg-emerald-300/10 px-2 py-1 text-emerald-200">Approve</span>
-                          <span className="rounded-md border border-white/10 px-2 py-1 text-slate-400">Correct</span>
-                          <span className="rounded-md border border-white/10 px-2 py-1 text-slate-400">Remove</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3">
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-xs font-black uppercase tracking-[.14em] text-amber-200">Brain readiness</span>
-                      <span className="text-sm font-black text-white">84%</span>
-                    </div>
-                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/60">
-                      <div className="h-full w-[84%] rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-amber-100 shadow-[0_0_20px_rgba(251,191,36,.35)]" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="pointer-events-none absolute bottom-5 right-5 hidden rounded-2xl border border-white/10 bg-black/90 p-3 shadow-2xl sm:block sm:w-60 sm:animate-[float_5s_ease-in-out_infinite]">
-                <p className="text-[11px] font-black uppercase tracking-[.16em] text-amber-200">Model comparison</p>
-                <p className="mt-2 text-xs leading-5 text-slate-300">Claude gave the clearest answer using the same approved Brain.</p>
-                <div className="mt-3 flex items-center justify-between text-[11px]">
-                  <span className="text-slate-500">Answer quality</span>
-                  <span className="font-black text-emerald-200">9.4 / 10</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          <WorkspacePreview />
         </section>
 
-        <section className="relative mx-auto mt-28 grid max-w-7xl items-center gap-14 border-t border-white/[0.07] pt-20 lg:grid-cols-[1.02fr_.98fr] lg:gap-20">
-          <div className="relative order-2 lg:order-1">
-            <div className="absolute -inset-8 bg-[radial-gradient(circle_at_35%_50%,rgba(245,158,11,.12),transparent_38%)] blur-2xl" />
-            <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#050505] p-5 shadow-[0_30px_90px_rgba(0,0,0,.55)] sm:p-6">
-              <div className="flex items-center justify-between border-b border-white/[0.07] pb-4">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[.18em] text-amber-200">Intelligent crawl</p>
-                  <p className="mt-1 text-sm font-semibold text-white">arkanagrowth.com</p>
-                </div>
-                <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1 text-xs font-bold text-emerald-200">Complete</span>
-              </div>
-
-              <div className="mt-5 grid gap-4 sm:grid-cols-[180px_1fr]">
-                <div className="space-y-2">
-                  {[
-                    "Home",
-                    "Services",
-                    "Pricing",
-                    "Case studies",
-                    "FAQ",
-                    "Terms",
-                  ].map((item, index) => (
-                    <div key={item} className={`rounded-xl border px-3 py-2.5 text-xs font-bold ${index === 1 ? "border-amber-300/25 bg-amber-300/10 text-amber-200" : "border-white/[0.07] bg-black/40 text-slate-500"}`}>
-                      {item}
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-2xl border border-white/[0.08] bg-black/45 p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-black uppercase tracking-[.15em] text-slate-500">Extracted knowledge</p>
-                    <span className="text-xs text-slate-600">Source attached</span>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {[
-                      ["Service", "AI strategy and automation systems"],
-                      ["Audience", "Growth-focused service businesses"],
-                      ["Difference", "Business Brain stays portable"],
-                    ].map(([label, value]) => (
-                      <div key={label} className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
-                        <p className="text-[11px] font-black uppercase tracking-[.14em] text-amber-200">{label}</p>
-                        <p className="mt-1 text-sm leading-6 text-slate-300">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="order-1 lg:order-2">
-            <p className="text-xs font-black uppercase tracking-[.22em] text-amber-300">Website intelligence</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">It does not just scrape a homepage.</h2>
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-400">
-              Arkena follows the structure of the business, finds the pages that matter, separates useful facts from website clutter, and keeps the source attached.
-            </p>
+        <section className="relative mx-auto mt-28 grid max-w-7xl items-center gap-14 border-t border-white/[0.07] pt-20 lg:grid-cols-[1.08fr_.92fr] lg:gap-20">
+          <BuilderPreview />
+          <div>
+            <ShellLabel>Website intelligence</ShellLabel>
+            <h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Bring in the website. Keep your expertise in control.</h2>
+            <p className="mt-5 max-w-xl text-base leading-7 text-slate-400">Arkena safely crawls the public website, organizes what matters, and keeps imported knowledge separate from the information only you can provide.</p>
             <div className="mt-7 space-y-4">
               {[
-                "Follows important pages, sitemaps, PDFs, tables, and structured data",
-                "Finds services, pricing, policies, FAQs, integrations, and differentiators",
-                "Preserves source context so every important fact can be reviewed",
-              ].map((item) => (
-                <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300">
-                  <Check />
-                  <span>{item}</span>
-                </div>
-              ))}
+                "Products, services, pricing, FAQs, policies, and structured data",
+                "Your answers always take priority over imported website knowledge",
+                "The crawl result becomes a reviewable source, not hidden model context",
+              ].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}
             </div>
           </div>
         </section>
 
-        <section className="relative mx-auto mt-28 grid max-w-7xl items-center gap-14 border-t border-white/[0.07] pt-20 lg:grid-cols-[.92fr_1.08fr] lg:gap-20">
+        <section className="relative mx-auto mt-28 grid max-w-7xl items-center gap-14 border-t border-white/[0.07] pt-20 lg:grid-cols-[.88fr_1.12fr] lg:gap-20">
           <div>
-            <p className="text-xs font-black uppercase tracking-[.22em] text-amber-300">Model freedom</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Choose who builds it. Test who answers best.</h2>
-            <p className="mt-5 max-w-xl text-base leading-7 text-slate-400">
-              The knowledge stays consistent while the model changes. That means you can compare real answers instead of rebuilding the business context every time.
-            </p>
+            <ShellLabel>Model freedom</ShellLabel>
+            <h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Pick the model that builds it. Change the model that answers.</h2>
+            <p className="mt-5 max-w-xl text-base leading-7 text-slate-400">The Business Brain is the stable layer. GPT, Claude, Gemini, and Grok can all work from the same approved business knowledge.</p>
             <div className="mt-7 grid gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
-                <p className="text-sm font-semibold text-white">One approved Brain</p>
-                <p className="mt-2 text-sm leading-6 text-slate-500">The same source of truth powers every model you test.</p>
-              </div>
-              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4">
-                <p className="text-sm font-semibold text-white">Real side-by-side results</p>
-                <p className="mt-2 text-sm leading-6 text-slate-500">Compare clarity, accuracy, tone, and customer fit.</p>
-              </div>
+              <div className="rounded-2xl border border-white/[0.08] bg-[#030303] p-4"><p className="text-sm font-semibold text-white">One Brain</p><p className="mt-2 text-sm leading-6 text-slate-500">No rebuilding company context every time the model changes.</p></div>
+              <div className="rounded-2xl border border-white/[0.08] bg-[#030303] p-4"><p className="text-sm font-semibold text-white">Real comparison</p><p className="mt-2 text-sm leading-6 text-slate-500">Test which model represents the business most accurately.</p></div>
             </div>
           </div>
+          <ModelMenuPreview />
+        </section>
 
-          <div className="relative">
-            <div className="pointer-events-none absolute -inset-10 bg-[radial-gradient(circle_at_62%_45%,rgba(245,158,11,.12),transparent_38%)] blur-3xl" />
-            <div className="relative rounded-[28px] border border-white/10 bg-[#050505] p-5 shadow-[0_30px_90px_rgba(0,0,0,.55)] sm:p-6">
-              <div className="flex flex-wrap items-center gap-2">
-                <ModelChip name="GPT" />
-                <ModelChip name="Claude" active />
-                <ModelChip name="Gemini" />
-              </div>
-              <div className="mt-5 rounded-2xl border border-white/[0.08] bg-black/50 p-4">
-                <p className="text-xs font-black uppercase tracking-[.15em] text-slate-500">Customer question</p>
-                <p className="mt-2 text-sm leading-6 text-slate-200">What makes your service different from a normal chatbot setup?</p>
-              </div>
-              <div className="mt-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.055] p-4">
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-xs font-black uppercase tracking-[.15em] text-amber-200">Claude response</p>
-                  <span className="text-xs font-black text-emerald-200">Best match</span>
-                </div>
-                <p className="mt-3 text-sm leading-7 text-slate-200">
-                  Your Business Brain is reviewed and approved before it is used. It can then power different AI models, a hosted assistant, a website widget, or an exported Knowledge Pack without rebuilding the company context.
-                </p>
-                <div className="mt-4 grid grid-cols-3 gap-2 text-center text-[11px] font-bold">
-                  <div className="rounded-lg border border-white/[0.07] bg-black/40 px-2 py-2 text-slate-400"><span className="block text-sm text-white">9.6</span>Accuracy</div>
-                  <div className="rounded-lg border border-white/[0.07] bg-black/40 px-2 py-2 text-slate-400"><span className="block text-sm text-white">9.2</span>Clarity</div>
-                  <div className="rounded-lg border border-white/[0.07] bg-black/40 px-2 py-2 text-slate-400"><span className="block text-sm text-white">9.5</span>Brand fit</div>
-                </div>
-              </div>
+        <section className="relative mx-auto mt-28 grid max-w-7xl items-center gap-14 border-t border-white/[0.07] pt-20 lg:grid-cols-[1.08fr_.92fr] lg:gap-20">
+          <ReviewPreview />
+          <div>
+            <ShellLabel>Review and approval</ShellLabel>
+            <h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Nothing becomes business memory until you review it.</h2>
+            <p className="mt-5 max-w-xl text-base leading-7 text-slate-400">The review screen gives you direct control over the Business Brain. Edit what is wrong, remove what should not be used, and approve the knowledge you trust.</p>
+            <div className="mt-7 space-y-4">
+              {[
+                "Business knowledge grouped into clear review sections",
+                "Source-backed facts remain visible and governable",
+                "The final Brain reflects the business owner’s decisions",
+              ].map((item) => <div key={item} className="flex items-start gap-3 text-sm leading-6 text-slate-300"><Check /><span>{item}</span></div>)}
             </div>
           </div>
         </section>
 
-        <section className="relative mx-auto mt-28 max-w-7xl overflow-hidden rounded-[34px] border border-amber-300/15 bg-[linear-gradient(135deg,rgba(245,158,11,.08),rgba(255,255,255,.025)_42%,rgba(0,0,0,.8))] px-6 py-12 shadow-[0_40px_120px_rgba(0,0,0,.55)] sm:px-10 sm:py-16 lg:px-14">
-          <div className="pointer-events-none absolute right-0 top-0 h-72 w-72 rounded-full bg-amber-300/[0.08] blur-3xl" />
-          <div className="relative grid items-center gap-12 lg:grid-cols-[1fr_1.05fr]">
+        <section className="relative mx-auto mt-28 max-w-7xl overflow-hidden rounded-[32px] border border-white/[0.09] bg-[#020202] px-6 py-12 shadow-[0_36px_110px_rgba(0,0,0,.55)] sm:px-10 sm:py-16 lg:px-14">
+          <div className="grid items-center gap-12 lg:grid-cols-[.9fr_1.1fr]">
             <div>
-              <p className="text-xs font-black uppercase tracking-[.22em] text-amber-300">Portable by design</p>
+              <ShellLabel>Use it your way</ShellLabel>
               <h2 className="mt-4 text-3xl font-semibold tracking-[-.045em] text-white sm:text-5xl">Your Brain should not belong to one chatbot.</h2>
-              <p className="mt-5 max-w-xl text-base leading-7 text-slate-300">
-                Build and approve the knowledge once, then decide how it gets used. The Brain stays yours even when the interface, model, or platform changes.
-              </p>
+              <p className="mt-5 max-w-xl text-base leading-7 text-slate-400">Host the assistant with Arkena, test it inside the workspace, add it to a website, or export the approved knowledge as a Knowledge Pack.</p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <SignUpButton mode="modal" forceRedirectUrl="/ai-builder">
-                  <button type="button" className={primaryButton}>Start building</button>
-                </SignUpButton>
-                <SignInButton mode="modal" forceRedirectUrl="/ai-builder">
-                  <button type="button" className={secondaryButton}>Open existing Brain</button>
-                </SignInButton>
+                <SignUpButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={primaryButton}>Start building</button></SignUpButton>
+                <SignInButton mode="modal" forceRedirectUrl="/ai-builder"><button type="button" className={secondaryButton}>Open existing Brain</button></SignInButton>
               </div>
             </div>
-
-            <div className="relative min-h-[330px]">
-              <div className="absolute left-1/2 top-1/2 z-10 flex h-28 w-28 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[28px] border border-amber-300/30 bg-black shadow-[0_0_60px_rgba(245,158,11,.2)]">
-                <div className="text-center">
-                  <div className="mx-auto h-2.5 w-2.5 animate-pulse rounded-full bg-amber-300" />
-                  <p className="mt-3 text-xs font-black uppercase tracking-[.16em] text-amber-200">Business Brain</p>
-                </div>
+            <div className="relative min-h-[360px]">
+              <div className="absolute left-1/2 top-1/2 z-10 flex h-28 w-28 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[26px] border border-amber-300/20 bg-black shadow-[0_20px_60px_rgba(0,0,0,.55)]">
+                <div className="text-center"><span className="mx-auto block h-2 w-2 rounded-full bg-amber-300" /><p className="mt-3 text-[10px] font-black uppercase tracking-[.18em] text-amber-200">Business Brain</p></div>
               </div>
-              <div className="absolute left-1/2 top-1/2 h-px w-[72%] -translate-x-1/2 bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" />
-              <div className="absolute left-1/2 top-1/2 h-[72%] w-px -translate-y-1/2 bg-gradient-to-b from-transparent via-amber-300/35 to-transparent" />
-
+              <div className="absolute left-1/2 top-1/2 h-px w-[72%] -translate-x-1/2 bg-gradient-to-r from-transparent via-amber-300/25 to-transparent" />
+              <div className="absolute left-1/2 top-1/2 h-[72%] w-px -translate-y-1/2 bg-gradient-to-b from-transparent via-amber-300/25 to-transparent" />
               {[
                 ["Hosted assistant", "left-0 top-5"],
                 ["Website widget", "right-0 top-5"],
                 ["Knowledge Pack", "bottom-5 left-0"],
                 ["Any AI model", "bottom-5 right-0"],
               ].map(([label, position], index) => (
-                <div key={label} className={`absolute ${position} w-[44%] rounded-2xl border border-white/10 bg-black/75 p-4 shadow-xl transition duration-300 hover:-translate-y-1 hover:border-amber-300/25`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-semibold text-white">{label}</span>
-                    <span className="text-xs font-black text-amber-200">0{index + 1}</span>
-                  </div>
-                  <div className="mt-3 h-1 rounded-full bg-white/[0.06]"><div className="h-full w-2/3 rounded-full bg-amber-300/60" /></div>
+                <div key={label} className={`absolute ${position} w-[44%] rounded-2xl border border-white/10 bg-black p-4 shadow-xl transition duration-300 hover:-translate-y-1 hover:border-amber-300/20`}>
+                  <div className="flex items-center justify-between gap-3"><span className="text-sm font-semibold text-white">{label}</span><span className="text-xs font-black text-amber-200">0{index + 1}</span></div>
+                  <div className="mt-3 h-px bg-white/[0.07]" />
+                  <p className="mt-3 text-xs leading-5 text-slate-500">Powered by the same approved business knowledge.</p>
                 </div>
               ))}
             </div>
