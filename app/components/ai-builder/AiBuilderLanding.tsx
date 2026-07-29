@@ -142,11 +142,12 @@ const Check = () => (
 
 export default function AiBuilderLanding() {
   return (
-    <div className="h-full overflow-y-auto bg-black text-white">
+    <div className="h-[calc(100dvh-56px)] min-h-0 overflow-y-scroll overscroll-y-contain bg-black text-white xl:h-full">
       <main className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 lg:px-8 xl:px-10">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.018)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:linear-gradient(to_bottom,black,transparent_64%)]" />
 
-        <section className="relative grid w-full items-center gap-8 xl:grid-cols-[minmax(360px,.58fr)_minmax(0,1.42fr)] 2xl:gap-10">
+        <div className="relative flex min-h-[calc(100dvh-136px)] flex-col">
+        <section className="grid w-full items-center gap-8 xl:grid-cols-[minmax(360px,.58fr)_minmax(0,1.42fr)] 2xl:gap-10">
           <div className="max-w-xl">
             <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Arkena AI Builder</p>
             <h1 className="mt-4 text-3xl font-medium leading-[1.04] tracking-[-.035em] text-white sm:text-4xl xl:text-5xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
@@ -156,7 +157,7 @@ export default function AiBuilderLanding() {
           <AiBuilderSurfaceShowcase session={demoSession} builder={demoBuilder} models={models} autoAdvance className="min-w-0" />
         </section>
 
-        <section className="relative mt-6 grid w-full gap-4 border-t border-white/[0.07] pt-6 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mt-6 grid w-full gap-4 border-t border-white/[0.07] pt-6 sm:grid-cols-2 xl:mt-auto xl:grid-cols-4">
           {[
             ["Choose the model", "Use GPT, Claude, Gemini, or Grok without rebuilding the business context."],
             ["Import the website", "Bring in public pages while keeping owner expertise separate and in control."],
@@ -168,6 +169,7 @@ export default function AiBuilderLanding() {
             </article>
           ))}
         </section>
+        </div>
 
         <section className="relative mt-12 grid w-full gap-8 border-t border-white/[0.07] pt-10 lg:grid-cols-2 lg:gap-12">
           <div>
