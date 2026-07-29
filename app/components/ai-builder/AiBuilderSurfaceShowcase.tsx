@@ -37,11 +37,6 @@ export default function AiBuilderSurfaceShowcase({
   const [builderValue, setBuilderValue] = useState(builder);
   const [selectedModel, setSelectedModel] = useState(models[0]?.id ?? "");
   const [showDashboardInsights, setShowDashboardInsights] = useState(false);
-  const surfaceHeight = activeSlide === "builder"
-    ? "h-[760px] sm:h-[820px] xl:h-[760px] 2xl:h-[820px]"
-    : activeSlide === "review"
-      ? "h-[650px] sm:h-[700px] xl:h-[660px] 2xl:h-[720px]"
-      : "h-[500px] sm:h-[540px]";
 
   useEffect(() => {
     setBuilderValue(builder);
@@ -72,7 +67,7 @@ export default function AiBuilderSurfaceShowcase({
   const surface = useMemo(() => {
     if (activeSlide === "dashboard") {
       return (
-        <div className={`h-full transition-transform duration-700 ease-in-out ${showDashboardInsights ? "-translate-y-1/2" : "translate-y-0"}`}>
+        <div className={`h-full transition-transform duration-700 ease-in-out ${showDashboardInsights ? "-translate-y-full" : "translate-y-0"}`}>
           <div className="h-full pb-5">
             <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} dashboardShowcase />
           </div>

@@ -421,7 +421,7 @@ export default function AiBuilderReview({
         </div>
       </section>
 
-      <div>
+      <div className={embedded ? "xl:contents" : ""}>
         {grouped.length ? (
           <section className="space-y-7">
             <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
@@ -594,7 +594,7 @@ export default function AiBuilderReview({
         ) : null}
 
         {visibleFaqEntries.length ? (
-          <section className="mt-8 space-y-4">
+          <section className={embedded ? "mt-8 space-y-4 xl:mt-0" : "mt-8 space-y-4"}>
             <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
               Generated Q&amp;A
             </p>
