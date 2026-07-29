@@ -16,6 +16,10 @@ export const AI_BUILDER_SHOWCASE_SLIDES = [
 
 export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]["id"];
 
+// Every slide shares one viewport so changing surfaces cannot resize the
+// landing-page showcase or push the content below it.
+const SHOWCASE_VIEWPORT_CLASS = "h-[clamp(430px,calc(100dvh-360px),620px)]";
+
 export type AiBuilderSurfaceShowcaseProps = {
   session: AiBuilderSession;
   builder: BuilderState;
@@ -110,7 +114,7 @@ export default function AiBuilderSurfaceShowcase({
   return (
     <div className={className}>
       <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-        <div className={`${surfaceHeight} overflow-hidden`}>{surface}</div>
+        <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>{surface}</div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-2">
         {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (
