@@ -88,7 +88,7 @@ function ServiceCard({ service }: { service: (typeof serviceGroups)[number] }) {
   return (
     <motion.article variants={fadeUp} className="rounded-[1.35rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-6 shadow-[0_28px_80px_rgba(0,0,0,.34)]">
       <p className="text-center text-xs font-black uppercase tracking-[.26em] text-[var(--gold)]">{service.eyebrow}</p>
-      <h3 className="mt-4 text-center text-2xl font-black tracking-[-.04em]">{service.title}</h3>
+      <h3 className="mt-4 text-center text-2xl font-medium tracking-[-.04em]">{service.title}</h3>
       <p className="mt-3 text-center leading-7 text-[var(--muted)]">{service.subtitle}</p>
       <ul className="mx-auto mt-5 grid w-fit grid-cols-[.5rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-left text-sm text-slate-200">
         {service.bullets.map((bullet) => (
@@ -108,10 +108,10 @@ function ServiceCard({ service }: { service: (typeof serviceGroups)[number] }) {
 
 export default function ServicesPageClient() {
   return (
-    <div className="overflow-hidden bg-[#030713] text-white">
-      <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 pb-10 pt-10 text-center sm:px-8 lg:px-10 lg:pb-12">
+    <div className="overflow-hidden bg-[#020817] text-white">
+      <Section className="max-[640px]:px-[0.1px] mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 pb-10 pt-10 text-center sm:px-8 lg:px-10 lg:pb-12">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Service menu</motion.p>
-        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">Clear offers. Flexible combinations. <span className="text-[var(--gold)]">No tech overwhelm.</span></motion.h2>
+        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-2xl font-medium tracking-[-.055em] sm:text-3xl">Clear offers. Flexible combinations. <span className="text-[var(--gold)]">No tech overwhelm.</span></motion.h2>
         <div className="mt-10 grid gap-5 lg:grid-cols-2">{serviceGroups.map((service) => <ServiceCard key={service.title} service={service} />)}</div>
       </Section>
     </div>

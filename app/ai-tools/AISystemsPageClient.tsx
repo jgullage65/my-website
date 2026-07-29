@@ -96,13 +96,13 @@ function MediaPlaceholder({ label, ratio = "aspect-[16/10]" }: { label: string; 
 
 export default function AISystemsPageClient() {
   return (
-    <div className="overflow-hidden bg-[#030713] text-white">
-      <Section className="relative mx-auto grid max-w-[94rem] gap-10 px-5 pb-16 pt-16 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-10 lg:pb-24 lg:pt-24">
+    <div className="overflow-hidden bg-[#020817] text-white">
+      <Section className="max-[640px]:px-[0.1px] relative mx-auto grid max-w-[94rem] gap-10 px-5 pb-16 pt-16 sm:px-8 lg:grid-cols-[.9fr_1.1fr] lg:px-10 lg:pb-24 lg:pt-24">
         <div className="absolute inset-x-0 top-0 h-[52rem] bg-[radial-gradient(circle_at_12%_18%,rgba(212,175,55,.16),transparent_28rem),radial-gradient(circle_at_82%_12%,rgba(14,22,62,.72),transparent_38rem)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
         <motion.div variants={fadeUp} className="relative z-10 self-center text-center">
           <p className="text-xs font-black uppercase tracking-[.34em] text-[var(--gold)]">AI Systems by JG Creative Studio</p>
-          <h1 className="mx-auto mt-5 max-w-3xl text-5xl font-black leading-[.94] tracking-[-.065em] sm:text-6xl xl:text-[5.35rem]">AI systems built for <span className="text-[var(--gold)]">real operations.</span></h1>
+          <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-medium leading-[.94] tracking-[-.065em] sm:text-4xl xl:text-5xl">AI systems built for <span className="text-[var(--gold)]">real operations.</span></h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-[var(--muted)] sm:text-lg">JG Creative Studio designs and builds AI copilots, business automation, portals, dashboards, integrations, and custom software that help teams sell, support, operate, and scale with confidence.</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"><GoldButton href="/ai-builder">Launch AI Builder</GoldButton><OutlineButton href="/services">View All Services</OutlineButton></div>
         </motion.div>
@@ -121,9 +121,9 @@ export default function AISystemsPageClient() {
         </motion.div>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-16 text-center sm:px-8 sm:py-20 lg:px-10">
+      <Section className="max-[640px]:px-[0.1px] mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-16 text-center sm:px-8 sm:py-20 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">What we build</motion.p>
-        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-[2.35rem] font-black leading-[.98] tracking-[-.055em] sm:text-5xl lg:text-6xl">A full <span className="text-[var(--gold)]">AI systems partner</span>, not a chatbot shop.</motion.h2>
+        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-2xl font-medium leading-[.98] tracking-[-.055em] sm:text-3xl lg:text-4xl">A full <span className="text-[var(--gold)]">AI systems partner</span>, not a chatbot shop.</motion.h2>
         <motion.p variants={fadeUp} className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-[var(--muted)] sm:text-base sm:leading-7">Strategy, software, and automation designed as one connected operating system for the business.</motion.p>
 
         <motion.div variants={fadeUp} className="mt-10 border-y border-[rgba(212,175,55,.28)] text-left lg:grid lg:grid-cols-3 lg:divide-x lg:divide-white/[.08]">
@@ -132,7 +132,7 @@ export default function AISystemsPageClient() {
               <div className="grid grid-cols-[2.35rem_minmax(0,1fr)] items-start gap-4 lg:block">
                 <span className="pt-1 text-xs font-black tracking-[.18em] text-[var(--gold)] lg:block lg:pt-0">{group.number}</span>
                 <div className="lg:mt-5">
-                  <h3 className="text-xl font-black leading-tight tracking-[-.035em] text-[var(--gold)] sm:text-2xl">{group.title}</h3>
+                  <h3 className="text-xl font-medium leading-tight tracking-[-.035em] text-[var(--gold)] sm:text-2xl">{group.title}</h3>
                   <ul className="mt-5 grid grid-cols-1 gap-x-5 gap-y-3 md:grid-cols-2 lg:grid-cols-1 lg:gap-y-4">
                     {group.items.map((item) => (
                       <li key={item} className="grid grid-cols-[.45rem_max-content] items-start gap-2.5 whitespace-nowrap text-[.82rem] leading-5 text-slate-200 min-[390px]:text-sm sm:text-[.95rem] sm:leading-6">
@@ -149,13 +149,13 @@ export default function AISystemsPageClient() {
         <motion.p variants={fadeUp} className="mt-6 text-[.62rem] font-black uppercase tracking-[.24em] text-slate-500">Built as one connected system</motion.p>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
+      <Section className="max-[640px]:px-[0.1px] mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Delivery process</motion.p>
-        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-4xl font-black tracking-[-.055em] sm:text-6xl">Built cleanly enough to run <span className="text-[var(--gold)]">inside the business.</span></motion.h2>
-        <div className="mt-10 grid gap-5 lg:grid-cols-4">{buildPhases.map(([phase, copy], index) => <motion.article variants={fadeUp} key={phase} className="rounded-[1.35rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-6 shadow-[0_28px_80px_rgba(0,0,0,.34)]"><p className="text-sm font-black text-[var(--gold)]">0{index + 1}</p><h3 className="mt-5 text-2xl font-black tracking-[-.04em]">{phase}</h3><p className="mt-4 text-sm leading-7 text-[var(--muted)]">{copy}</p></motion.article>)}</div>
+        <motion.h2 variants={fadeUp} className="mx-auto mt-4 max-w-4xl text-2xl font-medium tracking-[-.055em] sm:text-3xl">Built cleanly enough to run <span className="text-[var(--gold)]">inside the business.</span></motion.h2>
+        <div className="mt-10 grid gap-5 lg:grid-cols-4">{buildPhases.map(([phase, copy], index) => <motion.article variants={fadeUp} key={phase} className="rounded-[1.35rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-6 shadow-[0_28px_80px_rgba(0,0,0,.34)]"><p className="text-sm font-black text-[var(--gold)]">0{index + 1}</p><h3 className="mt-5 text-2xl font-medium tracking-[-.04em]">{phase}</h3><p className="mt-4 text-sm leading-7 text-[var(--muted)]">{copy}</p></motion.article>)}</div>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] px-5 py-10 sm:px-8 lg:px-10">
+      <Section className="max-[640px]:px-[0.1px] mx-auto max-w-[94rem] px-5 py-10 sm:px-8 lg:px-10">
         <motion.div variants={fadeUp} className="mx-auto flex max-w-3xl flex-col items-center justify-center gap-5 rounded-2xl border border-[rgba(212,175,55,.18)] bg-[#050b18] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:p-6">
           <div>
             <p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Ready to modernize the workflow?</p>

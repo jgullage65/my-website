@@ -134,14 +134,14 @@ export default function HomePage() {
   }
 
   return (
-    <div className="overflow-hidden bg-[#030713] text-white">
-      <Section className="relative mx-auto grid max-w-[94rem] gap-10 px-0 pb-14 pt-0 min-[1200px]:grid-cols-[.9fr_1.1fr] min-[1200px]:px-10 min-[1200px]:py-20">
+    <div className="overflow-hidden bg-[#020817] text-white">
+      <Section className="max-[640px]:px-[0.1px] relative mx-auto grid max-w-[94rem] gap-10 px-0 pb-14 pt-0 min-[1200px]:grid-cols-[.9fr_1.1fr] min-[1200px]:px-10 min-[1200px]:py-20">
         <div className="absolute inset-x-0 top-0 h-[36rem] bg-[radial-gradient(circle_at_10%_20%,rgba(212,175,55,.14),transparent_28rem),radial-gradient(circle_at_82%_18%,rgba(9,20,38,.34),transparent_36rem)]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,.025)_1px,transparent_1px)] bg-[size:72px_72px] opacity-20" />
 
         <motion.div variants={fadeUp} className="relative z-10 order-2 self-center px-5 text-center min-[1200px]:order-1 min-[1200px]:px-0">
           <p className="text-xs font-black uppercase tracking-[.34em] text-[var(--gold)]">JG Creative Studio</p>
-          <h1 className="mx-auto mt-5 max-w-3xl text-4xl font-black leading-[1.02] tracking-[-.055em] sm:text-5xl lg:text-6xl xl:text-[4.75rem]">Premium websites. AI systems built for <span className="text-[var(--gold)]">real business.</span></h1>
+          <h1 className="mx-auto mt-5 max-w-3xl text-3xl font-medium leading-[1.02] tracking-[-.055em] sm:text-4xl lg:text-5xl xl:text-5xl">Premium websites. AI systems built for <span className="text-[var(--gold)]">real business.</span></h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-[var(--muted)] sm:text-lg sm:leading-8">JG Creative Studio builds high-performance websites, custom AI systems, automation, and business software that help companies attract customers, operate smarter, and grow.</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row"><GoldButton href="/contact">Start a Project →</GoldButton><OutlineButton href="/#work">Explore Our Work ↗</OutlineButton></div>
         </motion.div>
@@ -158,9 +158,9 @@ export default function HomePage() {
         </motion.div>
       </Section>
 
-      <Section id="work" className="mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 text-center sm:px-8 lg:px-10 lg:py-20">
+      <Section id="work" className="max-[640px]:px-[0.1px] mx-auto max-w-[94rem] border-y border-[rgba(212,175,55,.10)] px-5 py-20 text-center sm:px-8 lg:px-10 lg:py-20">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Selected Work</motion.p>
-        <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">Real products. <span className="text-[var(--gold)]">Real results.</span></motion.h2>
+        <motion.h2 variants={fadeUp} className="mt-4 text-2xl font-medium tracking-[-.055em] sm:text-3xl">Real products. <span className="text-[var(--gold)]">Real results.</span></motion.h2>
         <div className="mt-10 grid gap-5 text-left md:grid-cols-2 xl:grid-cols-3">
           {workCards.map(([title, desc, cta, href, label]) => (
             <motion.article variants={fadeUp} whileHover={{ y: -8, rotateX: 2 }} key={title} className="rounded-[1.45rem] border border-[rgba(212,175,55,.13)] bg-[linear-gradient(145deg,rgba(9,16,32,.94),rgba(2,5,14,.98))] p-4 shadow-[0_30px_90px_rgba(0,0,0,.36)]">
@@ -188,7 +188,7 @@ export default function HomePage() {
               />
               <div className="p-2 pt-5 text-center">
                 <p className="text-[.62rem] font-black uppercase tracking-[.22em] text-[var(--gold)]">{title}</p>
-                <h3 className="mt-3 text-2xl font-black tracking-[-.04em]">
+                <h3 className="mt-3 text-2xl font-medium tracking-[-.04em]">
                   {title === "Premium Websites" ? <><span className="text-[var(--gold)]">High-converting websites</span> built to perform.</> : title === "AI Systems" ? <>Intelligent systems that <span className="text-[var(--gold)]">automate and scale.</span></> : <>Powerful software built for <span className="text-[var(--gold)]">your workflow.</span></>}
                 </h3>
                 <p className="mt-3 min-h-14 text-sm leading-6 text-[var(--muted)]">{desc}</p>
@@ -199,27 +199,27 @@ export default function HomePage() {
         </div>
       </Section>
 
-      <Section className="mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.88fr_1.12fr] lg:px-10 lg:py-20">
+      <Section className="max-[640px]:px-[0.1px] mx-auto grid max-w-[94rem] gap-10 border-b border-[rgba(212,175,55,.10)] px-5 py-20 sm:px-8 lg:grid-cols-[.88fr_1.12fr] lg:px-10 lg:py-20">
         <motion.div variants={fadeUp} className="self-center text-center">
           <p className="text-center text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">AI Systems</p>
-          <h2 className="mt-4 text-center text-4xl font-black leading-[.96] tracking-[-.055em] sm:text-6xl">Smarter systems.<br /><span className="text-[var(--gold)]">Stronger businesses.</span></h2>
+          <h2 className="mt-4 text-center text-2xl font-medium leading-[.96] tracking-[-.055em] sm:text-3xl">Smarter systems.<br /><span className="text-[var(--gold)]">Stronger businesses.</span></h2>
           <div role="tablist" aria-label="AI system capabilities" onKeyDown={onTabKeyDown} className="mt-8 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-center">
             {aiTabs.map((tab, i) => <button key={tab.id} id={`${tabRoot}-${tab.id}-tab`} role="tab" aria-selected={active === i} aria-controls={`${tabRoot}-${tab.id}-panel`} tabIndex={active === i ? 0 : -1} onClick={() => setActive(i)} className={`cta-raised w-full rounded-lg border bg-[#081226] px-3 py-2 text-xs font-black text-white transition hover:-translate-y-0.5 hover:bg-[#0b1830] sm:w-auto sm:px-4 ${active === i ? "border-amber-300/30" : "border-amber-300/15"}`}>{tab.label}</button>)}
           </div>
-          <AnimatePresence mode="wait"><motion.div key={current.id} id={`${tabRoot}-${current.id}-panel`} role="tabpanel" aria-labelledby={`${tabRoot}-${current.id}-tab`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: .3 }} className="mt-8"><h3 className="text-2xl font-black tracking-[-.035em]">{current.heading}</h3><p className="mx-auto mt-4 max-w-xl leading-7 text-[var(--muted)]">{current.description}</p><ul className="mx-auto mt-6 grid w-fit gap-3 text-left">{current.lines.map(line => <li key={line} className="flex gap-3 text-sm font-bold text-slate-200"><span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--gold)] shadow-[0_0_18px_rgba(212,175,55,.6)]" />{line}</li>)}</ul></motion.div></AnimatePresence>
+          <AnimatePresence mode="wait"><motion.div key={current.id} id={`${tabRoot}-${current.id}-panel`} role="tabpanel" aria-labelledby={`${tabRoot}-${current.id}-tab`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: .3 }} className="mt-8"><h3 className="text-2xl font-medium tracking-[-.035em]">{current.heading}</h3><p className="mx-auto mt-4 max-w-xl leading-7 text-[var(--muted)]">{current.description}</p><ul className="mx-auto mt-6 grid w-fit gap-3 text-left">{current.lines.map(line => <li key={line} className="flex gap-3 text-sm font-bold text-slate-200"><span className="mt-1.5 h-2 w-2 rounded-full bg-[var(--gold)] shadow-[0_0_18px_rgba(212,175,55,.6)]" />{line}</li>)}</ul></motion.div></AnimatePresence>
           <div className="mt-8 flex justify-center"><GoldButton href="/ai-tools">Explore AI Systems →</GoldButton></div>
         </motion.div>
         <motion.div variants={mediaIn} className="relative"><div className="absolute -inset-5 rounded-[2.5rem] bg-[radial-gradient(circle_at_50%_80%,rgba(212,175,55,.18),transparent_55%)] blur-2xl" /><AnimatePresence mode="wait"><motion.div key={current.mediaLabel} initial={{ opacity: 0, scale: .98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.01 }} transition={{ duration: .35 }}><ProductMedia src={current.mediaSrc} alt={current.mediaLabel} label={current.mediaLabel} ratio="aspect-[16/11]" className="rounded-[1.6rem] lg:mt-16" /></motion.div></AnimatePresence></motion.div>
       </Section>
 
-      <Section className="mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
+      <Section className="max-[640px]:px-[0.1px] mx-auto max-w-[94rem] px-5 py-20 text-center sm:px-8 lg:px-10">
         <motion.p variants={fadeUp} className="text-xs font-black uppercase tracking-[.32em] text-[var(--gold)]">Our Process</motion.p>
-        <motion.h2 variants={fadeUp} className="mt-4 text-4xl font-black tracking-[-.055em] sm:text-6xl">From idea to <span className="text-[var(--gold)]">impact.</span></motion.h2>
+        <motion.h2 variants={fadeUp} className="mt-4 text-2xl font-medium tracking-[-.055em] sm:text-3xl">From idea to <span className="text-[var(--gold)]">impact.</span></motion.h2>
         <motion.div variants={fadeUp} className="relative mt-12 overflow-hidden rounded-[1.7rem] border border-[rgba(212,175,55,.13)] bg-[#030815] p-7 shadow-[0_34px_110px_rgba(0,0,0,.42)] md:p-10">
           <motion.div initial={{ scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: 1.2, ease: "easeInOut" }} className="absolute left-14 right-14 top-[6.45rem] hidden h-px origin-left bg-[linear-gradient(90deg,transparent,#d4af37,transparent)] lg:block" />
-          <div className="grid gap-7 text-left lg:grid-cols-5 lg:text-center">{processSteps.map(([step, copy], i) => <div key={step} className="relative flex gap-5 lg:block lg:text-center"><div className="z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[rgba(212,175,55,.58)] bg-[#08122a] font-black text-[var(--gold)] shadow-[0_0_34px_rgba(212,175,55,.25)] lg:mx-auto">0{i + 1}</div><div><h3 className="mt-0 font-black text-white lg:mt-5">{step}</h3><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{copy}</p></div></div>)}</div>
+          <div className="grid gap-7 text-left lg:grid-cols-5 lg:text-center">{processSteps.map(([step, copy], i) => <div key={step} className="relative flex gap-5 lg:block lg:text-center"><div className="z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-[rgba(212,175,55,.58)] bg-[#08122a] font-black text-[var(--gold)] shadow-[0_0_34px_rgba(212,175,55,.25)] lg:mx-auto">0{i + 1}</div><div><h3 className="mt-0 font-medium text-white lg:mt-5">{step}</h3><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{copy}</p></div></div>)}</div>
           <motion.div variants={fadeUp} className="relative mt-14 text-center">
-            <div className="relative mx-auto max-w-3xl"><p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Ready to build something great?</p><h2 className="mt-3 text-3xl font-black leading-tight tracking-[-.045em] sm:text-5xl">Ready to build something your business can actually use?</h2><p className="mt-4 leading-7 text-[var(--muted)]">Let’s build something useful, polished, and designed around the way your business works.</p><div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row"><GoldButton href="/contact">Start a Project →</GoldButton><OutlineButton href="/#work">View Our Work</OutlineButton></div></div>
+            <div className="relative mx-auto max-w-3xl"><p className="text-xs font-black uppercase tracking-[.28em] text-[var(--gold)]">Ready to build something great?</p><h2 className="mt-3 text-2xl font-medium leading-tight tracking-[-.045em] sm:text-3xl">Ready to build something your business can actually use?</h2><p className="mt-4 leading-7 text-[var(--muted)]">Let’s build something useful, polished, and designed around the way your business works.</p><div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row"><GoldButton href="/contact">Start a Project →</GoldButton><OutlineButton href="/#work">View Our Work</OutlineButton></div></div>
           </motion.div>
         </motion.div>
       </Section>
