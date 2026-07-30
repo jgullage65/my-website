@@ -102,7 +102,8 @@ export default function AiBuilderProjectWorkspace({
   reviewOpen = false,
   initialTab = "dashboard",
 }: Props) {
-  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(initialTab);
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(initialTab === "overview" ? "dashboard" : initialTab);
+  const [overviewOpen, setOverviewOpen] = useState(initialTab === "overview");
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
   const [builder, setBuilder] = useState<BuilderState>(EMPTY_BUILDER);
@@ -182,6 +183,15 @@ export default function AiBuilderProjectWorkspace({
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [projectsOpen]);
+
+  useEffect(() => {
+    if (!overviewOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOverviewOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [overviewOpen]);
 
   const closeReview = useCallback(() => {
     window.location.assign(
@@ -290,6 +300,7 @@ export default function AiBuilderProjectWorkspace({
   }, []);
 
   const openReview = useCallback(() => {
+    setOverviewOpen(false);
     window.location.assign(
       `/ai-builder/review?projectId=${encodeURIComponent(projectId)}&returnTab=${encodeURIComponent(workspaceTab)}`,
     );
@@ -303,6 +314,11 @@ export default function AiBuilderProjectWorkspace({
       return;
     }
 
+    if (nextTab === "overview" && window.matchMedia("(min-width: 640px)").matches) {
+      setOverviewOpen(true);
+      return;
+    }
+
     if (reviewOpen) {
       window.location.assign(
         `/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=${encodeURIComponent(nextTab)}`,
@@ -310,6 +326,7 @@ export default function AiBuilderProjectWorkspace({
       return;
     }
 
+    setOverviewOpen(false);
     setWorkspaceTab(nextTab);
     const url = new URL(window.location.href);
     url.searchParams.set("projectId", projectId);
@@ -389,6 +406,10 @@ export default function AiBuilderProjectWorkspace({
     </div>
   );
 
+  const overviewContent = (
+    <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={openReview} embedded />
+  );
+
   const reviewStatus = reviewSaveStatus !== "idle" || saveError ? (
     <div
       className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${
@@ -423,9 +444,17 @@ export default function AiBuilderProjectWorkspace({
                 type="button"
                 onClick={() => selectWorkspaceTab(value)}
                 className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
-                  (value === "knowledge" ? reviewOpen : workspaceTab === value)
-                    ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
-                    : "text-white hover:bg-white/[0.035]"
+                  value === "knowledge"
+                    ? reviewOpen
+                      ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
+                      : "text-white hover:bg-white/[0.035]"
+                    : value === "overview"
+                      ? overviewOpen
+                        ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
+                        : "text-white hover:bg-white/[0.035]"
+                      : workspaceTab === value && !overviewOpen && !reviewOpen
+                        ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
+                        : "text-white hover:bg-white/[0.035]"
                 }`}
               >
                 {label}
@@ -455,6 +484,25 @@ export default function AiBuilderProjectWorkspace({
         </aside>
 
         {projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
+
+        {overviewOpen && !reviewOpen ? (
+          <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-label="Project overview"
+              className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]"
+            >
+              <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-20 py-4 text-center">
+                <h2 className="text-base font-semibold text-white">Overview</h2>
+                <button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] text-xl leading-none text-slate-300 transition hover:bg-white/[0.05] hover:text-white">×</button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+                <div className="mx-auto w-full max-w-[700px]">{overviewContent}</div>
+              </div>
+            </section>
+          </div>
+        ) : null}
 
         {reviewOpen ? (
           <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
@@ -538,6 +586,18 @@ export default function AiBuilderProjectWorkspace({
             )}
           </main>
         </div>
+
+        {overviewOpen && !reviewOpen ? (
+          <section role="dialog" aria-modal="true" aria-label="Project overview" className="fixed inset-0 z-[100] hidden min-h-dvh flex-col bg-[#030303] sm:flex xl:hidden">
+            <div className="relative flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] px-16 text-center">
+              <h2 className="text-sm font-semibold text-white">Overview</h2>
+              <button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-2xl leading-none text-slate-300">×</button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+              <div className="mx-auto w-full max-w-[700px]">{overviewContent}</div>
+            </div>
+          </section>
+        ) : null}
       </div>
     </AiBuilderShell>
   );
