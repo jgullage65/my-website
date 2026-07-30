@@ -3,7 +3,10 @@ import { redirect } from "next/navigation";
 import AiBuilderClient from "@/app/components/ai-builder/AiBuilderClient";
 import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 import AiBuilderProjects from "@/app/components/ai-builder/AiBuilderProjects";
-import { listAiBuilderProjects } from "@/app/lib/db/ai-builder-repository";
+import {
+  getAiBuilderProject,
+  listAiBuilderProjects,
+} from "@/app/lib/db/ai-builder-repository";
 
 type WorkspaceTab = "dashboard" | "insights" | "overview" | "sources" | "settings";
 
@@ -41,6 +44,12 @@ export default async function Page({ searchParams }: PageProps) {
   }
 
   if (normalizedProjectId) {
+    const project = await getAiBuilderProject(normalizedProjectId);
+
+    if (project?.session.status === "review_required") {
+      return <AiBuilderClient initialProjectId={normalizedProjectId} />;
+    }
+
     return <AiBuilderProjectWorkspace projectId={normalizedProjectId} initialTab={initialTab} />;
   }
 
