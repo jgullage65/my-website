@@ -512,6 +512,11 @@ export default function AiBuilderProjectWorkspace({
                     <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-slate-400 hover:bg-white/[0.04] hover:text-white">{label}</button>
                   ))}
                 </nav>
+                <div className="mt-0.5">
+                  <SignOutButton redirectUrl="/ai-builder">
+                    <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
+                  </SignOutButton>
+                </div>
               </aside>
             </div>
           ) : null}
