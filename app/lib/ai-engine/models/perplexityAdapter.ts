@@ -4,7 +4,22 @@ export type NormalizedUsage={inputTokens:number;outputTokens:number;totalTokens:
 export type ModelCompletionStatus="completed"|"incomplete";
 export class ModelExecutionError extends Error {
   readonly category:"configuration"|"timeout"|"aborted"|"authentication"|"rate_limit"|"availability"|"provider";
-  constructor(category:ModelExecutionError["category"], message="model_execution_failed") { super(message); this.category=category; }
+  readonly status?:number;
+  readonly providerCode?:string;
+  readonly requestId?:string;
+  readonly providerMessage?:string;
+  constructor(
+    category:ModelExecutionError["category"],
+    message="model_execution_failed",
+    details?:{status?:number;providerCode?:string;requestId?:string;providerMessage?:string},
+  ) {
+    super(message);
+    this.category=category;
+    this.status=details?.status;
+    this.providerCode=details?.providerCode;
+    this.requestId=details?.requestId;
+    this.providerMessage=details?.providerMessage??message;
+  }
 }
 export type AdapterInput={model:ModelDefinition;messages:{role:"user"|"assistant";content:string}[];instructions?:string;signal?:AbortSignal;timeoutMs:number};
 
@@ -17,7 +32,7 @@ export async function runPerplexity(input:AdapterInput) {
   const started=performance.now();
   try {
     const response=await fetch("https://api.perplexity.ai/v1/responses",{method:"POST",headers:{authorization:`Bearer ${key}`,"content-type":"application/json"},body:JSON.stringify({model:input.model.gatewayModelId,instructions:input.instructions,input:input.messages}),signal:controller.signal});
-    if(!response.ok) throw new ModelExecutionError(response.status===401||response.status===403?"authentication":response.status===429?"rate_limit":response.status>=500?"availability":"provider");
+    if(!response.ok) throw new ModelExecutionError(response.status===401||response.status===403?"authentication":response.status===429?"rate_limit":response.status>=500?"availability":"provider","model_request_failed",{status:response.status,requestId:response.headers.get("x-request-id")??undefined});
     const value=await response.json() as any;
     const incompleteReason=typeof value.incomplete_details?.reason==="string"?value.incomplete_details.reason:null;
     const status:ModelCompletionStatus=value.status==="incomplete"||incompleteReason?"incomplete":"completed";
