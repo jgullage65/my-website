@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { SignOutButton, useAuth } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderLanding from "./AiBuilderLanding";
@@ -23,8 +23,6 @@ type Project = {
 };
 
 type ProjectView = "active" | "archived";
-
-const PROJECT_LIMIT = 3;
 
 function date(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -118,20 +116,6 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
     };
   }, [isLoaded, isSignedIn, router]);
 
-  async function beginProjectCreation() {
-    if (projects.length < PROJECT_LIMIT) {
-      router.push("/ai-builder?new=1");
-      return;
-    }
-    const contact = await showConfirm({
-      title: "Project Limit Reached",
-      message: "You've reached your current project limit of 3 projects.\n\nContact James to discuss purchasing a current project or increasing your project limit.",
-      cancelLabel: "Cancel",
-      confirmLabel: "Contact James",
-    });
-    if (contact) router.push("/contact");
-  }
-
   async function rename(project: Project) {
     const businessName = window.prompt("Rename project", project.businessName)?.trim();
     if (!businessName || businessName === project.businessName) return;
@@ -205,39 +189,25 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
     <ProjectsFrame embedded={embedded}>
       {confirmDialogNode}
       <div role="presentation" className="contents min-[1200px]:fixed min-[1200px]:inset-0 min-[1200px]:z-[100] min-[1200px]:flex min-[1200px]:items-center min-[1200px]:justify-center min-[1200px]:bg-black/75 min-[1200px]:p-8 min-[1200px]:backdrop-blur-md">
-      <section role="dialog" aria-modal="true" aria-label="AI Builder projects" className="relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:flex min-[1200px]:max-h-[90dvh] min-[1200px]:max-w-[1100px] min-[1200px]:flex-col min-[1200px]:overflow-y-auto min-[1200px]:rounded-[24px] min-[1200px]:border min-[1200px]:border-white/[0.1] min-[1200px]:bg-[#030303] min-[1200px]:px-10 min-[1200px]:py-6 min-[1200px]:shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
-        {onClose ? <button type="button" onClick={onClose} className="absolute right-6 top-4 z-10 hidden rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white min-[1200px]:inline-flex">Done</button> : null}
-        <div className="relative text-center">
-          <p className="text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">AI Builder</p>
-          <h1 className="mt-2 text-2xl font-black tracking-[-.035em] text-white sm:text-3xl min-[1200px]:mt-1">Projects</h1>
-          {isSignedIn ? <SignOutButton redirectUrl="/ai-builder"><button type="button" className="absolute right-0 top-0 rounded-lg border border-white/10 bg-black px-3.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:text-white min-[1200px]:hidden">Sign out</button></SignOutButton> : null}
-        </div>
+        <section role="dialog" aria-modal="true" aria-label="AI Builder projects" className="relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:flex min-[1200px]:max-h-[90dvh] min-[1200px]:max-w-[1100px] min-[1200px]:flex-col min-[1200px]:overflow-y-auto min-[1200px]:rounded-[24px] min-[1200px]:border min-[1200px]:border-white/[0.1] min-[1200px]:bg-[#030303] min-[1200px]:px-10 min-[1200px]:py-6 min-[1200px]:shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
+          {onClose ? <button type="button" onClick={onClose} className="absolute right-6 top-4 z-10 hidden rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white min-[1200px]:inline-flex">Done</button> : null}
 
-        {error ? <div className="mt-6 rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
-        {loading ? <div className="mt-8 rounded-2xl border border-white/[.08] bg-[#050505] p-12 text-center text-slate-400">Loading your projects…</div> : null}
+          {error ? <div className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
+          {loading ? <div className="rounded-2xl border border-white/[.08] bg-[#050505] p-12 text-center text-slate-400">Loading your projects…</div> : null}
 
-        {isSignedIn && !loading && !projects.length ? (
-          <div className="mt-8 rounded-2xl border border-amber-300/20 bg-[#050505] px-6 py-16 text-center">
-            <h2 className="text-2xl font-black tracking-[-.035em] text-white">Build your first business AI</h2>
-            <button type="button" onClick={() => void beginProjectCreation()} className="mt-7 inline-flex items-center justify-center rounded-lg border border-amber-300/20 bg-[#080808] px-5 py-3 text-sm font-black text-white transition hover:border-amber-300/35">Create Your First Project</button>
-          </div>
-        ) : null}
-
-        {isSignedIn && !loading && projects.length ? (
-          <div className="mt-8 min-[1200px]:mt-3">
-            <div className="flex flex-col gap-4 border-b border-white/[.08] pb-5 sm:flex-row sm:items-center sm:justify-between min-[1200px]:justify-center min-[1200px]:gap-2 min-[1200px]:pb-3">
-              <div className="flex items-center gap-2 rounded-xl border border-white/[.08] bg-[#050505] p-1.5">
-                <ViewButton active={view === "active"} label="Active" count={openProjects.length} onClick={() => { setView("active"); setMenu(null); }} />
-                <ViewButton active={view === "archived"} label="Archived" count={archivedProjects.length} onClick={() => { setView("archived"); setMenu(null); }} />
+          {isSignedIn && !loading && projects.length ? (
+            <div>
+              <div className="flex justify-center border-b border-white/[.08] pb-3">
+                <div className="flex items-center gap-2 rounded-xl border border-white/[.08] bg-[#050505] p-1.5">
+                  <ViewButton active={view === "active"} label="Active" count={openProjects.length} onClick={() => { setView("active"); setMenu(null); }} />
+                  <ViewButton active={view === "archived"} label="Archived" count={archivedProjects.length} onClick={() => { setView("archived"); setMenu(null); }} />
+                </div>
               </div>
-              <SignOutButton redirectUrl="/ai-builder"><button type="button" className="hidden rounded-lg border border-white/10 bg-black px-3.5 py-3 text-xs font-semibold text-slate-300 transition hover:border-amber-300/25 hover:text-white min-[1200px]:inline-flex">Sign out</button></SignOutButton>
-              <button type="button" onClick={() => void beginProjectCreation()} className="inline-flex items-center justify-center rounded-lg border border-amber-300/20 bg-[#080808] px-5 py-3 text-sm font-black text-white transition hover:border-amber-300/35">New AI Builder Project</button>
-            </div>
 
-            <ProjectGrid projects={visibleProjects} archived={view === "archived"} menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
-          </div>
-        ) : null}
-      </section>
+              <ProjectGrid projects={visibleProjects} archived={view === "archived"} menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
+            </div>
+          ) : null}
+        </section>
       </div>
     </ProjectsFrame>
   );
