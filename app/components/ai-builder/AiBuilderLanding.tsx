@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { SignIn } from "@clerk/nextjs";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
@@ -146,8 +147,8 @@ export default function AiBuilderLanding() {
         <div className="relative flex min-h-[calc(100dvh-136px)] flex-col">
         <section className="grid w-full items-center gap-8 xl:grid-cols-[minmax(360px,.58fr)_minmax(0,1.42fr)] 2xl:gap-10">
           <div className="max-w-xl">
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Arkena AI Business Brain</p>
-            <h1 className="mt-4 text-3xl font-medium leading-[1.04] tracking-[-.035em] text-white sm:text-4xl xl:text-5xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
+            <Image src="/images/Arkenalogo.png" alt="Arkena Studio" width={260} height={72} priority className="h-auto w-[180px] object-contain sm:w-[210px] xl:w-[230px]" />
+            <h1 className="mt-5 text-3xl font-medium leading-[1.04] tracking-[-.035em] text-white sm:text-4xl xl:text-5xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
             <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
             <div className="mt-7"><a href="/pricing" className={primaryButton}>Build Your Business Brain</a></div>
 
@@ -228,11 +229,11 @@ export default function AiBuilderLanding() {
                 </label>
                 <label className="grid gap-2 text-center text-sm font-medium text-slate-300">
                   Message
-                  <textarea name="message" rows={4} className="resize-none rounded-xl border border-amber-300/10 bg-[#070707] px-4 py-3 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="What can we help with?" />
+                  <textarea name="message" rows={4} className="resize-none rounded-xl border border-amber-300/10 bg-[#070707] px-4 py-3 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="How can we help?" />
                 </label>
               </div>
 
-              <button type="button" className={`${primaryButton} mt-5 w-full`}>Send Message</button>
+              <button type="submit" className={`${primaryButton} mt-5 w-full`}>Send Message</button>
             </form>
           </div>
         </section>
