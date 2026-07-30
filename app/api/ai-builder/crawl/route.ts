@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runModel } from "@/app/lib/ai-engine/models/runModel";
 import { resolveModel, type ModelDefinition } from "@/app/lib/ai-engine/models/registry";
+import { ModelExecutionError } from "@/app/lib/ai-engine/models/perplexityAdapter";
 import { BusinessWebsiteCrawlError, crawlBusinessWebsite, resolveCrawledBusinessName } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
 import { finishCrawlTelemetry, safePublicUrl, startCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
@@ -251,6 +252,22 @@ function errorResponse(status: number, code: string, message: string) {
   return NextResponse.json({ ok: false, error: { code, message } }, { status });
 }
 
+function isGatewayConfigured(model: ModelDefinition): boolean {
+  const apiKey = model.gateway === "openai" ? process.env.OPENAI_API_KEY : process.env.PERPLEXITY_API_KEY;
+  return Boolean(apiKey?.trim());
+}
+
+function getModelErrorDiagnostics(error: unknown) {
+  if (!(error instanceof ModelExecutionError)) return {};
+  return {
+    providerCategory: error.category,
+    providerStatus: error.status,
+    providerCode: error.providerCode,
+    providerRequestId: error.requestId,
+    providerMessage: error.providerMessage,
+  };
+}
+
 export async function POST(request: Request) {
   const workerSecret = process.env.CRON_SECRET?.trim();
   const internalWorker = Boolean(workerSecret && request.headers.get("authorization") === `Bearer ${workerSecret}`);
@@ -273,7 +290,7 @@ export async function POST(request: Request) {
   let selectedModel: ModelDefinition;
   try { selectedModel = resolveModel(body.modelId, "crawl"); }
   catch (error) { return errorResponse(400, error instanceof Error ? error.message : "model_unknown", "That AI model is not available for website import."); }
-  if (!process.env.PERPLEXITY_API_KEY?.trim()) return errorResponse(503, "model_gateway_not_configured", "The AI builder is not configured yet.");
+  if (!isGatewayConfigured(selectedModel)) return errorResponse(503, "model_gateway_not_configured", "The AI builder is not configured yet.");
 
   const encoder = new TextEncoder();
   const attemptId = crypto.randomUUID();
@@ -374,7 +391,27 @@ export async function POST(request: Request) {
           try {
             aiCalls += 1;
             const response = await runModel({ modelId: model, purpose: "crawl", instructions: `${extractionInstructions} Return only JSON matching this schema: ${JSON.stringify(extractionSchema)}`, messages: [{ role: "user", content: input }], signal: request.signal });
-            console.info("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, inputTokenCount: response.usage.inputTokens, outputTokenCount: response.usage.outputTokens, model: response.modelId, completionStatus: response.status, incompleteReason: response.incompleteReason, durationMs: performance.now() - callStarted, success: response.status === "completed" });
+            console.info("AI_BUILDER_EXTRACTION_CALL", {
+              attemptId,
+              batchIndex,
+              totalBatchCount: plannedBatches.length,
+              pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size,
+              chunkCount: units.length,
+              finalInputCharacterCount,
+              inputTokenCount: response.usage.inputTokens,
+              outputTokenCount: response.usage.outputTokens,
+              totalTokenCount: response.usage.totalTokens,
+              model: response.modelId,
+              provider: response.provider,
+              gateway: response.gateway,
+              upstreamModelId: response.upstreamModelId,
+              providerRequestId: response.requestId,
+              completionStatus: response.status,
+              incompleteReason: response.incompleteReason,
+              providerDurationMs: response.durationMs,
+              durationMs: performance.now() - callStarted,
+              success: response.status === "completed",
+            });
 
             const batchUsage = { inputTokens: response.usage.inputTokens, outputTokens: response.usage.outputTokens, totalTokens: response.usage.totalTokens };
             usage = { inputTokens: (usage?.inputTokens ?? 0) + batchUsage.inputTokens, outputTokens: (usage?.outputTokens ?? 0) + batchUsage.outputTokens, totalTokens: (usage?.totalTokens ?? 0) + batchUsage.totalTokens };
@@ -396,7 +433,22 @@ export async function POST(request: Request) {
             const batch = JSON.parse(response.text) as Omit<ExtractedWebsiteBatch, "knowledge"> & { knowledge: unknown };
             extractedBatches.push({ ...batch, knowledge: normalizeKnowledge(batch.knowledge, crawledPages, crawl) });
           } catch (error) {
-            console.error("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, model, durationMs: performance.now() - callStarted, success: false, error: error instanceof Error ? error.message : String(error) });
+            console.error("AI_BUILDER_EXTRACTION_CALL", {
+              attemptId,
+              batchIndex,
+              totalBatchCount: plannedBatches.length,
+              pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size,
+              chunkCount: units.length,
+              finalInputCharacterCount,
+              model,
+              provider: selectedModel.provider,
+              gateway: selectedModel.gateway,
+              upstreamModelId: selectedModel.gatewayModelId,
+              durationMs: performance.now() - callStarted,
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+              ...getModelErrorDiagnostics(error),
+            });
             if (!isContextWindowError(error)) throw error;
             const split = splitExtractionUnits(units);
             if (!split) throw error;
@@ -421,7 +473,7 @@ export async function POST(request: Request) {
           await persistMergedWebsiteKnowledge(projectId, currentKnowledge);
         }
 
-        console.info("AI_BUILDER_RECRAWL_EXTRACTION", { attemptId, projectId: projectId || null, mode: extractionPlan.mode, ...extractionPlan.telemetry, aiCalls, inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0, estimatedAiCostUsd: hasCostEstimate ? estimatedInputCostUsd + estimatedOutputCostUsd : null });
+        console.info("AI_BUILDER_RECRAWL_EXTRACTION", { attemptId, projectId: projectId || null, mode: extractionPlan.mode, ...extractionPlan.telemetry, model, provider: selectedModel.provider, gateway: selectedModel.gateway, upstreamModelId: selectedModel.gatewayModelId, aiCalls, inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0, estimatedAiCostUsd: hasCostEstimate ? estimatedInputCostUsd + estimatedOutputCostUsd : null });
         const aiKnowledgeExtractionMs = performance.now() - aiStarted;
         aiExtractionDurationMs = aiKnowledgeExtractionMs;
         const timings = { ...crawl.diagnostics.timings, aiKnowledgeExtractionMs, persistenceMs, totalDurationMs: performance.now() - requestStarted };
@@ -456,7 +508,15 @@ export async function POST(request: Request) {
           crawlDiagnostics = diagnostics;
           await finishCrawlTelemetry(attemptId, { status: "failed", startedAt: crawlStartedAt, completedAt: new Date().toISOString(), ...diagnostics, diagnostics, errors: [{ stage: "crawl", message: message.slice(0, 500) }], failureStage: "crawl" });
         }
-        console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website: safePublicUrl(website), message });
+        console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", {
+          website: safePublicUrl(website),
+          model,
+          provider: selectedModel.provider,
+          gateway: selectedModel.gateway,
+          upstreamModelId: selectedModel.gatewayModelId,
+          message,
+          ...getModelErrorDiagnostics(error),
+        });
         send({ type: "error", error: { code: "website_import_failed", message: message || "The website could not be imported." }, crawlAttemptId: attemptId });
       } finally {
         if (aiExtractionStarted !== undefined && aiExtractionDurationMs === 0) aiExtractionDurationMs = performance.now() - aiExtractionStarted;
@@ -467,6 +527,9 @@ export async function POST(request: Request) {
           attemptId,
           website: safePublicUrl(website),
           model,
+          provider: selectedModel.provider,
+          gateway: selectedModel.gateway,
+          upstreamModelId: selectedModel.gatewayModelId,
           pagesDiscovered: crawlDiagnostics?.pagesDiscovered ?? 0,
           pagesCrawled: pagesRetained,
           pagesProcessed,
