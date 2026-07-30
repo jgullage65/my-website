@@ -327,7 +327,7 @@ export default function AiBuilderProjectWorkspace({
   }, [openReview, projectId, reviewOpen]);
 
   const knowledgePack = useMemo(
-    () => buildKnowledgePack(session),
+    () => (session ? buildKnowledgePack(session) : null),
     [session],
   );
 
