@@ -16,7 +16,7 @@ import AiBuilderProjects from "./AiBuilderProjects";
 import AiBuilderReview from "./AiBuilderReview";
 import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
 
-type WorkspaceTab = "dashboard" | "insights" | "overview" | "knowledge" | "sources" | "settings";
+type WorkspaceTab = "projects" | "dashboard" | "insights" | "overview" | "knowledge" | "sources" | "settings";
 type PersistedWorkspaceTab = Exclude<WorkspaceTab, "knowledge">;
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -55,6 +55,7 @@ type Props = {
 };
 
 const WORKSPACE_ITEMS: ReadonlyArray<readonly [WorkspaceTab, string]> = [
+  ["projects", "Projects"],
   ["dashboard", "Dashboard"],
   ["insights", "Project Insights"],
   ["overview", "Overview"],
@@ -64,6 +65,7 @@ const WORKSPACE_ITEMS: ReadonlyArray<readonly [WorkspaceTab, string]> = [
 ];
 
 const WORKSPACE_DESCRIPTIONS: Record<WorkspaceTab, string> = {
+  projects: "Create, open, archive, restore, and manage AI Builder projects",
   dashboard: "Priorities, readiness, and recent project changes",
   insights: "Crawl, generation, governance, and activity diagnostics",
   overview: "Build status and generated project totals",
@@ -104,7 +106,6 @@ export default function AiBuilderProjectWorkspace({
 }: Props) {
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(initialTab === "overview" ? "dashboard" : initialTab);
   const [overviewOpen, setOverviewOpen] = useState(initialTab === "overview");
-  const [projectsOpen, setProjectsOpen] = useState(false);
   const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
   const [builder, setBuilder] = useState<BuilderState>(EMPTY_BUILDER);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
@@ -174,15 +175,6 @@ export default function AiBuilderProjectWorkspace({
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [mobileWorkspaceMenuOpen]);
-
-  useEffect(() => {
-    if (!projectsOpen) return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setProjectsOpen(false);
-    };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [projectsOpen]);
 
   useEffect(() => {
     if (!overviewOpen) return;
@@ -370,7 +362,7 @@ export default function AiBuilderProjectWorkspace({
     );
   }
 
-  if (!session || !knowledgePack) {
+  if (!session) {
     return (
       <AiBuilderShell>
         <div className="h-full min-h-[70vh] w-full bg-[#020202]" aria-hidden="true" />
@@ -378,7 +370,15 @@ export default function AiBuilderProjectWorkspace({
     );
   }
 
-  const workspaceContent = workspaceTab === "dashboard" ? (
+  const projectsPage = (
+    <div className="[&>div]:!static [&>div]:!block [&>div]:!bg-transparent [&>div]:!p-0 [&>div>section]:!max-h-none [&>div>section]:!max-w-none [&>div>section]:!overflow-visible [&>div>section]:!rounded-none [&>div>section]:!border-0 [&>div>section]:!bg-transparent [&>div>section]:!px-0 [&>div>section]:!py-0 [&>div>section]:!shadow-none">
+      <AiBuilderProjects embedded />
+    </div>
+  );
+
+  const workspaceContent = workspaceTab === "projects" ? (
+    projectsPage
+  ) : workspaceTab === "dashboard" ? (
     <AiBuilderDashboard
       session={session}
       websiteKnowledge={websiteKnowledge}
@@ -432,7 +432,6 @@ export default function AiBuilderProjectWorkspace({
     <AiBuilderShell>
       <div className="relative hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
         <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
-          <button type="button" onClick={() => setProjectsOpen(true)} className="mb-7 inline-flex text-xs font-semibold text-white transition hover:text-amber-200">← All Projects</button>
           <div className="mb-5 border-b border-white/[0.08] px-3 pb-5 text-center">
             <p className="truncate text-sm font-semibold text-white">{builder.businessName || "AI Builder Project"}</p>
           </div>
@@ -478,12 +477,19 @@ export default function AiBuilderProjectWorkspace({
         </main>
 
         <aside className="flex min-h-0 flex-col border-l border-white/[0.08] bg-black">
-          <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
-            <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => undefined} />
-          </div>
+          {knowledgePack ? (
+            <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
+              <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => undefined} />
+            </div>
+          ) : (
+            <div className="flex h-full min-h-0 items-center justify-center px-8 text-center">
+              <div>
+                <p className="text-sm font-semibold text-white">Assistant preview unavailable</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">Complete the Business Knowledge review to activate this project’s assistant.</p>
+              </div>
+            </div>
+          )}
         </aside>
-
-        {projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
 
         {overviewOpen && !reviewOpen ? (
           <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
@@ -550,8 +556,7 @@ export default function AiBuilderProjectWorkspace({
           {mobileWorkspaceMenuOpen ? (
             <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
               <aside role="dialog" aria-modal="true" className="flex h-fit max-h-dvh w-[min(220px,86vw)] flex-col overflow-y-auto rounded-br-xl border-b border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[0_18px_50px_rgba(0,0,0,0.55)]">
-                <div className="mb-7 flex items-center justify-between gap-3">
-                  <button type="button" onClick={() => window.location.assign("/ai-builder")} className="text-xs font-semibold text-slate-500">← All Projects</button>
+                <div className="mb-7 flex items-center justify-end">
                   <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} className="text-2xl text-slate-400">×</button>
                 </div>
                 <nav className="space-y-0.5">
