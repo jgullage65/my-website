@@ -162,7 +162,8 @@ export const runOpenAiIntakeModel = async (
   input: IntakeModelInput,
   onComplete?: (metadata: OpenAiIntakeCallMetadata) => void,
 ): Promise<unknown> => {
-  const requestedModelId = cookies().get("ai_builder_model_id")?.value;
+  const cookieStore = await cookies();
+  const requestedModelId = cookieStore.get("ai_builder_model_id")?.value;
   const selectedModel = resolveModel(requestedModelId, "crawl");
   const schemaInstruction = [
     input.systemPrompt,
