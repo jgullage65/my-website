@@ -30,13 +30,18 @@ export async function runOpenAI(input: AdapterInput) {
     throw new ModelExecutionError("configuration", "model_gateway_not_configured");
   }
 
+  const model = input.model.gatewayModelId;
+  if (!model) {
+    throw new ModelExecutionError("configuration", "model_unavailable");
+  }
+
   const client = new OpenAI({ apiKey, timeout: input.timeoutMs });
   const started = performance.now();
 
   try {
     const response = await client.responses.create(
       {
-        model: input.model.gatewayModelId,
+        model,
         instructions: input.instructions,
         input: input.messages.map((message) => ({
           role: message.role,
