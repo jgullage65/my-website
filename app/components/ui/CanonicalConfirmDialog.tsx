@@ -9,6 +9,7 @@ type ConfirmDialogState = {
   confirmLabel: string;
   cancelLabel: string;
   confirmDisabled: boolean;
+  hideCancel: boolean;
   resolve: (confirmed: boolean) => void;
 } | null;
 
@@ -18,6 +19,7 @@ type ConfirmOptions = {
   confirmLabel?: string;
   cancelLabel?: string;
   confirmDisabled?: boolean;
+  hideCancel?: boolean;
 };
 
 function CanonicalConfirmDialog({
@@ -61,13 +63,15 @@ function CanonicalConfirmDialog({
         </div>
 
         <div className="relative z-10 flex justify-end gap-2 px-5 pb-5 pt-5">
-          <button
-            type="button"
-            onClick={() => onClose(false)}
-            className="cta-raised rounded-lg border border-[rgba(245,158,11,0.22)] bg-black px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40 hover:bg-[#0a0a0a]"
-          >
-            {dialog.cancelLabel}
-          </button>
+          {!dialog.hideCancel ? (
+            <button
+              type="button"
+              onClick={() => onClose(false)}
+              className="cta-raised rounded-lg border border-[rgba(245,158,11,0.22)] bg-black px-3 py-1.5 text-sm font-semibold text-slate-100 transition hover:border-amber-300/40 hover:bg-[#0a0a0a]"
+            >
+              {dialog.cancelLabel}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => onClose(true)}
@@ -96,6 +100,7 @@ export function useCanonicalConfirm() {
         confirmLabel: options.confirmLabel ?? "Delete",
         cancelLabel: options.cancelLabel ?? "Cancel",
         confirmDisabled: options.confirmDisabled ?? false,
+        hideCancel: options.hideCancel ?? false,
         resolve,
       });
     });
