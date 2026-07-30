@@ -42,6 +42,7 @@ export async function runOpenAI(input: AdapterInput) {
       output_text?: string;
     };
 
+    const requestId = providerResponse._request_id ?? providerResponse.id ?? null;
     const incompleteReason =
       typeof providerResponse.incomplete_details?.reason === "string"
         ? providerResponse.incomplete_details.reason
@@ -53,7 +54,7 @@ export async function runOpenAI(input: AdapterInput) {
     const text = String(providerResponse.output_text ?? "").trim();
 
     if (!text && status === "completed") {
-      throw new ModelExecutionError("provider", "model_output_empty");
+      throw new ModelExecutionError("provider", "model_output_empty", { requestId });
     }
 
     const rawUsage = providerResponse.usage;
@@ -70,7 +71,7 @@ export async function runOpenAI(input: AdapterInput) {
       usage,
       status,
       incompleteReason,
-      requestId: providerResponse._request_id ?? providerResponse.id ?? null,
+      requestId,
       durationMs: Math.round(performance.now() - started),
     };
   } catch (error) {
@@ -84,22 +85,30 @@ export async function runOpenAI(input: AdapterInput) {
       status?: number;
       code?: string;
       name?: string;
+      message?: string;
+      request_id?: string;
+      headers?: { get?: (name: string) => string | null };
+      error?: { code?: string; message?: string };
     };
     const status = providerError.status;
+    const requestId = providerError.request_id ?? providerError.headers?.get?.("x-request-id") ?? null;
+    const providerCode = providerError.error?.code ?? providerError.code ?? null;
+    const providerMessage = (providerError.error?.message ?? providerError.message ?? "").slice(0, 500) || null;
+    const details = { status: status ?? null, providerCode, requestId, providerMessage };
 
     if (status === 401 || status === 403) {
-      throw new ModelExecutionError("authentication");
+      throw new ModelExecutionError("authentication", "model_execution_failed", details);
     }
     if (status === 429) {
-      throw new ModelExecutionError("rate_limit");
+      throw new ModelExecutionError("rate_limit", "model_execution_failed", details);
     }
     if (typeof status === "number" && status >= 500) {
-      throw new ModelExecutionError("availability");
+      throw new ModelExecutionError("availability", "model_execution_failed", details);
     }
     if (providerError.code === "ETIMEDOUT" || providerError.name === "APIConnectionTimeoutError") {
-      throw new ModelExecutionError("timeout");
+      throw new ModelExecutionError("timeout", "model_execution_failed", details);
     }
 
-    throw new ModelExecutionError("provider");
+    throw new ModelExecutionError("provider", "model_execution_failed", details);
   }
 }
