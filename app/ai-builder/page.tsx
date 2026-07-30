@@ -6,7 +6,7 @@ import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProj
 import AiBuilderShell from "@/app/components/ai-builder/AiBuilderShell";
 import { listAiBuilderProjects } from "@/app/lib/db/ai-builder-repository";
 
-type WorkspaceTab = "projects" | "dashboard" | "insights" | "overview" | "sources" | "settings";
+type WorkspaceTab = "dashboard" | "insights" | "overview" | "sources" | "settings";
 
 type PageProps = {
   searchParams: {
@@ -17,7 +17,6 @@ type PageProps = {
 };
 
 const WORKSPACE_TABS = new Set<WorkspaceTab>([
-  "projects",
   "dashboard",
   "insights",
   "overview",
@@ -42,6 +41,10 @@ export default async function Page({ searchParams }: PageProps) {
     );
   }
 
+  if (requestedTab === "projects") {
+    redirect("/ai-builder/projects");
+  }
+
   if (normalizedProjectId) {
     return <AiBuilderProjectWorkspace projectId={normalizedProjectId} initialTab={initialTab} />;
   }
@@ -55,6 +58,5 @@ export default async function Page({ searchParams }: PageProps) {
     redirect("/ai-builder?new=1");
   }
 
-  const firstActiveProject = projects.find((project) => !project.archivedAt) ?? projects[0];
-  redirect(`/ai-builder?projectId=${encodeURIComponent(firstActiveProject.id)}&tab=projects`);
+  redirect("/ai-builder/projects");
 }
