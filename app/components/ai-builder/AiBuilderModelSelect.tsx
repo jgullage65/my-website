@@ -27,6 +27,11 @@ export default function AiBuilderModelSelect({models,value,disabled,onChange,cla
   const groups = useMemo(() => Array.from(new Set(models.map((model) => model.provider))), [models]);
 
   useEffect(() => {
+    if (!value) return;
+    document.cookie = `ai_builder_model_id=${encodeURIComponent(value)}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }, [value]);
+
+  useEffect(() => {
     if (disabled) setOpen(false);
   }, [disabled]);
 
