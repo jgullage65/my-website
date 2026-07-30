@@ -3,3 +3,5 @@ node_modules
 out
 .env
 *.log
+# clerk configuration (can include secrets)
+/.clerk/
