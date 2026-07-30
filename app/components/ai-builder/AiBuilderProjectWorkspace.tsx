@@ -509,7 +509,7 @@ export default function AiBuilderProjectWorkspace({
                 </div>
                 <nav className="space-y-0.5">
                   {WORKSPACE_ITEMS.map(([value, label]) => (
-                    <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-slate-400 hover:bg-white/[0.04] hover:text-white">{label}</button>
+                    <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white hover:bg-white/[0.04] hover:text-white">{label}</button>
                   ))}
                 </nav>
                 <div className="mt-0.5">
