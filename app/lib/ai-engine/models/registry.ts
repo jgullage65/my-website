@@ -5,7 +5,7 @@ export type ModelDefinition = Readonly<{
   id: string; provider: ModelProvider; displayName: string; gateway: "perplexity";
   gatewayModelId: string | null; enabled: boolean; recommended: boolean; highUsage: boolean;
   purposes: readonly ModelPurpose[]; supportsStreaming: boolean; supportsReasoning: boolean;
-  defaultMaxOutputTokens: number; sortOrder: number;
+  sortOrder: number;
 }>;
 
 // This is the only product catalogue. Upstream identifiers are deliberately
@@ -27,7 +27,7 @@ export const MODEL_REGISTRY = [
 ] .map(([id,provider,displayName,gatewayModelId,recommended,highUsage,enabled],sortOrder) => ({
   id,provider,displayName,gateway:"perplexity",gatewayModelId,recommended,highUsage,enabled,
   purposes:["crawl","test-assistant"],supportsStreaming:false,supportsReasoning:true,
-  defaultMaxOutputTokens:4096,sortOrder,
+  sortOrder,
 })) as readonly ModelDefinition[];
 
 export const DEFAULT_MODEL_IDS: Readonly<Record<ModelPurpose,string>> = { crawl:"gpt-5-5", "test-assistant":"claude-sonnet" };
