@@ -7,17 +7,10 @@ function classifyOpenAiError(error: unknown): ModelExecutionError {
 
   const candidate = error as {
     status?: number;
-    code?: string;
     message?: string;
-    request_id?: string;
-    headers?: { get?: (name: string) => string | null };
   };
   const status = typeof candidate?.status === "number" ? candidate.status : undefined;
-  const providerCode = typeof candidate?.code === "string" ? candidate.code : undefined;
   const providerMessage = typeof candidate?.message === "string" ? candidate.message : "openai_request_failed";
-  const requestId =
-    candidate?.headers?.get?.("x-request-id") ??
-    (typeof candidate?.request_id === "string" ? candidate.request_id : null);
 
   const category =
     status === 401 || status === 403
@@ -28,12 +21,7 @@ function classifyOpenAiError(error: unknown): ModelExecutionError {
           ? "availability"
           : "provider";
 
-  return new ModelExecutionError(category, providerMessage, {
-    status,
-    providerCode,
-    providerMessage,
-    requestId,
-  });
+  return new ModelExecutionError(category, providerMessage);
 }
 
 export async function runOpenAI(input: AdapterInput) {
@@ -67,9 +55,7 @@ export async function runOpenAI(input: AdapterInput) {
     const text = response.output_text.trim();
 
     if (!text && status === "completed") {
-      throw new ModelExecutionError("provider", "model_output_empty", {
-        requestId: response._request_id ?? null,
-      });
+      throw new ModelExecutionError("provider", "model_output_empty");
     }
 
     const rawUsage = response.usage;
