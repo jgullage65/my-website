@@ -5,7 +5,7 @@ import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProj
 import AiBuilderProjects from "@/app/components/ai-builder/AiBuilderProjects";
 import { listAiBuilderProjects } from "@/app/lib/db/ai-builder-repository";
 
-type WorkspaceTab = "dashboard" | "insights" | "sources" | "settings";
+type WorkspaceTab = "dashboard" | "insights" | "overview" | "sources" | "settings";
 
 type PageProps = {
   searchParams: {
@@ -18,6 +18,7 @@ type PageProps = {
 const WORKSPACE_TABS = new Set<WorkspaceTab>([
   "dashboard",
   "insights",
+  "overview",
   "sources",
   "settings",
 ]);
