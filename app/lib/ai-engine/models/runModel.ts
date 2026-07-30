@@ -21,6 +21,17 @@ function runGateway(
     : runPerplexity(adapterInput);
 }
 
+function normalizeStructuredResponseText(
+  purpose: ModelPurpose,
+  text: string,
+): string {
+  if (purpose !== "crawl") return text;
+
+  const trimmed = text.trim();
+  const fencedJson = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  return fencedJson?.[1]?.trim() ?? text;
+}
+
 function shouldFallback(error: unknown): error is ModelExecutionError {
   if (!(error instanceof ModelExecutionError)) return false;
   if (error.category === "availability" || error.category === "timeout" || error.category === "rate_limit") {
@@ -69,6 +80,7 @@ export async function runModel(input: RunModelInput) {
     const result = await runGateway(model.gateway, input, model);
     return {
       ...result,
+      text: normalizeStructuredResponseText(input.purpose, result.text),
       modelId: model.id,
       provider: model.provider,
       gateway: model.gateway,
@@ -100,6 +112,7 @@ export async function runModel(input: RunModelInput) {
       const result = await runGateway(model.fallbackGateway, input, fallbackModel);
       return {
         ...result,
+        text: normalizeStructuredResponseText(input.purpose, result.text),
         modelId: model.id,
         provider: model.provider,
         gateway: model.fallbackGateway,
