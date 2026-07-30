@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import AiBuilderCreationWorkspace from "@/app/components/ai-builder/AiBuilderCreationWorkspace";
+import AiBuilderClient from "@/app/components/ai-builder/AiBuilderClient";
 import AiBuilderLanding from "@/app/components/ai-builder/AiBuilderLanding";
 import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 import AiBuilderShell from "@/app/components/ai-builder/AiBuilderShell";
@@ -46,20 +46,15 @@ export default async function Page({ searchParams }: PageProps) {
     return <AiBuilderProjectWorkspace projectId={normalizedProjectId} initialTab={initialTab} />;
   }
 
-  const projects = await listAiBuilderProjects();
-  const firstActiveProject = projects.find((project) => !project.archivedAt) ?? projects[0] ?? null;
-
   if (newProject) {
-    const projectsHref = firstActiveProject
-      ? `/ai-builder?projectId=${encodeURIComponent(firstActiveProject.id)}&tab=projects`
-      : null;
-
-    return <AiBuilderCreationWorkspace projectsHref={projectsHref} />;
+    return <AiBuilderClient />;
   }
 
-  if (!firstActiveProject) {
+  const projects = await listAiBuilderProjects();
+  if (!projects.length) {
     redirect("/ai-builder?new=1");
   }
 
+  const firstActiveProject = projects.find((project) => !project.archivedAt) ?? projects[0];
   redirect(`/ai-builder?projectId=${encodeURIComponent(firstActiveProject.id)}&tab=projects`);
 }
