@@ -13,8 +13,8 @@ const ogImage =
 
 const clerkAppearance = {
   layout: {
-    logoImageUrl: "/apple-touch-icon.png",
-    logoLinkUrl: "/",
+    logoImageUrl: "/image/Arkenalogo.png",
+    logoLinkUrl: "/ai-builder",
     socialButtonsVariant: "blockButton" as const,
   },
   variables: {
@@ -51,8 +51,9 @@ const clerkAppearance = {
         "0 26px 70px rgba(0, 0, 0, 0.48), 0 0 50px rgba(245, 158, 11, 0.07)",
     },
     logoImage: {
-      height: "42px",
-      width: "42px",
+      height: "auto",
+      width: "180px",
+      maxWidth: "100%",
     },
     headerTitle: {
       color: "#ffffff",
