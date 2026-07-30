@@ -36,6 +36,22 @@ export default function AiBuilderProgress({
       session.faqEntries.filter((entry) => entry.status === "proposed").length
     : 0;
 
+  const goToDashboard = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const dialog = event.currentTarget.closest<HTMLElement>('[role="dialog"][aria-label="Project overview"]');
+    const closeButton = dialog?.querySelector<HTMLButtonElement>('button[aria-label="Close overview"]');
+
+    if (closeButton) {
+      closeButton.click();
+      return;
+    }
+
+    const url = new URL(window.location.href);
+    url.pathname = "/ai-builder";
+    url.searchParams.delete("step");
+    url.searchParams.set("tab", "dashboard");
+    window.location.assign(url.toString());
+  };
+
   return (
     <div className={embedded ? "w-full" : "w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl"}>
       <section className={embedded ? "w-full" : shellClassName}>
@@ -98,7 +114,7 @@ export default function AiBuilderProgress({
               <Stat value={session.conflicts.length} label="Conflicts" />
             </div>
 
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button
                 type="button"
                 onClick={onReview}
@@ -106,6 +122,15 @@ export default function AiBuilderProgress({
               >
                 Review business knowledge
               </button>
+              {embedded ? (
+                <button
+                  type="button"
+                  onClick={goToDashboard}
+                  className="min-h-[46px] rounded-xl border border-white/[0.1] bg-transparent px-8 py-3 text-sm font-bold text-slate-300 transition hover:border-white/[0.18] hover:bg-white/[0.04] hover:text-white"
+                >
+                  Go to dashboard
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}
