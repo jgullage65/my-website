@@ -19,11 +19,22 @@ export async function persistWebsiteSourceRecords(attempt:WebsiteCrawlAttemptRec
   const sql=getSql();
   await sql`INSERT INTO ai_builder_website_crawl_attempts (id,schema_version,requested_url,normalized_submitted_url,resolved_entry_url,started_at,completed_at,crawler_version,extraction_version,status,budgets,restrictions)
     VALUES (${attempt.id},${attempt.schemaVersion},${attempt.requestedUrl},${attempt.normalizedSubmittedUrl},${attempt.resolvedEntryUrl},${attempt.startedAt}::timestamptz,${attempt.completedAt}::timestamptz,${attempt.crawlerVersion},${attempt.extractionVersion},${attempt.status},${JSON.stringify(attempt.budgets)}::jsonb,${JSON.stringify(attempt.restrictions)}::jsonb) ON CONFLICT (id) DO NOTHING`;
-  const storedAttempts=await sql`SELECT * FROM ai_builder_website_crawl_attempts WHERE id=${attempt.id}` as unknown as Record<string,unknown>[];
-  const storedAttempt=storedAttempts[0];
-  if(!storedAttempt||storedAttempt.schema_version!==attempt.schemaVersion||storedAttempt.requested_url!==attempt.requestedUrl||storedAttempt.normalized_submitted_url!==attempt.normalizedSubmittedUrl||
-    storedAttempt.resolved_entry_url!==attempt.resolvedEntryUrl||iso(storedAttempt.started_at)!==iso(attempt.startedAt)||iso(storedAttempt.completed_at)!==iso(attempt.completedAt)||storedAttempt.crawler_version!==attempt.crawlerVersion||
-    storedAttempt.extraction_version!==attempt.extractionVersion||storedAttempt.status!==attempt.status||!sameJson(storedAttempt.budgets,attempt.budgets)||!sameJson(storedAttempt.restrictions,attempt.restrictions))collision("crawl_attempt",attempt.id);
+  const attemptMatches=await sql`SELECT EXISTS(
+    SELECT 1 FROM ai_builder_website_crawl_attempts
+    WHERE id=${attempt.id}
+      AND schema_version=${attempt.schemaVersion}
+      AND requested_url=${attempt.requestedUrl}
+      AND normalized_submitted_url=${attempt.normalizedSubmittedUrl}
+      AND resolved_entry_url=${attempt.resolvedEntryUrl}
+      AND started_at=${attempt.startedAt}::timestamptz
+      AND completed_at=${attempt.completedAt}::timestamptz
+      AND crawler_version=${attempt.crawlerVersion}
+      AND extraction_version=${attempt.extractionVersion}
+      AND status=${attempt.status}
+      AND budgets=${JSON.stringify(attempt.budgets)}::jsonb
+      AND restrictions=${JSON.stringify(attempt.restrictions)}::jsonb
+  ) AS matches` as unknown as Array<{matches:boolean}>;
+  if(!attemptMatches[0]?.matches)collision("crawl_attempt",attempt.id);
 
   const existingDocuments=documents.length?await sql`SELECT * FROM ai_builder_website_source_documents WHERE crawl_attempt_id=${attempt.id}` as unknown as Record<string,unknown>[]:[];
   const verifyDocument=(document:WebsiteSourceDocumentRecord,row:Record<string,unknown>|undefined)=>Boolean(row&&row.schema_version===document.schemaVersion&&row.crawl_attempt_id===document.crawlAttemptId&&row.actual_fetched_url===document.actualFetchedUrl&&row.canonical_url===document.canonicalUrl&&
