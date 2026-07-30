@@ -327,7 +327,7 @@ export default function AiBuilderProjectWorkspace({
   }, [openReview, projectId, reviewOpen]);
 
   const knowledgePack = useMemo(
-    () => (session ? buildKnowledgePack(session) : null),
+    () => (session ? buildKnowledgePack(session) : (undefined as never)),
     [session],
   );
 
@@ -484,52 +484,18 @@ export default function AiBuilderProjectWorkspace({
 
         {overviewOpen && !reviewOpen ? (
           <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
-            <section
-              role="dialog"
-              aria-modal="true"
-              aria-label="Project overview"
-              className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]"
-            >
-              <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-20 py-4 text-center">
-                <h2 className="text-base font-semibold text-white">Overview</h2>
-                <button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] text-xl leading-none text-slate-300 transition hover:bg-white/[0.05] hover:text-white">×</button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                <div className="mx-auto w-full max-w-[700px]">{overviewContent}</div>
-              </div>
+            <section role="dialog" aria-modal="true" aria-label="Project overview" className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
+              <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-20 py-4 text-center"><h2 className="text-base font-semibold text-white">Overview</h2><button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] text-xl leading-none text-slate-300 transition hover:bg-white/[0.05] hover:text-white">×</button></div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5"><div className="mx-auto w-full max-w-[700px]">{overviewContent}</div></div>
             </section>
           </div>
         ) : null}
 
         {reviewOpen ? (
           <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
-            <section
-              role="dialog"
-              aria-modal="true"
-              aria-label="Business Knowledge review"
-              className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]"
-            >
-              <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-24 py-4 text-center">
-                <div className="min-w-0 text-center">
-                  <h2 className="text-base font-semibold text-white">Business Knowledge</h2>
-                  <p className="mt-1 text-xs text-slate-500">Review and govern the assistant’s business memory</p>
-                </div>
-                <button type="button" onClick={closeReview} className="absolute right-6 top-1/2 -translate-y-1/2 rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Done</button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-                <div className="mx-auto w-full max-w-[700px]">
-                  {reviewStatus}
-                  <AiBuilderReview
-                    session={session}
-                    onReviewCommand={submitReviewCommand}
-                    pendingReviewItems={pendingReviewItems}
-                    onBack={closeReview}
-                    onLaunchChat={() => undefined}
-                    showLaunchChat={false}
-                    embedded
-                  />
-                </div>
-              </div>
+            <section role="dialog" aria-modal="true" aria-label="Business Knowledge review" className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
+              <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-24 py-4 text-center"><div className="min-w-0 text-center"><h2 className="text-base font-semibold text-white">Business Knowledge</h2><p className="mt-1 text-xs text-slate-500">Review and govern the assistant’s business memory</p></div><button type="button" onClick={closeReview} className="absolute right-6 top-1/2 -translate-y-1/2 rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Done</button></div>
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5"><div className="mx-auto w-full max-w-[700px]">{reviewStatus}<AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={closeReview} onLaunchChat={() => undefined} showLaunchChat={false} embedded /></div></div>
             </section>
           </div>
         ) : null}
@@ -537,63 +503,11 @@ export default function AiBuilderProjectWorkspace({
 
       <div className="xl:hidden">
         <div className="min-h-[70vh] bg-black">
-          <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-black/95 px-16 text-center backdrop-blur">
-            <button type="button" onClick={() => setMobileWorkspaceMenuOpen(true)} aria-label="Open workspace menu" className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-lg text-slate-200">☰</button>
-            <div className="min-w-0 text-center">
-              <p className="truncate text-sm font-semibold text-white">{reviewOpen ? "Business Knowledge" : WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</p>
-            </div>
-          </header>
-
-          {mobileWorkspaceMenuOpen ? (
-            <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
-              <aside role="dialog" aria-modal="true" className="flex h-fit max-h-dvh w-[min(220px,86vw)] flex-col overflow-y-auto rounded-br-xl border-b border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[0_18px_50px_rgba(0,0,0,0.55)]">
-                <div className="mb-7 flex items-center justify-end">
-                  <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} className="text-2xl text-slate-400">×</button>
-                </div>
-                <nav className="space-y-0.5">
-                  {WORKSPACE_ITEMS.map(([value, label]) => (
-                    <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white hover:bg-white/[0.04] hover:text-white">{label}</button>
-                  ))}
-                </nav>
-                <div className="mt-0.5">
-                  <SignOutButton redirectUrl="/ai-builder">
-                    <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
-                  </SignOutButton>
-                </div>
-              </aside>
-            </div>
-          ) : null}
-
-          <main className="px-4 py-5 sm:px-6 sm:py-6">
-            {reviewOpen ? (
-              <>
-                {reviewStatus}
-                <AiBuilderReview
-                  session={session}
-                  onReviewCommand={submitReviewCommand}
-                  pendingReviewItems={pendingReviewItems}
-                  onBack={closeReview}
-                  onLaunchChat={() => undefined}
-                  showLaunchChat={false}
-                />
-              </>
-            ) : (
-              workspaceContent
-            )}
-          </main>
+          <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-black/95 px-16 text-center backdrop-blur"><button type="button" onClick={() => setMobileWorkspaceMenuOpen(true)} aria-label="Open workspace menu" className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-lg text-slate-200">☰</button><div className="min-w-0 text-center"><p className="truncate text-sm font-semibold text-white">{reviewOpen ? "Business Knowledge" : WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</p></div></header>
+          {mobileWorkspaceMenuOpen ? <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}><aside role="dialog" aria-modal="true" className="flex h-fit max-h-dvh w-[min(220px,86vw)] flex-col overflow-y-auto rounded-br-xl border-b border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[0_18px_50px_rgba(0,0,0,0.55)]"><div className="mb-7 flex items-center justify-end"><button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} className="text-2xl text-slate-400">×</button></div><nav className="space-y-0.5">{WORKSPACE_ITEMS.map(([value, label]) => <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white hover:bg-white/[0.04] hover:text-white">{label}</button>)}</nav><div className="mt-0.5"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button></SignOutButton></div></aside></div> : null}
+          <main className="px-4 py-5 sm:px-6 sm:py-6">{reviewOpen ? <>{reviewStatus}<AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={closeReview} onLaunchChat={() => undefined} showLaunchChat={false} /></> : workspaceContent}</main>
         </div>
-
-        {overviewOpen && !reviewOpen ? (
-          <section role="dialog" aria-modal="true" aria-label="Project overview" className="fixed inset-0 z-[100] hidden min-h-dvh flex-col bg-[#030303] sm:flex xl:hidden">
-            <div className="relative flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] px-16 text-center">
-              <h2 className="text-sm font-semibold text-white">Overview</h2>
-              <button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-2xl leading-none text-slate-300">×</button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-              <div className="mx-auto w-full max-w-[700px]">{overviewContent}</div>
-            </div>
-          </section>
-        ) : null}
+        {overviewOpen && !reviewOpen ? <section role="dialog" aria-modal="true" aria-label="Project overview" className="fixed inset-0 z-[100] hidden min-h-dvh flex-col bg-[#030303] sm:flex xl:hidden"><div className="relative flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] px-16 text-center"><h2 className="text-sm font-semibold text-white">Overview</h2><button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-2xl leading-none text-slate-300">×</button></div><div className="min-h-0 flex-1 overflow-y-auto px-6 py-6"><div className="mx-auto w-full max-w-[700px]">{overviewContent}</div></div></section> : null}
       </div>
     </AiBuilderShell>
   );
