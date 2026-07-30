@@ -4,32 +4,33 @@ export type ModelGateway = "perplexity" | "openai";
 
 export type ModelDefinition = Readonly<{
   id: string; provider: ModelProvider; displayName: string; gateway: ModelGateway;
-  gatewayModelId: string | null; enabled: boolean; recommended: boolean; highUsage: boolean;
+  gatewayModelId: string | null; fallbackGateway: ModelGateway | null; fallbackGatewayModelId: string | null;
+  enabled: boolean; recommended: boolean; highUsage: boolean;
   purposes: readonly ModelPurpose[]; selectablePurposes: readonly ModelPurpose[];
   supportsStreaming: boolean; supportsReasoning: boolean; sortOrder: number;
 }>;
 
-type RegistryRow = readonly [string,ModelProvider,string,ModelGateway,string|null,boolean,boolean,boolean,readonly ModelPurpose[],readonly ModelPurpose[]];
+type RegistryRow = readonly [string,ModelProvider,string,ModelGateway,string|null,ModelGateway|null,string|null,boolean,boolean,boolean,readonly ModelPurpose[],readonly ModelPurpose[]];
 
 // Stable product IDs remain separate from provider model IDs so saved choices survive upstream renames.
 const rows: readonly RegistryRow[] = [
-  ["gpt-5-mini","openai","GPT-5 Mini","perplexity","openai/gpt-5-mini",false,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
-  ["gpt-5","openai","GPT-5","perplexity","openai/gpt-5",false,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
-  ["gpt-5-5","openai","GPT-5.5","perplexity","openai/gpt-5.5",true,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
-  ["gpt-5-5-pro","openai","GPT-5.5 Pro","openai","gpt-5.5-pro",false,true,true,["crawl","test-assistant"],["crawl","test-assistant"]],
-  ["claude-haiku","anthropic","Claude Haiku","perplexity","anthropic/claude-haiku-4-5",false,false,true,["test-assistant"],["crawl","test-assistant"]],
-  ["claude-sonnet","anthropic","Claude Sonnet","perplexity","anthropic/claude-sonnet-4-6",true,false,true,["test-assistant"],["crawl","test-assistant"]],
-  ["claude-opus","anthropic","Claude Opus","perplexity","anthropic/claude-opus-4-6",false,true,true,["test-assistant"],["crawl","test-assistant"]],
-  ["gemini-2-5-flash","google","Gemini 3 Flash","perplexity","google/gemini-3-flash-preview",false,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
-  ["gemini-2-5-pro","google","Gemini 3.1 Pro","perplexity","google/gemini-3.1-pro-preview",true,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
-  ["grok-fast","xai","Grok 4.20 Non-Reasoning","perplexity","xai/grok-4.20-non-reasoning",false,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
-  ["grok","xai","Grok 4.3","perplexity","xai/grok-4.3",true,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
-  ["llama-flagship","meta","Llama flagship","perplexity",null,false,false,false,[],[]],
-  ["deepseek-flagship","deepseek","DeepSeek flagship","perplexity",null,false,false,false,[],[]],
+  ["gpt-5-mini","openai","GPT-5 Mini","perplexity","openai/gpt-5-mini","openai","gpt-5-mini",false,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
+  ["gpt-5","openai","GPT-5","perplexity","openai/gpt-5","openai","gpt-5",false,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
+  ["gpt-5-5","openai","GPT-5.5","perplexity","openai/gpt-5.5",null,null,true,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
+  ["gpt-5-5-pro","openai","GPT-5.5 Pro","openai","gpt-5.5-pro",null,null,false,true,true,["crawl","test-assistant"],["crawl","test-assistant"]],
+  ["claude-haiku","anthropic","Claude Haiku","perplexity","anthropic/claude-haiku-4-5",null,null,false,false,true,["test-assistant"],["crawl","test-assistant"]],
+  ["claude-sonnet","anthropic","Claude Sonnet","perplexity","anthropic/claude-sonnet-4-6",null,null,true,false,true,["test-assistant"],["crawl","test-assistant"]],
+  ["claude-opus","anthropic","Claude Opus","perplexity","anthropic/claude-opus-4-6",null,null,false,true,true,["test-assistant"],["crawl","test-assistant"]],
+  ["gemini-2-5-flash","google","Gemini 3 Flash","perplexity","google/gemini-3-flash-preview",null,null,false,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
+  ["gemini-2-5-pro","google","Gemini 3.1 Pro","perplexity","google/gemini-3.1-pro-preview",null,null,true,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
+  ["grok-fast","xai","Grok 4.20 Non-Reasoning","perplexity","xai/grok-4.20-non-reasoning",null,null,false,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
+  ["grok","xai","Grok 4.3","perplexity","xai/grok-4.3",null,null,true,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
+  ["llama-flagship","meta","Llama flagship","perplexity",null,null,null,false,false,false,[],[]],
+  ["deepseek-flagship","deepseek","DeepSeek flagship","perplexity",null,null,null,false,false,false,[],[]],
 ];
 
-export const MODEL_REGISTRY = rows.map(([id,provider,displayName,gateway,gatewayModelId,recommended,highUsage,enabled,purposes,selectablePurposes],sortOrder) => ({
-  id,provider,displayName,gateway,gatewayModelId,recommended,highUsage,enabled,purposes,selectablePurposes,
+export const MODEL_REGISTRY = rows.map(([id,provider,displayName,gateway,gatewayModelId,fallbackGateway,fallbackGatewayModelId,recommended,highUsage,enabled,purposes,selectablePurposes],sortOrder) => ({
+  id,provider,displayName,gateway,gatewayModelId,fallbackGateway,fallbackGatewayModelId,recommended,highUsage,enabled,purposes,selectablePurposes,
   supportsStreaming:false,supportsReasoning:true,sortOrder,
 })) as readonly ModelDefinition[];
 
