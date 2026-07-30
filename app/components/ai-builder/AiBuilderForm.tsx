@@ -160,7 +160,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let payload: WebsiteImportPayload | null = null;
+      const result = { payload: null as WebsiteImportPayload | null };
 
       const handleEvent = (event: WebsiteImportEvent) => {
         if (event.type === "crawl_progress") {
@@ -186,7 +186,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         }
         setImportStage("processing");
         setImportProgress((current) => Math.max(current, 96));
-        payload = event;
+        result.payload = event;
       };
 
       while (true) {
@@ -204,6 +204,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         }
       }
 
+      const payload = result.payload;
       if (!payload?.ok || !payload.import) {
         throw new Error(formatImportError(payload?.error, "The website could not be imported."));
       }
