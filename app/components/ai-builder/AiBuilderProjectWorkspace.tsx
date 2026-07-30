@@ -432,7 +432,7 @@ export default function AiBuilderProjectWorkspace({
               </button>
             ))}
           </nav>
-          <div className="mt-auto border-t border-white/[0.08] pt-4">
+          <div className="mt-0.5">
             <SignOutButton redirectUrl="/ai-builder">
               <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
             </SignOutButton>
