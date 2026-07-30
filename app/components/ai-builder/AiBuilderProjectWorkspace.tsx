@@ -496,7 +496,6 @@ export default function AiBuilderProjectWorkspace({
             <button type="button" onClick={() => setMobileWorkspaceMenuOpen(true)} aria-label="Open workspace menu" className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-lg text-slate-200">☰</button>
             <div className="min-w-0 text-center">
               <p className="truncate text-sm font-semibold text-white">{reviewOpen ? "Business Knowledge" : WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</p>
-              <p className="mt-0.5 truncate text-xs text-slate-500">{builder.businessName || "AI Builder Project"}</p>
             </div>
           </header>
 
