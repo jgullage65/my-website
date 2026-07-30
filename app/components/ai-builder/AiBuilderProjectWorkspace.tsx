@@ -502,7 +502,7 @@ export default function AiBuilderProjectWorkspace({
 
           {mobileWorkspaceMenuOpen ? (
             <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
-              <aside role="dialog" aria-modal="true" className="flex h-full w-[min(220px,86vw)] flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
+              <aside role="dialog" aria-modal="true" className="flex h-fit max-h-dvh w-[min(220px,86vw)] flex-col overflow-y-auto rounded-br-xl border-b border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[0_18px_50px_rgba(0,0,0,0.55)]">
                 <div className="mb-7 flex items-center justify-between gap-3">
                   <button type="button" onClick={() => window.location.assign("/ai-builder")} className="text-xs font-semibold text-slate-500">← All Projects</button>
                   <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} className="text-2xl text-slate-400">×</button>
