@@ -68,7 +68,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [crawlPages, setCrawlPages] = useState(0);
-  const [importStage, setImportStage] = useState<"crawl" | "processing">("crawl");
+  const [importStage, setImportStage] = useState<"crawl" | "processing" | "complete">("crawl");
   const [importError, setImportError] = useState<string | null>(null);
   const [importMessage, setImportMessage] = useState<string | null>(null);
   const [showWebsiteKnowledge, setShowWebsiteKnowledge] = useState(false);
@@ -220,6 +220,10 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         websiteKnowledge,
       });
 
+      setImportProgress(100);
+      setImportStage("complete");
+      await new Promise((resolve) => window.setTimeout(resolve, 1200));
+
       const pageCount = websiteKnowledge.pages.length;
       setImportMessage(
         `Imported ${pageCount} page${pageCount === 1 ? "" : "s"}. Your expertise remains separate and always takes priority.`,
@@ -310,7 +314,9 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
                     {importing
                       ? importStage === "crawl"
                         ? `${crawlPages} page${crawlPages === 1 ? "" : "s"} crawled`
-                        : `Importing… ${importProgress}%`
+                        : importStage === "processing"
+                          ? `Building Business Memory… ${importProgress}%`
+                          : "Business Memory complete"
                       : value.websiteKnowledge
                         ? "Re-import Website"
                         : "Import Website"}
