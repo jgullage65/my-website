@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { SignIn } from "@clerk/nextjs";
+import { SignIn, SignInButton } from "@clerk/nextjs";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
 import type { BuilderState } from "./AiBuilderClient";
@@ -150,7 +150,12 @@ export default function AiBuilderLanding() {
             <Image src="/image/Arkenalogo.png" alt="Arkena Studio" width={260} height={72} priority className="h-auto w-[180px] object-contain sm:w-[210px] xl:w-[230px]" />
             <h1 className="mt-5 text-3xl font-medium leading-[1.04] tracking-[-.035em] text-white sm:text-4xl xl:text-5xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
             <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
-            <div className="mt-7"><a href="/pricing" className={primaryButton}>Build Your Business Brain</a></div>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <button type="button" className={primaryButton}>Build Your Business Brain</button>
+              <SignInButton mode="modal" forceRedirectUrl="/ai-builder">
+                <button type="button" className={primaryButton}>Sign In</button>
+              </SignInButton>
+            </div>
 
             <div className="mt-8 grid gap-7 border-t border-white/[0.07] pt-6">
               <div>
@@ -225,15 +230,14 @@ export default function AiBuilderLanding() {
                 </label>
                 <label className="grid gap-2 text-center text-sm font-medium text-slate-300">
                   Email
-                  <input type="email" name="email" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="you@example.com" />
+                  <input type="email" name="email" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="you@company.com" />
                 </label>
                 <label className="grid gap-2 text-center text-sm font-medium text-slate-300">
                   Message
-                  <textarea name="message" rows={4} className="resize-none rounded-xl border border-amber-300/10 bg-[#070707] px-4 py-3 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="How can we help?" />
+                  <textarea name="message" rows={4} className="rounded-xl border border-amber-300/10 bg-[#070707] px-4 py-3 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="How can we help?" />
                 </label>
+                <button type="submit" className={primaryButton}>Send Message</button>
               </div>
-
-              <button type="submit" className={`${primaryButton} mt-5 w-full`}>Send Message</button>
             </form>
           </div>
         </section>
