@@ -317,7 +317,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   }, [step]);
 
   const knowledgePack = useMemo(
-    () => (session?.status === "ready" ? buildKnowledgePack(session) : null),
+    () => (session ? buildKnowledgePack(session) : null),
     [session],
   );
 
