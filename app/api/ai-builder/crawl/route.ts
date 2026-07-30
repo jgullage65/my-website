@@ -23,8 +23,8 @@ import {
   type PersistedWebsiteKnowledge,
   type WebsiteKnowledgeFact,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
-import { getAiBuilderProject, persistMergedWebsiteKnowledge } from "@/app/lib/db/ai-builder-repository";
-import { planWebsiteRecrawlExtraction, reconcileWebsiteRecrawl } from "@/app/lib/ai-engine/crawler/websiteRecrawlReconciliation";
+import { persistMergedWebsiteKnowledge } from "@/app/lib/db/ai-builder-repository";
+import { reconcileWebsiteRecrawl } from "@/app/lib/ai-engine/crawler/websiteRecrawlReconciliation";
 import { persistWebsiteRecrawlReconciliation } from "@/app/lib/ai-engine/crawler/websiteRecrawlReconciliationStore";
 import { buildBusinessMemory } from "@/app/lib/ai-engine/business-memory/buildBusinessMemory";
 
@@ -35,14 +35,7 @@ export const maxDuration = 800;
 const extractionSchema = {
   type: "object",
   additionalProperties: false,
-  required: [
-    "businessName",
-    "industry",
-    "productsServices",
-    "idealCustomers",
-    "additionalKnowledge",
-    "knowledge",
-  ],
+  required: ["businessName", "industry", "productsServices", "idealCustomers", "additionalKnowledge", "knowledge"],
   properties: {
     businessName: { type: "string" },
     industry: { type: "string" },
@@ -72,10 +65,7 @@ const extractionSchema = {
                   type: "object",
                   additionalProperties: false,
                   required: ["url", "excerpt"],
-                  properties: {
-                    url: { type: "string" },
-                    excerpt: { type: "string" },
-                  },
+                  properties: { url: { type: "string" }, excerpt: { type: "string" } },
                 },
               },
             },
@@ -87,10 +77,7 @@ const extractionSchema = {
           required: WEBSITE_KNOWLEDGE_COVERAGE_FIELDS,
           properties: Object.fromEntries(WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.map((field) => [field, { type: "number", minimum: 0, maximum: 100 }])),
         },
-        unresolvedQuestions: {
-          type: "array",
-          items: { type: "string" },
-        },
+        unresolvedQuestions: { type: "array", items: { type: "string" } },
       },
     },
   },
@@ -123,18 +110,11 @@ function measureWebsiteExtractionFinalInput(input: string): number {
 }
 
 const factCategories = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
-
 const confidenceLevels = new Set(["high", "medium", "low"]);
-
 const coverageFields = WEBSITE_KNOWLEDGE_COVERAGE_FIELDS;
 
 function normalizeText(value: unknown): string {
-  return String(value ?? "")
-    .replace(/\u0000/g, "")
-    .replace(/\r\n/g, "\n")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return String(value ?? "").replace(/\u0000/g, "").replace(/\r\n/g, "\n").replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function clampCoverage(value: unknown): number {
@@ -153,12 +133,11 @@ function canonicalizeUrl(value: unknown): string {
   }
 }
 
-function normalizeKnowledge(value: unknown, crawledPages: Map<string, string>, crawl: Pick<Awaited<ReturnType<typeof crawlBusinessWebsite>>,"sourceDocuments"|"sourceBlocks"|"crawlAttempt">) {
+function normalizeKnowledge(value: unknown, crawledPages: Map<string, string>, crawl: Pick<Awaited<ReturnType<typeof crawlBusinessWebsite>>, "sourceDocuments" | "sourceBlocks" | "crawlAttempt">) {
   const knowledge = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const rawFacts = Array.isArray(knowledge.facts) ? knowledge.facts : [];
   const facts = rawFacts.flatMap((rawFact) => {
     if (!rawFact || typeof rawFact !== "object") return [];
-
     const fact = rawFact as Record<string, unknown>;
     const category = normalizeText(fact.category);
     const title = normalizeText(fact.title);
@@ -166,31 +145,19 @@ function normalizeKnowledge(value: unknown, crawledPages: Map<string, string>, c
     const confidence = normalizeText(fact.confidence);
     const evidence = (Array.isArray(fact.evidence) ? fact.evidence : []).flatMap((rawEvidence) => {
       if (!rawEvidence || typeof rawEvidence !== "object") return [];
-
       const item = rawEvidence as Record<string, unknown>;
       const url = normalizeText(item.url);
       const excerpt = normalizeText(item.excerpt);
       const pageText = crawledPages.get(canonicalizeUrl(url));
-      if(!url||!excerpt||!pageText?.includes(excerpt))return [];
-      return [{url,excerpt,...locateWebsiteEvidence(url,excerpt,crawl.sourceDocuments,crawl.sourceBlocks,crawl.crawlAttempt.id)}];
+      if (!url || !excerpt || !pageText?.includes(excerpt)) return [];
+      return [{ url, excerpt, ...locateWebsiteEvidence(url, excerpt, crawl.sourceDocuments, crawl.sourceBlocks, crawl.crawlAttempt.id) }];
     });
-
-    if (!category || !title || !factValue || !confidence || !factCategories.has(category) || !confidenceLevels.has(confidence) || !evidence.length) {
-      return [];
-    }
-
+    if (!category || !title || !factValue || !confidence || !factCategories.has(category) || !confidenceLevels.has(confidence) || !evidence.length) return [];
     return [{ category, title, value: factValue, confidence, evidence }];
   });
-  const rawCoverage = knowledge.coverage && typeof knowledge.coverage === "object"
-    ? knowledge.coverage as Record<string, unknown>
-    : {};
-  const coverage = Object.fromEntries(
-    coverageFields.map((field) => [field, clampCoverage(rawCoverage[field])]),
-  ) as Record<(typeof coverageFields)[number], number>;
-  const unresolvedQuestions = (Array.isArray(knowledge.unresolvedQuestions) ? knowledge.unresolvedQuestions : [])
-    .map(normalizeText)
-    .filter(Boolean);
-
+  const rawCoverage = knowledge.coverage && typeof knowledge.coverage === "object" ? knowledge.coverage as Record<string, unknown> : {};
+  const coverage = Object.fromEntries(coverageFields.map((field) => [field, clampCoverage(rawCoverage[field])])) as Record<(typeof coverageFields)[number], number>;
+  const unresolvedQuestions = (Array.isArray(knowledge.unresolvedQuestions) ? knowledge.unresolvedQuestions : []).map(normalizeText).filter(Boolean);
   return { facts, coverage, unresolvedQuestions };
 }
 
@@ -203,11 +170,7 @@ type ExtractedWebsiteBatch = {
   knowledge: ReturnType<typeof normalizeKnowledge>;
 };
 
-type CrawlRequestBody = {
-  website?: unknown;
-  modelId?: unknown;
-  projectId?: unknown;
-};
+type CrawlRequestBody = { website?: unknown; modelId?: unknown; projectId?: unknown };
 
 function splitTextInHalf(value: string): [string, string] {
   let midpoint = Math.floor(value.length / 2);
@@ -223,7 +186,10 @@ function splitExtractionUnits(units: WebsiteExtractionChunk[]): [WebsiteExtracti
   const unit = units[0];
   if (!unit || unit.text.length < 2) return null;
   const [left, right] = splitTextInHalf(unit.text);
-  return [[{ ...unit, text: left, chunkIndex: unit.chunkIndex * 2 - 1, chunkCount: unit.chunkCount * 2 }], [{ ...unit, text: right, chunkIndex: unit.chunkIndex * 2, chunkCount: unit.chunkCount * 2 }]];
+  return [
+    [{ ...unit, text: left, chunkIndex: unit.chunkIndex * 2 - 1, chunkCount: unit.chunkCount * 2 }],
+    [{ ...unit, text: right, chunkIndex: unit.chunkIndex * 2, chunkCount: unit.chunkCount * 2 }],
+  ];
 }
 
 function isContextWindowError(error: unknown): boolean {
@@ -231,13 +197,13 @@ function isContextWindowError(error: unknown): boolean {
   const candidate = error as { status?: unknown; code?: unknown; message?: unknown; error?: { code?: unknown; message?: unknown } };
   const code = String(candidate.code ?? candidate.error?.code ?? "").toLowerCase();
   const message = String(candidate.message ?? candidate.error?.message ?? "").toLowerCase();
-  return candidate.status === 400 && (
-    code.includes("context") ||
-    message.includes("context window") ||
-    message.includes("maximum context") ||
-    message.includes("too many tokens") ||
-    message.includes("input exceeds")
-  );
+  return candidate.status === 400 && (code.includes("context") || message.includes("context window") || message.includes("maximum context") || message.includes("too many tokens") || message.includes("input exceeds"));
+}
+
+function isOutputLimitReason(reason: string | null): boolean {
+  if (!reason) return false;
+  const normalized = reason.toLowerCase();
+  return normalized.includes("max_output") || normalized.includes("output_token") || normalized.includes("length");
 }
 
 function appendDistinct(values: string[]): string {
@@ -289,35 +255,25 @@ export async function POST(request: Request) {
   const workerSecret = process.env.CRON_SECRET?.trim();
   const internalWorker = Boolean(workerSecret && request.headers.get("authorization") === `Bearer ${workerSecret}`);
   if (!internalWorker) {
-    try {
-      await requireClerkUserId();
-    } catch {
-      return NextResponse.json({ ok: false, error: { code: "authentication_required", message: "Sign in to use AI Builder." } }, { status: 401 });
-    }
+    try { await requireClerkUserId(); }
+    catch { return NextResponse.json({ ok: false, error: { code: "authentication_required", message: "Sign in to use AI Builder." } }, { status: 401 }); }
   }
-  let body: CrawlRequestBody;
 
-  try {
-    body = (await request.json()) as CrawlRequestBody;
-  } catch {
-    return errorResponse(400, "invalid_json", "The request body must be valid JSON.");
-  }
+  let body: CrawlRequestBody;
+  try { body = (await request.json()) as CrawlRequestBody; }
+  catch { return errorResponse(400, "invalid_json", "The request body must be valid JSON."); }
 
   const website = normalizeText(body.website);
   const projectId = normalizeText(body.projectId);
-  const project = projectId && !internalWorker
-    ? await aiBuilderRepository.getAiBuilderProject(projectId)
-    : null;
-  if (projectId && !internalWorker && !project) {
-    return errorResponse(404, "project_not_found", "This AI Builder project could not be found.");
-  }
+  const project = projectId && !internalWorker ? await aiBuilderRepository.getAiBuilderProject(projectId) : null;
+  if (projectId && !internalWorker && !project) return errorResponse(404, "project_not_found", "This AI Builder project could not be found.");
   const previousKnowledge = project?.websiteKnowledge ?? null;
-  if (!website) {
-    return errorResponse(400, "website_required", "Add a website before importing business information.");
-  }
+  if (!website) return errorResponse(400, "website_required", "Add a website before importing business information.");
 
-  let selectedModel:ModelDefinition; try { selectedModel=resolveModel(body.modelId,"crawl"); } catch(error) { return errorResponse(400,error instanceof Error?error.message:"model_unknown","That AI model is not available for website import."); }
-  if (!process.env.PERPLEXITY_API_KEY?.trim()) return errorResponse(503,"model_gateway_not_configured","The AI builder is not configured yet.");
+  let selectedModel: ModelDefinition;
+  try { selectedModel = resolveModel(body.modelId, "crawl"); }
+  catch (error) { return errorResponse(400, error instanceof Error ? error.message : "model_unknown", "That AI model is not available for website import."); }
+  if (!process.env.PERPLEXITY_API_KEY?.trim()) return errorResponse(503, "model_gateway_not_configured", "The AI builder is not configured yet.");
 
   const encoder = new TextEncoder();
   const attemptId = crypto.randomUUID();
@@ -327,11 +283,10 @@ export async function POST(request: Request) {
   const telemetryStart = performance.now();
   await startCrawlTelemetry(attemptId, website, crawlStartedAt);
   persistenceMs += performance.now() - telemetryStart;
+
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (event: Record<string, unknown>) =>
-        controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-
+      const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       let crawlRecorded = false;
       let model = selectedModel.id;
       let usage: AiTokenUsage | undefined;
@@ -343,216 +298,169 @@ export async function POST(request: Request) {
       let aiExtractionStarted: number | undefined;
       let aiExtractionDurationMs = 0;
       let crawlDiagnostics: BusinessWebsiteCrawlError["diagnostics"] | undefined;
-      try {
-    send({ type: "progress", percent: 5 });
-    crawlStartedAt = new Date().toISOString();
-    const crawl = await crawlBusinessWebsite(website, (pagesCrawled, pagesDiscovered) => {
-      send({ type: "crawl_progress", pagesCrawled, pagesDiscovered });
-    },{crawlAttemptId:attemptId,crawlStartedAt});
-    await persistWebsiteSourceRecords(crawl.crawlAttempt,crawl.sourceDocuments,crawl.sourceBlocks);
-    crawlDiagnostics = crawl.diagnostics;
-    const crawlCompletedAt = new Date().toISOString();
-    const currentBase = {
-      schema_version: 2 as const,
-      document_version: previousKnowledge?.document_version ?? 1,
-      current_crawl_attempt_id: crawl.crawlAttempt.id,
-      imported_at: crawlCompletedAt,
-      requested_url: crawl.requestedUrl,
-      resolved_url: crawl.resolvedUrl,
-      pages: crawl.pages.map((page) => ({
-        url: page.url,
-        title: page.title,
-        pageType: page.pageType,
-        sourceDocumentId: page.sourceDocumentId,
-      })),
-      warnings: crawl.warnings,
-      knowledge: previousKnowledge?.knowledge ?? {
-        facts: [],
-        coverage: Object.fromEntries(
-          WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.map((field) => [field, 0]),
-        ) as import("@/app/lib/ai-engine/knowledge/websiteKnowledge").WebsiteKnowledgeCoverage,
-        unresolvedQuestions: [],
-      },
-      source_documents: crawl.sourceDocuments,
-      source_blocks: crawl.sourceBlocks,
-    };
-    const telemetryFinish = performance.now();
-    await finishCrawlTelemetry(attemptId,{status:crawl.warnings.length||crawl.diagnostics.pagesFailed||crawl.diagnostics.pagesExtractionFailed?"partial":"completed",resolvedUrl:crawl.resolvedUrl,startedAt:crawlStartedAt,completedAt:crawlCompletedAt,...crawl.diagnostics,diagnostics:crawl.diagnostics,warnings:crawl.warnings.map(message=>({stage:"crawl",message}))});
-    persistenceMs += performance.now() - telemetryFinish;
-    crawlRecorded = true;
-    send({ type: "crawl_complete", pagesCrawled: crawl.diagnostics.pagesRetained, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
-    send({ type: "progress", percent: 70 });
-    const previousBlockText = new Set(
-      (previousKnowledge?.source_blocks ?? []).map((block) =>
-        normalizeText(block.normalizedText),
-      ),
-    );
-    const extractionPlan = {
-      mode: previousKnowledge ? "recrawl" as const : "initial" as const,
-      preservedFacts: previousKnowledge?.knowledge.facts ?? [],
-      blockChanges: crawl.sourceBlocks.map((block) => ({
-        state: previousBlockText.has(normalizeText(block.normalizedText))
-          ? "unchanged" as const
-          : "added" as const,
-      })),
-      extractionBlocks: crawl.sourceBlocks,
-      telemetry: {
-        previousBlockCount: previousKnowledge?.source_blocks?.length ?? 0,
-        currentBlockCount: crawl.sourceBlocks.length,
-        unchangedBlockCount: crawl.sourceBlocks.filter((block) =>
-          previousBlockText.has(normalizeText(block.normalizedText)),
-        ).length,
-        extractionBlockCount: crawl.sourceBlocks.length,
-        preservedFactCount: previousKnowledge?.knowledge.facts.length ?? 0,
-      },
-    };
-    const sourceDocumentsById = new Map(
-      crawl.sourceDocuments.map((document) => [document.id, document]),
-    );
-    const crawledPagesByUrl = new Map(
-      crawl.pages.map((page) => [canonicalizeUrl(page.url), page]),
-    );
-    const extractionUnits = extractionPlan.extractionBlocks.map((block, index) => {
-      const document = sourceDocumentsById.get(block.sourceDocumentId);
-      if (!document) {
-        throw new Error("website_source_block_document_missing");
-      }
 
-      const sourceUrl = document.canonicalUrl ?? document.actualFetchedUrl;
-      const page = crawledPagesByUrl.get(canonicalizeUrl(sourceUrl));
-      return {
-        pageNumber: index + 1,
-        sourceIdentifier: block.id,
-        url: sourceUrl,
-        pageType:
-          page?.pageType ??
-          (document.sourceType === "pdf" ? "document" : "page"),
-        title: page?.title ?? "",
-        text: block.normalizedText,
-      };
-    });
-    aiExtractionUnits = extractionUnits.length;
-    const crawledPages = new Map(crawl.pages.map((page) => [
-      canonicalizeUrl(page.url),
-      normalizeText(page.text),
-    ]));
-
-    send({ type: "progress", percent: 75 });
-    const aiStarted = performance.now();
-    aiExtractionStarted = aiStarted;
-    const plannedBatches = buildWebsiteExtractionBatches(extractionUnits, measureWebsiteExtractionFinalInput);
-    const pendingBatches: WebsiteExtractionChunk[][] = plannedBatches.map((batch) => batch.units);
-    const extractedBatches: ExtractedWebsiteBatch[] = [];
-    while (pendingBatches.length > 0) {
-      const units = pendingBatches.shift()!;
-      const batchIndex = aiCalls + 1;
-      const input = renderWebsiteExtractionBatch(units);
-      const finalInputCharacterCount = assertSafeWebsiteExtractionInput(input, measureWebsiteExtractionFinalInput);
-      const callStarted = performance.now();
       try {
-        aiCalls += 1;
-        const response = await runModel({modelId:model,purpose:"crawl",instructions:`${extractionInstructions} Return only JSON matching this schema: ${JSON.stringify(extractionSchema)}`,messages:[{role:"user",content:input}],signal:request.signal});
-        console.info("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, inputTokenCount: response.usage.inputTokens, outputTokenCount: response.usage.outputTokens, model: response.modelId, durationMs: performance.now() - callStarted, success: true });
-        if (response.usage) {
-          const batchUsage = {
-            inputTokens: response.usage.inputTokens,
-            outputTokens: response.usage.outputTokens,
-            totalTokens: response.usage.totalTokens,
-          };
-          usage = {
-            inputTokens: (usage?.inputTokens ?? 0) + batchUsage.inputTokens,
-            outputTokens: (usage?.outputTokens ?? 0) + batchUsage.outputTokens,
-            totalTokens: (usage?.totalTokens ?? 0) + batchUsage.totalTokens,
-          };
-          const batchCost = estimateAiTokenCost(model, batchUsage);
-          if (batchCost) {
-            hasCostEstimate = true;
-            estimatedInputCostUsd += batchCost.inputCostUsd;
-            estimatedOutputCostUsd += batchCost.outputCostUsd;
+        send({ type: "progress", percent: 5 });
+        crawlStartedAt = new Date().toISOString();
+        const crawl = await crawlBusinessWebsite(website, (pagesCrawled, pagesDiscovered) => send({ type: "crawl_progress", pagesCrawled, pagesDiscovered }), { crawlAttemptId: attemptId, crawlStartedAt });
+        await persistWebsiteSourceRecords(crawl.crawlAttempt, crawl.sourceDocuments, crawl.sourceBlocks);
+        crawlDiagnostics = crawl.diagnostics;
+        const crawlCompletedAt = new Date().toISOString();
+        const currentBase = {
+          schema_version: 2 as const,
+          document_version: previousKnowledge?.document_version ?? 1,
+          current_crawl_attempt_id: crawl.crawlAttempt.id,
+          imported_at: crawlCompletedAt,
+          requested_url: crawl.requestedUrl,
+          resolved_url: crawl.resolvedUrl,
+          pages: crawl.pages.map((page) => ({ url: page.url, title: page.title, pageType: page.pageType, sourceDocumentId: page.sourceDocumentId })),
+          warnings: crawl.warnings,
+          knowledge: previousKnowledge?.knowledge ?? {
+            facts: [],
+            coverage: Object.fromEntries(WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.map((field) => [field, 0])) as import("@/app/lib/ai-engine/knowledge/websiteKnowledge").WebsiteKnowledgeCoverage,
+            unresolvedQuestions: [],
+          },
+          source_documents: crawl.sourceDocuments,
+          source_blocks: crawl.sourceBlocks,
+        };
+
+        const telemetryFinish = performance.now();
+        await finishCrawlTelemetry(attemptId, { status: crawl.warnings.length || crawl.diagnostics.pagesFailed || crawl.diagnostics.pagesExtractionFailed ? "partial" : "completed", resolvedUrl: crawl.resolvedUrl, startedAt: crawlStartedAt, completedAt: crawlCompletedAt, ...crawl.diagnostics, diagnostics: crawl.diagnostics, warnings: crawl.warnings.map((message) => ({ stage: "crawl", message })) });
+        persistenceMs += performance.now() - telemetryFinish;
+        crawlRecorded = true;
+        send({ type: "crawl_complete", pagesCrawled: crawl.diagnostics.pagesRetained, pagesDiscovered: crawl.diagnostics.pagesDiscovered });
+        send({ type: "progress", percent: 70 });
+
+        const previousBlockText = new Set((previousKnowledge?.source_blocks ?? []).map((block) => normalizeText(block.normalizedText)));
+        const extractionPlan = {
+          mode: previousKnowledge ? "recrawl" as const : "initial" as const,
+          preservedFacts: previousKnowledge?.knowledge.facts ?? [],
+          blockChanges: crawl.sourceBlocks.map((block) => ({ state: previousBlockText.has(normalizeText(block.normalizedText)) ? "unchanged" as const : "added" as const })),
+          extractionBlocks: crawl.sourceBlocks,
+          telemetry: {
+            previousBlockCount: previousKnowledge?.source_blocks?.length ?? 0,
+            currentBlockCount: crawl.sourceBlocks.length,
+            unchangedBlockCount: crawl.sourceBlocks.filter((block) => previousBlockText.has(normalizeText(block.normalizedText))).length,
+            extractionBlockCount: crawl.sourceBlocks.length,
+            preservedFactCount: previousKnowledge?.knowledge.facts.length ?? 0,
+          },
+        };
+
+        const sourceDocumentsById = new Map(crawl.sourceDocuments.map((document) => [document.id, document]));
+        const crawledPagesByUrl = new Map(crawl.pages.map((page) => [canonicalizeUrl(page.url), page]));
+        const extractionUnits = extractionPlan.extractionBlocks.map((block, index) => {
+          const document = sourceDocumentsById.get(block.sourceDocumentId);
+          if (!document) throw new Error("website_source_block_document_missing");
+          const sourceUrl = document.canonicalUrl ?? document.actualFetchedUrl;
+          const page = crawledPagesByUrl.get(canonicalizeUrl(sourceUrl));
+          return { pageNumber: index + 1, sourceIdentifier: block.id, url: sourceUrl, pageType: page?.pageType ?? (document.sourceType === "pdf" ? "document" : "page"), title: page?.title ?? "", text: block.normalizedText };
+        });
+
+        aiExtractionUnits = extractionUnits.length;
+        const crawledPages = new Map(crawl.pages.map((page) => [canonicalizeUrl(page.url), normalizeText(page.text)]));
+        send({ type: "progress", percent: 75 });
+        const aiStarted = performance.now();
+        aiExtractionStarted = aiStarted;
+        const plannedBatches = buildWebsiteExtractionBatches(extractionUnits, measureWebsiteExtractionFinalInput);
+        const pendingBatches: WebsiteExtractionChunk[][] = plannedBatches.map((batch) => batch.units);
+        const extractedBatches: ExtractedWebsiteBatch[] = [];
+
+        while (pendingBatches.length > 0) {
+          const units = pendingBatches.shift()!;
+          const batchIndex = aiCalls + 1;
+          const input = renderWebsiteExtractionBatch(units);
+          const finalInputCharacterCount = assertSafeWebsiteExtractionInput(input, measureWebsiteExtractionFinalInput);
+          const callStarted = performance.now();
+          try {
+            aiCalls += 1;
+            const response = await runModel({ modelId: model, purpose: "crawl", instructions: `${extractionInstructions} Return only JSON matching this schema: ${JSON.stringify(extractionSchema)}`, messages: [{ role: "user", content: input }], signal: request.signal });
+            console.info("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, inputTokenCount: response.usage.inputTokens, outputTokenCount: response.usage.outputTokens, model: response.modelId, completionStatus: response.status, incompleteReason: response.incompleteReason, durationMs: performance.now() - callStarted, success: response.status === "completed" });
+
+            const batchUsage = { inputTokens: response.usage.inputTokens, outputTokens: response.usage.outputTokens, totalTokens: response.usage.totalTokens };
+            usage = { inputTokens: (usage?.inputTokens ?? 0) + batchUsage.inputTokens, outputTokens: (usage?.outputTokens ?? 0) + batchUsage.outputTokens, totalTokens: (usage?.totalTokens ?? 0) + batchUsage.totalTokens };
+            const batchCost = estimateAiTokenCost(model, batchUsage);
+            if (batchCost) {
+              hasCostEstimate = true;
+              estimatedInputCostUsd += batchCost.inputCostUsd;
+              estimatedOutputCostUsd += batchCost.outputCostUsd;
+            }
+
+            if (response.status === "incomplete") {
+              if (!isOutputLimitReason(response.incompleteReason)) throw new Error(`model_response_incomplete:${response.incompleteReason ?? "unknown"}`);
+              const split = splitExtractionUnits(units);
+              if (!split) throw new Error("AI extraction could not produce a complete response for a single content unit.");
+              pendingBatches.unshift(split[0], split[1]);
+              continue;
+            }
+
+            const batch = JSON.parse(response.text) as Omit<ExtractedWebsiteBatch, "knowledge"> & { knowledge: unknown };
+            extractedBatches.push({ ...batch, knowledge: normalizeKnowledge(batch.knowledge, crawledPages, crawl) });
+          } catch (error) {
+            console.error("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, model, durationMs: performance.now() - callStarted, success: false, error: error instanceof Error ? error.message : String(error) });
+            if (!isContextWindowError(error)) throw error;
+            const split = splitExtractionUnits(units);
+            if (!split) throw error;
+            pendingBatches.unshift(split[0], split[1]);
           }
         }
-        const batch = JSON.parse(response.text) as Omit<ExtractedWebsiteBatch, "knowledge"> & { knowledge: unknown };
-        extractedBatches.push({ ...batch, knowledge: normalizeKnowledge(batch.knowledge, crawledPages, crawl) });
-      } catch (error) {
-        console.error("AI_BUILDER_EXTRACTION_CALL", { attemptId, batchIndex, totalBatchCount: plannedBatches.length, pageCount: new Set(units.map((unit) => unit.sourceIdentifier)).size, chunkCount: units.length, finalInputCharacterCount, model, durationMs: performance.now() - callStarted, success: false, error: error instanceof Error ? error.message : String(error) });
-        if (!isContextWindowError(error)) throw error;
-        const split = splitExtractionUnits(units);
-        if (!split) throw error;
-        pendingBatches.unshift(split[0], split[1]);
-      }
-    }
-    const extracted = mergeExtractedBatches(extractedBatches);
-    const deltaFacts=extracted.knowledge.facts as WebsiteKnowledgeFact[];
-    const mergedFacts=new Map(extractionPlan.preservedFacts.map(fact=>[websiteFactIdentity(fact),fact]));
-    for(const fact of deltaFacts)mergedFacts.set(websiteFactIdentity(fact),fact);
-    const knowledge={facts:Array.from(mergedFacts.values()).sort((a,b)=>websiteFactIdentity(a).localeCompare(websiteFactIdentity(b))),coverage:extractionPlan.mode==="recrawl"?previousKnowledge!.knowledge.coverage:extracted.knowledge.coverage,unresolvedQuestions:extractionPlan.mode==="recrawl"?Array.from(new Set([...previousKnowledge!.knowledge.unresolvedQuestions,...extracted.knowledge.unresolvedQuestions])).sort():extracted.knowledge.unresolvedQuestions};
-    const currentKnowledge:PersistedWebsiteKnowledge={...currentBase,document_version:extractionPlan.mode==="recrawl"&&deltaFacts.length===0&&extractionPlan.blockChanges.every(change=>change.state==="unchanged")?previousKnowledge!.document_version:currentBase.document_version+(extractionPlan.mode==="recrawl"?1:0),knowledge};
-    if(extractionPlan.mode==="recrawl"){
-      const reconciliation=reconcileWebsiteRecrawl({previous:previousKnowledge!,current:currentKnowledge,currentCrawlAttempt:crawl.crawlAttempt,businessMemory:project?buildBusinessMemory({session:project.session,websiteKnowledge:previousKnowledge}):undefined});
-      await persistWebsiteRecrawlReconciliation(projectId,reconciliation);
-      await persistMergedWebsiteKnowledge(projectId,currentKnowledge);
-    }
-    console.info("AI_BUILDER_RECRAWL_EXTRACTION",{attemptId,projectId:projectId||null,mode:extractionPlan.mode,...extractionPlan.telemetry,aiCalls,inputTokens:usage?.inputTokens??0,outputTokens:usage?.outputTokens??0,estimatedAiCostUsd:hasCostEstimate?estimatedInputCostUsd+estimatedOutputCostUsd:null});
-    const aiKnowledgeExtractionMs = performance.now() - aiStarted;
-    aiExtractionDurationMs = aiKnowledgeExtractionMs;
-    const timings = {
-      ...crawl.diagnostics.timings,
-      aiKnowledgeExtractionMs,
-      persistenceMs,
-      totalDurationMs: performance.now() - requestStarted,
-    };
-    console.info("AI_BUILDER_CRAWL_TIMINGS", { attemptId, ...timings });
 
-    send({ type: "progress", percent: 100 });
-    send({
-      type: "result",
-      ok: true,
-      import: {
-        businessName: resolveCrawledBusinessName(extracted.businessName, crawl),
-        industry: normalizeText(extracted.industry),
-        website: crawl.resolvedUrl,
-        requestedUrl: crawl.requestedUrl,
-        resolvedUrl: crawl.resolvedUrl,
-        productsServices: normalizeText(extracted.productsServices),
-        idealCustomers: normalizeText(extracted.idealCustomers),
-        additionalKnowledge: normalizeText(extracted.additionalKnowledge),
-      },
-      knowledge,
-      pages: crawl.pages.map((page) => ({
-        url: page.url,
-        title: page.title,
-        pageType: page.pageType,
-        sourceDocumentId:page.sourceDocumentId,
-      })),
-      warnings: crawl.warnings,
-      sourceDocuments:crawl.sourceDocuments,
-      sourceBlocks:crawl.sourceBlocks,
-      crawlAttemptId: attemptId,
-      timings,
-    });
+        const extracted = mergeExtractedBatches(extractedBatches);
+        const deltaFacts = extracted.knowledge.facts as WebsiteKnowledgeFact[];
+        const mergedFacts = new Map(extractionPlan.preservedFacts.map((fact) => [websiteFactIdentity(fact), fact]));
+        for (const fact of deltaFacts) mergedFacts.set(websiteFactIdentity(fact), fact);
+        const knowledge = {
+          facts: Array.from(mergedFacts.values()).sort((a, b) => websiteFactIdentity(a).localeCompare(websiteFactIdentity(b))),
+          coverage: extractionPlan.mode === "recrawl" ? previousKnowledge!.knowledge.coverage : extracted.knowledge.coverage,
+          unresolvedQuestions: extractionPlan.mode === "recrawl" ? Array.from(new Set([...previousKnowledge!.knowledge.unresolvedQuestions, ...extracted.knowledge.unresolvedQuestions])).sort() : extracted.knowledge.unresolvedQuestions,
+        };
+        const currentKnowledge: PersistedWebsiteKnowledge = { ...currentBase, document_version: extractionPlan.mode === "recrawl" && deltaFacts.length === 0 && extractionPlan.blockChanges.every((change) => change.state === "unchanged") ? previousKnowledge!.document_version : currentBase.document_version + (extractionPlan.mode === "recrawl" ? 1 : 0), knowledge };
+
+        if (extractionPlan.mode === "recrawl") {
+          const reconciliation = reconcileWebsiteRecrawl({ previous: previousKnowledge!, current: currentKnowledge, currentCrawlAttempt: crawl.crawlAttempt, businessMemory: project ? buildBusinessMemory({ session: project.session, websiteKnowledge: previousKnowledge }) : undefined });
+          await persistWebsiteRecrawlReconciliation(projectId, reconciliation);
+          await persistMergedWebsiteKnowledge(projectId, currentKnowledge);
+        }
+
+        console.info("AI_BUILDER_RECRAWL_EXTRACTION", { attemptId, projectId: projectId || null, mode: extractionPlan.mode, ...extractionPlan.telemetry, aiCalls, inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0, estimatedAiCostUsd: hasCostEstimate ? estimatedInputCostUsd + estimatedOutputCostUsd : null });
+        const aiKnowledgeExtractionMs = performance.now() - aiStarted;
+        aiExtractionDurationMs = aiKnowledgeExtractionMs;
+        const timings = { ...crawl.diagnostics.timings, aiKnowledgeExtractionMs, persistenceMs, totalDurationMs: performance.now() - requestStarted };
+        console.info("AI_BUILDER_CRAWL_TIMINGS", { attemptId, ...timings });
+
+        send({ type: "progress", percent: 100 });
+        send({
+          type: "result",
+          ok: true,
+          import: {
+            businessName: resolveCrawledBusinessName(extracted.businessName, crawl),
+            industry: normalizeText(extracted.industry),
+            website: crawl.resolvedUrl,
+            requestedUrl: crawl.requestedUrl,
+            resolvedUrl: crawl.resolvedUrl,
+            productsServices: normalizeText(extracted.productsServices),
+            idealCustomers: normalizeText(extracted.idealCustomers),
+            additionalKnowledge: normalizeText(extracted.additionalKnowledge),
+          },
+          knowledge,
+          pages: crawl.pages.map((page) => ({ url: page.url, title: page.title, pageType: page.pageType, sourceDocumentId: page.sourceDocumentId })),
+          warnings: crawl.warnings,
+          sourceDocuments: crawl.sourceDocuments,
+          sourceBlocks: crawl.sourceBlocks,
+          crawlAttemptId: attemptId,
+          timings,
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : "The website could not be imported.";
         if (!crawlRecorded) {
-          const diagnostics=error instanceof BusinessWebsiteCrawlError?error.diagnostics:undefined;
+          const diagnostics = error instanceof BusinessWebsiteCrawlError ? error.diagnostics : undefined;
           crawlDiagnostics = diagnostics;
-          await finishCrawlTelemetry(attemptId,{status:"failed",startedAt:crawlStartedAt,completedAt:new Date().toISOString(),...diagnostics,diagnostics,errors:[{stage:"crawl",message:message.slice(0,500)}],failureStage:"crawl"});
+          await finishCrawlTelemetry(attemptId, { status: "failed", startedAt: crawlStartedAt, completedAt: new Date().toISOString(), ...diagnostics, diagnostics, errors: [{ stage: "crawl", message: message.slice(0, 500) }], failureStage: "crawl" });
         }
-        console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website:safePublicUrl(website), message });
-        send({
-          type: "error",
-          error: {
-            code: "website_import_failed",
-            message: message || "The website could not be imported.",
-          },
-          crawlAttemptId: attemptId,
-        });
+        console.error("AI_BUILDER_WEBSITE_CRAWL_FAILED", { website: safePublicUrl(website), message });
+        send({ type: "error", error: { code: "website_import_failed", message: message || "The website could not be imported." }, crawlAttemptId: attemptId });
       } finally {
         if (aiExtractionStarted !== undefined && aiExtractionDurationMs === 0) aiExtractionDurationMs = performance.now() - aiExtractionStarted;
-        const cost = hasCostEstimate ? {
-          inputCostUsd: estimatedInputCostUsd,
-          outputCostUsd: estimatedOutputCostUsd,
-          totalCostUsd: estimatedInputCostUsd + estimatedOutputCostUsd,
-        } : undefined;
+        const cost = hasCostEstimate ? { inputCostUsd: estimatedInputCostUsd, outputCostUsd: estimatedOutputCostUsd, totalCostUsd: estimatedInputCostUsd + estimatedOutputCostUsd } : undefined;
         const pagesProcessed = crawlDiagnostics?.pagesProcessed ?? 0;
         const pagesRetained = crawlDiagnostics?.pagesRetained ?? 0;
         console.info("AI_BUILDER_CRAWL_DIAGNOSTICS", {
@@ -582,10 +490,5 @@ export async function POST(request: Request) {
     },
   });
 
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "application/x-ndjson; charset=utf-8",
-      "Cache-Control": "no-cache, no-transform",
-    },
-  });
+  return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache, no-transform" } });
 }
