@@ -342,21 +342,21 @@ export default function AiBuilderReview({
   const canLaunchChat =
     session.status === "ready" && session.contextCounts.approved > 0;
 
-  const actionGridClassName = embedded
-    ? "mt-6 grid grid-cols-1 gap-3 xl:grid-cols-2"
-    : `mt-6 grid grid-cols-1 gap-3 ${showLaunchChat ? "sm:grid-cols-3" : "sm:grid-cols-2"}`;
-  const summaryGridClassName = embedded
-    ? "mt-6 grid grid-cols-2 gap-3"
-    : "mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4";
+  const summaryItems = [
+    { filter: "all" as const, label: "Total", value: session.contextCounts.total, buttonLabel: "All" },
+    { filter: "approved" as const, label: "Approved", value: session.contextCounts.approved, buttonLabel: "Approved" },
+    { filter: "proposed" as const, label: "Pending", value: session.contextCounts.proposed, buttonLabel: "Pending" },
+    { filter: "archived" as const, label: "Removed", value: session.contextCounts.archived, buttonLabel: "Removed" },
+  ];
 
   return (
-    <div className={embedded ? "relative w-full space-y-5 xl:grid xl:grid-cols-2 xl:items-start xl:gap-6 xl:space-y-0" : "relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]"}>
+    <div className={embedded ? "relative w-full space-y-5" : "relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]"}>
       {confirmDialogNode}
       {!embedded ? <AiBuilderAuthCta /> : null}
 
       {bulkFailureMessage ? (
         <p
-          className={`rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200 ${embedded?"xl:col-span-2":""}`}
+          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200"
           role="alert"
         >
           {bulkFailureMessage}
@@ -364,64 +364,94 @@ export default function AiBuilderReview({
       ) : null}
 
       <section className="border-b border-white/[0.075] pb-6 pt-4 sm:pt-2">
-        {!embedded ? <p className="text-center text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">
-          Business memory review
-        </p> : null}
+        {!embedded ? (
+          <p className="text-center text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">
+            Business memory review
+          </p>
+        ) : null}
 
-        <div className={actionGridClassName}>
-          <button type="button" onClick={onBack} className={canonicalButtonClassName}>
-            Back to results
-          </button>
-          <button type="button" onClick={approveAll} className={`${canonicalButtonClassName} text-amber-300`}>
-            Approve all
-          </button>
-          {showLaunchChat ? (
-            <button
-              type="button"
-              onClick={onLaunchChat}
-              disabled={!canLaunchChat}
-              className={canonicalButtonClassName}
-            >
-              Test assistant
-            </button>
-          ) : null}
-        </div>
+        {embedded ? (
+          <>
+            <div className="mt-2 grid grid-cols-2 gap-3 xl:grid-cols-4">
+              {summaryItems.map((item) => (
+                <div key={item.filter} className="min-w-0 space-y-3">
+                  <Stat label={item.label} value={item.value} />
+                  <button
+                    type="button"
+                    onClick={() => setFilter(item.filter)}
+                    className={`${filterButtonClassName} ${
+                      filter === item.filter
+                        ? "border-white/[0.14] bg-[#141414] text-white shadow-[0_8px_22px_rgba(0,0,0,0.2)]"
+                        : ""
+                    }`}
+                    aria-pressed={filter === item.filter}
+                  >
+                    {item.buttonLabel}
+                  </button>
+                </div>
+              ))}
+            </div>
 
-        <div className={summaryGridClassName}>
-          <Stat label="Total" value={session.contextCounts.total} />
-          <Stat label="Approved" value={session.contextCounts.approved} />
-          <Stat label="Pending" value={session.contextCounts.proposed} />
-          <Stat label="Removed" value={session.contextCounts.archived} />
-        </div>
-
-        <div className={summaryGridClassName} aria-label="Review filter">
-          {(["all", "proposed", "approved", "archived"] as const).map(
-            (nextFilter) => (
+            <div className="mx-auto mt-6 w-full max-w-[calc(50%-0.375rem)]">
               <button
-                key={nextFilter}
                 type="button"
-                onClick={() => setFilter(nextFilter)}
-                className={`${filterButtonClassName} ${
-                  filter === nextFilter
-                    ? "border-white/[0.14] bg-[#141414] text-white shadow-[0_8px_22px_rgba(0,0,0,0.2)]"
-                    : ""
-                }`}
-                aria-pressed={filter === nextFilter}
+                onClick={approveAll}
+                className={`${canonicalButtonClassName} w-full text-amber-300`}
               >
-                {nextFilter === "all"
-                  ? "All"
-                  : nextFilter === "archived"
-                    ? "Removed"
-                    : nextFilter === "proposed"
-                      ? "Pending"
-                      : "Approved"}
+                Approve all
               </button>
-            ),
-          )}
-        </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={`mt-6 grid grid-cols-1 gap-3 ${showLaunchChat ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+              <button type="button" onClick={onBack} className={canonicalButtonClassName}>
+                Back to results
+              </button>
+              <button type="button" onClick={approveAll} className={`${canonicalButtonClassName} text-amber-300`}>
+                Approve all
+              </button>
+              {showLaunchChat ? (
+                <button
+                  type="button"
+                  onClick={onLaunchChat}
+                  disabled={!canLaunchChat}
+                  className={canonicalButtonClassName}
+                >
+                  Test assistant
+                </button>
+              ) : null}
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Stat label="Total" value={session.contextCounts.total} />
+              <Stat label="Approved" value={session.contextCounts.approved} />
+              <Stat label="Pending" value={session.contextCounts.proposed} />
+              <Stat label="Removed" value={session.contextCounts.archived} />
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Review filter">
+              {summaryItems.map((item) => (
+                <button
+                  key={item.filter}
+                  type="button"
+                  onClick={() => setFilter(item.filter)}
+                  className={`${filterButtonClassName} ${
+                    filter === item.filter
+                      ? "border-white/[0.14] bg-[#141414] text-white shadow-[0_8px_22px_rgba(0,0,0,0.2)]"
+                      : ""
+                  }`}
+                  aria-pressed={filter === item.filter}
+                >
+                  {item.buttonLabel}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </section>
 
-      <div className={embedded ? "xl:contents" : ""}>
+      <div>
         {grouped.length ? (
           <section className="space-y-7">
             <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
@@ -432,7 +462,7 @@ export default function AiBuilderReview({
               <section key={sectionKey}>
                 <SectionDivider label={section.label} />
 
-                <div className="grid grid-cols-1 gap-4">
+                <div className={`grid grid-cols-1 gap-4 ${embedded ? "xl:grid-cols-2" : ""}`}>
                   {section.entries.map(({ entry }) => {
                     const entryRenderKey = `context_entry:${entry.id}`;
                     const editing = editingEntry === entryRenderKey;
@@ -443,7 +473,7 @@ export default function AiBuilderReview({
                       <article
                         key={entryRenderKey}
                         onClick={() => setSelectedItem(entryRenderKey)}
-                        className={panelClassName}
+                        className={`${panelClassName} ${embedded && section.entries.length === 1 ? "xl:col-span-2" : ""}`}
                       >
                         <div className="px-5 py-4 sm:px-6 sm:py-5">
                           {editing ? (
@@ -594,12 +624,12 @@ export default function AiBuilderReview({
         ) : null}
 
         {visibleFaqEntries.length ? (
-          <section className={embedded ? "mt-8 space-y-4 xl:mt-0" : "mt-8 space-y-4"}>
+          <section className="mt-8 space-y-4">
             <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-amber-300">
               Generated Q&amp;A
             </p>
 
-            <div className="grid grid-cols-1 gap-4">
+            <div className={`grid grid-cols-1 gap-4 ${embedded ? "xl:grid-cols-2" : ""}`}>
               {visibleFaqEntries.map(({ faq }) => {
                 const faqRenderKey = `faq:${faq.id}`;
                 const editing = editingFaq === faqRenderKey;
@@ -610,7 +640,7 @@ export default function AiBuilderReview({
                   <article
                     key={faqRenderKey}
                     onClick={() => setSelectedItem(faqRenderKey)}
-                    className={panelClassName}
+                    className={`${panelClassName} ${embedded && visibleFaqEntries.length === 1 ? "xl:col-span-2" : ""}`}
                   >
                     <div className="px-5 py-4 sm:px-6 sm:py-5">
                       {editing ? (
