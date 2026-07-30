@@ -1,7 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import AiBuilderClient from "@/app/components/ai-builder/AiBuilderClient";
+import AiBuilderLanding from "@/app/components/ai-builder/AiBuilderLanding";
 import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
+import AiBuilderShell from "@/app/components/ai-builder/AiBuilderShell";
 import { listAiBuilderProjects } from "@/app/lib/db/ai-builder-repository";
 
 type WorkspaceTab = "projects" | "dashboard" | "insights" | "overview" | "sources" | "settings";
@@ -30,17 +32,21 @@ export default async function Page({ searchParams }: PageProps) {
   const initialTab = WORKSPACE_TABS.has(requestedTab as WorkspaceTab)
     ? (requestedTab as WorkspaceTab)
     : "dashboard";
+  const { userId } = await auth();
+
+  if (!userId) {
+    return (
+      <AiBuilderShell>
+        <AiBuilderLanding />
+      </AiBuilderShell>
+    );
+  }
 
   if (normalizedProjectId) {
     return <AiBuilderProjectWorkspace projectId={normalizedProjectId} initialTab={initialTab} />;
   }
 
   if (newProject) {
-    return <AiBuilderClient />;
-  }
-
-  const { userId } = await auth();
-  if (!userId) {
     return <AiBuilderClient />;
   }
 
