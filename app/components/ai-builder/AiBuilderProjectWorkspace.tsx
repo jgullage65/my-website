@@ -327,7 +327,7 @@ export default function AiBuilderProjectWorkspace({
   }, [openReview, projectId, reviewOpen]);
 
   const knowledgePack = useMemo(
-    () => (session?.status === "ready" ? buildKnowledgePack(session) : null),
+    () => buildKnowledgePack(session),
     [session],
   );
 
@@ -477,18 +477,9 @@ export default function AiBuilderProjectWorkspace({
         </main>
 
         <aside className="flex min-h-0 flex-col border-l border-white/[0.08] bg-black">
-          {knowledgePack ? (
-            <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
-              <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => undefined} />
-            </div>
-          ) : (
-            <div className="flex h-full min-h-0 items-center justify-center px-8 text-center">
-              <div>
-                <p className="text-sm font-semibold text-white">Assistant preview unavailable</p>
-                <p className="mt-2 text-xs leading-5 text-slate-500">Complete the Business Knowledge review to activate this project’s assistant.</p>
-              </div>
-            </div>
-          )}
+          <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
+            <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => undefined} />
+          </div>
         </aside>
 
         {overviewOpen && !reviewOpen ? (
