@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { BuilderState } from "./AiBuilderClient";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
@@ -48,12 +47,6 @@ export default function AiBuilderProgress({
           </p>
 
           {!embedded ? <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl min-[1200px]:mt-2 min-[1200px]:text-3xl">{builder.businessName}</h1> : null}
-
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-400 sm:text-lg min-[1200px]:mt-2 min-[1200px]:text-base min-[1200px]:leading-6">
-            {complete
-              ? "Your business knowledge has been organized and is ready for review."
-              : "Teaching your AI about the business and preparing its knowledge."}
-          </p>
         </div>
 
         <div className="relative mt-8 grid gap-4 min-[1200px]:mt-5 min-[1200px]:grid-cols-3 min-[1200px]:gap-3">
@@ -105,18 +98,11 @@ export default function AiBuilderProgress({
               <Stat value={session.conflicts.length} label="Conflicts" />
             </div>
 
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 min-[1200px]:mt-4 min-[1200px]:gap-3">
-              <Link
-                href="/ai-builder"
-                className="flex min-h-[56px] items-center justify-center rounded-2xl border border-amber-300/15 bg-[#080808] px-3 py-4 text-center text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.14)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] sm:px-5 sm:text-base min-[1200px]:min-h-[46px] min-[1200px]:rounded-xl min-[1200px]:py-3 min-[1200px]:text-sm"
-              >
-                Return to Projects
-              </Link>
-
+            <div className="mt-6 min-[1200px]:mt-4">
               <button
                 type="button"
                 onClick={onReview}
-                className="min-h-[56px] rounded-2xl border border-amber-300/15 bg-[#080808] px-3 py-4 text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] sm:px-5 sm:text-base min-[1200px]:min-h-[46px] min-[1200px]:rounded-xl min-[1200px]:py-3 min-[1200px]:text-sm"
+                className="min-h-[56px] w-full rounded-2xl border border-amber-300/15 bg-[#080808] px-3 py-4 text-sm font-bold text-white shadow-[0_16px_40px_rgba(245,158,11,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] sm:px-5 sm:text-base min-[1200px]:min-h-[46px] min-[1200px]:rounded-xl min-[1200px]:py-3 min-[1200px]:text-sm"
               >
                 Review business knowledge
               </button>
