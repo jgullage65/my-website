@@ -91,7 +91,7 @@ export default function AiBuilderLanding() {
             <button type="button" onClick={() => setSignInOpen(false)} className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-300/20 bg-black text-lg text-amber-300 transition hover:border-amber-300/40 hover:bg-[#0a0a0a]" aria-label="Close sign in">×</button>
             <SignIn
               routing="hash"
-              forceRedirectUrl="/ai-builder?new=1"
+              forceRedirectUrl="/ai-builder"
               appearance={{
                 elements: {
                   rootBox: "w-full",
