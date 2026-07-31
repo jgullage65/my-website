@@ -50,8 +50,14 @@ type AiBuilderWorkspaceContextValue = {
 
 const AiBuilderWorkspaceContext = createContext<AiBuilderWorkspaceContextValue | null>(null);
 
-type ProviderProps = AiBuilderWorkspaceContextValue & {
+type ProviderProps = Omit<AiBuilderWorkspaceContextValue, "project" | "renameProject"> & {
   children: ReactNode;
+  project?: AiBuilderWorkspaceProject;
+  renameProject?: (businessName: string) => Promise<void>;
+};
+
+const unavailableRename = async () => {
+  throw new Error("Project renaming is not available in this workspace view.");
 };
 
 export function AiBuilderWorkspaceProvider({
@@ -70,12 +76,23 @@ export function AiBuilderWorkspaceProvider({
   closeOverview,
   openKnowledge,
   closeKnowledge,
-  renameProject,
+  renameProject = unavailableRename,
 }: ProviderProps) {
+  const resolvedProject = useMemo<AiBuilderWorkspaceProject>(
+    () => project ?? ({
+      businessName: "",
+      industry: "",
+      website: "",
+      tone: session.assistantConfiguration.tone,
+      stateRevision: 0,
+    }),
+    [project, session.assistantConfiguration.tone],
+  );
+
   const value = useMemo<AiBuilderWorkspaceContextValue>(
     () => ({
       projectId,
-      project,
+      project: resolvedProject,
       session,
       websiteKnowledge,
       diagnostics,
@@ -100,9 +117,9 @@ export function AiBuilderWorkspaceProvider({
       openKnowledge,
       openOverview,
       overviewOpen,
-      project,
       projectId,
       renameProject,
+      resolvedProject,
       session,
       setActiveTab,
       websiteKnowledge,
