@@ -13,9 +13,9 @@ export default function Page({ searchParams }: PageProps) {
 
   if (projectId) {
     redirect(
-      `/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=projects`,
+      `/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=dashboard`,
     );
   }
 
-  redirect("/ai-builder?tab=projects");
+  redirect("/ai-builder");
 }
