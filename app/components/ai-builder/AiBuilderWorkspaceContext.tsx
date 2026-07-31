@@ -1,6 +1,9 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
+import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 
 export type AiBuilderWorkspaceTab =
   | "projects"
@@ -11,8 +14,20 @@ export type AiBuilderWorkspaceTab =
   | "sources"
   | "settings";
 
+type AiBuilderWorkspaceMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  citations?: string[];
+  createdAt: string;
+};
+
 type AiBuilderWorkspaceContextValue = {
   projectId: string;
+  session: AiBuilderSession;
+  websiteKnowledge: PersistedWebsiteKnowledge | null;
+  diagnostics: ProjectDiagnostics | null;
+  messages: AiBuilderWorkspaceMessage[];
   activeTab: AiBuilderWorkspaceTab;
   overviewOpen: boolean;
   knowledgeOpen: boolean;
@@ -32,6 +47,10 @@ type ProviderProps = AiBuilderWorkspaceContextValue & {
 export function AiBuilderWorkspaceProvider({
   children,
   projectId,
+  session,
+  websiteKnowledge,
+  diagnostics,
+  messages,
   activeTab,
   overviewOpen,
   knowledgeOpen,
@@ -44,6 +63,10 @@ export function AiBuilderWorkspaceProvider({
   const value = useMemo<AiBuilderWorkspaceContextValue>(
     () => ({
       projectId,
+      session,
+      websiteKnowledge,
+      diagnostics,
+      messages,
       activeTab,
       overviewOpen,
       knowledgeOpen,
@@ -57,12 +80,16 @@ export function AiBuilderWorkspaceProvider({
       activeTab,
       closeKnowledge,
       closeOverview,
+      diagnostics,
       knowledgeOpen,
+      messages,
       openKnowledge,
       openOverview,
       overviewOpen,
       projectId,
+      session,
       setActiveTab,
+      websiteKnowledge,
     ],
   );
 
