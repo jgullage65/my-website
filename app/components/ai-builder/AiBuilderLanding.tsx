@@ -357,6 +357,18 @@ export default function AiBuilderLanding() {
         </section>
         </div>
 
+        <section className="relative mt-12 w-full border-t border-white/[0.07] pt-10 text-center">
+          <div className="mx-auto max-w-3xl rounded-[24px] border border-white/[0.08] bg-[#030303] px-5 py-8 shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:px-8 sm:py-10">
+            <h2 className="text-2xl font-medium tracking-[-.025em] text-white sm:text-3xl">Ready to start your Business Brain?</h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-400 sm:text-base">Choose how you want to move forward. We’ll wire each path into the right experience next.</p>
+            <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <button type="button" className={primaryButton}>Build Your Business Brain</button>
+              <button type="button" className={primaryButton}>Sign In</button>
+              <button type="button" className={primaryButton}>Ask Support</button>
+            </div>
+          </div>
+        </section>
+
         <section className="relative mt-12 w-full border-t border-white/[0.07] pt-10">
           <div className="grid items-start gap-8 sm:grid-cols-2 min-[1200px]:mx-auto min-[1200px]:w-full min-[1200px]:max-w-[824px] min-[1200px]:grid-cols-[minmax(280px,.9fr)_minmax(320px,1.1fr)]">
             <div className="flex w-full max-w-sm justify-start overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#050505] sm:max-w-none min-[1200px]:max-w-sm">
