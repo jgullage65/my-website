@@ -4,28 +4,83 @@ import { useEffect, useState } from "react";
 import { UserProfile } from "@clerk/nextjs";
 import { useAiBuilderWorkspace } from "./AiBuilderWorkspaceContext";
 
-type ThemeMode = "dark" | "light";
+type ThemeMode = "dark" | "light" | "system";
+
+type LocalPreferences = {
+  theme: ThemeMode;
+  compactNavigation: boolean;
+  reducedMotion: boolean;
+  sourceWarnings: boolean;
+  reviewReminders: boolean;
+};
+
+const DEFAULT_PREFERENCES: LocalPreferences = {
+  theme: "dark",
+  compactNavigation: false,
+  reducedMotion: false,
+  sourceWarnings: true,
+  reviewReminders: true,
+};
 
 const sectionClassName =
   "rounded-[22px] border border-white/[0.08] bg-[#050505] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.22)]";
 
+function applyTheme(theme: ThemeMode) {
+  const resolved = theme === "system"
+    ? window.matchMedia("(prefers-color-scheme: light)").matches
+      ? "light"
+      : "dark"
+    : theme;
+
+  document.documentElement.dataset.aiBuilderTheme = resolved;
+  document.documentElement.style.colorScheme = resolved;
+}
+
 export default function AiBuilderSettings() {
-  const { session } = useAiBuilderWorkspace();
-  const [theme, setTheme] = useState<ThemeMode>("dark");
+  const { session, websiteKnowledge } = useAiBuilderWorkspace();
+  const [preferences, setPreferences] = useState<LocalPreferences>(DEFAULT_PREFERENCES);
   const [provider, setProvider] = useState("OpenAI");
   const [apiKey, setApiKey] = useState("");
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("ai-builder-theme");
-    const initialTheme: ThemeMode = saved === "light" ? "light" : "dark";
-    setTheme(initialTheme);
-    document.documentElement.dataset.aiBuilderTheme = initialTheme;
+    const saved = window.localStorage.getItem("ai-builder-settings");
+    if (!saved) {
+      applyTheme(DEFAULT_PREFERENCES.theme);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(saved) as Partial<LocalPreferences>;
+      const next = { ...DEFAULT_PREFERENCES, ...parsed };
+      setPreferences(next);
+      applyTheme(next.theme);
+    } catch {
+      applyTheme(DEFAULT_PREFERENCES.theme);
+    }
   }, []);
 
-  const updateTheme = (nextTheme: ThemeMode) => {
-    setTheme(nextTheme);
-    window.localStorage.setItem("ai-builder-theme", nextTheme);
-    document.documentElement.dataset.aiBuilderTheme = nextTheme;
+  useEffect(() => {
+    if (preferences.theme !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const sync = () => applyTheme("system");
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, [preferences.theme]);
+
+  const updatePreferences = (next: LocalPreferences) => {
+    setPreferences(next);
+    window.localStorage.setItem("ai-builder-settings", JSON.stringify(next));
+    applyTheme(next.theme);
+  };
+
+  const setTheme = (theme: ThemeMode) => {
+    updatePreferences({ ...preferences, theme });
+  };
+
+  const togglePreference = (
+    key: Exclude<keyof LocalPreferences, "theme">,
+  ) => {
+    updatePreferences({ ...preferences, [key]: !preferences[key] });
   };
 
   return (
@@ -66,7 +121,7 @@ export default function AiBuilderSettings() {
           <div>
             <h2 className="text-2xl font-semibold text-white">Manage your plan</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-              Review your current plan and move to a different tier from the pricing page.
+              Review plan options now. Direct billing and subscription management will be wired once Stripe access is available.
             </p>
           </div>
           <button
@@ -77,9 +132,11 @@ export default function AiBuilderSettings() {
             View plans
           </button>
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <SettingRow label="Project status" value={session.status} />
           <SettingRow label="Approved knowledge" value={String(session.contextCounts.approved)} />
+          <SettingRow label="Imported pages" value={String(websiteKnowledge?.pages.length ?? 0)} />
+          <SettingRow label="Governance revision" value={String(session.governanceRevision ?? 0)} />
         </div>
       </section>
 
@@ -89,16 +146,46 @@ export default function AiBuilderSettings() {
         <p className="mt-2 text-sm leading-6 text-slate-400">
           Choose how the AI Builder workspace appears on this device.
         </p>
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
-          <ThemeOption
-            label="Dark"
-            active={theme === "dark"}
-            onClick={() => updateTheme("dark")}
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <ThemeOption label="Dark" active={preferences.theme === "dark"} onClick={() => setTheme("dark")} />
+          <ThemeOption label="Light" active={preferences.theme === "light"} onClick={() => setTheme("light")} />
+          <ThemeOption label="System" active={preferences.theme === "system"} onClick={() => setTheme("system")} />
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <ToggleRow
+            label="Compact navigation"
+            description="Use tighter spacing in the project sidebar."
+            checked={preferences.compactNavigation}
+            onChange={() => togglePreference("compactNavigation")}
           />
-          <ThemeOption
-            label="Light"
-            active={theme === "light"}
-            onClick={() => updateTheme("light")}
+          <ToggleRow
+            label="Reduce motion"
+            description="Limit non-essential workspace transitions on this device."
+            checked={preferences.reducedMotion}
+            onChange={() => togglePreference("reducedMotion")}
+          />
+        </div>
+      </section>
+
+      <section className={sectionClassName}>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300">Notifications</p>
+        <h2 className="mt-3 text-2xl font-semibold text-white">Workspace alerts</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-400">
+          Save local alert preferences now. Delivery channels can be connected later.
+        </p>
+        <div className="mt-5 space-y-3">
+          <ToggleRow
+            label="Source import warnings"
+            description="Keep warnings visible when imported material needs attention."
+            checked={preferences.sourceWarnings}
+            onChange={() => togglePreference("sourceWarnings")}
+          />
+          <ToggleRow
+            label="Business Knowledge review reminders"
+            description="Keep pending review work highlighted across the workspace."
+            checked={preferences.reviewReminders}
+            onChange={() => togglePreference("reviewReminders")}
           />
         </div>
       </section>
@@ -107,7 +194,7 @@ export default function AiBuilderSettings() {
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300">Bring your own key</p>
         <h2 className="mt-3 text-2xl font-semibold text-white">Provider credentials</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-          BYOK is being prepared as a secure server-side feature. Keys are not saved from this screen yet.
+          The UI is ready, but keys will not be saved until encrypted server-side storage and validation are implemented.
         </p>
         <div className="mt-5 grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_auto]">
           <label className="space-y-2">
@@ -129,6 +216,7 @@ export default function AiBuilderSettings() {
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
               placeholder="Key storage is not enabled yet"
+              autoComplete="off"
               className="min-h-11 w-full rounded-lg border border-white/[0.1] bg-black px-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-amber-300/35"
             />
           </label>
@@ -177,6 +265,45 @@ function ThemeOption({
       <span className="text-sm font-semibold">{label} mode</span>
       <span className="mt-1 block text-xs text-slate-500">
         {active ? "Currently selected" : "Use this appearance"}
+      </span>
+    </button>
+  );
+}
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onChange}
+      className="flex w-full items-center justify-between gap-5 rounded-xl border border-white/[0.06] bg-black/30 px-4 py-4 text-left transition hover:border-white/[0.11]"
+      aria-pressed={checked}
+    >
+      <span>
+        <span className="block text-sm font-semibold text-white">{label}</span>
+        <span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span>
+      </span>
+      <span
+        className={`relative h-6 w-11 flex-none rounded-full border transition ${
+          checked
+            ? "border-amber-300/30 bg-amber-300/20"
+            : "border-white/[0.1] bg-white/[0.04]"
+        }`}
+      >
+        <span
+          className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full transition ${
+            checked ? "left-6 bg-amber-300" : "left-1 bg-slate-500"
+          }`}
+        />
       </span>
     </button>
   );
