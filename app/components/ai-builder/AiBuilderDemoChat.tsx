@@ -152,7 +152,7 @@ function buildPreviewAnswer(knowledge: KnowledgePack, question: string): string 
     .slice(0, 3);
 
   if (!ranked.length) {
-    return `I don’t have an approved answer for that in this temporary Business Brain. Try asking about the business, its services, customers, policies, or other reviewed knowledge.`;
+    return "I don’t have an approved answer for that in this preview. Try asking about the business, its services, customers, policies, or other reviewed knowledge.";
   }
 
   if (ranked.length === 1) return ranked[0]!.answer;
@@ -311,8 +311,8 @@ export default function AiBuilderDemoChat({
     if (demoMode || previewMode) return;
     if (purchaseInterestSubmitted) { await showAlreadySubmittedModal(); return; }
     const confirmed = await showConfirm({
-      title: source === "cta" ? "Purchase This AI Assistant" : "Demo Complete",
-      message: source === "cta" ? "You've seen how this AI assistant works and can request a custom version for your business.\n\nIf you submit a purchase request, we'll review your business, discuss your goals, and walk you through the next steps. There's no obligation, and we'll contact you to answer any questions before moving forward." : "You have reached the 20-message demo limit for this AI assistant. If you would like to purchase it, send a request and we will contact you to discuss the next steps.",
+      title: source === "cta" ? "Purchase This AI Assistant" : "Assistant Test Complete",
+      message: source === "cta" ? "You've seen how this AI assistant works and can request a custom version for your business.\n\nIf you submit a purchase request, we'll review your business, discuss your goals, and walk you through the next steps. There's no obligation, and we'll contact you to answer any questions before moving forward." : "You have reached the 20-message assistant test limit for this project. If you would like to purchase it, send a request and we will contact you to discuss the next steps.",
       confirmLabel: purchaseInterestSubmitting ? "Sending..." : source === "cta" ? "Send Purchase Request" : "Discuss Purchasing",
       cancelLabel: "Cancel",
     });
@@ -418,7 +418,7 @@ export default function AiBuilderDemoChat({
   return (
     <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#000000] xl:static xl:z-auto xl:h-full xl:bg-transparent">
       <header className="relative flex min-h-[76px] flex-none flex-col items-center justify-center gap-1.5 border-b border-white/[0.08] bg-black px-5 py-2 pr-14 sm:px-8 sm:pr-16">
-        <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.24em] text-amber-300">{previewMode ? "Temporary Business Brain test" : "Live assistant test"}</p>
+        <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.24em] text-amber-300">{previewMode ? "Business Brain preview" : "Live assistant test"}</p>
         {!previewMode ? <AiBuilderModelSelect models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} /> : <p className="text-xs text-slate-500">Deterministic preview. No AI reasoning or persistence.</p>}
         <button type="button" onClick={onBack} aria-label="Close live assistant test" className="absolute right-5 top-1/2 -translate-y-1/2 text-3xl font-light leading-none text-slate-300 transition hover:text-white xl:hidden">×</button>
       </header>
