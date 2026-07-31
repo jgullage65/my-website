@@ -67,6 +67,6 @@ export default async function Page({ searchParams }: PageProps) {
 
   const mostRecentlyUsedProject = activeProjects[0];
   redirect(
-    `/ai-builder?projectId=${encodeURIComponent(mostRecentlyUsedProject.id)}&tab=projects`,
+    `/ai-builder?projectId=${encodeURIComponent(mostRecentlyUsedProject.id)}&tab=dashboard`,
   );
 }
