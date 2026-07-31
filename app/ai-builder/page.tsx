@@ -1,11 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
 import AiBuilderClient from "@/app/components/ai-builder/AiBuilderClient";
 import AiBuilderLanding from "@/app/components/ai-builder/AiBuilderLanding";
-import AiBuilderProjects from "@/app/components/ai-builder/AiBuilderProjects";
 import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 import AiBuilderShell from "@/app/components/ai-builder/AiBuilderShell";
-import { listAiBuilderProjects } from "@/app/lib/db/ai-builder-repository";
 
 type WorkspaceTab = "projects" | "dashboard" | "insights" | "overview" | "sources" | "settings";
 
@@ -59,12 +56,9 @@ export default async function Page({ searchParams }: PageProps) {
     return <AiBuilderClient />;
   }
 
-  const projects = await listAiBuilderProjects();
-  const activeProjects = projects.filter((project) => !project.archivedAt);
-
-  if (!activeProjects.length) {
-    redirect("/ai-builder?new=1");
-  }
-
-  return <AiBuilderProjects />;
+  return (
+    <AiBuilderShell>
+      <AiBuilderLanding />
+    </AiBuilderShell>
+  );
 }
