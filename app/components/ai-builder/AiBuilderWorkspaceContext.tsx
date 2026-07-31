@@ -14,8 +14,6 @@ export type AiBuilderWorkspaceTab =
   | "sources"
   | "settings";
 
-type AiBuilderProjectWorkspaceTab = Exclude<AiBuilderWorkspaceTab, "projects">;
-
 type AiBuilderWorkspaceMessage = {
   id: string;
   role: "user" | "assistant";
@@ -42,7 +40,7 @@ type AiBuilderWorkspaceContextValue = {
   activeTab: AiBuilderWorkspaceTab;
   overviewOpen: boolean;
   knowledgeOpen: boolean;
-  setActiveTab: (tab: AiBuilderProjectWorkspaceTab) => void;
+  setActiveTab: (tab: AiBuilderWorkspaceTab) => void;
   openOverview: () => void;
   closeOverview: () => void;
   openKnowledge: () => void;
