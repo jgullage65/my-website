@@ -28,6 +28,7 @@ type Props = {
 };
 
 type SourceFilter = "all" | "website" | "manual" | "faq";
+type SortMode = "section" | "title" | "status";
 
 const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
   business_profile: "Business Profile",
@@ -106,6 +107,13 @@ function statusLabel(status: BusinessContextEntry["status"] | GeneratedFaqEntry[
   if (status === "approved") return "Approved";
   if (status === "proposed") return "Pending";
   return "Removed";
+}
+
+function statusRank(status: BusinessContextEntry["status"] | GeneratedFaqEntry["status"]) {
+  if (status === "proposed") return 0;
+  if (status === "corrected") return 1;
+  if (status === "approved") return 2;
+  return 3;
 }
 
 const canonicalButtonClassName =
@@ -205,6 +213,7 @@ export default function AiBuilderReview({
   const [bulkFailureMessage, setBulkFailureMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "proposed" | "approved" | "archived">("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("section");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
@@ -251,15 +260,29 @@ export default function AiBuilderReview({
       });
     });
 
-    return Array.from(map.entries()).sort(
-      ([, left], [, right]) =>
-        left.order - right.order || left.label.localeCompare(right.label),
-    );
-  }, [contextEntries, faqEntries, filter, normalizedSearchQuery, sourceFilter]);
+    return Array.from(map.entries())
+      .map(([key, section]) => [
+        key,
+        {
+          ...section,
+          entries: [...section.entries].sort((left, right) => {
+            if (sortMode === "title") return left.entry.title.localeCompare(right.entry.title);
+            if (sortMode === "status") {
+              return statusRank(left.entry.status) - statusRank(right.entry.status) || left.entry.title.localeCompare(right.entry.title);
+            }
+            return 0;
+          }),
+        },
+      ] as const)
+      .sort(([, left], [, right]) => {
+        if (sortMode === "title") return left.label.localeCompare(right.label);
+        return left.order - right.order || left.label.localeCompare(right.label);
+      });
+  }, [contextEntries, faqEntries, filter, normalizedSearchQuery, sourceFilter, sortMode]);
 
   const visibleFaqEntries = useMemo(
-    () =>
-      sourceFilter === "website" || sourceFilter === "manual"
+    () => {
+      const entries = sourceFilter === "website" || sourceFilter === "manual"
         ? []
         : faqEntries.flatMap((faq) => {
             const visible =
@@ -278,8 +301,17 @@ export default function AiBuilderReview({
               return [];
             }
             return [{ faq }];
-          }),
-    [faqEntries, filter, normalizedSearchQuery, sourceFilter],
+          });
+
+      return [...entries].sort((left, right) => {
+        if (sortMode === "title") return left.faq.question.localeCompare(right.faq.question);
+        if (sortMode === "status") {
+          return statusRank(left.faq.status) - statusRank(right.faq.status) || left.faq.question.localeCompare(right.faq.question);
+        }
+        return 0;
+      });
+    },
+    [faqEntries, filter, normalizedSearchQuery, sourceFilter, sortMode],
   );
 
   const visibleItemCount = useMemo(
@@ -414,7 +446,7 @@ export default function AiBuilderReview({
         ))}
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">Search Business Knowledge</span>
           <input
@@ -435,7 +467,19 @@ export default function AiBuilderReview({
             </button>
           ) : null}
         </label>
-        <span className="shrink-0 text-center text-xs font-semibold text-slate-500 sm:text-right">
+        <label className="flex shrink-0 items-center gap-2 text-xs font-semibold text-slate-500">
+          <span>Sort</span>
+          <select
+            value={sortMode}
+            onChange={(event) => setSortMode(event.target.value as SortMode)}
+            className="min-h-11 rounded-lg border border-white/[0.08] bg-[#070707] px-3 text-sm font-semibold text-white outline-none focus:border-amber-300/35"
+          >
+            <option value="section">Section order</option>
+            <option value="title">Title A-Z</option>
+            <option value="status">Review status</option>
+          </select>
+        </label>
+        <span className="shrink-0 text-center text-xs font-semibold text-slate-500 lg:text-right">
           {visibleItemCount} matching item{visibleItemCount === 1 ? "" : "s"}
         </span>
       </div>
