@@ -37,10 +37,17 @@ function applyTheme(theme: ThemeMode) {
 }
 
 export default function AiBuilderSettings() {
-  const { session, websiteKnowledge } = useAiBuilderWorkspace();
+  const { project, renameProject, session, websiteKnowledge } = useAiBuilderWorkspace();
   const [preferences, setPreferences] = useState<LocalPreferences>(DEFAULT_PREFERENCES);
   const [provider, setProvider] = useState("OpenAI");
   const [apiKey, setApiKey] = useState("");
+  const [projectName, setProjectName] = useState(project.businessName);
+  const [projectSaveState, setProjectSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [projectSaveMessage, setProjectSaveMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    setProjectName(project.businessName);
+  }, [project.businessName]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem("ai-builder-settings");
@@ -83,8 +90,85 @@ export default function AiBuilderSettings() {
     updatePreferences({ ...preferences, [key]: !preferences[key] });
   };
 
+  const saveProjectName = async () => {
+    const nextName = projectName.trim();
+    if (!nextName) {
+      setProjectSaveState("error");
+      setProjectSaveMessage("A project name is required.");
+      return;
+    }
+
+    if (nextName === project.businessName) {
+      setProjectSaveState("idle");
+      setProjectSaveMessage(null);
+      return;
+    }
+
+    setProjectSaveState("saving");
+    setProjectSaveMessage(null);
+    try {
+      await renameProject(nextName);
+      setProjectSaveState("saved");
+      setProjectSaveMessage("Project name updated.");
+    } catch (error) {
+      setProjectSaveState("error");
+      setProjectSaveMessage(error instanceof Error ? error.message : "The project could not be renamed.");
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <section className={sectionClassName}>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300">Project settings</p>
+        <h2 className="mt-3 text-2xl font-semibold text-white">Project identity</h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+          Rename this project and review the business details currently attached to it.
+        </p>
+
+        <div className="mt-6 grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px_auto]">
+          <label className="space-y-2">
+            <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Project name</span>
+            <input
+              value={projectName}
+              onChange={(event) => {
+                setProjectName(event.target.value);
+                if (projectSaveState !== "idle") {
+                  setProjectSaveState("idle");
+                  setProjectSaveMessage(null);
+                }
+              }}
+              maxLength={160}
+              className="min-h-11 w-full rounded-lg border border-white/[0.1] bg-black px-3 text-sm text-white outline-none focus:border-amber-300/35"
+            />
+          </label>
+
+          <ReadOnlyField label="Industry" value={project.industry || "Not set"} />
+
+          <button
+            type="button"
+            onClick={saveProjectName}
+            disabled={projectSaveState === "saving" || !projectName.trim() || projectName.trim() === project.businessName}
+            className="mt-auto min-h-11 rounded-lg border border-amber-300/20 bg-black px-5 text-sm font-bold text-white transition hover:border-amber-300/40 disabled:cursor-not-allowed disabled:border-white/[0.06] disabled:text-slate-600"
+          >
+            {projectSaveState === "saving" ? "Saving..." : "Save name"}
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <ReadOnlySettingRow label="Website" value={project.website || "Not set"} />
+          <ReadOnlySettingRow label="Assistant tone" value={project.tone || "Professional"} />
+        </div>
+
+        {projectSaveMessage ? (
+          <p
+            className={`mt-4 text-sm ${projectSaveState === "error" ? "text-red-300" : "text-emerald-300"}`}
+            role={projectSaveState === "error" ? "alert" : "status"}
+          >
+            {projectSaveMessage}
+          </p>
+        ) : null}
+      </section>
+
       <section className={sectionClassName}>
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300">Account</p>
         <h2 className="mt-3 text-2xl font-semibold text-white">Profile and username</h2>
@@ -229,6 +313,28 @@ export default function AiBuilderSettings() {
           </button>
         </div>
       </section>
+    </div>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <label className="space-y-2">
+      <span className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{label}</span>
+      <input
+        value={value}
+        readOnly
+        className="min-h-11 w-full rounded-lg border border-white/[0.07] bg-black/30 px-3 text-sm text-slate-400 outline-none"
+      />
+    </label>
+  );
+}
+
+function ReadOnlySettingRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3">
+      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-600">{label}</p>
+      <p className="mt-1 truncate text-sm font-semibold text-white" title={value}>{value}</p>
     </div>
   );
 }
