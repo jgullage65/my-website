@@ -43,12 +43,6 @@ export type AiBuilderWorkspaceViewProps = {
 const noop = () => undefined;
 const noopAsync = async () => undefined;
 
-/**
- * The presentation boundary for every AI Builder workspace surface. Runtime
- * owners provide data and commands; this component never loads, routes, saves,
- * or mutates a project. Demo mode keeps the marketing showcase inert. Preview
- * mode allows temporary local interaction without persistence.
- */
 export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProps) {
   const demo = props.mode === "demo";
   const preview = props.mode === "preview";
@@ -66,7 +60,7 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   }
 
   if (props.activeView === "review") {
-    return <div className={inert}><AiBuilderReview session={props.session} onReviewCommand={demo || preview ? noopAsync : props.onReviewCommand ?? noopAsync} pendingReviewItems={props.pendingReviewItems ?? new Set()} onBack={demo ? noop : props.onBack ?? noop} onLaunchChat={demo || preview ? noop : props.onLaunchChat ?? noop} showLaunchChat={demo || preview ? false : props.showLaunchChat} embedded={props.embeddedReview} /></div>;
+    return <div className={inert}><AiBuilderReview session={props.session} onReviewCommand={demo ? noopAsync : props.onReviewCommand ?? noopAsync} pendingReviewItems={props.pendingReviewItems ?? new Set()} onBack={demo ? noop : props.onBack ?? noop} onLaunchChat={demo ? noop : props.onLaunchChat ?? noop} showLaunchChat={demo || preview ? false : props.showLaunchChat} embedded={props.embeddedReview} /></div>;
   }
 
   if (props.activeView === "insights") {
