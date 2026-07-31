@@ -116,6 +116,8 @@ export default function AiBuilderSurfaceShowcase({
   const [demoOpen, setDemoOpen] = useState(false);
   const [previewBuilding, setPreviewBuilding] = useState(false);
   const [previewBuildStep, setPreviewBuildStep] = useState(0);
+  const [guidedFlow, setGuidedFlow] = useState(false);
+  const [completedSlides, setCompletedSlides] = useState<Set<AiBuilderShowcaseSlide>>(new Set());
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   useEffect(() => {
@@ -167,8 +169,31 @@ export default function AiBuilderSurfaceShowcase({
       setBuilderValue(builder);
       setPreviewSession(session);
       setActiveSlide("builder");
+      setCompletedSlides(new Set());
+      setGuidedFlow(true);
       setDemoOpen(true);
     }
+  };
+
+  const markComplete = (slide: AiBuilderShowcaseSlide) => {
+    setCompletedSlides((current) => {
+      const next = new Set(current);
+      next.add(slide);
+      return next;
+    });
+  };
+
+  const goToSlide = (slide: AiBuilderShowcaseSlide) => {
+    if (previewBuilding) return;
+    setActiveSlide(slide);
+  };
+
+  const advanceGuidedFlow = () => {
+    const index = AI_BUILDER_SHOWCASE_SLIDES.findIndex((slide) => slide.id === activeSlide);
+    const next = AI_BUILDER_SHOWCASE_SLIDES[index + 1];
+    markComplete(activeSlide);
+    if (next) setActiveSlide(next.id);
+    else setGuidedFlow(false);
   };
 
   const runPreviewBuild = async () => {
@@ -183,6 +208,7 @@ export default function AiBuilderSurfaceShowcase({
 
     await new Promise((resolve) => window.setTimeout(resolve, 450));
     setPreviewBuilding(false);
+    markComplete("builder");
     setActiveSlide("review");
   };
 
@@ -265,15 +291,17 @@ export default function AiBuilderSurfaceShowcase({
         <button
           key={slide.id}
           type="button"
-          onClick={() => !previewBuilding && setActiveSlide(slide.id)}
+          onClick={() => goToSlide(slide.id)}
           disabled={previewBuilding}
           className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition sm:px-3 sm:text-xs ${
             activeSlide === slide.id
               ? "border-amber-300/30 bg-[#0a0a0a] text-white"
-              : "border-white/[0.06] bg-[#030303] text-slate-500 hover:text-white"
+              : completedSlides.has(slide.id)
+                ? "border-emerald-300/20 bg-emerald-300/[0.05] text-emerald-200"
+                : "border-white/[0.06] bg-[#030303] text-slate-500 hover:text-white"
           } disabled:cursor-not-allowed disabled:opacity-50`}
         >
-          {slide.label}
+          {completedSlides.has(slide.id) ? "✓ " : ""}{slide.label}
         </button>
       ))}
     </div>
@@ -284,6 +312,34 @@ export default function AiBuilderSurfaceShowcase({
     "Creating temporary Business Brain knowledge",
     "Preparing the review workspace",
   ];
+
+  const guidedCopy: Record<AiBuilderShowcaseSlide, { title: string; detail: string; action: string }> = {
+    builder: {
+      title: "Build your temporary Business Brain",
+      detail: "Add or change the business details, then build the demo workspace.",
+      action: "Build from the form above",
+    },
+    review: {
+      title: "Review what was created",
+      detail: "Approve, edit, remove, or restore knowledge before continuing.",
+      action: "Continue to Dashboard",
+    },
+    dashboard: {
+      title: "See the Business Brain update",
+      detail: "The dashboard reflects the temporary review decisions you just made.",
+      action: "Continue to Insights",
+    },
+    insights: {
+      title: "Inspect project diagnostics",
+      detail: "These metrics are derived from the same temporary Business Brain.",
+      action: "Continue to Chat",
+    },
+    chat: {
+      title: "Test the temporary assistant",
+      detail: "Ask a question and the deterministic preview will answer from approved knowledge only.",
+      action: "Finish Guided Demo",
+    },
+  };
 
   return (
     <div className={className}>
@@ -339,7 +395,25 @@ export default function AiBuilderSurfaceShowcase({
             ) : null}
           </div>
 
-          <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5"><div className="mx-auto flex justify-center">{switcher(true)}</div></div>
+          <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5">
+            <div className="mx-auto flex max-w-5xl flex-col gap-3">
+              {guidedFlow ? (
+                <div className="flex flex-col gap-3 rounded-xl border border-amber-300/15 bg-[#070707] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Guided demo</p>
+                    <p className="mt-1 text-sm font-semibold text-white">{guidedCopy[activeSlide].title}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500">{guidedCopy[activeSlide].detail}</p>
+                  </div>
+                  {activeSlide !== "builder" ? (
+                    <button type="button" onClick={advanceGuidedFlow} className="cta-raised shrink-0 rounded-lg border border-amber-300/20 bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">{guidedCopy[activeSlide].action}</button>
+                  ) : (
+                    <span className="shrink-0 text-xs font-semibold text-slate-500">{guidedCopy.builder.action}</span>
+                  )}
+                </div>
+              ) : null}
+              <div className="mx-auto flex w-full justify-center">{switcher(true)}</div>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>
