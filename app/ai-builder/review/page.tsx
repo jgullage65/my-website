@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 
 type WorkspaceTab = "dashboard" | "insights" | "overview" | "sources" | "settings";
 
@@ -30,11 +29,7 @@ export default function Page({ searchParams }: PageProps) {
     redirect("/ai-builder");
   }
 
-  return (
-    <AiBuilderProjectWorkspace
-      projectId={normalizedProjectId}
-      reviewOpen
-      initialTab={initialTab}
-    />
+  redirect(
+    `/ai-builder?projectId=${encodeURIComponent(normalizedProjectId)}&tab=${initialTab}&review=1`,
   );
 }
