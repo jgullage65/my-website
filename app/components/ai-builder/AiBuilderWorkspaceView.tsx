@@ -68,5 +68,5 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   }
 
   if (!props.knowledge) return null;
-  return <div className={inert}><AiBuilderDemoChat knowledge={props.knowledge} projectId={props.projectId ?? props.session.id} chatThread={props.chatThread ?? null} onBack={demo ? noop : props.onBack ?? noop} demoMode={demo || preview} /></div>;
+  return <div className={inert}><AiBuilderDemoChat knowledge={props.knowledge} projectId={props.projectId ?? props.session.id} chatThread={props.chatThread ?? null} onBack={demo ? noop : props.onBack ?? noop} demoMode={demo} previewMode={preview} /></div>;
 }
