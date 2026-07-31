@@ -5,6 +5,7 @@ import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
+import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import AiBuilderWorkspaceView from "./AiBuilderWorkspaceView";
 
 export const AI_BUILDER_SHOWCASE_SLIDES = [
@@ -41,6 +42,7 @@ export default function AiBuilderSurfaceShowcase({
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [builderValue, setBuilderValue] = useState(builder);
   const [demoOpen, setDemoOpen] = useState(false);
+  const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   useEffect(() => {
     setBuilderValue(builder);
@@ -73,6 +75,18 @@ export default function AiBuilderSurfaceShowcase({
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [demoOpen]);
+
+  const openDemo = async () => {
+    const confirmed = await showConfirm({
+      title: "Try the Interactive Demo?",
+      message:
+        "This demo builds a temporary Business Brain from the information you provide and lets you explore how the workspace works.\n\nAI is not used to deeply reason over your Business Brain or generate assistant responses during the demo. Paid plans use AI-powered reasoning for stronger understanding, deeper synthesis, and better answers.\n\nYour demo is temporary and will not be saved.",
+      confirmLabel: "Start Demo",
+      cancelLabel: "Cancel",
+    });
+
+    if (confirmed) setDemoOpen(true);
+  };
 
   const surface = useMemo(() => {
     if (activeSlide === "builder") {
@@ -119,6 +133,7 @@ export default function AiBuilderSurfaceShowcase({
 
   return (
     <div className={className}>
+      {confirmDialogNode}
       <div className="overflow-hidden rounded-[24px] border border-amber-300/30 bg-black p-3 shadow-[0_28px_90px_rgba(0,0,0,.58)] sm:p-4">
         <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>
           <div className="relative h-full lg:hidden">
@@ -135,7 +150,7 @@ export default function AiBuilderSurfaceShowcase({
       <div className="mt-4 flex justify-center">
         <button
           type="button"
-          onClick={() => setDemoOpen(true)}
+          onClick={openDemo}
           className="inline-flex min-h-10 items-center justify-center rounded-xl border border-amber-300/30 bg-[#0a0a0a] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_35px_rgba(0,0,0,.32)] transition hover:border-amber-200/50 hover:bg-[#101010]"
         >
           Open Demo
