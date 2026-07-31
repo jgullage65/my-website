@@ -4,10 +4,6 @@ import { SignOutButton } from "@clerk/nextjs";
 import { ReactNode, useEffect, useState } from "react";
 import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderShell from "./AiBuilderShell";
-import {
-  applyAiBuilderPreferences,
-  loadAiBuilderPreferences,
-} from "./AiBuilderSettings";
 
 type NavigationItem = {
   value: string;
@@ -36,17 +32,6 @@ export default function AiBuilderWorkspaceFrame({
   overlays,
 }: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const preferences = loadAiBuilderPreferences();
-    applyAiBuilderPreferences(preferences);
-
-    if (preferences.theme !== "system") return;
-    const media = window.matchMedia("(prefers-color-scheme: light)");
-    const sync = () => applyAiBuilderPreferences(preferences);
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
