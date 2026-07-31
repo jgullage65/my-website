@@ -30,6 +30,7 @@ export type AiBuilderWorkspaceViewProps = {
   pendingReviewItems?: ReviewCommandPending;
   embeddedReview?: boolean;
   dashboardShowcase?: boolean;
+  previewMode?: boolean;
   showLaunchChat?: boolean;
   onBuilderChange?: (builder: BuilderState) => void;
   onBuild?: () => void;
@@ -56,7 +57,10 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   }
 
   if (props.activeView === "builder") {
-    return <div className={inert}><AiBuilderForm value={props.builder} projectId={demo ? null : props.projectId} onChange={demo ? noop : props.onBuilderChange ?? noop} onBuild={demo ? noop : props.onBuild ?? noop} demoMode={demo} /></div>;
+    const previewClassName = props.previewMode
+      ? "h-full overflow-hidden [&>div]:pb-0 [&>div]:px-0 [&>div>div]:rounded-none [&>div>div]:border-0 [&>div>div]:shadow-none"
+      : "";
+    return <div className={`${inert} ${previewClassName}`}><AiBuilderForm value={props.builder} projectId={demo ? null : props.projectId} onChange={demo ? noop : props.onBuilderChange ?? noop} onBuild={demo ? noop : props.onBuild ?? noop} demoMode={demo} /></div>;
   }
 
   if (props.activeView === "review") {
