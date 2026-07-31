@@ -20,6 +20,8 @@ import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderProjects from "./AiBuilderProjects";
+import AiBuilderSources from "./AiBuilderSources";
+import AiBuilderSettings from "./AiBuilderSettings";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import { AiBuilderWorkspaceProvider } from "./AiBuilderWorkspaceContext";
 import "./AiBuilderFormOverrides.css";
@@ -82,6 +84,7 @@ type ChatThread = {
 type ProjectResponse = {
   ok?: boolean;
   projectId?: string;
+  stateRevision?: number;
   session?: AiBuilderSession;
   builder?: {
     businessName?: string;
@@ -122,15 +125,6 @@ const WORKSPACE_ITEMS: ReadonlyArray<readonly [WorkspaceTab, string]> = [
   ["settings", "Settings"],
 ];
 
-const WORKSPACE_DESCRIPTIONS: Record<WorkspaceTab, string> = {
-  dashboard: "Priorities, readiness, and recent project changes",
-  insights: "Crawl, generation, governance, and activity diagnostics",
-  overview: "Build status and generated project totals",
-  knowledge: "Review and govern the assistant’s business memory",
-  sources: "Connected source material and website imports",
-  settings: "Project configuration and preferences",
-};
-
 async function fetchProject(projectId: string): Promise<ProjectResponse> {
   const response = await fetch(
     `/api/ai-builder/projects/${encodeURIComponent(projectId)}`,
@@ -152,6 +146,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [chatThread, setChatThread] = useState<ChatThread | null>(null);
   const [diagnostics,setDiagnostics]=useState<ProjectDiagnostics|null>(null);
+  const [projectStateRevision,setProjectStateRevision]=useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -331,6 +326,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         setSession(payload.session);
         setChatThread(payload.chatThread ?? null);
         setDiagnostics(payload.diagnostics ?? null);
+        setProjectStateRevision(payload.stateRevision ?? 0);
         setBuilder((current) => ({
           ...current,
           businessName: payload.builder?.businessName ?? current.businessName,
@@ -356,6 +352,15 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   }, [initialProjectId]);
 
   const reviewSaveStatus = pendingReviewItems.size > 0 ? "saving" : saveStatus;
+
+  const renameProject = useCallback(async (businessName:string) => {
+    if (!session) throw new Error("The AI Builder project is not loaded.");
+    const response=await fetch(`/api/ai-builder/projects/${encodeURIComponent(session.id)}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({businessName,expectedRevision:projectStateRevision})});
+    const payload=await response.json() as {ok?:boolean;stateRevision?:number;builder?:{businessName?:string};error?:{message?:string}};
+    if(!response.ok||!payload.ok) throw new Error(payload.error?.message||"The project could not be renamed.");
+    setProjectStateRevision(payload.stateRevision??projectStateRevision+1);
+    setBuilder(current=>({...current,businessName:payload.builder?.businessName??businessName,websiteKnowledge:current.websiteKnowledge?{...current.websiteKnowledge,businessName:payload.builder?.businessName??businessName}:current.websiteKnowledge}));
+  },[projectStateRevision,session]);
 
   const buildAi = async () => {
     setError(null);
@@ -418,6 +423,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         setSession(savedProject.session ?? payload.session);
         setChatThread(savedProject.chatThread ?? null);
         setDiagnostics(savedProject.diagnostics ?? null);
+        setProjectStateRevision(savedProject.stateRevision ?? 0);
       } catch (projectLoadError) {
         console.error("AI_BUILDER_NEW_PROJECT_RELOAD_FAILED", {
           projectId,
@@ -456,9 +462,13 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     source_blocks: builder.websiteKnowledge.sourceBlocks,
   } : null;
 
+  const project = useMemo(() => ({businessName:builder.businessName,industry:builder.industry,website:builder.website,tone:builder.tone,stateRevision:projectStateRevision}),[builder.businessName,builder.industry,builder.website,builder.tone,projectStateRevision]);
+
   const desktopWorkspace = session && knowledgePack ? (
     <AiBuilderWorkspaceProvider
       projectId={session.id}
+      project={project}
+      renameProject={renameProject}
       session={session}
       websiteKnowledge={websiteKnowledge}
       diagnostics={diagnostics}
@@ -557,16 +567,10 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                 onReview={() => setWorkspaceTab("knowledge")}
                 embedded
               />
+            ) : workspaceTab === "sources" ? (
+              <AiBuilderSources />
             ) : (
-              <div className="flex min-h-full items-center justify-center rounded-3xl border border-white/10 bg-[#000000] p-8 text-center">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-300">{workspaceTab}</p>
-                  <h2 className="mt-3 text-2xl font-bold text-white">This workspace is ready for its next module.</h2>
-                  <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">
-                    The permanent desktop shell is in place without changing the existing backend flow.
-                  </p>
-                </div>
-              </div>
+              <AiBuilderSettings />
             )}
           </AiBuilderDesktopScrollArea>
         </main>
@@ -606,6 +610,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         {session && knowledgePack && step !== "chat" ? (
           <AiBuilderWorkspaceProvider
             projectId={session.id}
+            project={project}
+            renameProject={renameProject}
             session={session}
             websiteKnowledge={websiteKnowledge}
             diagnostics={diagnostics}
@@ -654,7 +660,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                 {workspaceTab === "insights" ? <AiBuilderProjectInsights /> : null}
                 {workspaceTab === "overview" ? <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={() => selectWorkspaceTab("knowledge")} /> : null}
                 {workspaceTab === "knowledge" ? <>{reviewSaveStatus !== "idle" || saveError ? <div className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-white/[0.08] bg-[#050505] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">{reviewSaveStatus === "saving" ? "Applying review command..." : reviewSaveStatus === "saved" ? "Review command applied." : saveError}</div> : null}<AiBuilderReview onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={() => selectWorkspaceTab("overview")} onLaunchChat={() => navigateToStep("chat")} /></> : null}
-                {workspaceTab === "sources" || workspaceTab === "settings" ? <div className="flex min-h-[50vh] items-center justify-center rounded-2xl border border-white/[0.08] bg-[#050505] p-6 text-center"><div><p className="text-xs font-semibold uppercase tracking-[.18em] text-amber-300">{workspaceTab}</p><p className="mt-3 text-sm leading-6 text-slate-400">{WORKSPACE_DESCRIPTIONS[workspaceTab]}</p></div></div> : null}
+                {workspaceTab === "sources" ? <AiBuilderSources /> : null}
+                {workspaceTab === "settings" ? <AiBuilderSettings /> : null}
               </main>
             </div>
           </AiBuilderWorkspaceProvider>
@@ -663,6 +670,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         {step === "chat" && knowledgePack && session ? (
           <AiBuilderWorkspaceProvider
             projectId={session.id}
+            project={project}
+            renameProject={renameProject}
             session={session}
             websiteKnowledge={websiteKnowledge}
             diagnostics={diagnostics}
