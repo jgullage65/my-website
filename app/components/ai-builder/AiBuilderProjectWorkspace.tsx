@@ -105,6 +105,7 @@ export default function AiBuilderProjectWorkspace({
 }: Props) {
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(initialTab === "overview" ? "dashboard" : initialTab);
   const [overviewOpen, setOverviewOpen] = useState(initialTab === "overview");
+  const [knowledgeOpen, setKnowledgeOpen] = useState(reviewOpen);
   const [builder, setBuilder] = useState<BuilderState>(EMPTY_BUILDER);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [chatThread, setChatThread] = useState<ChatThread | null>(null);
@@ -175,19 +176,21 @@ export default function AiBuilderProjectWorkspace({
   }, [overviewOpen]);
 
   const closeReview = useCallback(() => {
-    window.location.assign(
-      `/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=${encodeURIComponent(workspaceTab)}`,
-    );
+    setKnowledgeOpen(false);
+    const url = new URL(window.location.href);
+    url.searchParams.set("projectId", projectId);
+    url.searchParams.set("tab", workspaceTab);
+    window.history.replaceState(null, "", url.toString());
   }, [projectId, workspaceTab]);
 
   useEffect(() => {
-    if (!reviewOpen) return;
+    if (!knowledgeOpen) return;
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape" && pendingReviewItemsRef.current.size === 0) closeReview();
     };
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
-  }, [closeReview, reviewOpen]);
+  }, [closeReview, knowledgeOpen]);
 
   const submitReviewCommand = useCallback((command: ReviewCommandRequest) => {
     const pendingKey = `${command.itemKind}:${command.itemId}`;
@@ -282,14 +285,16 @@ export default function AiBuilderProjectWorkspace({
 
   const openReview = useCallback(() => {
     setOverviewOpen(false);
-    window.location.assign(
-      `/ai-builder/review?projectId=${encodeURIComponent(projectId)}&returnTab=${encodeURIComponent(workspaceTab)}`,
-    );
+    setKnowledgeOpen(true);
+    const url = new URL(window.location.href);
+    url.searchParams.set("projectId", projectId);
+    url.searchParams.set("tab", workspaceTab);
+    window.history.replaceState(null, "", url.toString());
   }, [projectId, workspaceTab]);
 
   const selectWorkspaceTab = useCallback((nextTab: WorkspaceTab) => {
     if (nextTab === "knowledge") {
-      if (!reviewOpen) openReview();
+      openReview();
       return;
     }
 
@@ -298,20 +303,14 @@ export default function AiBuilderProjectWorkspace({
       return;
     }
 
-    if (reviewOpen) {
-      window.location.assign(
-        `/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=${encodeURIComponent(nextTab)}`,
-      );
-      return;
-    }
-
+    setKnowledgeOpen(false);
     setOverviewOpen(false);
     setWorkspaceTab(nextTab);
     const url = new URL(window.location.href);
     url.searchParams.set("projectId", projectId);
     url.searchParams.set("tab", nextTab);
     window.history.replaceState(null, "", url.toString());
-  }, [openReview, projectId, reviewOpen]);
+  }, [openReview, projectId]);
 
   const knowledgePack = useMemo(
     () => (session ? buildKnowledgePack(session) : (undefined as never)),
@@ -423,7 +422,7 @@ export default function AiBuilderProjectWorkspace({
 
   const overlays = (
     <>
-      {overviewOpen && !reviewOpen ? (
+      {overviewOpen && !knowledgeOpen ? (
         <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
           <section role="dialog" aria-modal="true" aria-label="Project overview" className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
             <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-20 py-4 text-center"><h2 className="text-base font-semibold text-white">Overview</h2><button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] text-xl leading-none text-slate-300 transition hover:bg-white/[0.05] hover:text-white">×</button></div>
@@ -432,7 +431,7 @@ export default function AiBuilderProjectWorkspace({
         </div>
       ) : null}
 
-      {reviewOpen ? (
+      {knowledgeOpen ? (
         <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
           <section role="dialog" aria-modal="true" aria-label="Business Knowledge review" className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
             <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-24 py-4 text-center"><div className="min-w-0 text-center"><h2 className="text-base font-semibold text-white">Business Knowledge</h2><p className="mt-1 text-xs text-slate-500">Review and govern the assistant’s business memory</p></div><button type="button" onClick={closeReview} className="absolute right-6 top-1/2 -translate-y-1/2 rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Done</button></div>
@@ -441,11 +440,11 @@ export default function AiBuilderProjectWorkspace({
         </div>
       ) : null}
 
-      {overviewOpen && !reviewOpen ? <section role="dialog" aria-modal="true" aria-label="Project overview" className="fixed inset-0 z-[100] hidden min-h-dvh flex-col bg-[#030303] sm:flex xl:hidden"><div className="relative flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] px-16 text-center"><h2 className="text-sm font-semibold text-white">Overview</h2><button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-2xl leading-none text-slate-300">×</button></div><div className="min-h-0 flex-1 overflow-y-auto px-6 py-6"><div className="mx-auto w-full max-w-[700px]">{overviewContent}</div></div></section> : null}
+      {overviewOpen && !knowledgeOpen ? <section role="dialog" aria-modal="true" aria-label="Project overview" className="fixed inset-0 z-[100] hidden min-h-dvh flex-col bg-[#030303] sm:flex xl:hidden"><div className="relative flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] px-16 text-center"><h2 className="text-sm font-semibold text-white">Overview</h2><button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-2xl leading-none text-slate-300">×</button></div><div className="min-h-0 flex-1 overflow-y-auto px-6 py-6"><div className="mx-auto w-full max-w-[700px]">{overviewContent}</div></div></section> : null}
     </>
   );
 
-  const title = reviewOpen
+  const title = knowledgeOpen
     ? "Business Knowledge"
     : WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1] ?? "Workspace";
 
@@ -458,16 +457,16 @@ export default function AiBuilderProjectWorkspace({
         label,
         active:
           value === "knowledge"
-            ? reviewOpen
+            ? knowledgeOpen
             : value === "overview"
               ? overviewOpen
-              : workspaceTab === value && !overviewOpen && !reviewOpen,
+              : workspaceTab === value && !overviewOpen && !knowledgeOpen,
         onSelect: () => selectWorkspaceTab(value),
       }))}
       rightRail={rightRail}
       overlays={overlays}
     >
-      {reviewOpen ? (
+      {knowledgeOpen ? (
         <div className="xl:hidden">
           {reviewStatus}
           <AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={closeReview} onLaunchChat={() => undefined} showLaunchChat={false} />
