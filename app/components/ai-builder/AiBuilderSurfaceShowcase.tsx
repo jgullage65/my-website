@@ -82,8 +82,15 @@ export default function AiBuilderSurfaceShowcase({
 
   return (
     <div className={className}>
-      <div className="overflow-hidden rounded-[24px] border border-amber-300/30 bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-        <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>{surface}</div>
+      <div className="overflow-hidden rounded-[24px] border border-amber-300/30 bg-black p-3 shadow-[0_28px_90px_rgba(0,0,0,.58)] sm:p-4">
+        <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>
+          <div className="hidden h-full sm:block">{surface}</div>
+          <div className="relative h-full sm:hidden">
+            <div className="pointer-events-none absolute left-1/2 top-0 w-[900px] origin-top -translate-x-1/2 scale-[0.36]">
+              {surface}
+            </div>
+          </div>
+        </div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-2">
         {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (
@@ -91,7 +98,7 @@ export default function AiBuilderSurfaceShowcase({
             key={slide.id}
             type="button"
             onClick={() => setActiveSlide(slide.id)}
-            className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+            className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition sm:px-3 sm:text-xs ${
               activeSlide === slide.id
                 ? "border-amber-300/30 bg-[#0a0a0a] text-white"
                 : "border-white/[0.06] bg-[#030303] text-slate-500 hover:text-white"
