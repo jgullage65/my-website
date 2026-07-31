@@ -27,6 +27,8 @@ type Props = {
   embedded?: boolean;
 };
 
+type SourceFilter = "all" | "website" | "manual" | "faq";
+
 const CATEGORY_LABELS: Record<BusinessContextCategory, string> = {
   business_profile: "Business Profile",
   audience: "Audience",
@@ -83,6 +85,15 @@ function reviewSection(entry: BusinessContextEntry): {
     label: CATEGORY_LABELS[entry.category],
     order: 2_000 + Object.keys(CATEGORY_LABELS).indexOf(entry.category),
   };
+}
+
+function matchesSourceFilter(entry: BusinessContextEntry, sourceFilter: SourceFilter) {
+  if (sourceFilter === "all") return true;
+  if (sourceFilter === "website") return entry.source.sourceType === "website";
+  if (sourceFilter === "manual") {
+    return entry.source.sourceType === "manual_intake" || entry.source.sourceType === "user_edit";
+  }
+  return false;
 }
 
 const canonicalButtonClassName =
@@ -178,6 +189,7 @@ export default function AiBuilderReview({
   const [filter, setFilter] = useState<
     "all" | "proposed" | "approved" | "archived"
   >("all");
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
@@ -201,6 +213,7 @@ export default function AiBuilderReview({
 
     contextEntries.forEach((entry) => {
       if (faqBackedContextIds.has(entry.id)) return;
+      if (sourceFilter === "faq" || !matchesSourceFilter(entry, sourceFilter)) return;
 
       const visible =
         filter === "all"
@@ -236,29 +249,31 @@ export default function AiBuilderReview({
       ([, left], [, right]) =>
         left.order - right.order || left.label.localeCompare(right.label),
     );
-  }, [contextEntries, faqEntries, filter, normalizedSearchQuery]);
+  }, [contextEntries, faqEntries, filter, normalizedSearchQuery, sourceFilter]);
 
   const visibleFaqEntries = useMemo(
     () =>
-      faqEntries.flatMap((faq) => {
-        const visible =
-          filter === "all"
-            ? faq.status !== "archived"
-            : filter === "approved"
-              ? faq.status === "approved" || faq.status === "corrected"
-              : faq.status === filter;
-        if (!visible) return [];
-        if (
-          normalizedSearchQuery &&
-          !`${faq.question} ${faq.answer} generated q&a faq`
-            .toLowerCase()
-            .includes(normalizedSearchQuery)
-        ) {
-          return [];
-        }
-        return [{ faq }];
-      }),
-    [faqEntries, filter, normalizedSearchQuery],
+      sourceFilter === "website" || sourceFilter === "manual"
+        ? []
+        : faqEntries.flatMap((faq) => {
+            const visible =
+              filter === "all"
+                ? faq.status !== "archived"
+                : filter === "approved"
+                  ? faq.status === "approved" || faq.status === "corrected"
+                  : faq.status === filter;
+            if (!visible) return [];
+            if (
+              normalizedSearchQuery &&
+              !`${faq.question} ${faq.answer} generated q&a faq`
+                .toLowerCase()
+                .includes(normalizedSearchQuery)
+            ) {
+              return [];
+            }
+            return [{ faq }];
+          }),
+    [faqEntries, filter, normalizedSearchQuery, sourceFilter],
   );
 
   const visibleItemCount = useMemo(
@@ -376,6 +391,61 @@ export default function AiBuilderReview({
     { filter: "archived" as const, label: "Removed", value: session.contextCounts.archived, buttonLabel: "Removed" },
   ];
 
+  const sourceItems: Array<{ filter: SourceFilter; label: string }> = [
+    { filter: "all", label: "All sources" },
+    { filter: "website", label: "Website" },
+    { filter: "manual", label: "Manual" },
+    { filter: "faq", label: "Generated Q&A" },
+  ];
+
+  const searchControls = (
+    <>
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Knowledge source filter">
+        {sourceItems.map((item) => (
+          <button
+            key={item.filter}
+            type="button"
+            onClick={() => setSourceFilter(item.filter)}
+            className={`${filterButtonClassName} min-h-10 px-3 text-xs ${
+              sourceFilter === item.filter
+                ? "border-amber-300/25 bg-amber-300/[0.06] text-amber-200"
+                : ""
+            }`}
+            aria-pressed={sourceFilter === item.filter}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <label className="relative min-w-0 flex-1">
+          <span className="sr-only">Search Business Knowledge</span>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder="Search Business Knowledge and Q&A..."
+            className="min-h-11 w-full rounded-lg border border-white/[0.08] bg-[#070707] px-4 pr-10 text-sm text-white outline-none placeholder:text-slate-600 focus:border-amber-300/35"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              aria-label="Clear Business Knowledge search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 transition hover:text-white"
+            >
+              ×
+            </button>
+          ) : null}
+        </label>
+        <span className="shrink-0 text-center text-xs font-semibold text-slate-500 sm:text-right">
+          {visibleItemCount} matching item{visibleItemCount === 1 ? "" : "s"}
+        </span>
+      </div>
+    </>
+  );
+
   return (
     <div className={embedded ? "relative w-full space-y-5" : "relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]"}>
       {confirmDialogNode}
@@ -419,31 +489,7 @@ export default function AiBuilderReview({
               ))}
             </div>
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <label className="relative min-w-0 flex-1">
-                <span className="sr-only">Search Business Knowledge</span>
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search Business Knowledge and Q&A..."
-                  className="min-h-11 w-full rounded-lg border border-white/[0.08] bg-[#070707] px-4 pr-10 text-sm text-white outline-none placeholder:text-slate-600 focus:border-amber-300/35"
-                />
-                {searchQuery ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    aria-label="Clear Business Knowledge search"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 transition hover:text-white"
-                  >
-                    ×
-                  </button>
-                ) : null}
-              </label>
-              <span className="shrink-0 text-center text-xs font-semibold text-slate-500 sm:text-right">
-                {visibleItemCount} matching item{visibleItemCount === 1 ? "" : "s"}
-              </span>
-            </div>
+            {searchControls}
 
             <div className="mx-auto mt-6 w-full max-w-[calc(50%-0.375rem)]">
               <button
@@ -502,31 +548,7 @@ export default function AiBuilderReview({
               ))}
             </div>
 
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <label className="relative min-w-0 flex-1">
-                <span className="sr-only">Search Business Knowledge</span>
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => setSearchQuery(event.target.value)}
-                  placeholder="Search Business Knowledge and Q&A..."
-                  className="min-h-11 w-full rounded-lg border border-white/[0.08] bg-[#070707] px-4 pr-10 text-sm text-white outline-none placeholder:text-slate-600 focus:border-amber-300/35"
-                />
-                {searchQuery ? (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery("")}
-                    aria-label="Clear Business Knowledge search"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 transition hover:text-white"
-                  >
-                    ×
-                  </button>
-                ) : null}
-              </label>
-              <span className="shrink-0 text-center text-xs font-semibold text-slate-500 sm:text-right">
-                {visibleItemCount} matching item{visibleItemCount === 1 ? "" : "s"}
-              </span>
-            </div>
+            {searchControls}
           </>
         )}
       </section>
