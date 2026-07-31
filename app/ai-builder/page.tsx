@@ -13,6 +13,7 @@ type PageProps = {
     projectId?: string | string[];
     new?: string | string[];
     tab?: string | string[];
+    review?: string | string[];
   };
 };
 
@@ -26,9 +27,10 @@ const WORKSPACE_TABS = new Set<WorkspaceTab>([
 ]);
 
 export default async function Page({ searchParams }: PageProps) {
-  const { projectId, new: newProject, tab } = searchParams;
+  const { projectId, new: newProject, tab, review } = searchParams;
   const normalizedProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
   const requestedTab = Array.isArray(tab) ? tab[0] : tab;
+  const requestedReview = Array.isArray(review) ? review[0] : review;
   const initialTab = WORKSPACE_TABS.has(requestedTab as WorkspaceTab)
     ? (requestedTab as WorkspaceTab)
     : "dashboard";
@@ -43,7 +45,13 @@ export default async function Page({ searchParams }: PageProps) {
   }
 
   if (normalizedProjectId) {
-    return <AiBuilderProjectWorkspace projectId={normalizedProjectId} initialTab={initialTab} />;
+    return (
+      <AiBuilderProjectWorkspace
+        projectId={normalizedProjectId}
+        initialTab={initialTab}
+        reviewOpen={requestedReview === "1" || requestedReview === "true"}
+      />
+    );
   }
 
   if (newProject) {
