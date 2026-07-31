@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { SignInButton } from "@clerk/nextjs";
+import { useClerk } from "@clerk/nextjs";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
 import {
   aiBuilderDemoBuilder,
@@ -18,6 +18,12 @@ const Check = () => (
 );
 
 export default function AiBuilderLanding() {
+  const { openSignIn } = useClerk();
+
+  const handleSignIn = () => {
+    void openSignIn({ forceRedirectUrl: "/ai-builder?new=1" });
+  };
+
   return (
     <div className="h-[calc(100dvh-56px)] min-h-0 overflow-y-scroll overscroll-y-contain bg-black text-white xl:h-full">
       <main className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 lg:px-8 xl:px-10">
@@ -31,9 +37,7 @@ export default function AiBuilderLanding() {
             <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
             <div className="mt-7 flex flex-wrap gap-3">
               <button type="button" className={primaryButton}>Build Your Business Brain</button>
-              <SignInButton mode="modal" forceRedirectUrl="/ai-builder?new=1">
-                <button type="button" className={primaryButton}>Sign In</button>
-              </SignInButton>
+              <button type="button" className={primaryButton} onClick={handleSignIn}>Sign In</button>
             </div>
 
             <div className="mt-8 grid gap-7 border-t border-white/[0.07] pt-6">
@@ -74,9 +78,7 @@ export default function AiBuilderLanding() {
             <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-400 sm:text-base">Choose how you want to move forward. We’ll wire each path into the right experience next.</p>
             <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <button type="button" className={primaryButton}>Build Your Business Brain</button>
-              <SignInButton mode="modal" forceRedirectUrl="/ai-builder?new=1">
-                <button type="button" className={primaryButton}>Sign In</button>
-              </SignInButton>
+              <button type="button" className={primaryButton} onClick={handleSignIn}>Sign In</button>
               <button type="button" className={primaryButton}>Ask Support</button>
             </div>
           </div>
