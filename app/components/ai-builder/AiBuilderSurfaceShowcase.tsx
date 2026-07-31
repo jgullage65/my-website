@@ -84,12 +84,15 @@ export default function AiBuilderSurfaceShowcase({
     <div className={className}>
       <div className="overflow-hidden rounded-[24px] border border-amber-300/30 bg-black p-3 shadow-[0_28px_90px_rgba(0,0,0,.58)] sm:p-4">
         <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>
-          <div className="hidden h-full sm:block">{surface}</div>
-          <div className="relative h-full sm:hidden">
-            <div className="pointer-events-none absolute left-1/2 top-0 w-[900px] origin-top -translate-x-1/2 scale-[0.36]">
+          <div className="h-full overflow-y-auto overscroll-contain sm:hidden">
+            <div className="pointer-events-none min-h-full">{surface}</div>
+          </div>
+          <div className="relative hidden h-full sm:block lg:hidden">
+            <div className="pointer-events-none absolute left-1/2 top-0 w-[900px] origin-top -translate-x-1/2 scale-[0.72]">
               {surface}
             </div>
           </div>
+          <div className="hidden h-full lg:block">{surface}</div>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-2">
