@@ -447,8 +447,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         >
           ← All Projects
         </button>
-        <div className="mb-5 border-b border-white/[0.08] px-3 pb-5 text-center">
-          <p className="truncate text-sm font-semibold text-white">{builder.businessName || "AI Builder Project"}</p>
+        <div className="mb-5 flex min-h-[64px] items-center justify-center border-b border-white/[0.08] px-2 pb-5">
+          <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-11 w-full max-w-[158px] object-contain" />
         </div>
         <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
         <nav className="mt-3 space-y-0.5">
@@ -594,11 +594,13 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
             {mobileWorkspaceMenuOpen ? (
               <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
                 <aside role="dialog" aria-modal="true" aria-label="Project workspace navigation" className="flex h-full w-[min(220px,86vw)] flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]">
-                  <div className="mb-7 flex items-center justify-between gap-3">
+                  <div className="mb-5 flex items-center justify-between gap-3">
                     <button type="button" onClick={() => window.location.assign("/ai-builder")} className="inline-flex text-xs font-semibold text-slate-500 transition hover:text-white">← All Projects</button>
                     <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} aria-label="Close workspace menu" className="text-2xl font-light leading-none text-slate-400 hover:text-white">×</button>
                   </div>
-                  <div className="mb-5 border-b border-white/[0.08] px-3 pb-5"><p className="truncate text-sm font-semibold text-slate-200">{builder.businessName || "AI Builder Project"}</p><p className="mt-1 truncate text-xs text-slate-600">{builder.website || builder.industry || "Project workspace"}</p></div>
+                  <div className="mb-5 flex min-h-[60px] items-center justify-center border-b border-white/[0.08] px-2 pb-5">
+                    <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-10 w-full max-w-[150px] object-contain" />
+                  </div>
                   <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-600">Workspace</p>
                   <nav className="mt-3 space-y-0.5">
                     {WORKSPACE_ITEMS.map(([value, label]) => <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${workspaceTab === value ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300" : "text-slate-500 hover:bg-white/[0.035] hover:text-slate-200"}`}>{label}</button>)}
