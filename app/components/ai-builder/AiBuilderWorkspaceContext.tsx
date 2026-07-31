@@ -6,7 +6,6 @@ import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/we
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 
 export type AiBuilderWorkspaceTab =
-  | "projects"
   | "dashboard"
   | "insights"
   | "overview"
