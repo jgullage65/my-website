@@ -82,6 +82,24 @@ function updatePreviewSession(session: AiBuilderSession, command: ReviewCommandR
   };
 }
 
+function buildPreviewDiagnostics(base: ProjectDiagnostics | null, session: AiBuilderSession): ProjectDiagnostics | null {
+  if (!base) return null;
+  const knowledgeCount = session.contextEntries.filter((item) => item.status !== "archived").length;
+  const faqCount = session.faqEntries.filter((item) => item.status !== "archived").length;
+  const latestGeneration = base.generations[0]
+    ? {
+        ...base.generations[0],
+        knowledge_count: knowledgeCount,
+        faq_count: faqCount,
+        completed_at: session.updatedAt,
+      }
+    : undefined;
+  return {
+    crawls: base.crawls,
+    generations: latestGeneration ? [latestGeneration, ...base.generations.slice(1)] : base.generations,
+  };
+}
+
 export default function AiBuilderSurfaceShowcase({
   session,
   builder,
@@ -170,9 +188,15 @@ export default function AiBuilderSurfaceShowcase({
     setPreviewSession((current) => updatePreviewSession(current, command));
   };
 
+  const previewDiagnostics = useMemo(
+    () => buildPreviewDiagnostics(diagnostics, previewSession),
+    [diagnostics, previewSession],
+  );
+
   const renderSurface = (interactive: boolean) => {
     const mode = interactive ? "preview" : "demo";
     const activeSession = interactive ? previewSession : session;
+    const activeDiagnostics = interactive ? previewDiagnostics : diagnostics;
 
     if (activeSlide === "builder") {
       return (
@@ -202,10 +226,10 @@ export default function AiBuilderSurfaceShowcase({
     }
 
     if (activeSlide === "dashboard") {
-      return <AiBuilderWorkspaceView mode={mode} activeView="dashboard" session={activeSession} builder={builderValue} diagnostics={diagnostics} dashboardShowcase />;
+      return <AiBuilderWorkspaceView mode={mode} activeView="dashboard" session={activeSession} builder={builderValue} diagnostics={activeDiagnostics} dashboardShowcase onNavigate={(destination) => destination === "knowledge" && setActiveSlide("review")} />;
     }
 
-    return <AiBuilderWorkspaceView mode={mode} activeView="insights" session={activeSession} builder={builderValue} diagnostics={diagnostics} />;
+    return <AiBuilderWorkspaceView mode={mode} activeView="insights" session={activeSession} builder={builderValue} diagnostics={activeDiagnostics} />;
   };
 
   const showcaseSurface = useMemo(
@@ -215,7 +239,7 @@ export default function AiBuilderSurfaceShowcase({
 
   const previewSurface = useMemo(
     () => renderSurface(true),
-    [activeSlide, builderValue, diagnostics, previewBuilding, previewSession],
+    [activeSlide, builderValue, previewBuilding, previewDiagnostics, previewSession],
   );
 
   const switcher = (compact = false) => (
@@ -261,22 +285,13 @@ export default function AiBuilderSurfaceShowcase({
       <div className="mt-3">{switcher()}</div>
 
       <div className="mt-4 flex justify-center">
-        <button
-          type="button"
-          onClick={openDemo}
-          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-amber-300/30 bg-[#0a0a0a] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_35px_rgba(0,0,0,.32)] transition hover:border-amber-200/50 hover:bg-[#101010]"
-        >
-          Open Demo
-        </button>
+        <button type="button" onClick={openDemo} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-amber-300/30 bg-[#0a0a0a] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_35px_rgba(0,0,0,.32)] transition hover:border-amber-200/50 hover:bg-[#101010]">Open Demo</button>
       </div>
 
       {demoOpen ? (
         <div className="fixed inset-0 z-[200] flex min-h-0 flex-col bg-black" role="dialog" aria-modal="true" aria-label="AI Builder interactive demo">
           <div className="relative flex shrink-0 items-center justify-center border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur sm:px-6 lg:hidden">
-            <h2 className="text-sm font-semibold text-white sm:text-base">
-              <span className="sm:hidden">Mobile Interactive Demo</span>
-              <span className="hidden sm:inline">Tablet Interactive Demo</span>
-            </h2>
+            <h2 className="text-sm font-semibold text-white sm:text-base"><span className="sm:hidden">Mobile Interactive Demo</span><span className="hidden sm:inline">Tablet Interactive Demo</span></h2>
             <button type="button" onClick={() => !previewBuilding && setDemoOpen(false)} disabled={previewBuilding} aria-label="Close demo" className="absolute right-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] disabled:cursor-not-allowed disabled:opacity-40 sm:right-6">×</button>
           </div>
 
@@ -307,9 +322,7 @@ export default function AiBuilderSurfaceShowcase({
             ) : null}
           </div>
 
-          <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5">
-            <div className="mx-auto flex justify-center">{switcher(true)}</div>
-          </div>
+          <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5"><div className="mx-auto flex justify-center">{switcher(true)}</div></div>
         </div>
       ) : null}
     </div>
