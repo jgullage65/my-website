@@ -147,18 +147,15 @@ export default function AiBuilderSurfaceShowcase({
           className="fixed inset-0 z-[200] flex min-h-0 flex-col bg-black"
           role="dialog"
           aria-modal="true"
-          aria-label="AI Builder demo"
+          aria-label="AI Builder visual demo"
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur sm:px-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/70">AI Builder</p>
-              <h2 className="text-sm font-semibold text-white sm:text-base">Interactive product demo</h2>
-            </div>
+          <div className="relative flex shrink-0 items-center justify-center border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur sm:px-6">
+            <h2 className="text-sm font-semibold text-white sm:text-base">Visual Demo</h2>
             <button
               type="button"
               onClick={() => setDemoOpen(false)}
               aria-label="Close demo"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111]"
+              className="absolute right-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] sm:right-6"
             >
               ×
             </button>
