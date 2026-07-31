@@ -65,7 +65,8 @@ export default function AiBuilderSources() {
       (item.source.sourceType === "manual_intake" || item.source.sourceType === "user_edit") &&
       (item.status === "approved" || item.status === "corrected"),
   ).length;
-  const unresolvedQuestions = websiteKnowledge?.knowledge.unresolvedQuestions.length ?? 0;
+  const unresolvedQuestionItems = websiteKnowledge?.knowledge.unresolvedQuestions ?? [];
+  const unresolvedQuestions = unresolvedQuestionItems.length;
   const processedPages = numericValue(latestAttempt?.pages_processed, stats.pages);
   const failedPages = numericValue(latestAttempt?.pages_failed);
   const skippedPages = numericValue(latestAttempt?.pages_skipped);
@@ -133,6 +134,34 @@ export default function AiBuilderSources() {
         <SummaryCard label="Manual knowledge" value={manualKnowledgeCount} detail="Approved or corrected knowledge contributed directly by the user." />
         <SummaryCard label="Open questions" value={unresolvedQuestions} detail="Unresolved questions still detected in the imported material." />
       </section>
+
+      {unresolvedQuestionItems.length ? (
+        <section className="rounded-[20px] border border-amber-300/15 bg-amber-300/[0.035] p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-amber-300">Source gaps</p>
+              <h3 className="mt-2 text-lg font-semibold text-white">Questions the website did not answer</h3>
+              <p className="mt-1 text-sm leading-6 text-slate-400">
+                Add or correct this information in Business Knowledge so the assistant does not have to guess.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveTab("knowledge")}
+              className="cta-raised shrink-0 rounded-lg border border-amber-300/20 bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:border-amber-300/40"
+            >
+              Open Business Knowledge
+            </button>
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {unresolvedQuestionItems.map((question, index) => (
+              <p key={`${String(question)}-${index}`} className="rounded-xl border border-white/[0.07] bg-black/30 px-4 py-3 text-sm leading-6 text-slate-300">
+                {String(question)}
+              </p>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
         <div className="rounded-[20px] border border-white/[0.07] bg-[#070707] p-5">
