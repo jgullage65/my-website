@@ -69,9 +69,7 @@ function reviewSection(entry: BusinessContextEntry): {
         location: "location_service_area",
         contact: "contact_information",
         other: "additional_business_knowledge",
-      } as Partial<Record<WebsiteKnowledgeFact["category"], string>>)[
-        websiteCategory
-      ] ?? websiteCategory;
+      } as Partial<Record<WebsiteKnowledgeFact["category"], string>>)[websiteCategory] ?? websiteCategory;
 
     return {
       key: canonicalKey,
@@ -96,6 +94,20 @@ function matchesSourceFilter(entry: BusinessContextEntry, sourceFilter: SourceFi
   return false;
 }
 
+function sourceLabel(entry: BusinessContextEntry) {
+  if (entry.source.sourceType === "website") return "Website";
+  if (entry.source.sourceType === "user_edit") return "User edit";
+  if (entry.source.sourceType === "manual_intake") return "Manual";
+  return entry.source.sourceType.replace(/_/g, " ");
+}
+
+function statusLabel(status: BusinessContextEntry["status"] | GeneratedFaqEntry["status"]) {
+  if (status === "corrected") return "Corrected";
+  if (status === "approved") return "Approved";
+  if (status === "proposed") return "Pending";
+  return "Removed";
+}
+
 const canonicalButtonClassName =
   "cta-raised inline-flex min-h-11 items-center justify-center rounded-lg border border-amber-300/20 bg-black px-4 py-2.5 text-xs font-black text-white shadow-[0_8px_20px_rgba(0,0,0,0.2)] transition hover:-translate-y-0.5 hover:border-amber-300/40 hover:bg-[#0a0a0a] disabled:cursor-not-allowed disabled:border-white/[0.05] disabled:bg-black/20 disabled:text-slate-600 disabled:shadow-none disabled:hover:translate-y-0";
 
@@ -110,6 +122,19 @@ const approveActionClassName =
 
 const panelClassName =
   "overflow-hidden rounded-[14px] border border-white/[0.055] bg-[#080808]/90 shadow-[0_14px_36px_rgba(0,0,0,0.2)] transition hover:border-white/[0.1] hover:bg-[#0d0d0d]/95";
+
+function MetadataBadges({ source, status }: { source: string; status: string }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+      <span className="rounded-full border border-white/[0.08] bg-black/30 px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-[0.1em] text-slate-500">
+        {source}
+      </span>
+      <span className="rounded-full border border-amber-300/15 bg-amber-300/[0.04] px-2.5 py-1 text-[0.62rem] font-bold uppercase tracking-[0.1em] text-amber-300">
+        {status}
+      </span>
+    </div>
+  );
+}
 
 function CollapsibleReviewText({
   children,
@@ -174,21 +199,11 @@ export default function AiBuilderReview({
   const { session } = useAiBuilderWorkspace();
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editingFaq, setEditingFaq] = useState<string | null>(null);
-  const [expandedItems, setExpandedItems] = useState<ReadonlySet<string>>(
-    new Set(),
-  );
-  const [entryDrafts, setEntryDrafts] = useState<
-    Record<string, { title: string; content: string }>
-  >({});
-  const [faqDrafts, setFaqDrafts] = useState<
-    Record<string, { question: string; answer: string }>
-  >({});
-  const [bulkFailureMessage, setBulkFailureMessage] = useState<string | null>(
-    null,
-  );
-  const [filter, setFilter] = useState<
-    "all" | "proposed" | "approved" | "archived"
-  >("all");
+  const [expandedItems, setExpandedItems] = useState<ReadonlySet<string>>(new Set());
+  const [entryDrafts, setEntryDrafts] = useState<Record<string, { title: string; content: string }>>({});
+  const [faqDrafts, setFaqDrafts] = useState<Record<string, { question: string; answer: string }>>({});
+  const [bulkFailureMessage, setBulkFailureMessage] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "proposed" | "approved" | "archived">("all");
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -199,17 +214,8 @@ export default function AiBuilderReview({
   const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   const grouped = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        label: string;
-        order: number;
-        entries: Array<{ entry: BusinessContextEntry }>;
-      }
-    >();
-    const faqBackedContextIds = new Set(
-      faqEntries.flatMap((faq) => faq.sourceEntryIds),
-    );
+    const map = new Map<string, { label: string; order: number; entries: Array<{ entry: BusinessContextEntry }> }>();
+    const faqBackedContextIds = new Set(faqEntries.flatMap((faq) => faq.sourceEntryIds));
 
     contextEntries.forEach((entry) => {
       if (faqBackedContextIds.has(entry.id)) return;
@@ -227,7 +233,7 @@ export default function AiBuilderReview({
       const section = reviewSection(entry);
       if (
         normalizedSearchQuery &&
-        !`${entry.title} ${entry.content} ${section.label} ${entry.category}`
+        !`${entry.title} ${entry.content} ${section.label} ${entry.category} ${sourceLabel(entry)} ${statusLabel(entry.status)}`
           .toLowerCase()
           .includes(normalizedSearchQuery)
       ) {
@@ -265,7 +271,7 @@ export default function AiBuilderReview({
             if (!visible) return [];
             if (
               normalizedSearchQuery &&
-              !`${faq.question} ${faq.answer} generated q&a faq`
+              !`${faq.question} ${faq.answer} generated q&a faq ${statusLabel(faq.status)}`
                 .toLowerCase()
                 .includes(normalizedSearchQuery)
             ) {
@@ -283,9 +289,7 @@ export default function AiBuilderReview({
 
   const visibleItemKeys = useMemo(
     () => [
-      ...grouped.flatMap(([, section]) =>
-        section.entries.map(({ entry }) => `context_entry:${entry.id}`),
-      ),
+      ...grouped.flatMap(([, section]) => section.entries.map(({ entry }) => `context_entry:${entry.id}`)),
       ...visibleFaqEntries.map(({ faq }) => `faq:${faq.id}`),
     ],
     [grouped, visibleFaqEntries],
@@ -298,10 +302,7 @@ export default function AiBuilderReview({
   }, [selectedItem, visibleItemKeys]);
 
   const submit = (
-    request: Omit<
-      ReviewCommandRequest,
-      "commandId" | "projectId" | "clientRevision"
-    >,
+    request: Omit<ReviewCommandRequest, "commandId" | "projectId" | "clientRevision">,
   ) =>
     onReviewCommand({
       ...request,
@@ -346,9 +347,7 @@ export default function AiBuilderReview({
 
   const approveAll = async () => {
     setBulkFailureMessage(null);
-    const decisions = [...contextEntries, ...faqEntries].filter(
-      (entry) => entry.status === "proposed",
-    );
+    const decisions = [...contextEntries, ...faqEntries].filter((entry) => entry.status === "proposed");
     if (!decisions.length || pendingReviewItems.size > 0) return;
 
     const outcomes: PromiseSettledResult<void>[] = [];
@@ -369,9 +368,7 @@ export default function AiBuilderReview({
       );
     }
 
-    const failed = outcomes.filter(
-      (outcome) => outcome.status === "rejected",
-    ).length;
+    const failed = outcomes.filter((outcome) => outcome.status === "rejected").length;
 
     if (failed) {
       setBulkFailureMessage(
@@ -380,8 +377,7 @@ export default function AiBuilderReview({
     }
   };
 
-  const canLaunchChat =
-    session.status === "ready" && session.contextCounts.approved > 0;
+  const canLaunchChat = session.status === "ready" && session.contextCounts.approved > 0;
   const canApproveAll = session.contextCounts.proposed > 0 && pendingReviewItems.size === 0;
 
   const summaryItems = [
@@ -452,10 +448,7 @@ export default function AiBuilderReview({
       {!embedded ? <AiBuilderAuthCta /> : null}
 
       {bulkFailureMessage ? (
-        <p
-          className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200"
-          role="alert"
-        >
+        <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-200" role="alert">
           {bulkFailureMessage}
         </p>
       ) : null}
@@ -512,12 +505,7 @@ export default function AiBuilderReview({
                 {pendingReviewItems.size > 0 ? "Saving review changes..." : session.contextCounts.proposed > 0 ? `Approve all ${session.contextCounts.proposed}` : "No pending items"}
               </button>
               {showLaunchChat ? (
-                <button
-                  type="button"
-                  onClick={onLaunchChat}
-                  disabled={!canLaunchChat}
-                  className={canonicalButtonClassName}
-                >
+                <button type="button" onClick={onLaunchChat} disabled={!canLaunchChat} className={canonicalButtonClassName}>
                   Test assistant
                 </button>
               ) : null}
@@ -586,10 +574,7 @@ export default function AiBuilderReview({
                                   setEntryDrafts((drafts) => ({
                                     ...drafts,
                                     [entryRenderKey]: {
-                                      ...(drafts[entryRenderKey] ?? {
-                                        title: entry.title,
-                                        content: entry.content,
-                                      }),
+                                      ...(drafts[entryRenderKey] ?? { title: entry.title, content: entry.content }),
                                       title: event.target.value,
                                     },
                                   }))
@@ -603,10 +588,7 @@ export default function AiBuilderReview({
                                   setEntryDrafts((drafts) => ({
                                     ...drafts,
                                     [entryRenderKey]: {
-                                      ...(drafts[entryRenderKey] ?? {
-                                        title: entry.title,
-                                        content: entry.content,
-                                      }),
+                                      ...(drafts[entryRenderKey] ?? { title: entry.title, content: entry.content }),
                                       content: event.target.value,
                                     },
                                   }))
@@ -616,6 +598,7 @@ export default function AiBuilderReview({
                             </div>
                           ) : (
                             <>
+                              <MetadataBadges source={sourceLabel(entry)} status={statusLabel(entry.status)} />
                               <h4 className="text-center text-base font-semibold leading-6 text-white">
                                 {entry.title}
                               </h4>
@@ -674,10 +657,7 @@ export default function AiBuilderReview({
                               disabled={pending}
                               onClick={() => {
                                 if (editing) {
-                                  const draft = entryDrafts[entryRenderKey] ?? {
-                                    title: entry.title,
-                                    content: entry.content,
-                                  };
+                                  const draft = entryDrafts[entryRenderKey] ?? { title: entry.title, content: entry.content };
                                   void submit({
                                     itemId: entry.id,
                                     itemKind: "context_entry",
@@ -692,10 +672,7 @@ export default function AiBuilderReview({
                                 } else {
                                   setEntryDrafts((drafts) => ({
                                     ...drafts,
-                                    [entryRenderKey]: {
-                                      title: entry.title,
-                                      content: entry.content,
-                                    },
+                                    [entryRenderKey]: { title: entry.title, content: entry.content },
                                   }));
                                   setEditingEntry(entryRenderKey);
                                 }
@@ -753,10 +730,7 @@ export default function AiBuilderReview({
                               setFaqDrafts((drafts) => ({
                                 ...drafts,
                                 [faqRenderKey]: {
-                                  ...(drafts[faqRenderKey] ?? {
-                                    question: faq.question,
-                                    answer: faq.answer,
-                                  }),
+                                  ...(drafts[faqRenderKey] ?? { question: faq.question, answer: faq.answer }),
                                   question: event.target.value,
                                 },
                               }))
@@ -770,10 +744,7 @@ export default function AiBuilderReview({
                               setFaqDrafts((drafts) => ({
                                 ...drafts,
                                 [faqRenderKey]: {
-                                  ...(drafts[faqRenderKey] ?? {
-                                    question: faq.question,
-                                    answer: faq.answer,
-                                  }),
+                                  ...(drafts[faqRenderKey] ?? { question: faq.question, answer: faq.answer }),
                                   answer: event.target.value,
                                 },
                               }))
@@ -783,6 +754,7 @@ export default function AiBuilderReview({
                         </div>
                       ) : (
                         <>
+                          <MetadataBadges source="Generated Q&A" status={statusLabel(faq.status)} />
                           <h4 className="text-center text-base font-semibold leading-6 text-white">
                             {faq.question}
                           </h4>
@@ -841,10 +813,7 @@ export default function AiBuilderReview({
                           disabled={pending}
                           onClick={() => {
                             if (editing) {
-                              const draft = faqDrafts[faqRenderKey] ?? {
-                                question: faq.question,
-                                answer: faq.answer,
-                              };
+                              const draft = faqDrafts[faqRenderKey] ?? { question: faq.question, answer: faq.answer };
                               void submit({
                                 itemId: faq.id,
                                 itemKind: "faq",
@@ -859,10 +828,7 @@ export default function AiBuilderReview({
                             } else {
                               setFaqDrafts((drafts) => ({
                                 ...drafts,
-                                [faqRenderKey]: {
-                                  question: faq.question,
-                                  answer: faq.answer,
-                                },
+                                [faqRenderKey]: { question: faq.question, answer: faq.answer },
                               }));
                               setEditingFaq(faqRenderKey);
                             }
