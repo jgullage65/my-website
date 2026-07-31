@@ -107,7 +107,28 @@ async function executeInTransaction(client: PoolClient, { projectId, clerkUserId
 async function loadAuthoritativeResponse(client: { query: Function }, projectId: string, itemKind: ReviewCommandRequest["itemKind"], itemId: string, result: CanonicalReviewCommandExecutionResult): Promise<PersistedReviewCommandResult> {
   const [itemResult, projectResult] = await Promise.all([
     client.query(itemKind === "context_entry" ? "SELECT * FROM ai_builder_context_entries WHERE id = $1 AND project_id = $2" : "SELECT * FROM ai_builder_faq_entries WHERE id = $1 AND project_id = $2", [itemId, projectId]),
-    client.query("SELECT governance_revision, context_counts, status FROM ai_builder_projects WHERE id = $1", [projectId]),
+    client.query(`
+      SELECT
+        governance_revision,
+        status,
+        jsonb_build_object(
+          'total',
+            (SELECT COUNT(*) FROM ai_builder_context_entries WHERE project_id = $1) +
+            (SELECT COUNT(*) FROM ai_builder_faq_entries WHERE project_id = $1),
+          'approved',
+            (SELECT COUNT(*) FROM ai_builder_context_entries WHERE project_id = $1 AND status IN ('approved', 'corrected')) +
+            (SELECT COUNT(*) FROM ai_builder_faq_entries WHERE project_id = $1 AND status IN ('approved', 'corrected')),
+          'proposed',
+            (SELECT COUNT(*) FROM ai_builder_context_entries WHERE project_id = $1 AND status = 'proposed') +
+            (SELECT COUNT(*) FROM ai_builder_faq_entries WHERE project_id = $1 AND status = 'proposed'),
+          'archived',
+            (SELECT COUNT(*) FROM ai_builder_context_entries WHERE project_id = $1 AND status = 'archived') +
+            (SELECT COUNT(*) FROM ai_builder_faq_entries WHERE project_id = $1 AND status = 'archived'),
+          'byCategory', COALESCE(context_counts -> 'byCategory', '{}'::jsonb)
+        ) AS context_counts
+      FROM ai_builder_projects
+      WHERE id = $1
+    `, [projectId]),
   ]);
   const project = projectResult.rows[0];
   if (!itemResult.rows[0] || !project) throw new Error("review_command_response_load_failed");
