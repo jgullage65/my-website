@@ -1,7 +1,7 @@
 "use client";
 
 import { SignOutButton } from "@clerk/nextjs";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderShell from "./AiBuilderShell";
 
@@ -33,6 +33,15 @@ export default function AiBuilderWorkspaceFrame({
 }: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [mobileMenuOpen]);
+
   const select = (action: () => void) => {
     setMobileMenuOpen(false);
     action();
@@ -52,19 +61,21 @@ export default function AiBuilderWorkspaceFrame({
         AI Builder
       </button>
       <p className="mt-4 px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
-      <nav className="mt-3 space-y-0.5">
+      <nav className="mt-3 space-y-0.5" aria-label="AI Builder workspace">
         {items.map((item) => (
           <button
             key={item.value}
             type="button"
             onClick={() => select(item.onSelect)}
-            className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
+            aria-current={item.active ? "page" : undefined}
+            className={`relative flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
               item.active
                 ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
                 : "text-white hover:bg-white/[0.035] hover:text-amber-200"
             }`}
           >
-            {item.label}
+            <span>{item.label}</span>
+            {item.active ? <span aria-hidden="true" className="text-[0.65rem] text-amber-300">●</span> : null}
           </button>
         ))}
       </nav>
@@ -78,8 +89,8 @@ export default function AiBuilderWorkspaceFrame({
           <div className="mb-5 flex min-h-[92px] items-center justify-center border-b border-white/[0.08] pb-5">
             <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-20 w-full max-w-[188px] object-contain" />
           </div>
-          {navigation}
-          <div className="mt-0.5">
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">{navigation}</div>
+          <div className="mt-4 border-t border-white/[0.08] pt-4">
             <SignOutButton redirectUrl="/ai-builder">
               <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
             </SignOutButton>
@@ -100,16 +111,16 @@ export default function AiBuilderWorkspaceFrame({
       <div className="xl:hidden">
         <div className="min-h-[70vh] bg-black">
           <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-black/95 px-16 text-center backdrop-blur">
-            <button type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open workspace menu" className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-lg text-slate-200">☰</button>
+            <button type="button" onClick={() => setMobileMenuOpen(true)} aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={mobileMenuOpen} className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-lg text-slate-200">☰</button>
             <p className="truncate text-sm font-semibold text-white">{title}</p>
           </header>
           {mobileMenuOpen ? (
             <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileMenuOpen(false); }}>
-              <aside role="dialog" aria-modal="true" className="flex h-fit max-h-dvh w-[min(220px,86vw)] flex-col overflow-y-auto rounded-br-xl border-b border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[0_18px_50px_rgba(0,0,0,0.55)]">
-                <div className="mb-5 flex items-center justify-end"><button type="button" onClick={() => setMobileMenuOpen(false)} className="text-2xl text-slate-400">×</button></div>
+              <aside role="dialog" aria-modal="true" aria-label="AI Builder workspace navigation" className="flex h-full w-[min(240px,88vw)] flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]">
+                <div className="mb-5 flex items-center justify-end"><button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Close workspace menu" className="grid h-10 w-10 place-items-center rounded-lg border border-white/[0.08] text-2xl text-slate-400 transition hover:text-white">×</button></div>
                 <div className="mb-5 flex min-h-[84px] items-center justify-center border-b border-white/[0.08] pb-5"><img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-16 w-full max-w-[184px] object-contain" /></div>
-                {navigation}
-                <div className="mt-0.5"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button></SignOutButton></div>
+                <div className="min-h-0 flex-1 overflow-y-auto">{navigation}</div>
+                <div className="mt-4 border-t border-white/[0.08] pt-4"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button></SignOutButton></div>
               </aside>
             </div>
           ) : null}
