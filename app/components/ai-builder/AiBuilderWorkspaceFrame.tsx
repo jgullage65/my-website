@@ -47,11 +47,21 @@ export default function AiBuilderWorkspaceFrame({
     action();
   };
 
+  const selectBuilder = () => {
+    if (builderActive) {
+      select(onBuilderSelect);
+      return;
+    }
+
+    setMobileMenuOpen(false);
+    window.location.assign("/ai-builder?new=1");
+  };
+
   const navigation = (
     <>
       <button
         type="button"
-        onClick={() => select(onBuilderSelect)}
+        onClick={selectBuilder}
         className={`relative mb-0.5 w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
           builderActive
             ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
