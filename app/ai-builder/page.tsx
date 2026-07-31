@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import AiBuilderClient from "@/app/components/ai-builder/AiBuilderClient";
 import AiBuilderLanding from "@/app/components/ai-builder/AiBuilderLanding";
+import AiBuilderProjects from "@/app/components/ai-builder/AiBuilderProjects";
 import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 import AiBuilderShell from "@/app/components/ai-builder/AiBuilderShell";
 import { listAiBuilderProjects } from "@/app/lib/db/ai-builder-repository";
@@ -65,8 +66,5 @@ export default async function Page({ searchParams }: PageProps) {
     redirect("/ai-builder?new=1");
   }
 
-  const mostRecentlyUsedProject = activeProjects[0];
-  redirect(
-    `/ai-builder?projectId=${encodeURIComponent(mostRecentlyUsedProject.id)}&tab=dashboard`,
-  );
+  return <AiBuilderProjects />;
 }
