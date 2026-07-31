@@ -189,15 +189,15 @@ export default function AiBuilderLanding() {
         </section>
         </div>
 
-        <section className="relative mt-12 grid w-full gap-x-12 gap-y-12 border-t border-white/[0.07] pt-10 lg:grid-cols-[minmax(0,.95fr)_minmax(0,1.05fr)]">
-          <div className="grid items-start gap-8 lg:col-start-2 lg:grid-cols-[minmax(280px,.9fr)_minmax(320px,1.1fr)]">
-            <div className="flex w-full max-w-sm justify-start overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#050505] lg:-ml-2 xl:-ml-4">
+        <section className="relative mt-12 w-full border-t border-white/[0.07] pt-10">
+          <div className="grid items-start gap-8 sm:grid-cols-2 min-[1200px]:mx-auto min-[1200px]:w-full min-[1200px]:max-w-[824px] min-[1200px]:grid-cols-[minmax(280px,.9fr)_minmax(320px,1.1fr)]">
+            <div className="flex w-full max-w-sm justify-start overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#050505] sm:max-w-none min-[1200px]:max-w-sm">
               <SignIn
                 routing="hash"
                 forceRedirectUrl="/ai-builder"
                 appearance={{
                   elements: {
-                    rootBox: "w-full max-w-sm",
+                    rootBox: "w-full max-w-sm sm:max-w-none min-[1200px]:max-w-sm",
                     cardBox: "w-full shadow-none",
                     card: "w-full rounded-none border-0 bg-[#050505] shadow-none",
                     headerTitle: "text-white",
@@ -218,7 +218,7 @@ export default function AiBuilderLanding() {
               />
             </div>
 
-            <form className="rounded-[24px] border border-white/[0.08] bg-[#020202] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:p-6">
+            <form className="w-full rounded-[24px] border border-white/[0.08] bg-[#020202] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:p-6">
               <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Contact</p>
               <h3 className="mt-3 text-xl font-medium tracking-[-.02em] text-white">Have a question?</h3>
               <p className="mt-2 text-sm leading-6 text-slate-400">Send a quick note and we’ll get back to you.</p>
