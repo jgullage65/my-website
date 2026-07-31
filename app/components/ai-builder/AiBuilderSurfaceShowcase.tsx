@@ -116,7 +116,6 @@ export default function AiBuilderSurfaceShowcase({
   const [demoOpen, setDemoOpen] = useState(false);
   const [previewBuilding, setPreviewBuilding] = useState(false);
   const [previewBuildStep, setPreviewBuildStep] = useState(0);
-  const [completedSlides, setCompletedSlides] = useState<Set<AiBuilderShowcaseSlide>>(new Set());
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   useEffect(() => {
@@ -168,24 +167,8 @@ export default function AiBuilderSurfaceShowcase({
       setBuilderValue(builder);
       setPreviewSession(session);
       setActiveSlide("builder");
-      setCompletedSlides(new Set());
       setDemoOpen(true);
     }
-  };
-
-  const markComplete = (slide: AiBuilderShowcaseSlide) => {
-    setCompletedSlides((current) => {
-      const next = new Set(current);
-      next.add(slide);
-      return next;
-    });
-  };
-
-  const goToNextSlide = () => {
-    const index = AI_BUILDER_SHOWCASE_SLIDES.findIndex((slide) => slide.id === activeSlide);
-    const next = AI_BUILDER_SHOWCASE_SLIDES[index + 1];
-    markComplete(activeSlide);
-    if (next) setActiveSlide(next.id);
   };
 
   const runPreviewBuild = async () => {
@@ -200,7 +183,6 @@ export default function AiBuilderSurfaceShowcase({
 
     await new Promise((resolve) => window.setTimeout(resolve, 450));
     setPreviewBuilding(false);
-    markComplete("builder");
     setActiveSlide("review");
   };
 
@@ -283,34 +265,6 @@ export default function AiBuilderSurfaceShowcase({
     "Preparing the review workspace",
   ];
 
-  const guidedCopy: Record<AiBuilderShowcaseSlide, { title: string; detail: string; action: string }> = {
-    builder: {
-      title: "Build your temporary Business Brain",
-      detail: "Add or change the business details, then build the demo workspace.",
-      action: "Build from the form above",
-    },
-    review: {
-      title: "Review what was created",
-      detail: "Approve, edit, remove, or restore knowledge before continuing.",
-      action: "Continue to Dashboard",
-    },
-    dashboard: {
-      title: "See the Business Brain update",
-      detail: "The dashboard reflects the temporary review decisions you just made.",
-      action: "Continue to Insights",
-    },
-    insights: {
-      title: "Inspect project diagnostics",
-      detail: "These metrics are derived from the same temporary Business Brain.",
-      action: "Continue to Chat",
-    },
-    chat: {
-      title: "Test the temporary assistant",
-      detail: "Ask a question and the deterministic preview will answer from approved knowledge only.",
-      action: "Finish Demo",
-    },
-  };
-
   return (
     <div className={className}>
       {confirmDialogNode}
@@ -362,22 +316,6 @@ export default function AiBuilderSurfaceShowcase({
               </div>
             ) : null}
           </div>
-
-          {activeSlide !== "builder" ? (
-            <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5">
-              <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">{guidedCopy[activeSlide].title}</p>
-                  <p className="mt-1 truncate text-xs text-slate-500">{guidedCopy[activeSlide].detail}</p>
-                </div>
-                {activeSlide === "chat" ? (
-                  <button type="button" onClick={() => { markComplete("chat"); setDemoOpen(false); }} className="cta-raised shrink-0 rounded-lg border border-amber-300/20 bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">{guidedCopy.chat.action}</button>
-                ) : (
-                  <button type="button" onClick={goToNextSlide} className="cta-raised shrink-0 rounded-lg border border-amber-300/20 bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">{guidedCopy[activeSlide].action}</button>
-                )}
-              </div>
-            </div>
-          ) : null}
         </div>
       ) : null}
     </div>
