@@ -50,8 +50,17 @@ function normalizeProjectId(value: unknown): string {
 }
 
 function toIsoString(value: unknown): string {
-  if (value instanceof Date) return value.toISOString();
-  return new Date(String(value)).toISOString();
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseExpectedRevision(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) return null;
+  return value;
 }
 
 function errorResponse(status: number, code: string, message: string) {
@@ -242,22 +251,40 @@ export async function PUT(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   const { projectId } = await context.params;
   const normalizedProjectId = normalizeProjectId(projectId);
-  let body: UpdateProjectBody;
 
+  if (!normalizedProjectId) {
+    return errorResponse(400, "missing_project_id", "A project ID is required.");
+  }
+
+  let payload: unknown;
   try {
-    body = (await request.json()) as UpdateProjectBody;
+    payload = await request.json();
   } catch {
     return errorResponse(400, "invalid_json", "The request body must be valid JSON.");
   }
 
-  if (!normalizedProjectId) {
-    return errorResponse(400, "invalid_project_name", "A project name is required.");
+  if (!isRecord(payload)) {
+    return errorResponse(400, "invalid_request_body", "The request body must be a JSON object.");
   }
-  if (!Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 0) return errorResponse(400, "invalid_expected_revision", "A valid expected revision is required.");
 
-  if (body.restore === true) {
+  const expectedRevision = parseExpectedRevision(payload.expectedRevision);
+  if (expectedRevision == null) {
+    return errorResponse(400, "invalid_expected_revision", "A valid expected revision is required.");
+  }
+
+  const restoreRequested = payload.restore === true;
+  const renameRequested = typeof payload.businessName === "string";
+  if (restoreRequested === renameRequested) {
+    return errorResponse(
+      400,
+      "invalid_project_update",
+      "Specify either a project name or restore action, but not both.",
+    );
+  }
+
+  if (restoreRequested) {
     try {
-      const restored = await restoreAiBuilderProject(normalizedProjectId, Number(body.expectedRevision));
+      const restored = await restoreAiBuilderProject(normalizedProjectId, expectedRevision);
       if (!restored) return errorResponse(404, "project_not_found", "This archived AI Builder project could not be found.");
       return NextResponse.json({ ok: true, projectId: normalizedProjectId, restored: true, stateRevision: restored.stateRevision });
     } catch (error) {
@@ -267,11 +294,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
   }
 
-  const businessName = String(body.businessName ?? "").trim().slice(0, 160);
+  const businessName = String(payload.businessName).trim();
   if (!businessName) return errorResponse(400, "invalid_project_name", "A project name is required.");
+  if (businessName.length > 160) {
+    return errorResponse(400, "project_name_too_long", "Project names must be 160 characters or fewer.");
+  }
 
   try {
-    const renamed = await renameAiBuilderProject(normalizedProjectId, businessName, Number(body.expectedRevision));
+    const renamed = await renameAiBuilderProject(normalizedProjectId, businessName, expectedRevision);
     if (!renamed) {
       return errorResponse(
         404,
@@ -308,8 +338,13 @@ export async function DELETE(request: Request, context: RouteContext) {
     return errorResponse(400, "missing_project_id", "A project ID is required.");
   }
   const expectedRevisionValue = new URL(request.url).searchParams.get("expectedRevision");
+  if (expectedRevisionValue === null || !/^\d+$/.test(expectedRevisionValue)) {
+    return errorResponse(400, "invalid_expected_revision", "A valid expected revision is required.");
+  }
   const expectedRevision = Number(expectedRevisionValue);
-  if (expectedRevisionValue === null || !Number.isSafeInteger(expectedRevision) || expectedRevision < 0) return errorResponse(400, "invalid_expected_revision", "A valid expected revision is required.");
+  if (!Number.isSafeInteger(expectedRevision)) {
+    return errorResponse(400, "invalid_expected_revision", "A valid expected revision is required.");
+  }
 
   try {
     const archived = await archiveAiBuilderProject(normalizedProjectId, expectedRevision);
