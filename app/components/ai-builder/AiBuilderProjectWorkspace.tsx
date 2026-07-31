@@ -12,10 +12,14 @@ import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderProjects from "./AiBuilderProjects";
 import AiBuilderReview from "./AiBuilderReview";
+import {
+  AiBuilderWorkspaceProvider,
+  type AiBuilderWorkspaceTab,
+} from "./AiBuilderWorkspaceContext";
 import AiBuilderWorkspaceFrame from "./AiBuilderWorkspaceFrame";
 import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
 
-type WorkspaceTab = "projects" | "dashboard" | "insights" | "overview" | "knowledge" | "sources" | "settings";
+type WorkspaceTab = AiBuilderWorkspaceTab;
 type PersistedWorkspaceTab = Exclude<WorkspaceTab, "knowledge">;
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -449,29 +453,44 @@ export default function AiBuilderProjectWorkspace({
     : WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1] ?? "Workspace";
 
   return (
-    <AiBuilderWorkspaceFrame
-      title={title}
-      onBuilderSelect={() => window.location.assign("/ai-builder")}
-      items={WORKSPACE_ITEMS.map(([value, label]) => ({
-        value,
-        label,
-        active:
-          value === "knowledge"
-            ? knowledgeOpen
-            : value === "overview"
-              ? overviewOpen
-              : workspaceTab === value && !overviewOpen && !knowledgeOpen,
-        onSelect: () => selectWorkspaceTab(value),
-      }))}
-      rightRail={rightRail}
-      overlays={overlays}
+    <AiBuilderWorkspaceProvider
+      projectId={projectId}
+      activeTab={workspaceTab}
+      overviewOpen={overviewOpen}
+      knowledgeOpen={knowledgeOpen}
+      setActiveTab={selectWorkspaceTab}
+      openOverview={() => {
+        setKnowledgeOpen(false);
+        setOverviewOpen(true);
+      }}
+      closeOverview={() => setOverviewOpen(false)}
+      openKnowledge={openReview}
+      closeKnowledge={closeReview}
     >
-      {knowledgeOpen ? (
-        <div className="xl:hidden">
-          {reviewStatus}
-          <AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={closeReview} onLaunchChat={() => undefined} showLaunchChat={false} />
-        </div>
-      ) : workspaceContent}
-    </AiBuilderWorkspaceFrame>
+      <AiBuilderWorkspaceFrame
+        title={title}
+        onBuilderSelect={() => window.location.assign("/ai-builder")}
+        items={WORKSPACE_ITEMS.map(([value, label]) => ({
+          value,
+          label,
+          active:
+            value === "knowledge"
+              ? knowledgeOpen
+              : value === "overview"
+                ? overviewOpen
+                : workspaceTab === value && !overviewOpen && !knowledgeOpen,
+          onSelect: () => selectWorkspaceTab(value),
+        }))}
+        rightRail={rightRail}
+        overlays={overlays}
+      >
+        {knowledgeOpen ? (
+          <div className="xl:hidden">
+            {reviewStatus}
+            <AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={closeReview} onLaunchChat={() => undefined} showLaunchChat={false} />
+          </div>
+        ) : workspaceContent}
+      </AiBuilderWorkspaceFrame>
+    </AiBuilderWorkspaceProvider>
   );
 }
