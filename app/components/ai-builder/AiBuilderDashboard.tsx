@@ -1,17 +1,14 @@
 "use client";
 
-import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
-import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
-import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import { useAiBuilderWorkspace } from "./AiBuilderWorkspaceContext";
 
 type Destination="knowledge"|"sources"|"settings"|"assistant";
-type Message={role:"user"|"assistant";createdAt:string};
 const date=(value:string)=>new Intl.DateTimeFormat(undefined,{dateStyle:"medium",timeStyle:"short"}).format(new Date(value));
 const freshness=(value:string)=>{const days=Math.max(0,Math.floor((Date.now()-new Date(value).getTime())/86_400_000));return days===0?"Updated today":days===1?"Updated yesterday":`Updated ${days} days ago`};
 
-export default function AiBuilderDashboard({session,websiteKnowledge,messages,diagnostics,showcase=false}:{session:AiBuilderSession;websiteKnowledge:PersistedWebsiteKnowledge|null;messages:Message[];diagnostics:ProjectDiagnostics|null;showcase?:boolean}){
+export default function AiBuilderDashboard({showcase=false}:{showcase?:boolean}){
  const workspace=useAiBuilderWorkspace();
+ const {session,websiteKnowledge,messages,diagnostics}=workspace;
  const onNavigate=(destination:Destination)=>{
   if(destination==="assistant"){
    document.querySelector<HTMLTextAreaElement>('textarea[placeholder^="Ask about"]')?.focus();
