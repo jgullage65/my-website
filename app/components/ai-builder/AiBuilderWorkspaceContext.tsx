@@ -6,12 +6,15 @@ import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/we
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 
 export type AiBuilderWorkspaceTab =
+  | "projects"
   | "dashboard"
   | "insights"
   | "overview"
   | "knowledge"
   | "sources"
   | "settings";
+
+type AiBuilderProjectWorkspaceTab = Exclude<AiBuilderWorkspaceTab, "projects">;
 
 type AiBuilderWorkspaceMessage = {
   id: string;
@@ -39,7 +42,7 @@ type AiBuilderWorkspaceContextValue = {
   activeTab: AiBuilderWorkspaceTab;
   overviewOpen: boolean;
   knowledgeOpen: boolean;
-  setActiveTab: (tab: AiBuilderWorkspaceTab) => void;
+  setActiveTab: (tab: AiBuilderProjectWorkspaceTab) => void;
   openOverview: () => void;
   closeOverview: () => void;
   openKnowledge: () => void;
