@@ -5,14 +5,13 @@ import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
-import AiBuilderModelSelect from "./AiBuilderModelSelect";
 import AiBuilderWorkspaceView from "./AiBuilderWorkspaceView";
 
 export const AI_BUILDER_SHOWCASE_SLIDES = [
-  { id: "dashboard", label: "Dashboard" },
   { id: "builder", label: "Builder" },
   { id: "review", label: "Review" },
-  { id: "models", label: "Models" },
+  { id: "dashboard", label: "Dashboard" },
+  { id: "insights", label: "Insights" },
 ] as const;
 
 export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]["id"];
@@ -34,24 +33,17 @@ export type AiBuilderSurfaceShowcaseProps = {
 export default function AiBuilderSurfaceShowcase({
   session,
   builder,
-  models,
   diagnostics = null,
-  initialSlide = "dashboard",
+  initialSlide = "builder",
   autoAdvance = false,
   className = "",
 }: AiBuilderSurfaceShowcaseProps) {
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [builderValue, setBuilderValue] = useState(builder);
-  const [selectedModel, setSelectedModel] = useState(models[0]?.id ?? "");
-  const [showDashboardInsights, setShowDashboardInsights] = useState(false);
 
   useEffect(() => {
     setBuilderValue(builder);
   }, [builder]);
-
-  useEffect(() => {
-    if (!selectedModel && models[0]?.id) setSelectedModel(models[0].id);
-  }, [models, selectedModel]);
 
   useEffect(() => {
     if (!autoAdvance) return;
@@ -60,33 +52,11 @@ export default function AiBuilderSurfaceShowcase({
         const index = AI_BUILDER_SHOWCASE_SLIDES.findIndex((slide) => slide.id === current);
         return AI_BUILDER_SHOWCASE_SLIDES[(index + 1) % AI_BUILDER_SHOWCASE_SLIDES.length]!.id;
       });
-    }, activeSlide === "dashboard" ? 13_000 : 6500);
+    }, 6500);
     return () => window.clearTimeout(timer);
   }, [activeSlide, autoAdvance]);
 
-  useEffect(() => {
-    setShowDashboardInsights(false);
-    if (activeSlide !== "dashboard") return;
-    const timer = window.setTimeout(() => setShowDashboardInsights(true), 6500);
-    return () => window.clearTimeout(timer);
-  }, [activeSlide]);
-
   const surface = useMemo(() => {
-    if (activeSlide === "dashboard") {
-      return (
-        <div className={`h-full transition-transform duration-700 ease-in-out ${showDashboardInsights ? "-translate-y-full" : "translate-y-0"}`}>
-          <div className="h-full pb-5">
-            <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} diagnostics={diagnostics} dashboardShowcase />
-          </div>
-          {showDashboardInsights ? (
-            <div className="h-full overflow-hidden pt-5">
-              <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builderValue} diagnostics={diagnostics} />
-            </div>
-          ) : null}
-        </div>
-      );
-    }
-
     if (activeSlide === "builder") {
       return (
         <AiBuilderWorkspaceView
@@ -103,18 +73,12 @@ export default function AiBuilderSurfaceShowcase({
       return <AiBuilderWorkspaceView mode="demo" activeView="review" session={session} builder={builderValue} embeddedReview />;
     }
 
-    return (
-      <div className="flex min-h-[430px] items-start justify-center pt-12">
-        <AiBuilderModelSelect
-          models={models}
-          value={selectedModel}
-          disabled={false}
-          onChange={setSelectedModel}
-          defaultOpen
-        />
-      </div>
-    );
-  }, [activeSlide, builderValue, diagnostics, models, selectedModel, session, showDashboardInsights]);
+    if (activeSlide === "dashboard") {
+      return <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} diagnostics={diagnostics} dashboardShowcase />;
+    }
+
+    return <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builderValue} diagnostics={diagnostics} />;
+  }, [activeSlide, builderValue, diagnostics, session]);
 
   return (
     <div className={className}>
