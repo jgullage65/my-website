@@ -38,7 +38,7 @@ const timestamp = (item: Record<string, unknown>) => {
 const humanize = (value: unknown) => String(value ?? "unknown").replace(/_/g, " ");
 
 export default function AiBuilderProjectInsights() {
-  const { projectId, diagnostics, setActiveTab } = useAiBuilderWorkspace();
+  const { projectId, diagnostics } = useAiBuilderWorkspace();
   const crawls = useMemo(
     () => [...(diagnostics?.crawls ?? [])].sort((a, b) => timestamp(b) - timestamp(a)),
     [diagnostics?.crawls],
@@ -55,19 +55,32 @@ export default function AiBuilderProjectInsights() {
   return (
     <div data-project-id={projectId} className="space-y-5 pb-2">
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Website import" value={statusLabel(crawlStatus)} detail={when(crawl?.completed_at ?? crawl?.started_at) ?? "No recorded attempt"} status={crawlStatus} />
-        <SummaryCard label="AI generation" value={statusLabel(generationStatus)} detail={when(generation?.completed_at ?? generation?.started_at) ?? "No recorded attempt"} status={generationStatus} />
-        <SummaryCard label="Pages processed" value={String(n(crawl?.pages_processed) ?? 0)} detail={`${n(crawl?.pages_failed) ?? 0} failed · ${n(crawl?.pages_skipped) ?? 0} skipped`} />
-        <SummaryCard label="Generated output" value={String((n(generation?.knowledge_count) ?? 0) + (n(generation?.faq_count) ?? 0))} detail={`${n(generation?.knowledge_count) ?? 0} knowledge · ${n(generation?.faq_count) ?? 0} Q&A`} />
+        <SummaryCard
+          label="Website import"
+          value={statusLabel(crawlStatus)}
+          detail={when(crawl?.completed_at ?? crawl?.started_at) ?? "No recorded attempt"}
+          status={crawlStatus}
+        />
+        <SummaryCard
+          label="AI generation"
+          value={statusLabel(generationStatus)}
+          detail={when(generation?.completed_at ?? generation?.started_at) ?? "No recorded attempt"}
+          status={generationStatus}
+        />
+        <SummaryCard
+          label="Pages processed"
+          value={String(n(crawl?.pages_processed) ?? 0)}
+          detail={`${n(crawl?.pages_failed) ?? 0} failed · ${n(crawl?.pages_skipped) ?? 0} skipped`}
+        />
+        <SummaryCard
+          label="Generated output"
+          value={String((n(generation?.knowledge_count) ?? 0) + (n(generation?.faq_count) ?? 0))}
+          detail={`${n(generation?.knowledge_count) ?? 0} knowledge · ${n(generation?.faq_count) ?? 0} Q&A`}
+        />
       </section>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Panel
-          eyebrow="Source diagnostics"
-          title="Website import"
-          actionLabel="Open sources"
-          onAction={() => setActiveTab("sources")}
-        >
+        <Panel eyebrow="Source diagnostics">
           <Grid
             items={[
               ["Attempt", n(crawl?.attempt_number)],
@@ -80,18 +93,12 @@ export default function AiBuilderProjectInsights() {
               ["Failure stage", crawl?.failure_stage ? humanize(crawl.failure_stage) : null],
             ]}
           />
-
-          <HistorySection title="Recent website import attempts">
+          <HistorySection>
             <AttemptTable items={crawls} kind="crawl" />
           </HistorySection>
         </Panel>
 
-        <Panel
-          eyebrow="Generation diagnostics"
-          title="Knowledge generation"
-          actionLabel="Review knowledge"
-          onAction={() => setActiveTab("knowledge")}
-        >
+        <Panel eyebrow="Generation diagnostics">
           <Grid
             items={[
               ["Attempt", n(generation?.attempt_number)],
@@ -106,8 +113,7 @@ export default function AiBuilderProjectInsights() {
               ["Duration", duration(generation?.duration_ms)],
             ]}
           />
-
-          <HistorySection title="Recent AI generation attempts">
+          <HistorySection>
             <AttemptTable items={generations} kind="generation" />
           </HistorySection>
         </Panel>
@@ -116,49 +122,57 @@ export default function AiBuilderProjectInsights() {
   );
 }
 
-function SummaryCard({ label, value, detail, status }: { label: string; value: string; detail: string; status?: string }) {
+function SummaryCard({
+  label,
+  value,
+  detail,
+  status,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  status?: string;
+}) {
   return (
     <article className="rounded-[18px] border border-white/[0.07] bg-[#070707] p-5 text-center">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold capitalize ${status ? statusTone(status) : "text-white"}`}>{value}</p>
+      <p className={`mt-2 text-2xl font-semibold capitalize ${status ? statusTone(status) : "text-white"}`}>
+        {value}
+      </p>
       <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>
     </article>
   );
 }
 
-function Panel({ eyebrow, title, actionLabel, onAction, children }: { eyebrow: string; title: string; actionLabel: string; onAction: () => void; children: React.ReactNode }) {
+function Panel({ eyebrow, children }: { eyebrow: string; children: React.ReactNode }) {
   return (
-    <section className="flex min-h-[620px] flex-col rounded-xl border border-white/[.08] bg-[#050505] p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{eyebrow}</p>
-          <h3 className="mt-1 text-base font-semibold text-white">{title}</h3>
-        </div>
-        <button type="button" onClick={onAction} className="text-xs font-semibold text-amber-300 transition hover:text-amber-200">
-          {actionLabel}
-        </button>
-      </div>
+    <section className="flex min-h-[560px] flex-col rounded-xl border border-white/[.08] bg-[#050505] p-5">
+      <p className="text-center text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+        {eyebrow}
+      </p>
       <div className="mt-4 flex flex-1 flex-col">{children}</div>
     </section>
   );
 }
 
-function HistorySection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mt-5 border-t border-white/[.08] pt-5">
-      <h4 className="mb-4 text-center text-base font-semibold text-white">{title}</h4>
-      {children}
-    </div>
-  );
+function HistorySection({ children }: { children: React.ReactNode }) {
+  return <div className="mt-4 border-t border-white/[.08] pt-4">{children}</div>;
 }
 
 function Grid({ items }: { items: Array<[string, unknown]> }) {
   return (
     <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-white/[.07]">
       {items.map(([label, value]) => (
-        <div key={label} className="border-b border-r border-white/[.07] bg-black/40 px-3.5 py-3 text-center even:border-r-0">
-          <dt className="text-xs text-[var(--gold)]">{label}</dt>
-          <dd className={`mt-1 text-sm font-semibold ${value === null || value === undefined ? "text-slate-600" : "text-white"}`}>
+        <div
+          key={label}
+          className="border-b border-r border-white/[.07] bg-black/40 px-3.5 py-2.5 text-center even:border-r-0"
+        >
+          <dt className="text-[.68rem] font-medium text-slate-500">{label}</dt>
+          <dd
+            className={`mt-1 text-base font-semibold ${
+              value === null || value === undefined ? "text-slate-600" : "text-white"
+            }`}
+          >
             {value === null || value === undefined ? "Not available" : String(value)}
           </dd>
         </div>
@@ -167,7 +181,13 @@ function Grid({ items }: { items: Array<[string, unknown]> }) {
   );
 }
 
-function AttemptTable({ items, kind }: { items: Array<Record<string, unknown>>; kind: "crawl" | "generation" }) {
+function AttemptTable({
+  items,
+  kind,
+}: {
+  items: Array<Record<string, unknown>>;
+  kind: "crawl" | "generation";
+}) {
   const rows = items.slice(0, 5);
 
   if (!rows.length) {
@@ -180,15 +200,18 @@ function AttemptTable({ items, kind }: { items: Array<Record<string, unknown>>; 
 
   return (
     <div className="overflow-hidden rounded-lg border border-white/[.07]">
-      <div className="grid grid-cols-[1.2fr_.8fr_.7fr] border-b border-white/[.07] bg-black/60 px-3 py-2 text-center text-xs text-[var(--gold)]">
+      <div className="grid grid-cols-[1.2fr_.8fr_.7fr] border-b border-white/[.07] bg-black/60 px-3 py-2 text-center text-[.68rem] font-medium text-slate-500">
         <span>Started</span>
         <span>{kind === "crawl" ? "Pages" : "Model"}</span>
         <span>Status</span>
       </div>
       <div className="divide-y divide-white/[.07]">
         {rows.map((item, index) => (
-          <div key={`${kind}-${String(item.started_at ?? index)}`} className="grid grid-cols-[1.2fr_.8fr_.7fr] items-center px-3 py-3 text-center text-sm">
-            <span className="text-slate-300">{when(item.started_at) ?? "Not available"}</span>
+          <div
+            key={`${kind}-${String(item.started_at ?? index)}`}
+            className="grid grid-cols-[1.2fr_.8fr_.7fr] items-center px-3 py-2.5 text-center text-sm"
+          >
+            <span className="text-slate-400">{when(item.started_at) ?? "Not available"}</span>
             <span className="font-semibold text-white">
               {kind === "crawl"
                 ? String(n(item.pages_processed) ?? n(item.pages_discovered) ?? "Not available")
@@ -218,7 +241,9 @@ function statusTone(value: string) {
 function Status({ value }: { value: unknown }) {
   const normalized = String(value ?? "unknown");
   return (
-    <span className={`inline-flex justify-center rounded-lg border border-white/[0.08] bg-black px-2.5 py-1 text-xs font-bold capitalize ${statusTone(normalized)}`}>
+    <span
+      className={`inline-flex justify-center rounded-lg border border-white/[0.08] bg-black px-2.5 py-1 text-xs font-bold capitalize ${statusTone(normalized)}`}
+    >
       {humanize(normalized)}
     </span>
   );
