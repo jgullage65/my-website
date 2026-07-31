@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
+import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
@@ -14,6 +15,7 @@ export const AI_BUILDER_SHOWCASE_SLIDES = [
   { id: "review", label: "Review" },
   { id: "dashboard", label: "Dashboard" },
   { id: "insights", label: "Insights" },
+  { id: "chat", label: "Chat" },
 ] as const;
 
 export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]["id"];
@@ -193,10 +195,21 @@ export default function AiBuilderSurfaceShowcase({
     [diagnostics, previewSession],
   );
 
+  const previewKnowledge = useMemo(
+    () => buildKnowledgePack(previewSession),
+    [previewSession],
+  );
+
+  const showcaseKnowledge = useMemo(
+    () => buildKnowledgePack(session),
+    [session],
+  );
+
   const renderSurface = (interactive: boolean) => {
     const mode = interactive ? "preview" : "demo";
     const activeSession = interactive ? previewSession : session;
     const activeDiagnostics = interactive ? previewDiagnostics : diagnostics;
+    const activeKnowledge = interactive ? previewKnowledge : showcaseKnowledge;
 
     if (activeSlide === "builder") {
       return (
@@ -229,21 +242,25 @@ export default function AiBuilderSurfaceShowcase({
       return <AiBuilderWorkspaceView mode={mode} activeView="dashboard" session={activeSession} builder={builderValue} diagnostics={activeDiagnostics} dashboardShowcase onNavigate={(destination) => destination === "knowledge" && setActiveSlide("review")} />;
     }
 
-    return <AiBuilderWorkspaceView mode={mode} activeView="insights" session={activeSession} builder={builderValue} diagnostics={activeDiagnostics} />;
+    if (activeSlide === "insights") {
+      return <AiBuilderWorkspaceView mode={mode} activeView="insights" session={activeSession} builder={builderValue} diagnostics={activeDiagnostics} />;
+    }
+
+    return <AiBuilderWorkspaceView mode={mode} activeView="chat" session={activeSession} builder={builderValue} knowledge={activeKnowledge} projectId={activeSession.id} onBack={() => setActiveSlide("review")} />;
   };
 
   const showcaseSurface = useMemo(
     () => renderSurface(false),
-    [activeSlide, builderValue, diagnostics, session],
+    [activeSlide, builderValue, diagnostics, session, showcaseKnowledge],
   );
 
   const previewSurface = useMemo(
     () => renderSurface(true),
-    [activeSlide, builderValue, previewBuilding, previewDiagnostics, previewSession],
+    [activeSlide, builderValue, previewBuilding, previewDiagnostics, previewKnowledge, previewSession],
   );
 
   const switcher = (compact = false) => (
-    <div className={`grid grid-cols-4 gap-2 ${compact ? "w-full max-w-2xl" : ""}`}>
+    <div className={`grid grid-cols-5 gap-2 ${compact ? "w-full max-w-3xl" : ""}`}>
       {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (
         <button
           key={slide.id}
