@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SignOutButton } from "@clerk/nextjs";
 import AiBuilderProjects from "./AiBuilderProjects";
 import AiBuilderShell from "./AiBuilderShell";
+import { aiBuilderCornerCtaClassName } from "./AiBuilderAuthCta";
 
 export default function AiBuilderProjectsWorkspace() {
   return (
@@ -54,9 +55,9 @@ export default function AiBuilderProjectsWorkspace() {
         <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-black/95 px-4 text-center backdrop-blur">
           <h1 className="text-sm font-semibold text-white">Projects</h1>
         </header>
-        <nav className="flex items-center justify-center gap-2 border-b border-white/[0.08] bg-[#050505] px-4 py-3">
-          <Link href="/ai-builder?new=1" className="rounded-lg px-4 py-2 text-xs font-semibold text-white">AI Builder</Link>
-          <Link href="/ai-builder/projects" className="rounded-lg bg-white/[0.08] px-4 py-2 text-xs font-semibold text-amber-200">Projects</Link>
+        <nav className="flex items-center justify-center gap-3 border-b border-white/[0.08] bg-[#050505] px-4 py-4">
+          <Link href="/ai-builder?new=1" className={aiBuilderCornerCtaClassName}>AI Builder</Link>
+          <Link href="/ai-builder/projects" className={`${aiBuilderCornerCtaClassName} border-amber-300/35 bg-[#111111] text-amber-200`}>Projects</Link>
         </nav>
         <main className="px-4 py-5 sm:px-6 sm:py-6 [&>div]:!static [&>div]:!block [&>div]:!bg-transparent [&>div]:!p-0 [&>div>section]:!max-h-none [&>div>section]:!max-w-none [&>div>section]:!overflow-visible [&>div>section]:!rounded-none [&>div>section]:!border-0 [&>div>section]:!bg-transparent [&>div>section]:!px-0 [&>div>section]:!py-0 [&>div>section]:!shadow-none">
           <AiBuilderProjects embedded />
