@@ -25,7 +25,7 @@ export default function AiBuilderProjectInsights({
   const generation = diagnostics?.generations[0];
 
   return (
-    <div className="grid auto-rows-fr gap-5 pb-2 lg:grid-cols-2">
+    <div className="grid gap-5 pb-2 lg:grid-cols-2">
       <Panel title="Website crawl">
         <Grid
           items={[
@@ -49,13 +49,10 @@ export default function AiBuilderProjectInsights({
             ],
           ]}
         />
-        {crawl ? (
-          <Notices
-            warnings={crawl.warnings}
-            errors={crawl.errors}
-            restrictions={crawl.restrictions}
-          />
-        ) : null}
+
+        <HistorySection title="Recent crawl attempts">
+          <AttemptTable items={diagnostics?.crawls ?? []} kind="crawl" />
+        </HistorySection>
       </Panel>
 
       <Panel title="Knowledge generation">
@@ -79,25 +76,15 @@ export default function AiBuilderProjectInsights({
                 ? `${Math.round(n(generation?.duration_ms)! / 1000)}s`
                 : null,
             ],
-            [
-              "Failure stage",
-              generation?.failure_stage
-                ? String(generation.failure_stage).replaceAll("_", " ")
-                : null,
-            ],
           ]}
         />
-        {generation ? (
-          <Notices warnings={generation.warnings} errors={generation.errors} />
-        ) : null}
-      </Panel>
 
-      <Panel title="Recent crawl attempts">
-        <AttemptTable items={diagnostics?.crawls ?? []} kind="crawl" />
-      </Panel>
-
-      <Panel title="Recent AI generations">
-        <AttemptTable items={diagnostics?.generations ?? []} kind="generation" />
+        <HistorySection title="Recent AI generations">
+          <AttemptTable
+            items={diagnostics?.generations ?? []}
+            kind="generation"
+          />
+        </HistorySection>
       </Panel>
     </div>
   );
@@ -111,10 +98,27 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex h-full min-h-[310px] flex-col rounded-xl border border-white/[.08] bg-[#050505] p-5">
+    <section className="flex min-h-[620px] flex-col rounded-xl border border-white/[.08] bg-[#050505] p-5">
       <h3 className="text-center text-base font-semibold text-white">{title}</h3>
-      <div className="mt-4 flex-1">{children}</div>
+      <div className="mt-4 flex flex-1 flex-col">{children}</div>
     </section>
+  );
+}
+
+function HistorySection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="mt-5 border-t border-white/[.08] pt-5">
+      <h4 className="mb-4 text-center text-base font-semibold text-white">
+        {title}
+      </h4>
+      {children}
+    </div>
   );
 }
 
@@ -155,7 +159,7 @@ function AttemptTable({
 
   if (!rows.length) {
     return (
-      <div className="flex h-full min-h-[220px] items-center justify-center rounded-lg border border-white/[.07] bg-black/40 px-5 text-center text-sm text-slate-600">
+      <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-white/[.07] bg-black/40 px-5 text-center text-sm text-slate-600">
         No attempts available
       </div>
     );
@@ -201,63 +205,5 @@ function Status({ value }: { value: unknown }) {
     <span className="inline-flex justify-center rounded-lg border border-amber-300/20 bg-black px-2.5 py-1 text-xs font-bold capitalize text-white">
       {String(value ?? "Unknown").replaceAll("_", " ")}
     </span>
-  );
-}
-
-function Notices({
-  warnings,
-  errors,
-  restrictions,
-}: {
-  warnings: unknown;
-  errors: unknown;
-  restrictions?: unknown;
-}) {
-  const rows = [
-    ...[...(Array.isArray(warnings) ? warnings : [])].map((item) => ({
-      tone: "warning",
-      item,
-    })),
-    ...[...(Array.isArray(errors) ? errors : [])].map((item) => ({
-      tone: "error",
-      item,
-    })),
-    ...[...(Array.isArray(restrictions) ? restrictions : [])].map((item) => ({
-      tone: "restriction",
-      item,
-    })),
-  ].flatMap(({ tone, item }) => {
-    const record =
-      item && typeof item === "object"
-        ? (item as Record<string, unknown>)
-        : {};
-    const rawMessage =
-      typeof record.message === "string" ? record.message.trim() : "";
-    if (!rawMessage) return [];
-    if (/^[a-z0-9]+(?:_[a-z0-9]+)+$/i.test(rawMessage)) return [];
-    return [{ tone, message: rawMessage }];
-  });
-
-  const uniqueRows = Array.from(
-    new Map(rows.map((row) => [row.message.toLowerCase(), row])).values(),
-  );
-
-  if (!uniqueRows.length) return null;
-
-  return (
-    <div className="mt-4 space-y-2">
-      {uniqueRows.slice(0, 4).map(({ tone, message }, index) => (
-        <div
-          key={`${tone}-${index}`}
-          className={`rounded-lg border px-3 py-2 text-xs ${
-            tone === "error"
-              ? "border-red-400/20 bg-red-400/[.06] text-red-200"
-              : "border-amber-300/15 bg-amber-300/[.05] text-amber-100"
-          }`}
-        >
-          {message}
-        </div>
-      ))}
-    </div>
   );
 }
