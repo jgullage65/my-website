@@ -24,6 +24,15 @@ function host(value?: string | null) {
   }
 }
 
+function safeExternalUrl(value: string) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function statusFromAttempt(value: unknown) {
   return String(value ?? "unknown").replace(/_/g, " ");
 }
@@ -168,25 +177,41 @@ export default function AiBuilderSources() {
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Imported pages</p>
-              <p className="mt-1 text-xs text-slate-600">The latest saved page set for this project.</p>
+              <p className="mt-1 text-xs text-slate-600">Inspect the exact pages saved for the latest website import.</p>
             </div>
             <span className="text-xs font-semibold text-slate-500">{stats.pages} total</span>
           </div>
           <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
             {websiteKnowledge.pages.length ? (
-              websiteKnowledge.pages.map((page, index) => (
-                <article key={`${page.url}-${index}`} className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white">{page.title || page.url}</p>
-                      <p className="mt-1 truncate text-xs text-slate-500">{page.url}</p>
+              websiteKnowledge.pages.map((page, index) => {
+                const pageUrl = safeExternalUrl(page.url);
+                return (
+                  <article key={`${page.url}-${index}`} className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-white">{page.title || page.url}</p>
+                        <p className="mt-1 truncate text-xs text-slate-500">{page.url}</p>
+                      </div>
+                      <div className="flex flex-none items-center gap-2">
+                        {pageUrl ? (
+                          <a
+                            href={pageUrl}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="rounded-lg border border-amber-300/15 bg-black px-2.5 py-1.5 text-[0.65rem] font-bold text-amber-300 transition hover:border-amber-300/35 hover:text-amber-200"
+                            aria-label={`Open ${page.title || page.url} in a new tab`}
+                          >
+                            Open
+                          </a>
+                        ) : null}
+                        <span className="rounded-full border border-white/[0.08] bg-black px-2 py-1 text-[0.62rem] font-bold uppercase tracking-[0.1em] text-slate-500">
+                          Page {index + 1}
+                        </span>
+                      </div>
                     </div>
-                    <span className="flex-none rounded-full border border-white/[0.08] bg-black px-2 py-1 text-[0.62rem] font-bold uppercase tracking-[0.1em] text-slate-500">
-                      Page {index + 1}
-                    </span>
-                  </div>
-                </article>
-              ))
+                  </article>
+                );
+              })
             ) : (
               <p className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-5 text-center text-sm text-slate-500">
                 No page records are available for this import.
