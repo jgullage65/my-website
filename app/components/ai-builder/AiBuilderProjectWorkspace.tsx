@@ -69,16 +69,6 @@ const WORKSPACE_ITEMS: ReadonlyArray<readonly [WorkspaceTab, string]> = [
   ["settings", "Settings"],
 ];
 
-const WORKSPACE_DESCRIPTIONS: Record<WorkspaceTab, string> = {
-  projects: "Create, open, archive, restore, and manage AI Builder projects",
-  dashboard: "Priorities, readiness, and recent project changes",
-  insights: "Website import, generation, governance, and activity diagnostics",
-  overview: "Build status and generated project totals",
-  knowledge: "Review and govern the assistant’s Business Brain",
-  sources: "Connected source material and website imports",
-  settings: "Project configuration and preferences",
-};
-
 const EMPTY_BUILDER: BuilderState = {
   businessName: "",
   industry: "",
@@ -420,16 +410,8 @@ export default function AiBuilderProjectWorkspace({
     <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={openReview} embedded />
   ) : workspaceTab === "sources" ? (
     <AiBuilderSources />
-  ) : workspaceTab === "settings" ? (
-    <AiBuilderSettings />
   ) : (
-    <div className="flex min-h-full items-center justify-center rounded-3xl border border-white/10 bg-black p-8 text-center">
-      <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-300">{workspaceTab}</p>
-        <h2 className="mt-3 text-2xl font-bold text-white">This workspace is ready for its next module.</h2>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">{WORKSPACE_DESCRIPTIONS[workspaceTab]}</p>
-      </div>
-    </div>
+    <AiBuilderSettings />
   );
 
   const overviewContent = (
