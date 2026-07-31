@@ -374,13 +374,6 @@ export default function AiBuilderProjectWorkspace({
       websiteKnowledge={websiteKnowledge}
       messages={chatThread?.messages ?? []}
       diagnostics={diagnostics}
-      onNavigate={(destination) => {
-        if (destination === "assistant") {
-          document.querySelector<HTMLTextAreaElement>('textarea[placeholder^="Ask about"]')?.focus();
-          return;
-        }
-        selectWorkspaceTab(destination);
-      }}
     />
   ) : workspaceTab === "insights" ? (
     <AiBuilderProjectInsights session={session} diagnostics={diagnostics} messageCount={chatThread?.messages.length ?? 0} />
