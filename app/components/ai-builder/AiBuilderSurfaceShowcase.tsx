@@ -17,8 +17,6 @@ export const AI_BUILDER_SHOWCASE_SLIDES = [
 
 export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]["id"];
 
-// Every slide shares one viewport so changing surfaces cannot resize the
-// landing-page showcase or push the content below it.
 const SHOWCASE_VIEWPORT_CLASS = "h-[clamp(430px,calc(100dvh-360px),620px)]";
 
 export type AiBuilderSurfaceShowcaseProps = {
@@ -42,6 +40,8 @@ export default function AiBuilderSurfaceShowcase({
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [builderValue, setBuilderValue] = useState(builder);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [previewBuilding, setPreviewBuilding] = useState(false);
+  const [previewBuildStep, setPreviewBuildStep] = useState(0);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export default function AiBuilderSurfaceShowcase({
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setDemoOpen(false);
+      if (event.key === "Escape" && !previewBuilding) setDemoOpen(false);
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -74,7 +74,7 @@ export default function AiBuilderSurfaceShowcase({
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [demoOpen]);
+  }, [demoOpen, previewBuilding]);
 
   const openDemo = async () => {
     const confirmed = await showConfirm({
@@ -85,7 +85,26 @@ export default function AiBuilderSurfaceShowcase({
       cancelLabel: "Cancel",
     });
 
-    if (confirmed) setDemoOpen(true);
+    if (confirmed) {
+      setBuilderValue(builder);
+      setActiveSlide("builder");
+      setDemoOpen(true);
+    }
+  };
+
+  const runPreviewBuild = async () => {
+    if (previewBuilding) return;
+    setPreviewBuilding(true);
+    setPreviewBuildStep(0);
+
+    for (let step = 1; step <= 3; step += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      setPreviewBuildStep(step);
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 450));
+    setPreviewBuilding(false);
+    setActiveSlide("review");
   };
 
   const renderSurface = (interactive: boolean) => {
@@ -99,6 +118,7 @@ export default function AiBuilderSurfaceShowcase({
           session={session}
           builder={builderValue}
           onBuilderChange={interactive ? setBuilderValue : undefined}
+          onBuild={interactive ? runPreviewBuild : undefined}
           previewMode
         />
       );
@@ -122,7 +142,7 @@ export default function AiBuilderSurfaceShowcase({
 
   const previewSurface = useMemo(
     () => renderSurface(true),
-    [activeSlide, builderValue, diagnostics, session],
+    [activeSlide, builderValue, diagnostics, previewBuilding, session],
   );
 
   const switcher = (compact = false) => (
@@ -131,18 +151,25 @@ export default function AiBuilderSurfaceShowcase({
         <button
           key={slide.id}
           type="button"
-          onClick={() => setActiveSlide(slide.id)}
+          onClick={() => !previewBuilding && setActiveSlide(slide.id)}
+          disabled={previewBuilding}
           className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition sm:px-3 sm:text-xs ${
             activeSlide === slide.id
               ? "border-amber-300/30 bg-[#0a0a0a] text-white"
               : "border-white/[0.06] bg-[#030303] text-slate-500 hover:text-white"
-          }`}
+          } disabled:cursor-not-allowed disabled:opacity-50`}
         >
           {slide.label}
         </button>
       ))}
     </div>
   );
+
+  const previewBuildLabels = [
+    "Structuring your business details",
+    "Creating temporary Business Brain knowledge",
+    "Preparing the review workspace",
+  ];
 
   return (
     <div className={className}>
@@ -184,9 +211,10 @@ export default function AiBuilderSurfaceShowcase({
             </h2>
             <button
               type="button"
-              onClick={() => setDemoOpen(false)}
+              onClick={() => !previewBuilding && setDemoOpen(false)}
+              disabled={previewBuilding}
               aria-label="Close demo"
-              className="absolute right-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] sm:right-6"
+              className="absolute right-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] disabled:cursor-not-allowed disabled:opacity-40 sm:right-6"
             >
               ×
             </button>
@@ -194,15 +222,39 @@ export default function AiBuilderSurfaceShowcase({
 
           <button
             type="button"
-            onClick={() => setDemoOpen(false)}
+            onClick={() => !previewBuilding && setDemoOpen(false)}
+            disabled={previewBuilding}
             aria-label="Close demo"
-            className="absolute right-6 top-6 z-10 hidden h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] lg:inline-flex"
+            className="absolute right-6 top-6 z-10 hidden h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] disabled:cursor-not-allowed disabled:opacity-40 lg:inline-flex"
           >
             ×
           </button>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-black">
+          <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-black">
             <div className="min-h-full">{previewSurface}</div>
+            {previewBuilding ? (
+              <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+                <div className="w-full max-w-lg rounded-[26px] border border-amber-300/25 bg-[#050505] p-6 text-center shadow-[0_30px_100px_rgba(0,0,0,.72)] sm:p-8">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Interactive demo</p>
+                  <h2 className="mt-3 text-2xl font-semibold text-white">Building your temporary Business Brain</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-400">This uses deterministic demo data only. Nothing is saved and no AI reasoning is running.</p>
+                  <div className="mt-6 space-y-3 text-left">
+                    {previewBuildLabels.map((label, index) => {
+                      const complete = previewBuildStep > index;
+                      const active = previewBuildStep === index;
+                      return (
+                        <div key={label} className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/40 px-4 py-3">
+                          <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold ${complete ? "border-amber-300/30 bg-amber-300/10 text-amber-200" : active ? "border-white/20 text-white" : "border-white/10 text-slate-600"}`}>
+                            {complete ? "✓" : index + 1}
+                          </span>
+                          <span className={complete || active ? "text-sm text-white" : "text-sm text-slate-500"}>{label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5">
