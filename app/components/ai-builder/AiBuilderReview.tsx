@@ -289,7 +289,7 @@ export default function AiBuilderReview({
     const confirmed = await showConfirm({
       title: "Remove information?",
       message:
-        "This information will be removed from the review list and will not be used by your assistant.",
+        "This information will be removed from the active review list and will not be used by your assistant. You can restore it from Removed later.",
       confirmLabel: "Remove",
       cancelLabel: "Cancel",
     });
@@ -309,6 +309,8 @@ export default function AiBuilderReview({
     const decisions = [...contextEntries, ...faqEntries].filter(
       (entry) => entry.status === "proposed",
     );
+    if (!decisions.length || pendingReviewItems.size > 0) return;
+
     const outcomes: PromiseSettledResult<void>[] = [];
 
     for (const entry of decisions) {
@@ -340,6 +342,7 @@ export default function AiBuilderReview({
 
   const canLaunchChat =
     session.status === "ready" && session.contextCounts.approved > 0;
+  const canApproveAll = session.contextCounts.proposed > 0 && pendingReviewItems.size === 0;
 
   const summaryItems = [
     { filter: "all" as const, label: "Total", value: session.contextCounts.total, buttonLabel: "All" },
@@ -365,7 +368,7 @@ export default function AiBuilderReview({
       <section className="border-b border-white/[0.075] pb-6 pt-4 sm:pt-2">
         {!embedded ? (
           <p className="text-center text-xs font-black uppercase tracking-[.3em] text-[var(--gold)]">
-            Business memory review
+            Business Knowledge review
           </p>
         ) : null}
 
@@ -395,9 +398,10 @@ export default function AiBuilderReview({
               <button
                 type="button"
                 onClick={approveAll}
+                disabled={!canApproveAll}
                 className={`${canonicalButtonClassName} w-full text-amber-300`}
               >
-                Approve all
+                {pendingReviewItems.size > 0 ? "Saving review changes..." : session.contextCounts.proposed > 0 ? `Approve all ${session.contextCounts.proposed}` : "No pending items"}
               </button>
             </div>
           </>
@@ -407,8 +411,8 @@ export default function AiBuilderReview({
               <button type="button" onClick={onBack} className={canonicalButtonClassName}>
                 Back to results
               </button>
-              <button type="button" onClick={approveAll} className={`${canonicalButtonClassName} text-amber-300`}>
-                Approve all
+              <button type="button" onClick={approveAll} disabled={!canApproveAll} className={`${canonicalButtonClassName} text-amber-300`}>
+                {pendingReviewItems.size > 0 ? "Saving review changes..." : session.contextCounts.proposed > 0 ? `Approve all ${session.contextCounts.proposed}` : "No pending items"}
               </button>
               {showLaunchChat ? (
                 <button
@@ -564,7 +568,7 @@ export default function AiBuilderReview({
                             </button>
                           ) : null}
 
-                          {entry.status !== "archived" ? (
+                          {entry.status === "proposed" || entry.status === "approved" ? (
                             <button
                               type="button"
                               className={itemActionClassName}
@@ -731,7 +735,7 @@ export default function AiBuilderReview({
                         </button>
                       ) : null}
 
-                      {faq.status !== "archived" ? (
+                      {faq.status === "proposed" || faq.status === "approved" ? (
                         <button
                           type="button"
                           className={itemActionClassName}
