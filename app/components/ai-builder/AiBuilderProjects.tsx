@@ -25,7 +25,10 @@ type Project = {
 type ProjectView = "active" | "archived";
 
 function date(value: string) {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? "Not available"
+    : new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(parsed);
 }
 
 function domain(value: string | null) {
@@ -35,6 +38,14 @@ function domain(value: string | null) {
   } catch {
     return value;
   }
+}
+
+async function readJson(response: Response) {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error("The server returned an unexpected response.");
+  }
+  return response.json();
 }
 
 export default function AiBuilderProjects({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void } = {}) {
@@ -52,23 +63,31 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
   const visibleProjects = view === "active" ? openProjects : archivedProjects;
 
   async function hydrateModels(items: Project[]) {
-    const hydrated = await Promise.all(items.map(async (project) => {
+    return Promise.all(items.map(async (project) => {
       try {
         const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, { cache: "no-store" });
-        const payload = await response.json();
-        const generation = payload?.diagnostics?.generations?.[0];
-        return { ...project, model: generation?.model ? String(generation.model) : null };
+        const payload = await readJson(response);
+        if (!response.ok || !payload.ok) return { ...project, model: null };
+        const generations = Array.isArray(payload?.diagnostics?.generations) ? payload.diagnostics.generations : [];
+        const latestGeneration = [...generations].sort((left, right) => {
+          const leftTime = new Date(String(left?.completed_at ?? left?.started_at ?? "")).getTime();
+          const rightTime = new Date(String(right?.completed_at ?? right?.started_at ?? "")).getTime();
+          return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime);
+        })[0];
+        return { ...project, model: latestGeneration?.model ? String(latestGeneration.model) : null };
       } catch {
         return { ...project, model: null };
       }
     }));
-    setProjects(hydrated);
   }
 
   async function refreshAuthoritativeProjects() {
     const response = await fetch("/api/ai-builder/projects", { cache: "no-store" });
-    const payload = await response.json();
-    if (response.ok && payload.ok) await hydrateModels(payload.projects);
+    const payload = await readJson(response);
+    if (!response.ok || !payload.ok || !Array.isArray(payload.projects)) {
+      throw new Error(payload?.error?.message ?? "Projects could not be refreshed.");
+    }
+    setProjects(await hydrateModels(payload.projects as Project[]));
   }
 
   useEffect(() => {
@@ -84,25 +103,14 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
     setError(null);
     fetch("/api/ai-builder/projects", { cache: "no-store" })
       .then(async (response) => {
-        const contentType = response.headers.get("content-type") ?? "";
-        if (!contentType.includes("application/json")) throw new Error("Your projects could not be loaded. Please sign in again.");
-        const payload = await response.json();
+        const payload = await readJson(response);
         if (!response.ok || !payload.ok) throw new Error(payload.error?.message ?? "Projects could not be loaded.");
-        const listedProjects = payload.projects as Project[];
+        const listedProjects = Array.isArray(payload.projects) ? payload.projects as Project[] : [];
         if (!listedProjects.length) {
           if (!cancelled) router.replace("/ai-builder?new=1");
           return;
         }
-        const hydrated = await Promise.all(listedProjects.map(async (project) => {
-          try {
-            const projectResponse = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, { cache: "no-store" });
-            const projectPayload = await projectResponse.json();
-            const generation = projectPayload?.diagnostics?.generations?.[0];
-            return { ...project, model: generation?.model ? String(generation.model) : null };
-          } catch {
-            return { ...project, model: null };
-          }
-        }));
+        const hydrated = await hydrateModels(listedProjects);
         if (!cancelled) setProjects(hydrated);
       })
       .catch((reason) => {
@@ -120,16 +128,17 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
     const businessName = window.prompt("Rename project", project.businessName)?.trim();
     if (!businessName || businessName === project.businessName) return;
     setBusy(project.id);
+    setError(null);
     try {
       const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ businessName, expectedRevision: project.stateRevision }),
       });
-      const payload = await response.json();
+      const payload = await readJson(response);
       if (response.status === 409) await refreshAuthoritativeProjects();
-      if (!response.ok || !payload.ok) throw new Error(payload.error?.message);
-      setProjects((current) => current.map((item) => item.id === project.id ? { ...item, businessName, stateRevision: payload.stateRevision, updatedAt: new Date().toISOString() } : item));
+      if (!response.ok || !payload.ok) throw new Error(payload.error?.message ?? "The project could not be renamed.");
+      setProjects((current) => current.map((item) => item.id === project.id ? { ...item, businessName: payload.businessName ?? businessName, stateRevision: payload.stateRevision, updatedAt: new Date().toISOString() } : item));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "The project could not be renamed.");
     } finally {
@@ -147,11 +156,12 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
     });
     if (!confirmed) return;
     setBusy(project.id);
+    setError(null);
     try {
       const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}?expectedRevision=${project.stateRevision}`, { method: "DELETE" });
-      const payload = await response.json();
+      const payload = await readJson(response);
       if (response.status === 409) await refreshAuthoritativeProjects();
-      if (!response.ok || !payload.ok) throw new Error(payload.error?.message);
+      if (!response.ok || !payload.ok) throw new Error(payload.error?.message ?? "The project could not be archived.");
       const now = new Date().toISOString();
       setProjects((current) => current.map((item) => item.id === project.id ? { ...item, archivedAt: now, stateRevision: payload.stateRevision, updatedAt: now } : item));
     } catch (reason) {
@@ -164,15 +174,16 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
 
   async function restore(project: Project) {
     setBusy(project.id);
+    setError(null);
     try {
       const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(project.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ restore: true, expectedRevision: project.stateRevision }),
       });
-      const payload = await response.json();
+      const payload = await readJson(response);
       if (response.status === 409) await refreshAuthoritativeProjects();
-      if (!response.ok || !payload.ok) throw new Error(payload.error?.message);
+      if (!response.ok || !payload.ok) throw new Error(payload.error?.message ?? "The project could not be restored.");
       const now = new Date().toISOString();
       setProjects((current) => current.map((item) => item.id === project.id ? { ...item, archivedAt: null, stateRevision: payload.stateRevision, updatedAt: now } : item));
     } catch (reason) {
