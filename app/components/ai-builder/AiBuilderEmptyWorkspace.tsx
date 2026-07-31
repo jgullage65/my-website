@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
@@ -99,11 +100,18 @@ function DisabledAssistantPreview() {
 }
 
 export default function AiBuilderEmptyWorkspace({ builder, error = null, onChange, onBuild }: Props) {
+  const router = useRouter();
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
   const [existingProjectId, setExistingProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const rememberedProjectId = readRememberedProjectId();
+
+    if (rememberedProjectId) {
+      setExistingProjectId(rememberedProjectId);
+      router.prefetch(`/ai-builder?projectId=${encodeURIComponent(rememberedProjectId)}&tab=dashboard`);
+    }
 
     fetch("/api/ai-builder/projects", { cache: "no-store" })
       .then(async (response) => {
@@ -114,7 +122,6 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
           : [];
         if (!activeProjects.length) return null;
 
-        const rememberedProjectId = readRememberedProjectId();
         const rememberedProject = rememberedProjectId
           ? activeProjects.find((project) => project.id === rememberedProjectId)
           : undefined;
@@ -127,16 +134,18 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
         return rememberedProject?.id ?? fallbackProject?.id ?? null;
       })
       .then((projectId) => {
-        if (!cancelled) setExistingProjectId(projectId);
+        if (cancelled) return;
+        setExistingProjectId(projectId);
+        if (projectId) {
+          router.prefetch(`/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=dashboard`);
+        }
       })
-      .catch(() => {
-        if (!cancelled) setExistingProjectId(null);
-      });
+      .catch(() => undefined);
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   async function showFirstProjectRequired() {
     const goToBuilder = await showConfirm({
@@ -163,8 +172,9 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
 
     const tab = value === "knowledge" ? "dashboard" : value;
     const review = value === "knowledge" ? "&review=1" : "";
-    window.location.assign(
+    router.push(
       `/ai-builder?projectId=${encodeURIComponent(existingProjectId)}&tab=${encodeURIComponent(tab)}${review}`,
+      { scroll: false },
     );
   }
 
