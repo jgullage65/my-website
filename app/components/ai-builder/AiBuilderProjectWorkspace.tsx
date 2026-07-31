@@ -11,6 +11,7 @@ import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderProjects from "./AiBuilderProjects";
 import AiBuilderReview from "./AiBuilderReview";
+import AiBuilderSettings from "./AiBuilderSettings";
 import AiBuilderSources from "./AiBuilderSources";
 import {
   AiBuilderWorkspaceProvider,
@@ -371,6 +372,8 @@ export default function AiBuilderProjectWorkspace({
     <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={openReview} embedded />
   ) : workspaceTab === "sources" ? (
     <AiBuilderSources />
+  ) : workspaceTab === "settings" ? (
+    <AiBuilderSettings />
   ) : (
     <div className="flex min-h-full items-center justify-center rounded-3xl border border-white/10 bg-black p-8 text-center">
       <div>
