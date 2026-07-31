@@ -22,8 +22,17 @@ type AiBuilderWorkspaceMessage = {
   createdAt: string;
 };
 
+type AiBuilderWorkspaceProject = {
+  businessName: string;
+  industry: string;
+  website: string;
+  tone: string;
+  stateRevision: number;
+};
+
 type AiBuilderWorkspaceContextValue = {
   projectId: string;
+  project: AiBuilderWorkspaceProject;
   session: AiBuilderSession;
   websiteKnowledge: PersistedWebsiteKnowledge | null;
   diagnostics: ProjectDiagnostics | null;
@@ -36,6 +45,7 @@ type AiBuilderWorkspaceContextValue = {
   closeOverview: () => void;
   openKnowledge: () => void;
   closeKnowledge: () => void;
+  renameProject: (businessName: string) => Promise<void>;
 };
 
 const AiBuilderWorkspaceContext = createContext<AiBuilderWorkspaceContextValue | null>(null);
@@ -47,6 +57,7 @@ type ProviderProps = AiBuilderWorkspaceContextValue & {
 export function AiBuilderWorkspaceProvider({
   children,
   projectId,
+  project,
   session,
   websiteKnowledge,
   diagnostics,
@@ -59,10 +70,12 @@ export function AiBuilderWorkspaceProvider({
   closeOverview,
   openKnowledge,
   closeKnowledge,
+  renameProject,
 }: ProviderProps) {
   const value = useMemo<AiBuilderWorkspaceContextValue>(
     () => ({
       projectId,
+      project,
       session,
       websiteKnowledge,
       diagnostics,
@@ -75,6 +88,7 @@ export function AiBuilderWorkspaceProvider({
       closeOverview,
       openKnowledge,
       closeKnowledge,
+      renameProject,
     }),
     [
       activeTab,
@@ -86,7 +100,9 @@ export function AiBuilderWorkspaceProvider({
       openKnowledge,
       openOverview,
       overviewOpen,
+      project,
       projectId,
+      renameProject,
       session,
       setActiveTab,
       websiteKnowledge,
