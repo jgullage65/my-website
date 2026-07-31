@@ -27,6 +27,41 @@ export const DEFAULT_AI_BUILDER_PREFERENCES: AiBuilderLocalPreferences = {
 const sectionClassName =
   "rounded-[22px] border border-white/[0.08] bg-[#050505] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.22)]";
 
+function isThemeMode(value: unknown): value is ThemeMode {
+  return value === "dark" || value === "light" || value === "system";
+}
+
+function parseBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function sanitizeAiBuilderPreferences(value: unknown): AiBuilderLocalPreferences {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return DEFAULT_AI_BUILDER_PREFERENCES;
+  }
+
+  const parsed = value as Record<string, unknown>;
+  return {
+    theme: isThemeMode(parsed.theme) ? parsed.theme : DEFAULT_AI_BUILDER_PREFERENCES.theme,
+    compactNavigation: parseBoolean(
+      parsed.compactNavigation,
+      DEFAULT_AI_BUILDER_PREFERENCES.compactNavigation,
+    ),
+    reducedMotion: parseBoolean(
+      parsed.reducedMotion,
+      DEFAULT_AI_BUILDER_PREFERENCES.reducedMotion,
+    ),
+    sourceWarnings: parseBoolean(
+      parsed.sourceWarnings,
+      DEFAULT_AI_BUILDER_PREFERENCES.sourceWarnings,
+    ),
+    reviewReminders: parseBoolean(
+      parsed.reviewReminders,
+      DEFAULT_AI_BUILDER_PREFERENCES.reviewReminders,
+    ),
+  };
+}
+
 export function applyAiBuilderPreferences(preferences: AiBuilderLocalPreferences) {
   const resolvedTheme = preferences.theme === "system"
     ? window.matchMedia("(prefers-color-scheme: light)").matches
@@ -45,8 +80,7 @@ export function loadAiBuilderPreferences(): AiBuilderLocalPreferences {
   if (!saved) return DEFAULT_AI_BUILDER_PREFERENCES;
 
   try {
-    const parsed = JSON.parse(saved) as Partial<AiBuilderLocalPreferences>;
-    return { ...DEFAULT_AI_BUILDER_PREFERENCES, ...parsed };
+    return sanitizeAiBuilderPreferences(JSON.parse(saved));
   } catch {
     return DEFAULT_AI_BUILDER_PREFERENCES;
   }
