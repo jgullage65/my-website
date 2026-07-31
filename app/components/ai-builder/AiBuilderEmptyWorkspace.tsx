@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
+import { warmAiBuilderProjectResponse } from "./AiBuilderProjectClientCache";
 import AiBuilderWorkspaceFrame from "./AiBuilderWorkspaceFrame";
 import type { BuilderState } from "./AiBuilderClient";
 
@@ -111,6 +112,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
     if (rememberedProjectId) {
       setExistingProjectId(rememberedProjectId);
       router.prefetch(`/ai-builder?projectId=${encodeURIComponent(rememberedProjectId)}&tab=dashboard`);
+      void warmAiBuilderProjectResponse(rememberedProjectId);
     }
 
     fetch("/api/ai-builder/projects", { cache: "no-store" })
@@ -138,6 +140,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
         setExistingProjectId(projectId);
         if (projectId) {
           router.prefetch(`/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=dashboard`);
+          void warmAiBuilderProjectResponse(projectId);
         }
       })
       .catch(() => undefined);
