@@ -31,20 +31,28 @@
   display: none;
 }
 
+html[data-ai-builder-theme="light"] body[data-ai-builder-workspace="true"],
+html[data-ai-builder-theme="light"] body[data-ai-builder-workspace="true"] .site-page-shell,
 html[data-ai-builder-theme="light"] .ai-builder-shell,
 html[data-ai-builder-theme="light"] .ai-builder-shell__content {
-  background: #f5f4f0;
+  background: #f5f4f0 !important;
   color: #111827;
 }
 
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-[#000000]"],
 html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-[#020202]"],
 html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-[#030303]"],
 html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-[#050505]"],
 html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-[#070707]"],
 html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-[#080808]"],
 html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-[#0a0a0a]"],
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-[#0d0d0d]"],
 html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-black"] {
   background-color: #ffffff !important;
+}
+
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="bg-black/"] {
+  background-color: rgba(255, 255, 255, 0.72) !important;
 }
 
 html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="text-white"],
@@ -64,6 +72,10 @@ html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="border-w
   border-color: rgba(17, 24, 39, 0.12) !important;
 }
 
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="shadow-"] {
+  --tw-shadow-color: rgba(17, 24, 39, 0.08) !important;
+}
+
 html[data-ai-builder-theme="light"] .ai-builder-shell__content input,
 html[data-ai-builder-theme="light"] .ai-builder-shell__content textarea,
 html[data-ai-builder-theme="light"] .ai-builder-shell__content select {
@@ -80,6 +92,27 @@ html[data-ai-builder-theme="light"] .ai-builder-shell__content textarea::placeho
 html[data-ai-builder-theme="light"] .ai-builder-shell__content .cta-raised {
   background: #111827 !important;
   color: #ffffff !important;
+}
+
+html[data-ai-builder-theme="light"] .ai-builder-shell__content .cta-raised:disabled {
+  background: #e5e7eb !important;
+  color: #9ca3af !important;
+  border-color: rgba(17, 24, 39, 0.08) !important;
+}
+
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="text-amber-200"],
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="text-amber-300"] {
+  color: #a16207 !important;
+}
+
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="text-emerald-200"],
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="text-emerald-300"] {
+  color: #047857 !important;
+}
+
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="text-red-200"],
+html[data-ai-builder-theme="light"] .ai-builder-shell__content [class*="text-red-300"] {
+  color: #b91c1c !important;
 }
 
 html[data-ai-builder-compact="true"] .ai-builder-shell__content nav button {
