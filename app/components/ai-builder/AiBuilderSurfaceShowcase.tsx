@@ -150,7 +150,11 @@ export default function AiBuilderSurfaceShowcase({
           aria-label="AI Builder visual demo"
         >
           <div className="relative flex shrink-0 items-center justify-center border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur sm:px-6">
-            <h2 className="text-sm font-semibold text-white sm:text-base">Visual Demo</h2>
+            <h2 className="text-sm font-semibold text-white sm:text-base">
+              <span className="sm:hidden">Mobile Visual Demo</span>
+              <span className="hidden sm:inline lg:hidden">Tablet Visual Demo</span>
+              <span className="hidden lg:inline">Visual Demo</span>
+            </h2>
             <button
               type="button"
               onClick={() => setDemoOpen(false)}
