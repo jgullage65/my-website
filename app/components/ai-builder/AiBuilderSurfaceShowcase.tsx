@@ -86,11 +86,13 @@ export default function AiBuilderSurfaceShowcase({
 
     if (activeSlide === "builder") {
       return (
-        <div className="pointer-events-none origin-top-left scale-[0.68] sm:scale-[0.76] xl:scale-[0.62] 2xl:scale-[0.72]">
-          <div className="w-[147%] sm:w-[132%] xl:w-[161%] 2xl:w-[139%]">
-            <AiBuilderWorkspaceView mode="demo" activeView="builder" session={session} builder={builderValue} />
-          </div>
-        </div>
+        <AiBuilderWorkspaceView
+          mode="demo"
+          activeView="builder"
+          session={session}
+          builder={builderValue}
+          previewMode
+        />
       );
     }
 
