@@ -167,6 +167,7 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
     width: 20rem !important;
     max-width: 20rem !important;
     padding: 0.85rem 1rem !important;
+    transform: translateY(-6px);
   }
 
   .ai-builder-form > div > div.relative > div > section:last-child h3 {
