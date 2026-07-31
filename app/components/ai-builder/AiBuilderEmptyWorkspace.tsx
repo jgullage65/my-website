@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import AiBuilderForm from "./AiBuilderForm";
@@ -103,6 +103,21 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
   const router = useRouter();
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
   const [existingProjectId, setExistingProjectId] = useState<string | null>(null);
+  const projectWarmupRef = useRef<{ projectId: string; promise: Promise<void> } | null>(null);
+
+  function warmProject(projectId: string) {
+    const currentWarmup = projectWarmupRef.current;
+    if (currentWarmup?.projectId === projectId) return currentWarmup.promise;
+
+    const promise = fetch(`/api/ai-builder/projects/${encodeURIComponent(projectId)}`, {
+      cache: "no-store",
+    })
+      .then(() => undefined)
+      .catch(() => undefined);
+
+    projectWarmupRef.current = { projectId, promise };
+    return promise;
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +126,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
     if (rememberedProjectId) {
       setExistingProjectId(rememberedProjectId);
       router.prefetch(`/ai-builder?projectId=${encodeURIComponent(rememberedProjectId)}&tab=dashboard`);
+      void warmProject(rememberedProjectId);
     }
 
     fetch("/api/ai-builder/projects", { cache: "no-store" })
@@ -138,6 +154,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
         setExistingProjectId(projectId);
         if (projectId) {
           router.prefetch(`/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=dashboard`);
+          void warmProject(projectId);
         }
       })
       .catch(() => undefined);
@@ -164,11 +181,13 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
     });
   }
 
-  function openWorkspace(value: string) {
+  async function openWorkspace(value: string) {
     if (!existingProjectId) {
-      void showFirstProjectRequired();
+      await showFirstProjectRequired();
       return;
     }
+
+    await warmProject(existingProjectId);
 
     const tab = value === "knowledge" ? "dashboard" : value;
     const review = value === "knowledge" ? "&review=1" : "";
@@ -191,7 +210,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
       items={WORKSPACE_ITEMS.map(([value, label]) => ({
         value,
         label,
-        onSelect: () => openWorkspace(value),
+        onSelect: () => void openWorkspace(value),
       }))}
       rightRail={<DisabledAssistantPreview />}
       overlays={confirmDialogNode}
