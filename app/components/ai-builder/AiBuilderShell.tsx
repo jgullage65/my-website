@@ -2,12 +2,27 @@
 
 import { ReactNode, useEffect } from "react";
 import ImpersonationBanner from "./ImpersonationBanner";
+import {
+  applyAiBuilderPreferences,
+  loadAiBuilderPreferences,
+} from "./AiBuilderSettings";
 
 export default function AiBuilderShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.body.dataset.aiBuilderWorkspace = "true";
+    const preferences = loadAiBuilderPreferences();
+    applyAiBuilderPreferences(preferences);
+
+    let cleanupThemeListener: (() => void) | undefined;
+    if (preferences.theme === "system") {
+      const media = window.matchMedia("(prefers-color-scheme: light)");
+      const sync = () => applyAiBuilderPreferences(preferences);
+      media.addEventListener("change", sync);
+      cleanupThemeListener = () => media.removeEventListener("change", sync);
+    }
 
     return () => {
+      cleanupThemeListener?.();
       delete document.body.dataset.aiBuilderWorkspace;
     };
   }, []);
