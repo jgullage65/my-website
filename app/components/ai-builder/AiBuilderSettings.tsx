@@ -6,7 +6,7 @@ import { useAiBuilderWorkspace } from "./AiBuilderWorkspaceContext";
 
 type ThemeMode = "dark" | "light" | "system";
 
-type LocalPreferences = {
+export type AiBuilderLocalPreferences = {
   theme: ThemeMode;
   compactNavigation: boolean;
   reducedMotion: boolean;
@@ -14,7 +14,9 @@ type LocalPreferences = {
   reviewReminders: boolean;
 };
 
-const DEFAULT_PREFERENCES: LocalPreferences = {
+export const AI_BUILDER_SETTINGS_KEY = "ai-builder-settings";
+
+export const DEFAULT_AI_BUILDER_PREFERENCES: AiBuilderLocalPreferences = {
   theme: "dark",
   compactNavigation: false,
   reducedMotion: false,
@@ -25,7 +27,7 @@ const DEFAULT_PREFERENCES: LocalPreferences = {
 const sectionClassName =
   "rounded-[22px] border border-white/[0.08] bg-[#050505] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.22)]";
 
-function applyPreferences(preferences: LocalPreferences) {
+export function applyAiBuilderPreferences(preferences: AiBuilderLocalPreferences) {
   const resolvedTheme = preferences.theme === "system"
     ? window.matchMedia("(prefers-color-scheme: light)").matches
       ? "light"
@@ -38,9 +40,21 @@ function applyPreferences(preferences: LocalPreferences) {
   document.documentElement.style.colorScheme = resolvedTheme;
 }
 
+export function loadAiBuilderPreferences(): AiBuilderLocalPreferences {
+  const saved = window.localStorage.getItem(AI_BUILDER_SETTINGS_KEY);
+  if (!saved) return DEFAULT_AI_BUILDER_PREFERENCES;
+
+  try {
+    const parsed = JSON.parse(saved) as Partial<AiBuilderLocalPreferences>;
+    return { ...DEFAULT_AI_BUILDER_PREFERENCES, ...parsed };
+  } catch {
+    return DEFAULT_AI_BUILDER_PREFERENCES;
+  }
+}
+
 export default function AiBuilderSettings() {
   const { project, renameProject, session, websiteKnowledge } = useAiBuilderWorkspace();
-  const [preferences, setPreferences] = useState<LocalPreferences>(DEFAULT_PREFERENCES);
+  const [preferences, setPreferences] = useState<AiBuilderLocalPreferences>(DEFAULT_AI_BUILDER_PREFERENCES);
   const [provider, setProvider] = useState("OpenAI");
   const [apiKey, setApiKey] = useState("");
   const [projectName, setProjectName] = useState(project.businessName);
@@ -52,34 +66,23 @@ export default function AiBuilderSettings() {
   }, [project.businessName]);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("ai-builder-settings");
-    if (!saved) {
-      applyPreferences(DEFAULT_PREFERENCES);
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(saved) as Partial<LocalPreferences>;
-      const next = { ...DEFAULT_PREFERENCES, ...parsed };
-      setPreferences(next);
-      applyPreferences(next);
-    } catch {
-      applyPreferences(DEFAULT_PREFERENCES);
-    }
+    const next = loadAiBuilderPreferences();
+    setPreferences(next);
+    applyAiBuilderPreferences(next);
   }, []);
 
   useEffect(() => {
     if (preferences.theme !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: light)");
-    const sync = () => applyPreferences(preferences);
+    const sync = () => applyAiBuilderPreferences(preferences);
     media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
   }, [preferences]);
 
-  const updatePreferences = (next: LocalPreferences) => {
+  const updatePreferences = (next: AiBuilderLocalPreferences) => {
     setPreferences(next);
-    window.localStorage.setItem("ai-builder-settings", JSON.stringify(next));
-    applyPreferences(next);
+    window.localStorage.setItem(AI_BUILDER_SETTINGS_KEY, JSON.stringify(next));
+    applyAiBuilderPreferences(next);
   };
 
   const setTheme = (theme: ThemeMode) => {
@@ -87,7 +90,7 @@ export default function AiBuilderSettings() {
   };
 
   const togglePreference = (
-    key: Exclude<keyof LocalPreferences, "theme">,
+    key: Exclude<keyof AiBuilderLocalPreferences, "theme">,
   ) => {
     updatePreferences({ ...preferences, [key]: !preferences[key] });
   };
