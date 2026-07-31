@@ -12,7 +12,7 @@ import type {
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import AiBuilderShell from "./AiBuilderShell";
-import AiBuilderForm from "./AiBuilderForm";
+import AiBuilderEmptyWorkspace from "./AiBuilderEmptyWorkspace";
 import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
 import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
@@ -555,6 +555,10 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     </div>
   ) : null;
 
+  if (step === "form") {
+    return <AiBuilderEmptyWorkspace builder={builder} error={error} onChange={setBuilder} onBuild={buildAi} />;
+  }
+
   return (
     <AiBuilderShell>
       {step === "loading" ? (
@@ -562,13 +566,6 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           <AiBuilderAuthCta />
           <p className="text-sm font-semibold uppercase tracking-[0.28em] text-amber-300">Loading AI project</p>
           <p className="mt-4 text-base text-slate-400">Restoring your saved business knowledge.</p>
-        </div>
-      ) : null}
-
-      {step === "form" ? (
-        <div className="ai-builder-form">
-          {error ? <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
-          <AiBuilderForm value={builder} projectId={session?.id??initialProjectId} onChange={setBuilder} onBuild={buildAi} />
         </div>
       ) : null}
 
