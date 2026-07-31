@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
@@ -16,9 +16,8 @@ export const AI_BUILDER_SHOWCASE_SLIDES = [
 
 export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]["id"];
 
-// Every slide shares one viewport so changing surfaces cannot resize the
-// landing-page showcase or push the content below it.
-const SHOWCASE_VIEWPORT_CLASS = "h-[clamp(430px,calc(100dvh-360px),620px)]";
+const DESKTOP_VIEWPORT_WIDTH = 1440;
+const DESKTOP_VIEWPORT_HEIGHT = 900;
 
 export type AiBuilderSurfaceShowcaseProps = {
   session: AiBuilderSession;
@@ -40,7 +39,8 @@ export default function AiBuilderSurfaceShowcase({
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [builderValue, setBuilderValue] = useState(builder);
   const [selectedModel, setSelectedModel] = useState(models[0]?.id ?? "");
-  const [showDashboardInsights, setShowDashboardInsights] = useState(false);
+  const [viewportScale, setViewportScale] = useState(1);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setBuilderValue(builder);
@@ -57,49 +57,60 @@ export default function AiBuilderSurfaceShowcase({
         const index = AI_BUILDER_SHOWCASE_SLIDES.findIndex((slide) => slide.id === current);
         return AI_BUILDER_SHOWCASE_SLIDES[(index + 1) % AI_BUILDER_SHOWCASE_SLIDES.length]!.id;
       });
-    }, activeSlide === "dashboard" ? 13_000 : 6500);
+    }, 7000);
     return () => window.clearTimeout(timer);
   }, [activeSlide, autoAdvance]);
 
   useEffect(() => {
-    setShowDashboardInsights(false);
-    if (activeSlide !== "dashboard") return;
-    const timer = window.setTimeout(() => setShowDashboardInsights(true), 6500);
-    return () => window.clearTimeout(timer);
-  }, [activeSlide]);
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const updateScale = () => {
+      setViewportScale(viewport.clientWidth / DESKTOP_VIEWPORT_WIDTH);
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
 
   const surface = useMemo(() => {
     if (activeSlide === "dashboard") {
       return (
-        <div className={`h-full transition-transform duration-700 ease-in-out ${showDashboardInsights ? "-translate-y-full" : "translate-y-0"}`}>
-          <div className="h-full pb-5">
-            <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} dashboardShowcase />
-          </div>
-          {showDashboardInsights ? (
-            <div className="h-full overflow-hidden pt-5">
-              <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builderValue} />
-            </div>
-          ) : null}
-        </div>
+        <AiBuilderWorkspaceView
+          mode="demo"
+          activeView="dashboard"
+          session={session}
+          builder={builderValue}
+        />
       );
     }
 
     if (activeSlide === "builder") {
       return (
-        <div className="pointer-events-none origin-top-left scale-[0.68] sm:scale-[0.76] xl:scale-[0.62] 2xl:scale-[0.72]">
-          <div className="w-[147%] sm:w-[132%] xl:w-[161%] 2xl:w-[139%]">
-            <AiBuilderWorkspaceView mode="demo" activeView="builder" session={session} builder={builderValue} />
-          </div>
-        </div>
+        <AiBuilderWorkspaceView
+          mode="demo"
+          activeView="builder"
+          session={session}
+          builder={builderValue}
+        />
       );
     }
 
     if (activeSlide === "review") {
-      return <AiBuilderWorkspaceView mode="demo" activeView="review" session={session} builder={builderValue} embeddedReview />;
+      return (
+        <AiBuilderWorkspaceView
+          mode="demo"
+          activeView="review"
+          session={session}
+          builder={builderValue}
+        />
+      );
     }
 
     return (
-      <div className="flex min-h-[430px] items-start justify-center pt-12">
+      <div className="flex h-full items-start justify-center bg-black pt-24">
         <AiBuilderModelSelect
           models={models}
           value={selectedModel}
@@ -109,13 +120,29 @@ export default function AiBuilderSurfaceShowcase({
         />
       </div>
     );
-  }, [activeSlide, builderValue, models, selectedModel, session, showDashboardInsights]);
+  }, [activeSlide, builderValue, models, selectedModel, session]);
 
   return (
     <div className={className}>
-      <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
-        <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>{surface}</div>
+      <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-black shadow-[0_28px_90px_rgba(0,0,0,.58)]">
+        <div
+          ref={viewportRef}
+          className="relative aspect-[16/10] w-full overflow-hidden bg-black"
+        >
+          <div
+            className="absolute left-0 top-0 overflow-hidden bg-black"
+            style={{
+              width: DESKTOP_VIEWPORT_WIDTH,
+              height: DESKTOP_VIEWPORT_HEIGHT,
+              transform: `scale(${viewportScale})`,
+              transformOrigin: "top left",
+            }}
+          >
+            {surface}
+          </div>
+        </div>
       </div>
+
       <div className="mt-3 grid grid-cols-4 gap-2">
         {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (
           <button
