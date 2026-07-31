@@ -63,6 +63,24 @@ function parseExpectedRevision(value: unknown): number | null {
   return value;
 }
 
+function withCombinedReviewCounts(session: AiBuilderSession): AiBuilderSession {
+  const reviewItems = [...session.contextEntries, ...session.faqEntries];
+  const approved = reviewItems.filter(
+    (item) => item.status === "approved" || item.status === "corrected",
+  ).length;
+
+  return {
+    ...session,
+    contextCounts: {
+      ...session.contextCounts,
+      total: reviewItems.length,
+      approved,
+      proposed: reviewItems.filter((item) => item.status === "proposed").length,
+      archived: reviewItems.filter((item) => item.status === "archived").length,
+    },
+  };
+}
+
 function errorResponse(status: number, code: string, message: string) {
   return NextResponse.json(
     {
@@ -165,7 +183,7 @@ export async function GET(_request: Request, context: RouteContext) {
       ok: true,
       projectId: project.session.id,
       stateRevision: project.stateRevision,
-      session: project.session,
+      session: withCombinedReviewCounts(project.session),
       builder: {
         businessName: project.businessName,
         industry: project.industry,
@@ -366,7 +384,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     return errorResponse(
       500,
       "project_archive_failed",
-      "The project could not be archived.",
+      "The AI Builder project could not be archived.",
     );
   }
 }
