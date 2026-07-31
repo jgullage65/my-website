@@ -2,6 +2,7 @@
 
 import { SignOutButton } from "@clerk/nextjs";
 import { useState } from "react";
+import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderShell from "./AiBuilderShell";
@@ -26,9 +27,26 @@ const WORKSPACE_ITEMS = [
 
 export default function AiBuilderEmptyWorkspace({ builder, error = null, onChange, onBuild }: Props) {
   const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
+  const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
+
+  async function showFirstProjectRequired() {
+    const goToBuilder = await showConfirm({
+      title: "Create your first project",
+      message: "Build your first AI project to access the rest of the workspace.",
+      cancelLabel: "Cancel",
+      confirmLabel: "Go to AI Builder",
+    });
+
+    if (!goToBuilder) return;
+    setMobileWorkspaceMenuOpen(false);
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(".ai-builder-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
 
   return (
     <AiBuilderShell>
+      {confirmDialogNode}
       <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)] min-[1500px]:grid-cols-[220px_minmax(0,1fr)]">
         <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
           <div className="mb-5 flex min-h-[92px] items-center justify-center border-b border-white/[0.08] pb-5">
@@ -40,7 +58,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
           <p className="mt-4 px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
           <nav className="mt-3 space-y-0.5">
             {WORKSPACE_ITEMS.map((label) => (
-              <button key={label} type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">
+              <button key={label} type="button" onClick={() => void showFirstProjectRequired()} className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">
                 {label}
               </button>
             ))}
@@ -77,8 +95,8 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
                 <div className="mb-5 flex items-center justify-end"><button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} className="text-2xl text-slate-400">×</button></div>
                 <div className="mb-5 flex min-h-[84px] items-center justify-center border-b border-white/[0.08] pb-5"><img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-16 w-full max-w-[184px] object-contain" /></div>
                 <nav className="space-y-0.5">
-                  <button type="button" className="w-full rounded-lg bg-white/[0.055] px-3 py-2.5 text-left text-[0.82rem] font-semibold text-amber-200">AI Builder</button>
-                  {WORKSPACE_ITEMS.map((label) => <button key={label} type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white hover:bg-white/[0.04]">{label}</button>)}
+                  <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} className="w-full rounded-lg bg-white/[0.055] px-3 py-2.5 text-left text-[0.82rem] font-semibold text-amber-200">AI Builder</button>
+                  {WORKSPACE_ITEMS.map((label) => <button key={label} type="button" onClick={() => void showFirstProjectRequired()} className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white hover:bg-white/[0.04]">{label}</button>)}
                 </nav>
                 <div className="mt-0.5"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button></SignOutButton></div>
               </aside>
