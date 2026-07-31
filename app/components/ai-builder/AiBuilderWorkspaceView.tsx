@@ -64,7 +64,7 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   }
 
   if (props.activeView === "review") {
-    return <div className={inert}><AiBuilderReview session={props.session} onReviewCommand={demo ? noopAsync : props.onReviewCommand ?? noopAsync} pendingReviewItems={props.pendingReviewItems ?? new Set()} onBack={demo ? noop : props.onBack ?? noop} onLaunchChat={demo ? noop : props.onLaunchChat ?? noop} showLaunchChat={demo || preview ? false : props.showLaunchChat} embedded={props.embeddedReview} /></div>;
+    return <div className={inert}><AiBuilderReview onReviewCommand={demo ? noopAsync : props.onReviewCommand ?? noopAsync} pendingReviewItems={props.pendingReviewItems ?? new Set()} onBack={demo ? noop : props.onBack ?? noop} onLaunchChat={demo ? noop : props.onLaunchChat ?? noop} showLaunchChat={demo || preview ? false : props.showLaunchChat} embedded={props.embeddedReview} /></div>;
   }
 
   if (props.activeView === "insights") {
