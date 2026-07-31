@@ -4,6 +4,7 @@ import Image from "next/image";
 import { SignIn, SignInButton } from "@clerk/nextjs";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
+import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 
@@ -15,7 +16,7 @@ const demoSession: AiBuilderSession = {
   intakeBlocks: [],
   assistantConfiguration: {
     name: "Arkena Assistant",
-    purpose: "Represent the business accurately",
+    purpose: "Represent Arkena Studio accurately",
     tone: "Professional",
     responseStyle: "Clear and concise",
     primaryAudience: "Prospective customers",
@@ -27,13 +28,13 @@ const demoSession: AiBuilderSession = {
       sessionId: "landing-demo",
       category: "business_profile",
       title: "Company overview",
-      content: "JG Creative Studio builds premium websites, AI copilots, and automation systems for established businesses.",
+      content: "Arkena Studio builds premium AI products, business copilots, and automation systems for modern companies.",
       confidence: "high",
       confidenceScore: 0.97,
       status: "approved",
       source: {
         intakeBlockId: "demo",
-        excerpt: "Premium websites and AI systems built for real business.",
+        excerpt: "Premium AI products and automation systems built for real businesses.",
         sourceType: "manual_intake",
       },
       metadata: {
@@ -58,7 +59,7 @@ const demoSession: AiBuilderSession = {
         intakeBlockId: "demo",
         excerpt: "Custom AI copilots and automation systems.",
         sourceType: "website",
-        sourceUrl: "https://example.com/services",
+        sourceUrl: "https://arkena.studio/services",
       },
       metadata: {
         generated: true,
@@ -69,13 +70,60 @@ const demoSession: AiBuilderSession = {
       createdAt: "2026-07-18T21:55:00.000Z",
       updatedAt: "2026-07-18T21:55:00.000Z",
     },
+    {
+      id: "onboarding-entry",
+      sessionId: "landing-demo",
+      category: "service",
+      title: "AI onboarding systems",
+      content: "Arkena Studio creates guided onboarding systems that turn business expertise into structured AI knowledge.",
+      confidence: "high",
+      confidenceScore: 0.94,
+      status: "approved",
+      source: {
+        intakeBlockId: "demo",
+        excerpt: "Guided onboarding for business knowledge and AI assistants.",
+        sourceType: "website",
+        sourceUrl: "https://arkena.studio/ai-builder",
+      },
+      metadata: {
+        generated: true,
+        userEdited: false,
+        conflictingEntryIds: [],
+        tags: ["product_service"],
+      },
+      createdAt: "2026-07-18T21:57:00.000Z",
+      updatedAt: "2026-07-18T21:57:00.000Z",
+    },
+    {
+      id: "deployment-entry",
+      sessionId: "landing-demo",
+      category: "service",
+      title: "Business Brain deployments",
+      content: "Approved Business Brain knowledge can be reused across assistants, internal tools, and customer-facing experiences.",
+      confidence: "high",
+      confidenceScore: 0.93,
+      status: "approved",
+      source: {
+        intakeBlockId: "demo",
+        excerpt: "Reuse one approved Business Brain across multiple AI experiences.",
+        sourceType: "manual_intake",
+      },
+      metadata: {
+        generated: false,
+        userEdited: true,
+        conflictingEntryIds: [],
+        tags: ["business_memory"],
+      },
+      createdAt: "2026-07-18T21:58:00.000Z",
+      updatedAt: "2026-07-18T21:58:00.000Z",
+    },
   ],
   faqEntries: [
     {
       id: "faq-entry",
       sessionId: "landing-demo",
-      question: "What does JG Creative Studio build?",
-      answer: "Premium websites, AI assistants, and business automation systems.",
+      question: "What does Arkena Studio build?",
+      answer: "Premium AI products, business assistants, and automation systems.",
       confidence: "high",
       confidenceScore: 0.96,
       sourceEntryIds: [],
@@ -83,27 +131,124 @@ const demoSession: AiBuilderSession = {
       createdAt: "2026-07-18T21:56:00.000Z",
       updatedAt: "2026-07-18T21:56:00.000Z",
     },
+    {
+      id: "faq-entry-two",
+      sessionId: "landing-demo",
+      question: "Can Arkena build an assistant for another company?",
+      answer: "Yes. Arkena can train, review, and deploy Business Brains for client organizations from one workspace.",
+      confidence: "high",
+      confidenceScore: 0.95,
+      sourceEntryIds: [],
+      status: "approved",
+      createdAt: "2026-07-18T21:59:00.000Z",
+      updatedAt: "2026-07-18T21:59:00.000Z",
+    },
   ],
   conflicts: [],
   missingInformation: [],
   contextCounts: {
-    total: 3,
-    approved: 3,
+    total: 6,
+    approved: 6,
     proposed: 0,
     archived: 0,
-    byCategory: { business_profile: 1, service: 1, faq: 1 },
+    byCategory: { business_profile: 1, service: 3, faq: 2 },
   },
   buildProgress: [
     {
       stage: "complete",
       message: "Business Brain ready",
       completed: true,
-      createdAt: "2026-07-18T21:57:00.000Z",
+      createdAt: "2026-07-18T22:00:00.000Z",
     },
   ],
   createdAt: "2026-07-18T21:50:00.000Z",
-  updatedAt: "2026-07-18T21:57:00.000Z",
+  updatedAt: "2026-07-18T22:00:00.000Z",
   expiresAt: null,
+};
+
+const demoDiagnostics: ProjectDiagnostics = {
+  crawls: [
+    {
+      attempt_number: 3,
+      started_at: "2026-07-18T21:42:00.000Z",
+      completed_at: "2026-07-18T21:42:14.000Z",
+      pages_discovered: 18,
+      pages_processed: 16,
+      pages_skipped: 2,
+      pages_failed: 0,
+      duration_ms: 14000,
+      failure_stage: null,
+      status: "completed",
+    },
+    {
+      attempt_number: 2,
+      started_at: "2026-07-17T19:18:00.000Z",
+      completed_at: "2026-07-17T19:18:11.000Z",
+      pages_discovered: 15,
+      pages_processed: 14,
+      pages_skipped: 1,
+      pages_failed: 0,
+      duration_ms: 11000,
+      failure_stage: null,
+      status: "completed",
+    },
+    {
+      attempt_number: 1,
+      started_at: "2026-07-16T16:05:00.000Z",
+      completed_at: "2026-07-16T16:05:09.000Z",
+      pages_discovered: 12,
+      pages_processed: 12,
+      pages_skipped: 0,
+      pages_failed: 0,
+      duration_ms: 9000,
+      failure_stage: null,
+      status: "completed",
+    },
+  ],
+  generations: [
+    {
+      attempt_number: 3,
+      started_at: "2026-07-18T21:43:00.000Z",
+      completed_at: "2026-07-18T21:43:19.000Z",
+      knowledge_count: 24,
+      faq_count: 8,
+      model: "GPT-5.5",
+      input_tokens: 18420,
+      output_tokens: 3920,
+      total_tokens: 22340,
+      retry_count: 0,
+      duration_ms: 19000,
+      status: "completed",
+    },
+    {
+      attempt_number: 2,
+      started_at: "2026-07-17T19:19:00.000Z",
+      completed_at: "2026-07-17T19:19:16.000Z",
+      knowledge_count: 21,
+      faq_count: 7,
+      model: "GPT-5.5",
+      input_tokens: 16110,
+      output_tokens: 3440,
+      total_tokens: 19550,
+      retry_count: 0,
+      duration_ms: 16000,
+      status: "completed",
+    },
+    {
+      attempt_number: 1,
+      started_at: "2026-07-16T16:06:00.000Z",
+      completed_at: "2026-07-16T16:06:13.000Z",
+      knowledge_count: 18,
+      faq_count: 6,
+      model: "GPT-5",
+      input_tokens: 13980,
+      output_tokens: 3010,
+      total_tokens: 16990,
+      retry_count: 1,
+      duration_ms: 13000,
+      status: "completed",
+    },
+  ],
 };
 
 const models: AiBuilderModelChoice[] = [
@@ -121,14 +266,14 @@ const models: AiBuilderModelChoice[] = [
 ];
 
 const demoBuilder: BuilderState = {
-  businessName: "JG Creative Studio",
-  industry: "Digital services",
-  website: "https://yourbusiness.com",
+  businessName: "Arkena Studio",
+  industry: "AI products and automation",
+  website: "https://arkena.studio",
   tone: "Professional",
   userKnowledge: {
-    productsServices: "Custom AI copilots, websites, and automation systems.",
-    idealCustomers: "Established businesses improving their digital operations.",
-    additionalKnowledge: "Owner-provided knowledge remains authoritative.",
+    productsServices: "AI products, Business Brain systems, copilots, and automation tools.",
+    idealCustomers: "Businesses that want reusable AI knowledge and premium assistant experiences.",
+    additionalKnowledge: "Owner-provided expertise remains authoritative and separate from imported website knowledge.",
   },
   websiteKnowledge: null,
   crawlAttemptIds: [],
@@ -168,7 +313,7 @@ export default function AiBuilderLanding() {
               </div>
             </div>
           </div>
-          <AiBuilderSurfaceShowcase session={demoSession} builder={demoBuilder} models={models} autoAdvance className="min-w-0" />
+          <AiBuilderSurfaceShowcase session={demoSession} builder={demoBuilder} models={models} diagnostics={demoDiagnostics} autoAdvance className="min-w-0" />
         </section>
 
         <section className="mt-6 grid w-full gap-4 border-t border-white/[0.07] pt-6 sm:grid-cols-2 xl:mt-auto xl:grid-cols-4">
