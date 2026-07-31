@@ -115,7 +115,7 @@ export default function AiBuilderSurfaceShowcase({
 
   return (
     <div className={className}>
-      <div className="overflow-hidden rounded-[24px] border border-white/[0.08] bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
+      <div className="overflow-hidden rounded-[24px] border border-amber-300/30 bg-black p-4 shadow-[0_28px_90px_rgba(0,0,0,.58)]">
         <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>{surface}</div>
       </div>
       <div className="mt-3 grid grid-cols-4 gap-2">
