@@ -16,12 +16,8 @@ const when = (value: unknown) =>
       }).format(new Date(String(value)))
     : null;
 
-export default function AiBuilderProjectInsights({
-  diagnostics,
-}: {
-  diagnostics: ProjectDiagnostics | null;
-}) {
-  const { projectId } = useAiBuilderWorkspace();
+export default function AiBuilderProjectInsights() {
+  const { projectId, diagnostics } = useAiBuilderWorkspace();
   const crawl = diagnostics?.crawls[0];
   const generation = diagnostics?.generations[0];
 
