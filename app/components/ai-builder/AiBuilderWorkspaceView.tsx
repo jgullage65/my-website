@@ -17,7 +17,7 @@ type ChatThread = Parameters<typeof AiBuilderDemoChat>[0]["chatThread"];
 type DashboardMessages = Parameters<typeof AiBuilderDashboard>[0]["messages"];
 
 export type AiBuilderWorkspaceViewProps = {
-  mode: "live" | "demo";
+  mode: "live" | "demo" | "preview";
   activeView: AiBuilderWorkspaceViewName;
   session: AiBuilderSession;
   builder: BuilderState;
@@ -46,10 +46,12 @@ const noopAsync = async () => undefined;
 /**
  * The presentation boundary for every AI Builder workspace surface. Runtime
  * owners provide data and commands; this component never loads, routes, saves,
- * or mutates a project. Demo mode additionally makes command surfaces inert.
+ * or mutates a project. Demo mode keeps the marketing showcase inert. Preview
+ * mode allows temporary local interaction without persistence.
  */
 export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProps) {
   const demo = props.mode === "demo";
+  const preview = props.mode === "preview";
   const inert = demo ? "pointer-events-none" : "";
 
   if (props.activeView === "dashboard") {
@@ -60,11 +62,11 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
     const previewClassName = props.previewMode
       ? "h-full overflow-hidden [&>div]:pb-0 [&>div]:px-0 [&>div>div]:rounded-none [&>div>div]:border-0 [&>div>div]:shadow-none"
       : "";
-    return <div className={`${inert} ${previewClassName}`}><AiBuilderForm value={props.builder} projectId={demo ? null : props.projectId} onChange={demo ? noop : props.onBuilderChange ?? noop} onBuild={demo ? noop : props.onBuild ?? noop} demoMode={demo} /></div>;
+    return <div className={`${inert} ${previewClassName}`}><AiBuilderForm value={props.builder} projectId={demo || preview ? null : props.projectId} onChange={demo ? noop : props.onBuilderChange ?? noop} onBuild={demo || preview ? noop : props.onBuild ?? noop} demoMode={demo || preview} /></div>;
   }
 
   if (props.activeView === "review") {
-    return <div className={inert}><AiBuilderReview session={props.session} onReviewCommand={demo ? noopAsync : props.onReviewCommand ?? noopAsync} pendingReviewItems={props.pendingReviewItems ?? new Set()} onBack={demo ? noop : props.onBack ?? noop} onLaunchChat={demo ? noop : props.onLaunchChat ?? noop} showLaunchChat={demo ? false : props.showLaunchChat} embedded={props.embeddedReview} /></div>;
+    return <div className={inert}><AiBuilderReview session={props.session} onReviewCommand={demo || preview ? noopAsync : props.onReviewCommand ?? noopAsync} pendingReviewItems={props.pendingReviewItems ?? new Set()} onBack={demo ? noop : props.onBack ?? noop} onLaunchChat={demo || preview ? noop : props.onLaunchChat ?? noop} showLaunchChat={demo || preview ? false : props.showLaunchChat} embedded={props.embeddedReview} /></div>;
   }
 
   if (props.activeView === "insights") {
@@ -72,5 +74,5 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   }
 
   if (!props.knowledge) return null;
-  return <div className={inert}><AiBuilderDemoChat knowledge={props.knowledge} projectId={props.projectId ?? props.session.id} chatThread={props.chatThread ?? null} onBack={demo ? noop : props.onBack ?? noop} demoMode={demo} /></div>;
+  return <div className={inert}><AiBuilderDemoChat knowledge={props.knowledge} projectId={props.projectId ?? props.session.id} chatThread={props.chatThread ?? null} onBack={demo ? noop : props.onBack ?? noop} demoMode={demo || preview} /></div>;
 }
