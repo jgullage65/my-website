@@ -17,6 +17,7 @@ type Props = {
   onChange: (value: BuilderState) => void;
   onBuild: () => void;
   demoMode?: boolean;
+  previewMode?: boolean;
 };
 
 type WebsiteImportError = {
@@ -73,7 +74,42 @@ function formatImportError(error: WebsiteImportError | undefined, fallback: stri
   return diagnostics.length ? `${message} (${diagnostics.join(", ")})` : message;
 }
 
-export default function AiBuilderForm({ value, projectId, onChange, onBuild, demoMode = false }: Props) {
+function buildPreviewWebsiteKnowledge(website: string): WebsiteKnowledge {
+  const normalizedWebsite = /^https?:\/\//i.test(website) ? website : `https://${website}`;
+  const hostname = normalizedWebsite.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+  const businessName = hostname.split(".")[0]?.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Your Business";
+  const importedAt = new Date().toISOString();
+
+  return {
+    businessName,
+    industry: "Professional services",
+    website: normalizedWebsite,
+    requestedUrl: normalizedWebsite,
+    resolvedUrl: normalizedWebsite,
+    productsServices: "Primary services, packages, and customer outcomes found across the public website.",
+    idealCustomers: "Customers seeking a trusted provider with clear expertise, responsive service, and practical solutions.",
+    additionalKnowledge: "The website emphasizes expertise, reliability, customer support, and a straightforward path to getting started.",
+    knowledge: {
+      facts: [
+        { category: "company", title: "Business overview", value: `${businessName} provides professional services and helps customers understand available solutions.` },
+        { category: "products_services", title: "Core services", value: "The website presents core services, packaged solutions, and customer-focused outcomes." },
+        { category: "customers", title: "Ideal customers", value: "The business serves customers looking for dependable expertise and clear next steps." },
+        { category: "policies", title: "Customer experience", value: "The website communicates a straightforward, supportive customer experience." },
+      ],
+    },
+    pages: [
+      { url: normalizedWebsite, title: `${businessName} Home`, summary: "Main business overview and service introduction." },
+      { url: `${normalizedWebsite.replace(/\/$/, "")}/services`, title: "Services", summary: "Primary services and customer outcomes." },
+      { url: `${normalizedWebsite.replace(/\/$/, "")}/about`, title: "About", summary: "Business background, expertise, and approach." },
+    ],
+    warnings: [],
+    importedAt,
+    sourceDocuments: [],
+    sourceBlocks: [],
+  };
+}
+
+export default function AiBuilderForm({ value, projectId, onChange, onBuild, demoMode = false, previewMode = false }: Props) {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
   const [crawlPages, setCrawlPages] = useState(0);
@@ -86,7 +122,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   useEffect(() => {
-    if (demoMode) return;
+    if (demoMode || previewMode) return;
     void fetch("/api/ai-builder/models?purpose=crawl")
       .then((response) => response.json())
       .then((payload) => {
@@ -96,7 +132,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         }
       })
       .catch(() => undefined);
-  }, [demoMode]);
+  }, [demoMode, previewMode]);
 
   async function selectModel(next: string) {
     const choice = modelChoices.find((model) => model.id === next);
@@ -137,6 +173,39 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
     if (demoMode) return;
     const website = value.website.trim();
     if (!website || importing) return;
+
+    if (previewMode) {
+      setImporting(true);
+      setImportProgress(18);
+      setCrawlPages(1);
+      setImportStage("crawl");
+      setImportError(null);
+      setImportMessage(null);
+
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+      setCrawlPages(2);
+      setImportProgress(55);
+      await new Promise((resolve) => window.setTimeout(resolve, 500));
+      setCrawlPages(3);
+      setImportStage("processing");
+      setImportProgress(82);
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+
+      const websiteKnowledge = buildPreviewWebsiteKnowledge(website);
+      onChange({
+        ...value,
+        businessName: value.businessName.trim() ? value.businessName : websiteKnowledge.businessName,
+        industry: value.industry.trim() ? value.industry : websiteKnowledge.industry,
+        website: websiteKnowledge.website,
+        websiteKnowledge,
+      });
+
+      setImportProgress(100);
+      setImportStage("complete");
+      setImportMessage("Imported 3 pages into your temporary Business Brain. Nothing was saved.");
+      setImporting(false);
+      return;
+    }
 
     setImporting(true);
     setImportProgress(0);
@@ -307,21 +376,22 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
                   {importError ? <Status tone="error">{importError}</Status> : null}
                   {importMessage ? <Status tone="success">{importMessage}</Status> : null}
                   {value.websiteKnowledge ? (
-                    <button type="button" onClick={() => setShowWebsiteKnowledge(true)} className="cta-raised mt-4 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#111111]">View imported knowledge →</button>
+                    <button type="button" onClick={() => setShowWebsiteKnowledge(true)} className="cta-raised mt-4 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111]">View Website Knowledge</button>
                   ) : null}
                 </div>
               </article>
             </section>
 
-            <section className={`${cardClassName} mx-auto text-center min-[1200px]:w-full min-[1200px]:py-4`}>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Communication style</p>
-              <h3 className="mt-2 text-xl font-semibold text-white">How should your AI sound?</h3>
-              <div className="relative mt-4">
-                <select className={`${inputClassName} appearance-none px-12`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
-                  <option>Professional</option><option>Friendly</option><option>Consultative</option><option>Direct</option><option>Warm</option>
-                </select>
-                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"><path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              </div>
+            <section className={cardClassName}>
+              <label className="grid gap-2 text-center">
+                <span className="text-sm font-semibold text-slate-200">Assistant tone</span>
+                <div className="relative">
+                  <select className={`${inputClassName} appearance-none px-12`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
+                    <option>Professional</option><option>Friendly</option><option>Consultative</option><option>Direct</option><option>Warm</option>
+                  </select>
+                  <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"><path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </div>
+              </label>
             </section>
           </div>
 
