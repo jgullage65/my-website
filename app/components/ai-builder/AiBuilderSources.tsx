@@ -25,7 +25,19 @@ function host(value?: string | null) {
 }
 
 function statusFromAttempt(value: unknown) {
-  return String(value ?? "unknown").replaceAll("_", " ");
+  return String(value ?? "unknown").replace(/_/g, " ");
+}
+
+function numericValue(value: unknown, fallback = 0) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function attemptTimestamp(item: Record<string, unknown>) {
+  const value = item.completed_at ?? item.started_at;
+  if (!value) return 0;
+  const parsed = new Date(String(value)).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 export default function AiBuilderSources() {
@@ -41,7 +53,10 @@ export default function AiBuilderSources() {
     [websiteKnowledge],
   );
 
-  const latestAttempt = diagnostics?.crawls[0] ?? null;
+  const latestAttempt = useMemo(
+    () => [...(diagnostics?.crawls ?? [])].sort((left, right) => attemptTimestamp(right) - attemptTimestamp(left))[0] ?? null,
+    [diagnostics?.crawls],
+  );
   const websiteKnowledgeCount = session.contextEntries.filter(
     (item) => item.source.sourceType === "website",
   ).length;
@@ -51,13 +66,16 @@ export default function AiBuilderSources() {
       (item.status === "approved" || item.status === "corrected"),
   ).length;
   const unresolvedQuestions = websiteKnowledge?.knowledge.unresolvedQuestions.length ?? 0;
-  const processedPages = Number(latestAttempt?.pages_processed ?? stats.pages);
-  const failedPages = Number(latestAttempt?.pages_failed ?? 0);
-  const skippedPages = Number(latestAttempt?.pages_skipped ?? 0);
+  const processedPages = numericValue(latestAttempt?.pages_processed, stats.pages);
+  const failedPages = numericValue(latestAttempt?.pages_failed);
+  const skippedPages = numericValue(latestAttempt?.pages_skipped);
   const attemptStatus = statusFromAttempt(latestAttempt?.status);
+  const normalizedAttemptStatus = String(latestAttempt?.status ?? "").toLowerCase();
+  const latestAttemptCompleted = ["completed", "success", "succeeded"].includes(normalizedAttemptStatus);
+  const latestAttemptFailed = ["failed", "error", "cancelled", "canceled"].includes(normalizedAttemptStatus);
   const warningCount = websiteKnowledge?.warnings.length ?? 0;
-  const sourceHealthy = Boolean(websiteKnowledge) && failedPages === 0 && warningCount === 0;
-  const sourceNeedsReview = Boolean(websiteKnowledge) && (failedPages > 0 || warningCount > 0);
+  const sourceHealthy = Boolean(websiteKnowledge) && latestAttemptCompleted && failedPages === 0 && warningCount === 0;
+  const sourceNeedsReview = Boolean(websiteKnowledge) && (latestAttemptFailed || failedPages > 0 || warningCount > 0);
 
   if (!websiteKnowledge) {
     return (
