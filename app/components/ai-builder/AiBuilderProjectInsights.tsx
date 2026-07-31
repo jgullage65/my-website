@@ -1,4 +1,6 @@
-import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+"use client";
+
+import { useAiBuilderWorkspace } from "./AiBuilderWorkspaceContext";
 
 export type ProjectDiagnostics = {
   crawls: Array<Record<string, unknown>>;
@@ -17,15 +19,14 @@ const when = (value: unknown) =>
 export default function AiBuilderProjectInsights({
   diagnostics,
 }: {
-  session: AiBuilderSession;
   diagnostics: ProjectDiagnostics | null;
-  messageCount: number;
 }) {
+  const { projectId } = useAiBuilderWorkspace();
   const crawl = diagnostics?.crawls[0];
   const generation = diagnostics?.generations[0];
 
   return (
-    <div className="grid gap-5 pb-2 lg:grid-cols-2">
+    <div data-project-id={projectId} className="grid gap-5 pb-2 lg:grid-cols-2">
       <Panel title="Website crawl">
         <Grid
           items={[
