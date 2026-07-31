@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 export type AiBuilderWorkspaceTab =
   | "projects"
@@ -29,7 +29,43 @@ type ProviderProps = AiBuilderWorkspaceContextValue & {
   children: ReactNode;
 };
 
-export function AiBuilderWorkspaceProvider({ children, ...value }: ProviderProps) {
+export function AiBuilderWorkspaceProvider({
+  children,
+  projectId,
+  activeTab,
+  overviewOpen,
+  knowledgeOpen,
+  setActiveTab,
+  openOverview,
+  closeOverview,
+  openKnowledge,
+  closeKnowledge,
+}: ProviderProps) {
+  const value = useMemo<AiBuilderWorkspaceContextValue>(
+    () => ({
+      projectId,
+      activeTab,
+      overviewOpen,
+      knowledgeOpen,
+      setActiveTab,
+      openOverview,
+      closeOverview,
+      openKnowledge,
+      closeKnowledge,
+    }),
+    [
+      activeTab,
+      closeKnowledge,
+      closeOverview,
+      knowledgeOpen,
+      openKnowledge,
+      openOverview,
+      overviewOpen,
+      projectId,
+      setActiveTab,
+    ],
+  );
+
   return (
     <AiBuilderWorkspaceContext.Provider value={value}>
       {children}
