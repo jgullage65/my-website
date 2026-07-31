@@ -47,6 +47,29 @@ const demoSession: AiBuilderSession = {
       updatedAt: "2026-07-18T21:54:00.000Z",
     },
     {
+      id: "studio-focus",
+      sessionId: "landing-demo",
+      category: "business_profile",
+      title: "Studio focus",
+      content: "Arkena Studio is a product studio for launching focused AI tools, each with its own purpose, audience, and experience.",
+      confidence: "high",
+      confidenceScore: 0.96,
+      status: "approved",
+      source: {
+        intakeBlockId: "demo",
+        excerpt: "A focused studio for shipping premium AI products.",
+        sourceType: "manual_intake",
+      },
+      metadata: {
+        generated: false,
+        userEdited: true,
+        conflictingEntryIds: [],
+        tags: [],
+      },
+      createdAt: "2026-07-18T21:54:30.000Z",
+      updatedAt: "2026-07-18T21:54:30.000Z",
+    },
+    {
       id: "service-entry",
       sessionId: "landing-demo",
       category: "service",
@@ -147,11 +170,11 @@ const demoSession: AiBuilderSession = {
   conflicts: [],
   missingInformation: [],
   contextCounts: {
-    total: 6,
-    approved: 6,
+    total: 7,
+    approved: 7,
     proposed: 0,
     archived: 0,
-    byCategory: { business_profile: 1, service: 3, faq: 2 },
+    byCategory: { business_profile: 2, service: 3, faq: 2 },
   },
   buildProgress: [
     {
