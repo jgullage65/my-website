@@ -22,7 +22,7 @@ import AiBuilderSources from "./AiBuilderSources";
 import AiBuilderSettings from "./AiBuilderSettings";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
 import AiBuilderWorkspaceFrame from "./AiBuilderWorkspaceFrame";
-import { AiBuilderWorkspaceProvider } from "./AiBuilderWorkspaceContext";
+import { AiBuilderWorkspaceProvider, type AiBuilderWorkspaceTab } from "./AiBuilderWorkspaceContext";
 import "./AiBuilderFormOverrides.css";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
 
@@ -61,7 +61,7 @@ export type BuilderState = {
 };
 
 type BuilderStep = "form" | "loading" | "building" | "results" | "review" | "chat";
-type WorkspaceTab = "dashboard" | "insights" | "overview" | "knowledge" | "sources" | "settings";
+type WorkspaceTab = Exclude<AiBuilderWorkspaceTab, "projects">;
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export type ReviewCommandPending = ReadonlySet<string>;
@@ -287,6 +287,17 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       }
     },
     [navigateToStep, step],
+  );
+
+  const selectAiBuilderWorkspaceTab = useCallback(
+    (nextTab: AiBuilderWorkspaceTab) => {
+      if (nextTab === "projects") {
+        setProjectsOpen(true);
+        return;
+      }
+      selectWorkspaceTab(nextTab);
+    },
+    [selectWorkspaceTab],
   );
 
   useEffect(() => {
@@ -558,7 +569,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           activeTab={workspaceTab}
           overviewOpen={false}
           knowledgeOpen={workspaceTab === "knowledge"}
-          setActiveTab={selectWorkspaceTab}
+          setActiveTab={selectAiBuilderWorkspaceTab}
           openOverview={() => selectWorkspaceTab("overview")}
           closeOverview={() => undefined}
           openKnowledge={() => selectWorkspaceTab("knowledge")}
@@ -607,7 +618,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           activeTab={workspaceTab}
           overviewOpen={false}
           knowledgeOpen={workspaceTab === "knowledge"}
-          setActiveTab={selectWorkspaceTab}
+          setActiveTab={selectAiBuilderWorkspaceTab}
           openOverview={() => selectWorkspaceTab("overview")}
           closeOverview={() => undefined}
           openKnowledge={() => selectWorkspaceTab("knowledge")}
