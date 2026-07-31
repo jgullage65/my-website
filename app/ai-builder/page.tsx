@@ -54,9 +54,12 @@ export default async function Page({ searchParams }: PageProps) {
   }
 
   const projects = await listAiBuilderProjects();
-  if (!projects.length) {
+  const activeProjects = projects.filter((project) => !project.archivedAt);
+
+  if (!activeProjects.length) {
     redirect("/ai-builder?new=1");
   }
 
-  redirect("/ai-builder/projects");
+  const mostRecentlyUsedProject = activeProjects[0];
+  redirect(`/ai-builder/projects?projectId=${encodeURIComponent(mostRecentlyUsedProject.id)}`);
 }
