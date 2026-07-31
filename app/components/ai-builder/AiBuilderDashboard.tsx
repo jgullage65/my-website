@@ -1,13 +1,24 @@
+"use client";
+
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
+import { useAiBuilderWorkspace } from "./AiBuilderWorkspaceContext";
 
 type Destination="knowledge"|"sources"|"settings"|"assistant";
 type Message={role:"user"|"assistant";createdAt:string};
 const date=(value:string)=>new Intl.DateTimeFormat(undefined,{dateStyle:"medium",timeStyle:"short"}).format(new Date(value));
 const freshness=(value:string)=>{const days=Math.max(0,Math.floor((Date.now()-new Date(value).getTime())/86_400_000));return days===0?"Updated today":days===1?"Updated yesterday":`Updated ${days} days ago`};
 
-export default function AiBuilderDashboard({session,websiteKnowledge,messages,diagnostics,onNavigate,showcase=false}:{session:AiBuilderSession;websiteKnowledge:PersistedWebsiteKnowledge|null;messages:Message[];diagnostics:ProjectDiagnostics|null;onNavigate:(destination:Destination)=>void;showcase?:boolean}){
+export default function AiBuilderDashboard({session,websiteKnowledge,messages,diagnostics,showcase=false}:{session:AiBuilderSession;websiteKnowledge:PersistedWebsiteKnowledge|null;messages:Message[];diagnostics:ProjectDiagnostics|null;showcase?:boolean}){
+ const workspace=useAiBuilderWorkspace();
+ const onNavigate=(destination:Destination)=>{
+  if(destination==="assistant"){
+   document.querySelector<HTMLTextAreaElement>('textarea[placeholder^="Ask about"]')?.focus();
+   return;
+  }
+  workspace.setActiveTab(destination);
+ };
  const pending=[...session.contextEntries,...session.faqEntries].filter(item=>item.status==="proposed").length;
  const unresolvedConflicts=session.conflicts.filter(item=>!item.resolved).length,missing=session.missingInformation.filter(item=>!item.resolved).length,warnings=websiteKnowledge?.warnings.length??0;
  const websiteConnected=Boolean(websiteKnowledge?.imported_at||session.contextEntries.some(item=>item.source.sourceType==="website"));
