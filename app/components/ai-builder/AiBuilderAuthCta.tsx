@@ -29,7 +29,7 @@ export default function AiBuilderAuthCta() {
     <>
       {hasNoProjects ? (
         <>
-          <style>{`.ai-builder-no-projects ~ a[href="/ai-builder"] { display: none !important; }`}</style>
+          <style>{`.ai-builder-form:has(.ai-builder-no-projects) a[href="/ai-builder"] { display: none !important; }`}</style>
           <div className="ai-builder-no-projects absolute left-4 top-4 z-10 sm:left-6 lg:left-8">
             <SignedIn>
               <SignOutButton redirectUrl="/ai-builder">
