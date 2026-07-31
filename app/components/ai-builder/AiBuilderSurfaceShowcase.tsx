@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
@@ -29,6 +30,58 @@ export type AiBuilderSurfaceShowcaseProps = {
   className?: string;
 };
 
+function updatePreviewSession(session: AiBuilderSession, command: ReviewCommandRequest): AiBuilderSession {
+  const now = new Date().toISOString();
+  const nextContextEntries = session.contextEntries.map((entry) => {
+    if (command.itemKind !== "context_entry" || entry.id !== command.itemId) return entry;
+    if (command.kind === "approve" || command.kind === "restore") return { ...entry, status: "approved" as const, updatedAt: now };
+    if (command.kind === "archive" || command.kind === "reject") return { ...entry, status: "archived" as const, updatedAt: now };
+    if (command.kind === "unapprove") return { ...entry, status: "proposed" as const, updatedAt: now };
+    return {
+      ...entry,
+      title: command.correction.title ?? entry.title,
+      content: command.correction.content,
+      status: "corrected" as const,
+      updatedAt: now,
+      metadata: { ...entry.metadata, userEdited: true },
+    };
+  });
+
+  const nextFaqEntries = session.faqEntries.map((faq) => {
+    if (command.itemKind !== "faq" || faq.id !== command.itemId) return faq;
+    if (command.kind === "approve" || command.kind === "restore") return { ...faq, status: "approved" as const, updatedAt: now };
+    if (command.kind === "archive" || command.kind === "reject") return { ...faq, status: "archived" as const, updatedAt: now };
+    if (command.kind === "unapprove") return { ...faq, status: "proposed" as const, updatedAt: now };
+    return {
+      ...faq,
+      question: command.correction.question,
+      answer: command.correction.answer,
+      status: "corrected" as const,
+      updatedAt: now,
+    };
+  });
+
+  const allItems = [...nextContextEntries, ...nextFaqEntries];
+  const approved = allItems.filter((item) => item.status === "approved" || item.status === "corrected").length;
+  const proposed = allItems.filter((item) => item.status === "proposed").length;
+  const archived = allItems.filter((item) => item.status === "archived").length;
+
+  return {
+    ...session,
+    contextEntries: nextContextEntries,
+    faqEntries: nextFaqEntries,
+    contextCounts: {
+      ...session.contextCounts,
+      total: allItems.length,
+      approved,
+      proposed,
+      archived,
+    },
+    governanceRevision: (session.governanceRevision ?? 0) + 1,
+    updatedAt: now,
+  };
+}
+
 export default function AiBuilderSurfaceShowcase({
   session,
   builder,
@@ -39,6 +92,7 @@ export default function AiBuilderSurfaceShowcase({
 }: AiBuilderSurfaceShowcaseProps) {
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [builderValue, setBuilderValue] = useState(builder);
+  const [previewSession, setPreviewSession] = useState(session);
   const [demoOpen, setDemoOpen] = useState(false);
   const [previewBuilding, setPreviewBuilding] = useState(false);
   const [previewBuildStep, setPreviewBuildStep] = useState(0);
@@ -47,6 +101,10 @@ export default function AiBuilderSurfaceShowcase({
   useEffect(() => {
     setBuilderValue(builder);
   }, [builder]);
+
+  useEffect(() => {
+    setPreviewSession(session);
+  }, [session]);
 
   useEffect(() => {
     if (!autoAdvance || demoOpen) return;
@@ -87,6 +145,7 @@ export default function AiBuilderSurfaceShowcase({
 
     if (confirmed) {
       setBuilderValue(builder);
+      setPreviewSession(session);
       setActiveSlide("builder");
       setDemoOpen(true);
     }
@@ -107,15 +166,20 @@ export default function AiBuilderSurfaceShowcase({
     setActiveSlide("review");
   };
 
+  const handlePreviewReviewCommand = async (command: ReviewCommandRequest) => {
+    setPreviewSession((current) => updatePreviewSession(current, command));
+  };
+
   const renderSurface = (interactive: boolean) => {
     const mode = interactive ? "preview" : "demo";
+    const activeSession = interactive ? previewSession : session;
 
     if (activeSlide === "builder") {
       return (
         <AiBuilderWorkspaceView
           mode={mode}
           activeView="builder"
-          session={session}
+          session={activeSession}
           builder={builderValue}
           onBuilderChange={interactive ? setBuilderValue : undefined}
           onBuild={interactive ? runPreviewBuild : undefined}
@@ -125,14 +189,23 @@ export default function AiBuilderSurfaceShowcase({
     }
 
     if (activeSlide === "review") {
-      return <AiBuilderWorkspaceView mode={mode} activeView="review" session={session} builder={builderValue} embeddedReview />;
+      return (
+        <AiBuilderWorkspaceView
+          mode={mode}
+          activeView="review"
+          session={activeSession}
+          builder={builderValue}
+          embeddedReview
+          onReviewCommand={interactive ? handlePreviewReviewCommand : undefined}
+        />
+      );
     }
 
     if (activeSlide === "dashboard") {
-      return <AiBuilderWorkspaceView mode={mode} activeView="dashboard" session={session} builder={builderValue} diagnostics={diagnostics} dashboardShowcase />;
+      return <AiBuilderWorkspaceView mode={mode} activeView="dashboard" session={activeSession} builder={builderValue} diagnostics={diagnostics} dashboardShowcase />;
     }
 
-    return <AiBuilderWorkspaceView mode={mode} activeView="insights" session={session} builder={builderValue} diagnostics={diagnostics} />;
+    return <AiBuilderWorkspaceView mode={mode} activeView="insights" session={activeSession} builder={builderValue} diagnostics={diagnostics} />;
   };
 
   const showcaseSurface = useMemo(
@@ -142,7 +215,7 @@ export default function AiBuilderSurfaceShowcase({
 
   const previewSurface = useMemo(
     () => renderSurface(true),
-    [activeSlide, builderValue, diagnostics, previewBuilding, session],
+    [activeSlide, builderValue, diagnostics, previewBuilding, previewSession],
   );
 
   const switcher = (compact = false) => (
@@ -198,37 +271,16 @@ export default function AiBuilderSurfaceShowcase({
       </div>
 
       {demoOpen ? (
-        <div
-          className="fixed inset-0 z-[200] flex min-h-0 flex-col bg-black"
-          role="dialog"
-          aria-modal="true"
-          aria-label="AI Builder interactive demo"
-        >
+        <div className="fixed inset-0 z-[200] flex min-h-0 flex-col bg-black" role="dialog" aria-modal="true" aria-label="AI Builder interactive demo">
           <div className="relative flex shrink-0 items-center justify-center border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur sm:px-6 lg:hidden">
             <h2 className="text-sm font-semibold text-white sm:text-base">
               <span className="sm:hidden">Mobile Interactive Demo</span>
               <span className="hidden sm:inline">Tablet Interactive Demo</span>
             </h2>
-            <button
-              type="button"
-              onClick={() => !previewBuilding && setDemoOpen(false)}
-              disabled={previewBuilding}
-              aria-label="Close demo"
-              className="absolute right-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] disabled:cursor-not-allowed disabled:opacity-40 sm:right-6"
-            >
-              ×
-            </button>
+            <button type="button" onClick={() => !previewBuilding && setDemoOpen(false)} disabled={previewBuilding} aria-label="Close demo" className="absolute right-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] disabled:cursor-not-allowed disabled:opacity-40 sm:right-6">×</button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => !previewBuilding && setDemoOpen(false)}
-            disabled={previewBuilding}
-            aria-label="Close demo"
-            className="absolute right-6 top-6 z-10 hidden h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] disabled:cursor-not-allowed disabled:opacity-40 lg:inline-flex"
-          >
-            ×
-          </button>
+          <button type="button" onClick={() => !previewBuilding && setDemoOpen(false)} disabled={previewBuilding} aria-label="Close demo" className="absolute right-6 top-6 z-10 hidden h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] disabled:cursor-not-allowed disabled:opacity-40 lg:inline-flex">×</button>
 
           <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain bg-black">
             <div className="min-h-full">{previewSurface}</div>
@@ -244,9 +296,7 @@ export default function AiBuilderSurfaceShowcase({
                       const active = previewBuildStep === index;
                       return (
                         <div key={label} className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/40 px-4 py-3">
-                          <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold ${complete ? "border-amber-300/30 bg-amber-300/10 text-amber-200" : active ? "border-white/20 text-white" : "border-white/10 text-slate-600"}`}>
-                            {complete ? "✓" : index + 1}
-                          </span>
+                          <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-xs font-bold ${complete ? "border-amber-300/30 bg-amber-300/10 text-amber-200" : active ? "border-white/20 text-white" : "border-white/10 text-slate-600"}`}>{complete ? "✓" : index + 1}</span>
                           <span className={complete || active ? "text-sm text-white" : "text-sm text-slate-500"}>{label}</span>
                         </div>
                       );
