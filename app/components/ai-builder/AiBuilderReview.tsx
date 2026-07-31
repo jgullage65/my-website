@@ -178,11 +178,13 @@ export default function AiBuilderReview({
   const [filter, setFilter] = useState<
     "all" | "proposed" | "approved" | "archived"
   >("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   const contextEntries = session.contextEntries;
   const faqEntries = session.faqEntries;
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   const grouped = useMemo(() => {
     const map = new Map<
@@ -210,6 +212,15 @@ export default function AiBuilderReview({
       if (!visible) return;
 
       const section = reviewSection(entry);
+      if (
+        normalizedSearchQuery &&
+        !`${entry.title} ${entry.content} ${section.label} ${entry.category}`
+          .toLowerCase()
+          .includes(normalizedSearchQuery)
+      ) {
+        return;
+      }
+
       const current = map.get(section.key) ?? {
         label: section.label,
         order: section.order,
@@ -225,7 +236,7 @@ export default function AiBuilderReview({
       ([, left], [, right]) =>
         left.order - right.order || left.label.localeCompare(right.label),
     );
-  }, [contextEntries, faqEntries, filter]);
+  }, [contextEntries, faqEntries, filter, normalizedSearchQuery]);
 
   const visibleFaqEntries = useMemo(
     () =>
@@ -236,9 +247,23 @@ export default function AiBuilderReview({
             : filter === "approved"
               ? faq.status === "approved" || faq.status === "corrected"
               : faq.status === filter;
-        return visible ? [{ faq }] : [];
+        if (!visible) return [];
+        if (
+          normalizedSearchQuery &&
+          !`${faq.question} ${faq.answer} generated q&a faq`
+            .toLowerCase()
+            .includes(normalizedSearchQuery)
+        ) {
+          return [];
+        }
+        return [{ faq }];
       }),
-    [faqEntries, filter],
+    [faqEntries, filter, normalizedSearchQuery],
+  );
+
+  const visibleItemCount = useMemo(
+    () => grouped.reduce((total, [, section]) => total + section.entries.length, 0) + visibleFaqEntries.length,
+    [grouped, visibleFaqEntries],
   );
 
   const visibleItemKeys = useMemo(
@@ -394,6 +419,32 @@ export default function AiBuilderReview({
               ))}
             </div>
 
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <label className="relative min-w-0 flex-1">
+                <span className="sr-only">Search Business Knowledge</span>
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search Business Knowledge and Q&A..."
+                  className="min-h-11 w-full rounded-lg border border-white/[0.08] bg-[#070707] px-4 pr-10 text-sm text-white outline-none placeholder:text-slate-600 focus:border-amber-300/35"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    aria-label="Clear Business Knowledge search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 transition hover:text-white"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </label>
+              <span className="shrink-0 text-center text-xs font-semibold text-slate-500 sm:text-right">
+                {visibleItemCount} matching item{visibleItemCount === 1 ? "" : "s"}
+              </span>
+            </div>
+
             <div className="mx-auto mt-6 w-full max-w-[calc(50%-0.375rem)]">
               <button
                 type="button"
@@ -449,6 +500,32 @@ export default function AiBuilderReview({
                   {item.buttonLabel}
                 </button>
               ))}
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <label className="relative min-w-0 flex-1">
+                <span className="sr-only">Search Business Knowledge</span>
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Search Business Knowledge and Q&A..."
+                  className="min-h-11 w-full rounded-lg border border-white/[0.08] bg-[#070707] px-4 pr-10 text-sm text-white outline-none placeholder:text-slate-600 focus:border-amber-300/35"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    aria-label="Clear Business Knowledge search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-lg text-slate-500 transition hover:text-white"
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </label>
+              <span className="shrink-0 text-center text-xs font-semibold text-slate-500 sm:text-right">
+                {visibleItemCount} matching item{visibleItemCount === 1 ? "" : "s"}
+              </span>
             </div>
           </>
         )}
@@ -793,7 +870,9 @@ export default function AiBuilderReview({
 
         {!grouped.length && !visibleFaqEntries.length ? (
           <section className="rounded-[16px] border border-white/[0.055] bg-[#080808]/90 p-8 text-center shadow-[0_14px_36px_rgba(0,0,0,0.2)]">
-            <p className="text-sm text-slate-400">No items match this filter.</p>
+            <p className="text-sm text-slate-400">
+              {normalizedSearchQuery ? "No Business Knowledge matches this search and filter." : "No items match this filter."}
+            </p>
           </section>
         ) : null}
       </div>
