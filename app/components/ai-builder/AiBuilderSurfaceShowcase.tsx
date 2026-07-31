@@ -239,7 +239,7 @@ export default function AiBuilderSurfaceShowcase({
     }
 
     if (activeSlide === "dashboard") {
-      return <AiBuilderWorkspaceView mode={mode} activeView="dashboard" session={activeSession} builder={builderValue} diagnostics={activeDiagnostics} dashboardShowcase onNavigate={(destination) => destination === "knowledge" && setActiveSlide("review")} />;
+      return <AiBuilderWorkspaceView mode={mode} activeView="dashboard" session={activeSession} builder={builderValue} diagnostics={activeDiagnostics} dashboardShowcase />;
     }
 
     if (activeSlide === "insights") {
