@@ -88,29 +88,42 @@ export default function AiBuilderSurfaceShowcase({
     if (confirmed) setDemoOpen(true);
   };
 
-  const surface = useMemo(() => {
+  const renderSurface = (interactive: boolean) => {
+    const mode = interactive ? "preview" : "demo";
+
     if (activeSlide === "builder") {
       return (
         <AiBuilderWorkspaceView
-          mode="demo"
+          mode={mode}
           activeView="builder"
           session={session}
           builder={builderValue}
+          onBuilderChange={interactive ? setBuilderValue : undefined}
           previewMode
         />
       );
     }
 
     if (activeSlide === "review") {
-      return <AiBuilderWorkspaceView mode="demo" activeView="review" session={session} builder={builderValue} embeddedReview />;
+      return <AiBuilderWorkspaceView mode={mode} activeView="review" session={session} builder={builderValue} embeddedReview />;
     }
 
     if (activeSlide === "dashboard") {
-      return <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} diagnostics={diagnostics} dashboardShowcase />;
+      return <AiBuilderWorkspaceView mode={mode} activeView="dashboard" session={session} builder={builderValue} diagnostics={diagnostics} dashboardShowcase />;
     }
 
-    return <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builderValue} diagnostics={diagnostics} />;
-  }, [activeSlide, builderValue, diagnostics, session]);
+    return <AiBuilderWorkspaceView mode={mode} activeView="insights" session={session} builder={builderValue} diagnostics={diagnostics} />;
+  };
+
+  const showcaseSurface = useMemo(
+    () => renderSurface(false),
+    [activeSlide, builderValue, diagnostics, session],
+  );
+
+  const previewSurface = useMemo(
+    () => renderSurface(true),
+    [activeSlide, builderValue, diagnostics, session],
+  );
 
   const switcher = (compact = false) => (
     <div className={`grid grid-cols-4 gap-2 ${compact ? "w-full max-w-2xl" : ""}`}>
@@ -138,10 +151,10 @@ export default function AiBuilderSurfaceShowcase({
         <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>
           <div className="relative h-full lg:hidden">
             <div className="pointer-events-none absolute left-1/2 top-0 w-[900px] origin-top -translate-x-1/2 scale-[0.36] sm:scale-[0.72]">
-              {surface}
+              {showcaseSurface}
             </div>
           </div>
-          <div className="hidden h-full lg:block">{surface}</div>
+          <div className="hidden h-full lg:block">{showcaseSurface}</div>
         </div>
       </div>
 
@@ -162,12 +175,12 @@ export default function AiBuilderSurfaceShowcase({
           className="fixed inset-0 z-[200] flex min-h-0 flex-col bg-black"
           role="dialog"
           aria-modal="true"
-          aria-label="AI Builder visual demo"
+          aria-label="AI Builder interactive demo"
         >
           <div className="relative flex shrink-0 items-center justify-center border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur sm:px-6 lg:hidden">
             <h2 className="text-sm font-semibold text-white sm:text-base">
-              <span className="sm:hidden">Mobile Visual Demo</span>
-              <span className="hidden sm:inline">Tablet Visual Demo</span>
+              <span className="sm:hidden">Mobile Interactive Demo</span>
+              <span className="hidden sm:inline">Tablet Interactive Demo</span>
             </h2>
             <button
               type="button"
@@ -189,7 +202,7 @@ export default function AiBuilderSurfaceShowcase({
           </button>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-black">
-            <div className="min-h-full">{surface}</div>
+            <div className="min-h-full">{previewSurface}</div>
           </div>
 
           <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5">
