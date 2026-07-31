@@ -214,7 +214,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
 
   const readinessCard = (
     <section className="rounded-xl border border-white/[.08] bg-[#050505] p-5 text-center">
-      <p className="text-xs font-bold uppercase tracking-[.18em] text-amber-300">
+      <p className="text-xs font-bold uppercase tracking-[.18em] text-slate-500">
         Project readiness
       </p>
       <h2 className="mt-2 text-2xl font-semibold tracking-[-.03em] text-white">
@@ -344,13 +344,9 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
               showcase ? "flex flex-1 flex-col" : ""
             }`}
           >
-            <div className="text-center">
-              <h3 className="text-base font-semibold text-white">Recent project changes</h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Latest persisted knowledge, import, and assistant activity.
-              </p>
-              <Action onClick={() => onNavigate("settings")}>Project settings</Action>
-            </div>
+            <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">
+              Recent project changes
+            </p>
             {recent.length ? (
               <div className="mt-4 divide-y divide-white/[.07]">
                 {recent.map((item, index) => (
