@@ -14,7 +14,6 @@ import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
 export type AiBuilderWorkspaceViewName = "dashboard" | "builder" | "review" | "insights" | "chat";
 
 type ChatThread = Parameters<typeof AiBuilderDemoChat>[0]["chatThread"];
-type DashboardMessages = Parameters<typeof AiBuilderDashboard>[0]["messages"];
 
 export type AiBuilderWorkspaceViewProps = {
   mode: "live" | "demo" | "preview";
@@ -23,7 +22,13 @@ export type AiBuilderWorkspaceViewProps = {
   builder: BuilderState;
   websiteKnowledge?: PersistedWebsiteKnowledge | null;
   diagnostics?: ProjectDiagnostics | null;
-  messages?: DashboardMessages;
+  messages?: Array<{
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    citations?: string[];
+    createdAt: string;
+  }>;
   knowledge?: KnowledgePack | null;
   chatThread?: ChatThread;
   projectId?: string | null;
@@ -34,7 +39,6 @@ export type AiBuilderWorkspaceViewProps = {
   showLaunchChat?: boolean;
   onBuilderChange?: (builder: BuilderState) => void;
   onBuild?: () => void;
-  onNavigate?: Parameters<typeof AiBuilderDashboard>[0]["onNavigate"];
   onReviewCommand?: (command: ReviewCommandRequest) => Promise<void>;
   onBack?: () => void;
   onLaunchChat?: () => void;
@@ -49,7 +53,7 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   const inert = demo ? "pointer-events-none" : "";
 
   if (props.activeView === "dashboard") {
-    return <AiBuilderDashboard session={props.session} websiteKnowledge={props.websiteKnowledge ?? null} messages={props.messages ?? []} diagnostics={props.diagnostics ?? null} onNavigate={demo ? noop : props.onNavigate ?? noop} showcase={props.dashboardShowcase} />;
+    return <AiBuilderDashboard showcase={props.dashboardShowcase} />;
   }
 
   if (props.activeView === "builder") {
@@ -64,7 +68,7 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   }
 
   if (props.activeView === "insights") {
-    return <AiBuilderProjectInsights session={props.session} diagnostics={props.diagnostics ?? null} messageCount={props.messages?.length ?? props.chatThread?.messages.length ?? 0} />;
+    return <AiBuilderProjectInsights />;
   }
 
   if (!props.knowledge) return null;
