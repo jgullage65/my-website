@@ -2,9 +2,11 @@
 
 import {
   FormEvent,
+  KeyboardEvent as ReactKeyboardEvent,
   PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -190,6 +192,7 @@ export default function AiBuilderDemoChat({
   const scrollbarTrackRef = useRef<HTMLDivElement>(null);
   const scrollbarDragRef = useRef<{ pointerY: number; scrollTop: number } | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
+  const suggestedQuestions=useMemo(()=>knowledge.faq.slice(0,3).map(item=>item.question).filter(Boolean),[knowledge.faq]);
 
   useEffect(() => {
     if (!previewMode) return;
@@ -251,7 +254,14 @@ export default function AiBuilderDemoChat({
     };
   }, [updateScrollbar]);
 
-  useEffect(() => { window.requestAnimationFrame(updateScrollbar); }, [messages, sending, updateScrollbar]);
+  useEffect(() => {
+    const element=chatScrollRef.current;
+    if(!element)return;
+    window.requestAnimationFrame(()=>{
+      element.scrollTo({top:element.scrollHeight,behavior:"smooth"});
+      updateScrollbar();
+    });
+  }, [messages, sending, updateScrollbar]);
 
   const startScrollbarDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     const element = chatScrollRef.current;
@@ -399,6 +409,12 @@ export default function AiBuilderDemoChat({
     } finally { setSending(false); }
   };
 
+  const handleComposerKeyDown=(event:ReactKeyboardEvent<HTMLTextAreaElement>)=>{
+    if(event.key!=="Enter"||event.shiftKey)return;
+    event.preventDefault();
+    event.currentTarget.form?.requestSubmit();
+  };
+
   return (
     <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#000000] xl:static xl:z-auto xl:h-full xl:bg-transparent">
       <header className="relative flex min-h-[76px] flex-none flex-col items-center justify-center gap-1.5 border-b border-white/[0.08] bg-black px-5 py-2 pr-14 sm:px-8 sm:pr-16">
@@ -434,6 +450,8 @@ export default function AiBuilderDemoChat({
           {chatUnavailable ? <div className="mb-3 rounded-xl border border-red-400/20 bg-red-400/[0.07] px-4 py-3 text-sm text-red-200">This conversation could not be loaded. Return to the project and try again.</div> : null}
           {error ? <div className="mb-3 rounded-xl border border-red-400/20 bg-red-400/[0.07] px-4 py-3 text-sm text-red-200">{error}</div> : null}
 
+          {previewMode && suggestedQuestions.length ? <div className="mx-auto mb-3 flex max-w-3xl flex-wrap justify-center gap-2">{suggestedQuestions.map(question=><button key={question} type="button" onClick={()=>setMessage(question)} disabled={sending} className="rounded-full border border-white/[0.08] bg-black px-3 py-1.5 text-xs text-slate-300 transition hover:border-amber-300/25 hover:text-white disabled:opacity-50">{question}</button>)}</div>:null}
+
           {!previewMode ? (
             <div className="mx-auto mb-3 flex max-w-3xl flex-wrap items-center justify-between gap-3">
               <ModelSelectControl models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} className="hidden xl:flex" />
@@ -443,9 +461,10 @@ export default function AiBuilderDemoChat({
           ) : null}
 
           <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-2xl border border-amber-300/25 bg-[#0a0a0a] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">
-            <textarea rows={2} value={message} onChange={(event) => { setMessage(event.target.value); retrySubmissionRef.current=null; }} disabled={chatUnavailable || sending} placeholder="Ask about services, pricing, policies, or the business..." className="min-h-[52px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-50" />
+            <textarea rows={2} value={message} onKeyDown={handleComposerKeyDown} onChange={(event) => { setMessage(event.target.value); retrySubmissionRef.current=null; }} disabled={chatUnavailable || sending} placeholder="Ask about services, pricing, policies, or the business..." className="min-h-[52px] flex-1 resize-none border-0 bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:opacity-50" />
             <button type="submit" disabled={chatUnavailable || sending || !message.trim()} className="min-h-[52px] rounded-xl border border-amber-300/15 bg-[#080808] px-5 py-3 font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,.24)] transition hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:opacity-40">Send</button>
           </div>
+          <p className="mx-auto mt-2 max-w-3xl text-center text-[0.68rem] text-slate-600">Press Enter to send. Use Shift+Enter for a new line.</p>
         </form>
       </section>
 
