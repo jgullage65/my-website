@@ -25,15 +25,17 @@ const DEFAULT_PREFERENCES: LocalPreferences = {
 const sectionClassName =
   "rounded-[22px] border border-white/[0.08] bg-[#050505] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.22)]";
 
-function applyTheme(theme: ThemeMode) {
-  const resolved = theme === "system"
+function applyPreferences(preferences: LocalPreferences) {
+  const resolvedTheme = preferences.theme === "system"
     ? window.matchMedia("(prefers-color-scheme: light)").matches
       ? "light"
       : "dark"
-    : theme;
+    : preferences.theme;
 
-  document.documentElement.dataset.aiBuilderTheme = resolved;
-  document.documentElement.style.colorScheme = resolved;
+  document.documentElement.dataset.aiBuilderTheme = resolvedTheme;
+  document.documentElement.dataset.aiBuilderCompact = String(preferences.compactNavigation);
+  document.documentElement.dataset.aiBuilderReducedMotion = String(preferences.reducedMotion);
+  document.documentElement.style.colorScheme = resolvedTheme;
 }
 
 export default function AiBuilderSettings() {
@@ -52,7 +54,7 @@ export default function AiBuilderSettings() {
   useEffect(() => {
     const saved = window.localStorage.getItem("ai-builder-settings");
     if (!saved) {
-      applyTheme(DEFAULT_PREFERENCES.theme);
+      applyPreferences(DEFAULT_PREFERENCES);
       return;
     }
 
@@ -60,24 +62,24 @@ export default function AiBuilderSettings() {
       const parsed = JSON.parse(saved) as Partial<LocalPreferences>;
       const next = { ...DEFAULT_PREFERENCES, ...parsed };
       setPreferences(next);
-      applyTheme(next.theme);
+      applyPreferences(next);
     } catch {
-      applyTheme(DEFAULT_PREFERENCES.theme);
+      applyPreferences(DEFAULT_PREFERENCES);
     }
   }, []);
 
   useEffect(() => {
     if (preferences.theme !== "system") return;
     const media = window.matchMedia("(prefers-color-scheme: light)");
-    const sync = () => applyTheme("system");
+    const sync = () => applyPreferences(preferences);
     media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
-  }, [preferences.theme]);
+  }, [preferences]);
 
   const updatePreferences = (next: LocalPreferences) => {
     setPreferences(next);
     window.localStorage.setItem("ai-builder-settings", JSON.stringify(next));
-    applyTheme(next.theme);
+    applyPreferences(next);
   };
 
   const setTheme = (theme: ThemeMode) => {
