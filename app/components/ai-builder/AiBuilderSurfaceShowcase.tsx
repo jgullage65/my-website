@@ -40,13 +40,14 @@ export default function AiBuilderSurfaceShowcase({
 }: AiBuilderSurfaceShowcaseProps) {
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [builderValue, setBuilderValue] = useState(builder);
+  const [demoOpen, setDemoOpen] = useState(false);
 
   useEffect(() => {
     setBuilderValue(builder);
   }, [builder]);
 
   useEffect(() => {
-    if (!autoAdvance) return;
+    if (!autoAdvance || demoOpen) return;
     const timer = window.setTimeout(() => {
       setActiveSlide((current) => {
         const index = AI_BUILDER_SHOWCASE_SLIDES.findIndex((slide) => slide.id === current);
@@ -54,7 +55,24 @@ export default function AiBuilderSurfaceShowcase({
       });
     }, 6500);
     return () => window.clearTimeout(timer);
-  }, [activeSlide, autoAdvance]);
+  }, [activeSlide, autoAdvance, demoOpen]);
+
+  useEffect(() => {
+    if (!demoOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDemoOpen(false);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [demoOpen]);
 
   const surface = useMemo(() => {
     if (activeSlide === "builder") {
@@ -80,6 +98,25 @@ export default function AiBuilderSurfaceShowcase({
     return <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builderValue} diagnostics={diagnostics} />;
   }, [activeSlide, builderValue, diagnostics, session]);
 
+  const switcher = (compact = false) => (
+    <div className={`grid grid-cols-4 gap-2 ${compact ? "w-full max-w-2xl" : ""}`}>
+      {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (
+        <button
+          key={slide.id}
+          type="button"
+          onClick={() => setActiveSlide(slide.id)}
+          className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition sm:px-3 sm:text-xs ${
+            activeSlide === slide.id
+              ? "border-amber-300/30 bg-[#0a0a0a] text-white"
+              : "border-white/[0.06] bg-[#030303] text-slate-500 hover:text-white"
+          }`}
+        >
+          {slide.label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className={className}>
       <div className="overflow-hidden rounded-[24px] border border-amber-300/30 bg-black p-3 shadow-[0_28px_90px_rgba(0,0,0,.58)] sm:p-4">
@@ -92,22 +129,50 @@ export default function AiBuilderSurfaceShowcase({
           <div className="hidden h-full lg:block">{surface}</div>
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-4 gap-2">
-        {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (
-          <button
-            key={slide.id}
-            type="button"
-            onClick={() => setActiveSlide(slide.id)}
-            className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition sm:px-3 sm:text-xs ${
-              activeSlide === slide.id
-                ? "border-amber-300/30 bg-[#0a0a0a] text-white"
-                : "border-white/[0.06] bg-[#030303] text-slate-500 hover:text-white"
-            }`}
-          >
-            {slide.label}
-          </button>
-        ))}
+
+      <div className="mt-3">{switcher()}</div>
+
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          onClick={() => setDemoOpen(true)}
+          className="inline-flex min-h-10 items-center justify-center rounded-xl border border-amber-300/30 bg-[#0a0a0a] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_35px_rgba(0,0,0,.32)] transition hover:border-amber-200/50 hover:bg-[#101010]"
+        >
+          Open Demo
+        </button>
       </div>
+
+      {demoOpen ? (
+        <div
+          className="fixed inset-0 z-[200] flex min-h-0 flex-col bg-black"
+          role="dialog"
+          aria-modal="true"
+          aria-label="AI Builder demo"
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur sm:px-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/70">AI Builder</p>
+              <h2 className="text-sm font-semibold text-white sm:text-base">Interactive product demo</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setDemoOpen(false)}
+              aria-label="Close demo"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111]"
+            >
+              ×
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-black">
+            <div className="min-h-full">{surface}</div>
+          </div>
+
+          <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5">
+            <div className="mx-auto flex justify-center">{switcher(true)}</div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
