@@ -3,7 +3,7 @@ import { createConversationMemory } from "@/app/lib/ai-engine/memory/conversatio
 import { runOpenAiIntakeModel } from "@/app/lib/ai-engine/providers";
 import type { OpenAiIntakeCallMetadata } from "@/app/lib/ai-engine/providers/openaiIntakeRunner";
 import { runEngine } from "@/app/lib/ai-engine/runtime";
-import { AI_BUILDER_PROJECT_LIMIT_ERROR, hasAiBuilderProjectCapacity, persistAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
+import { persistAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
 import { finishGenerationTelemetry, linkCrawlTelemetry, startGenerationTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import {
@@ -229,15 +229,10 @@ function addKnowledgeBlock(
 }
 
 export async function POST(request: Request) {
-  let clerkUserId: string;
   try {
-    clerkUserId = await requireClerkUserId();
+    await requireClerkUserId();
   } catch {
     return errorResponse(401, "authentication_required", "Sign in to use AI Builder.");
-  }
-
-  if (!await hasAiBuilderProjectCapacity(clerkUserId)) {
-    return errorResponse(409, "project_limit_reached", "You've reached your current project limit of 3 projects.");
   }
 
   let body: IntakeRequestBody;
@@ -526,11 +521,6 @@ export async function POST(request: Request) {
               message: "The AI builder is not configured yet.",
             },
           });
-          return;
-        }
-
-        if (message.includes(AI_BUILDER_PROJECT_LIMIT_ERROR)) {
-          send({ type: "error", error: { code: "project_limit_reached", message: "You've reached your current project limit of 3 projects." } });
           return;
         }
 
