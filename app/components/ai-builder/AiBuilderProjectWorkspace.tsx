@@ -1,10 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
-import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
@@ -316,11 +315,6 @@ export default function AiBuilderProjectWorkspace({
     window.history.replaceState(null, "", url.toString());
   }, [openReview, projectId]);
 
-  const knowledgePack = useMemo(
-    () => (session ? buildKnowledgePack(session) : (undefined as never)),
-    [session],
-  );
-
   const reviewSaveStatus = pendingReviewItems.size > 0 ? "saving" : saveStatus;
   const websiteKnowledge = builder.websiteKnowledge
     ? {
@@ -371,7 +365,7 @@ export default function AiBuilderProjectWorkspace({
   ) : workspaceTab === "dashboard" ? (
     <AiBuilderDashboard />
   ) : workspaceTab === "insights" ? (
-    <AiBuilderProjectInsights diagnostics={diagnostics} />
+    <AiBuilderProjectInsights />
   ) : workspaceTab === "overview" ? (
     <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={openReview} embedded />
   ) : (
@@ -408,7 +402,7 @@ export default function AiBuilderProjectWorkspace({
 
   const rightRail = (
     <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
-      <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => undefined} />
+      <AiBuilderDemoChat onBack={() => undefined} />
     </div>
   );
 
