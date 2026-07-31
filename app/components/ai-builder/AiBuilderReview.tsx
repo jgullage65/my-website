@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type {
-  AiBuilderSession,
   BusinessContextCategory,
   BusinessContextEntry,
   GeneratedFaqEntry,
@@ -17,9 +16,9 @@ import {
   type WebsiteKnowledgeFact,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
+import { useAiBuilderWorkspace } from "./AiBuilderWorkspaceContext";
 
 type Props = {
-  session: AiBuilderSession;
   onReviewCommand: (request: ReviewCommandRequest) => Promise<void>;
   pendingReviewItems: ReadonlySet<string>;
   onBack: () => void;
@@ -154,7 +153,6 @@ function CollapsibleReviewText({
 }
 
 export default function AiBuilderReview({
-  session,
   onReviewCommand,
   pendingReviewItems,
   onBack,
@@ -162,6 +160,7 @@ export default function AiBuilderReview({
   showLaunchChat = true,
   embedded = false,
 }: Props) {
+  const { session } = useAiBuilderWorkspace();
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editingFaq, setEditingFaq] = useState<string | null>(null);
   const [expandedItems, setExpandedItems] = useState<ReadonlySet<string>>(
