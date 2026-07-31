@@ -21,6 +21,7 @@ import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderProjects from "./AiBuilderProjects";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
+import { AiBuilderWorkspaceProvider } from "./AiBuilderWorkspaceContext";
 import "./AiBuilderFormOverrides.css";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
 
@@ -437,77 +438,108 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     }
   };
 
+  const websiteKnowledge = builder.websiteKnowledge ? {
+    schema_version: 2 as const,
+    document_version: 1,
+    current_crawl_attempt_id: builder.websiteKnowledge.crawlAttemptId ?? null,
+    imported_at: builder.websiteKnowledge.importedAt,
+    requested_url: builder.websiteKnowledge.requestedUrl,
+    resolved_url: builder.websiteKnowledge.resolvedUrl,
+    pages: builder.websiteKnowledge.pages,
+    warnings: builder.websiteKnowledge.warnings,
+    knowledge: builder.websiteKnowledge.knowledge ?? {
+      facts: [],
+      coverage: {} as PersistedWebsiteKnowledge["knowledge"]["coverage"],
+      unresolvedQuestions: [],
+    },
+    source_documents: builder.websiteKnowledge.sourceDocuments,
+    source_blocks: builder.websiteKnowledge.sourceBlocks,
+  } : null;
+
   const desktopWorkspace = session && knowledgePack ? (
-    <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
-      <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
-        <button
-          type="button"
-          onClick={() => setProjectsOpen(true)}
-          className="mb-7 inline-flex items-center text-xs font-semibold text-white transition hover:text-amber-200"
-        >
-          ← All Projects
-        </button>
-        <div className="mb-5 flex min-h-[64px] items-center justify-center border-b border-white/[0.08] px-2 pb-5">
-          <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-11 w-full max-w-[158px] object-contain" />
-        </div>
-        <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
-        <nav className="mt-3 space-y-0.5">
-          {WORKSPACE_ITEMS.map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => selectWorkspaceTab(value)}
-              className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
-                workspaceTab === value
-                  ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
-                  : "text-white hover:bg-white/[0.035]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-        <div className="mt-auto border-t border-white/[0.08] pt-4">
-          <SignOutButton redirectUrl="/ai-builder">
-            <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
-          </SignOutButton>
-        </div>
-      </aside>
-
-      <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
-        <header className="flex min-h-[76px] flex-none items-center justify-center border-b border-white/[0.08] px-6 py-3 text-center min-[1400px]:px-8">
-          <div className="min-w-0 max-w-full text-center">
-            <h1 className="truncate text-xl font-semibold text-slate-100">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</h1>
+    <AiBuilderWorkspaceProvider
+      projectId={session.id}
+      session={session}
+      websiteKnowledge={websiteKnowledge}
+      diagnostics={diagnostics}
+      messages={chatThread?.messages ?? []}
+      activeTab={workspaceTab}
+      overviewOpen={false}
+      knowledgeOpen={workspaceTab === "knowledge"}
+      setActiveTab={selectWorkspaceTab}
+      openOverview={() => selectWorkspaceTab("overview")}
+      closeOverview={() => undefined}
+      openKnowledge={() => selectWorkspaceTab("knowledge")}
+      closeKnowledge={() => selectWorkspaceTab("overview")}
+    >
+      <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
+        <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
+          <button
+            type="button"
+            onClick={() => setProjectsOpen(true)}
+            className="mb-7 inline-flex items-center text-xs font-semibold text-white transition hover:text-amber-200"
+          >
+            ← All Projects
+          </button>
+          <div className="mb-5 flex min-h-[64px] items-center justify-center border-b border-white/[0.08] px-2 pb-5">
+            <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-11 w-full max-w-[158px] object-contain" />
           </div>
-        </header>
+          <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
+          <nav className="mt-3 space-y-0.5">
+            {WORKSPACE_ITEMS.map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => selectWorkspaceTab(value)}
+                className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
+                  workspaceTab === value
+                    ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
+                    : "text-white hover:bg-white/[0.035]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+          <div className="mt-auto border-t border-white/[0.08] pt-4">
+            <SignOutButton redirectUrl="/ai-builder">
+              <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
+            </SignOutButton>
+          </div>
+        </aside>
 
-        <AiBuilderDesktopScrollArea>
-          {workspaceTab === "dashboard" ? (
-            <AiBuilderDashboard session={session} websiteKnowledge={builder.websiteKnowledge ? {schema_version:2,document_version:1,current_crawl_attempt_id:builder.websiteKnowledge.crawlAttemptId??null,imported_at:builder.websiteKnowledge.importedAt,requested_url:builder.websiteKnowledge.requestedUrl,resolved_url:builder.websiteKnowledge.resolvedUrl,pages:builder.websiteKnowledge.pages,warnings:builder.websiteKnowledge.warnings,knowledge:builder.websiteKnowledge.knowledge??{facts:[],coverage:{} as PersistedWebsiteKnowledge["knowledge"]["coverage"],unresolvedQuestions:[]},source_documents:builder.websiteKnowledge.sourceDocuments,source_blocks:builder.websiteKnowledge.sourceBlocks}:null} messages={chatThread?.messages??[]} diagnostics={diagnostics} onNavigate={(destination)=>{if(destination==="assistant"){document.querySelector<HTMLTextAreaElement>('textarea[placeholder^="Ask about"]')?.focus();return;}setWorkspaceTab(destination);}} />
-          ) : workspaceTab === "insights" ? (
-            <AiBuilderProjectInsights session={session} diagnostics={diagnostics} messageCount={chatThread?.messages.length??0} />
-          ) : workspaceTab === "knowledge" ? (
-            <>
-              {reviewSaveStatus !== "idle" || saveError ? (
-                <div
-                  className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${
-                    reviewSaveStatus === "error"
-                      ? "border-red-500/30 bg-red-500/10 text-red-200"
-                      : "border-white/[0.08] bg-[#050505] text-slate-400"
-                  }`}
-                  role={reviewSaveStatus === "error" ? "alert" : "status"}
-                  aria-live="polite"
-                >
-                  {reviewSaveStatus === "saving"
-                    ? "Applying review command..."
-                    : reviewSaveStatus === "saved"
-                      ? "Review command applied."
-                      : saveError}
-                </div>
-              ) : null}
-              <div>
+        <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
+          <header className="flex min-h-[76px] flex-none items-center justify-center border-b border-white/[0.08] px-6 py-3 text-center min-[1400px]:px-8">
+            <div className="min-w-0 max-w-full text-center">
+              <h1 className="truncate text-xl font-semibold text-slate-100">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</h1>
+            </div>
+          </header>
+
+          <AiBuilderDesktopScrollArea>
+            {workspaceTab === "dashboard" ? (
+              <AiBuilderDashboard />
+            ) : workspaceTab === "insights" ? (
+              <AiBuilderProjectInsights />
+            ) : workspaceTab === "knowledge" ? (
+              <>
+                {reviewSaveStatus !== "idle" || saveError ? (
+                  <div
+                    className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${
+                      reviewSaveStatus === "error"
+                        ? "border-red-500/30 bg-red-500/10 text-red-200"
+                        : "border-white/[0.08] bg-[#050505] text-slate-400"
+                    }`}
+                    role={reviewSaveStatus === "error" ? "alert" : "status"}
+                    aria-live="polite"
+                  >
+                    {reviewSaveStatus === "saving"
+                      ? "Applying review command..."
+                      : reviewSaveStatus === "saved"
+                        ? "Review command applied."
+                        : saveError}
+                  </div>
+                ) : null}
                 <AiBuilderReview
-                  session={session}
                   onReviewCommand={submitReviewCommand}
                   pendingReviewItems={pendingReviewItems}
                   onBack={() => setWorkspaceTab("overview")}
@@ -515,44 +547,39 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
                   showLaunchChat={false}
                   embedded
                 />
+              </>
+            ) : workspaceTab === "overview" ? (
+              <AiBuilderProgress
+                builder={builder}
+                session={session}
+                complete
+                percent={100}
+                onReview={() => setWorkspaceTab("knowledge")}
+                embedded
+              />
+            ) : (
+              <div className="flex min-h-full items-center justify-center rounded-3xl border border-white/10 bg-[#000000] p-8 text-center">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-300">{workspaceTab}</p>
+                  <h2 className="mt-3 text-2xl font-bold text-white">This workspace is ready for its next module.</h2>
+                  <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">
+                    The permanent desktop shell is in place without changing the existing backend flow.
+                  </p>
+                </div>
               </div>
-            </>
-          ) : workspaceTab === "overview" ? (
-            <AiBuilderProgress
-              builder={builder}
-              session={session}
-              complete
-              percent={100}
-              onReview={() => setWorkspaceTab("knowledge")}
-              embedded
-            />
-          ) : (
-            <div className="flex min-h-full items-center justify-center rounded-3xl border border-white/10 bg-[#000000] p-8 text-center">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.22em] text-amber-300">{workspaceTab}</p>
-                <h2 className="mt-3 text-2xl font-bold text-white">This workspace is ready for its next module.</h2>
-                <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">
-                  The permanent desktop shell is in place without changing the existing backend flow.
-                </p>
-              </div>
-            </div>
-          )}
-        </AiBuilderDesktopScrollArea>
-      </main>
+            )}
+          </AiBuilderDesktopScrollArea>
+        </main>
 
-      <aside className="flex min-h-0 flex-col border-l border-white/[0.08] bg-black">
-        <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
-          <AiBuilderDemoChat
-            knowledge={knowledgePack}
-            projectId={session.id}
-            chatThread={chatThread}
-            onBack={() => undefined}
-          />
-        </div>
-      </aside>
+        <aside className="flex min-h-0 flex-col border-l border-white/[0.08] bg-black">
+          <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
+            <AiBuilderDemoChat onBack={() => undefined} />
+          </div>
+        </aside>
 
-      {projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
-    </div>
+        {projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
+      </div>
+    </AiBuilderWorkspaceProvider>
   ) : null;
 
   if (step === "form") {
@@ -577,48 +604,80 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
 
       <div className="xl:hidden">
         {session && knowledgePack && step !== "chat" ? (
-          <div className="min-h-[70vh] bg-black">
-            <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-black/95 px-16 text-center backdrop-blur">
-              <button type="button" onClick={() => setMobileWorkspaceMenuOpen(true)} aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={mobileWorkspaceMenuOpen} className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-lg text-slate-200 sm:left-6">
-                <span aria-hidden="true" className="leading-none">☰</span>
-              </button>
-              <div className="min-w-0 text-center">
-                <p className="truncate text-sm font-semibold text-white">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</p>
-                <p className="mt-0.5 truncate text-xs text-slate-500">{builder.businessName || "AI Builder Project"}</p>
-              </div>
-            </header>
+          <AiBuilderWorkspaceProvider
+            projectId={session.id}
+            session={session}
+            websiteKnowledge={websiteKnowledge}
+            diagnostics={diagnostics}
+            messages={chatThread?.messages ?? []}
+            activeTab={workspaceTab}
+            overviewOpen={false}
+            knowledgeOpen={workspaceTab === "knowledge"}
+            setActiveTab={selectWorkspaceTab}
+            openOverview={() => selectWorkspaceTab("overview")}
+            closeOverview={() => undefined}
+            openKnowledge={() => selectWorkspaceTab("knowledge")}
+            closeKnowledge={() => selectWorkspaceTab("overview")}
+          >
+            <div className="min-h-[70vh] bg-black">
+              <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-black/95 px-16 text-center backdrop-blur">
+                <button type="button" onClick={() => setMobileWorkspaceMenuOpen(true)} aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={mobileWorkspaceMenuOpen} className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-lg text-slate-200 sm:left-6">
+                  <span aria-hidden="true" className="leading-none">☰</span>
+                </button>
+                <div className="min-w-0 text-center">
+                  <p className="truncate text-sm font-semibold text-white">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</p>
+                  <p className="mt-0.5 truncate text-xs text-slate-500">{builder.businessName || "AI Builder Project"}</p>
+                </div>
+              </header>
 
-            {mobileWorkspaceMenuOpen ? (
-              <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
-                <aside role="dialog" aria-modal="true" aria-label="Project workspace navigation" className="flex h-full w-[min(220px,86vw)] flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]">
-                  <div className="mb-5 flex items-center justify-between gap-3">
-                    <button type="button" onClick={() => window.location.assign("/ai-builder")} className="inline-flex text-xs font-semibold text-slate-500 transition hover:text-white">← All Projects</button>
-                    <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} aria-label="Close workspace menu" className="text-2xl font-light leading-none text-slate-400 hover:text-white">×</button>
-                  </div>
-                  <div className="mb-5 flex min-h-[60px] items-center justify-center border-b border-white/[0.08] px-2 pb-5">
-                    <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-10 w-full max-w-[150px] object-contain" />
-                  </div>
-                  <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-600">Workspace</p>
-                  <nav className="mt-3 space-y-0.5">
-                    {WORKSPACE_ITEMS.map(([value, label]) => <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${workspaceTab === value ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300" : "text-slate-500 hover:bg-white/[0.035] hover:text-slate-200"}`}>{label}</button>)}
-                  </nav>
-                  <div className="mt-auto border-t border-white/[0.08] pt-4"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-slate-500 transition hover:bg-white/[0.035] hover:text-slate-200">Sign out</button></SignOutButton></div>
-                </aside>
-              </div>
-            ) : null}
+              {mobileWorkspaceMenuOpen ? (
+                <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
+                  <aside role="dialog" aria-modal="true" aria-label="Project workspace navigation" className="flex h-full w-[min(220px,86vw)] flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]">
+                    <div className="mb-5 flex items-center justify-between gap-3">
+                      <button type="button" onClick={() => window.location.assign("/ai-builder")} className="inline-flex text-xs font-semibold text-slate-500 transition hover:text-white">← All Projects</button>
+                      <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} aria-label="Close workspace menu" className="text-2xl font-light leading-none text-slate-400 hover:text-white">×</button>
+                    </div>
+                    <div className="mb-5 flex min-h-[60px] items-center justify-center border-b border-white/[0.08] px-2 pb-5">
+                      <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-10 w-full max-w-[150px] object-contain" />
+                    </div>
+                    <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-600">Workspace</p>
+                    <nav className="mt-3 space-y-0.5">
+                      {WORKSPACE_ITEMS.map(([value, label]) => <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${workspaceTab === value ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300" : "text-slate-500 hover:bg-white/[0.035] hover:text-slate-200"}`}>{label}</button>)}
+                    </nav>
+                    <div className="mt-auto border-t border-white/[0.08] pt-4"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-slate-500 transition hover:bg-white/[0.035] hover:text-slate-200">Sign out</button></SignOutButton></div>
+                  </aside>
+                </div>
+              ) : null}
 
-            <main className="px-4 py-5 sm:px-6 sm:py-6">
-              {workspaceTab === "dashboard" ? <AiBuilderDashboard session={session} websiteKnowledge={builder.websiteKnowledge ? {schema_version:2,document_version:1,current_crawl_attempt_id:builder.websiteKnowledge.crawlAttemptId??null,imported_at:builder.websiteKnowledge.importedAt,requested_url:builder.websiteKnowledge.requestedUrl,resolved_url:builder.websiteKnowledge.resolvedUrl,pages:builder.websiteKnowledge.pages,warnings:builder.websiteKnowledge.warnings,knowledge:builder.websiteKnowledge.knowledge??{facts:[],coverage:{} as PersistedWebsiteKnowledge["knowledge"]["coverage"],unresolvedQuestions:[]},source_documents:builder.websiteKnowledge.sourceDocuments,source_blocks:builder.websiteKnowledge.sourceBlocks}:null} messages={chatThread?.messages??[]} diagnostics={diagnostics} onNavigate={(destination)=>{if(destination==="assistant"){navigateToStep("chat");return;}selectWorkspaceTab(destination);}} /> : null}
-              {workspaceTab === "insights" ? <AiBuilderProjectInsights session={session} diagnostics={diagnostics} messageCount={chatThread?.messages.length??0} /> : null}
-              {workspaceTab === "overview" ? <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={() => selectWorkspaceTab("knowledge")} /> : null}
-              {workspaceTab === "knowledge" ? <>{reviewSaveStatus !== "idle" || saveError ? <div className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-white/[0.08] bg-[#050505] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">{reviewSaveStatus === "saving" ? "Applying review command..." : reviewSaveStatus === "saved" ? "Review command applied." : saveError}</div> : null}<AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={() => selectWorkspaceTab("overview")} onLaunchChat={() => navigateToStep("chat")} /></> : null}
-              {workspaceTab === "sources" || workspaceTab === "settings" ? <div className="flex min-h-[50vh] items-center justify-center rounded-2xl border border-white/[0.08] bg-[#050505] p-6 text-center"><div><p className="text-xs font-semibold uppercase tracking-[.18em] text-amber-300">{workspaceTab}</p><p className="mt-3 text-sm leading-6 text-slate-400">{WORKSPACE_DESCRIPTIONS[workspaceTab]}</p></div></div> : null}
-            </main>
-          </div>
+              <main className="px-4 py-5 sm:px-6 sm:py-6">
+                {workspaceTab === "dashboard" ? <AiBuilderDashboard /> : null}
+                {workspaceTab === "insights" ? <AiBuilderProjectInsights /> : null}
+                {workspaceTab === "overview" ? <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={() => selectWorkspaceTab("knowledge")} /> : null}
+                {workspaceTab === "knowledge" ? <>{reviewSaveStatus !== "idle" || saveError ? <div className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-white/[0.08] bg-[#050505] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">{reviewSaveStatus === "saving" ? "Applying review command..." : reviewSaveStatus === "saved" ? "Review command applied." : saveError}</div> : null}<AiBuilderReview onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={() => selectWorkspaceTab("overview")} onLaunchChat={() => navigateToStep("chat")} /></> : null}
+                {workspaceTab === "sources" || workspaceTab === "settings" ? <div className="flex min-h-[50vh] items-center justify-center rounded-2xl border border-white/[0.08] bg-[#050505] p-6 text-center"><div><p className="text-xs font-semibold uppercase tracking-[.18em] text-amber-300">{workspaceTab}</p><p className="mt-3 text-sm leading-6 text-slate-400">{WORKSPACE_DESCRIPTIONS[workspaceTab]}</p></div></div> : null}
+              </main>
+            </div>
+          </AiBuilderWorkspaceProvider>
         ) : null}
 
         {step === "chat" && knowledgePack && session ? (
-          <AiBuilderDemoChat knowledge={knowledgePack} projectId={session.id} chatThread={chatThread} onBack={() => { setWorkspaceTab("knowledge"); navigateToStep("review"); }} />
+          <AiBuilderWorkspaceProvider
+            projectId={session.id}
+            session={session}
+            websiteKnowledge={websiteKnowledge}
+            diagnostics={diagnostics}
+            messages={chatThread?.messages ?? []}
+            activeTab={workspaceTab}
+            overviewOpen={false}
+            knowledgeOpen={workspaceTab === "knowledge"}
+            setActiveTab={selectWorkspaceTab}
+            openOverview={() => selectWorkspaceTab("overview")}
+            closeOverview={() => undefined}
+            openKnowledge={() => selectWorkspaceTab("knowledge")}
+            closeKnowledge={() => selectWorkspaceTab("overview")}
+          >
+            <AiBuilderDemoChat onBack={() => { setWorkspaceTab("knowledge"); navigateToStep("review"); }} />
+          </AiBuilderWorkspaceProvider>
         ) : null}
       </div>
     </AiBuilderShell>
