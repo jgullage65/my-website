@@ -350,19 +350,24 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       });
       const payload = (await response.json()) as {
         ok?: boolean;
+        businessName?: string;
         stateRevision?: number;
-        builder?: { businessName?: string };
+        currentRevision?: number;
         error?: { message?: string };
       };
       if (!response.ok || !payload.ok) {
+        if (response.status === 409 && typeof payload.currentRevision === "number") {
+          setProjectStateRevision(payload.currentRevision);
+        }
         throw new Error(payload.error?.message || "The project could not be renamed.");
       }
+      const authoritativeBusinessName = payload.businessName ?? businessName;
       setProjectStateRevision(payload.stateRevision ?? projectStateRevision + 1);
       setBuilder((current) => ({
         ...current,
-        businessName: payload.builder?.businessName ?? businessName,
+        businessName: authoritativeBusinessName,
         websiteKnowledge: current.websiteKnowledge
-          ? { ...current.websiteKnowledge, businessName: payload.builder?.businessName ?? businessName }
+          ? { ...current.websiteKnowledge, businessName: authoritativeBusinessName }
           : current.websiteKnowledge,
       }));
     },
