@@ -400,6 +400,17 @@ export default function AiBuilderProjectWorkspace({
     </div>
   ) : null;
 
+  const businessKnowledge = (
+    <AiBuilderReview
+      onReviewCommand={submitReviewCommand}
+      pendingReviewItems={pendingReviewItems}
+      onBack={closeReview}
+      onLaunchChat={() => undefined}
+      showLaunchChat={false}
+      embedded
+    />
+  );
+
   const rightRail = (
     <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
       <AiBuilderDemoChat onBack={() => undefined} />
@@ -421,7 +432,7 @@ export default function AiBuilderProjectWorkspace({
         <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
           <section role="dialog" aria-modal="true" aria-label="Business Knowledge review" className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
             <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-24 py-4 text-center"><div className="min-w-0 text-center"><h2 className="text-base font-semibold text-white">Business Knowledge</h2><p className="mt-1 text-xs text-slate-500">Review and govern the assistant’s business memory</p></div><button type="button" onClick={closeReview} className="absolute right-6 top-1/2 -translate-y-1/2 rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Done</button></div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5"><div className="mx-auto w-full max-w-[700px]">{reviewStatus}<AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={closeReview} onLaunchChat={() => undefined} showLaunchChat={false} embedded /></div></div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5"><div className="mx-auto w-full max-w-[700px]">{reviewStatus}{businessKnowledge}</div></div>
           </section>
         </div>
       ) : null}
@@ -473,7 +484,7 @@ export default function AiBuilderProjectWorkspace({
         {knowledgeOpen ? (
           <div className="xl:hidden">
             {reviewStatus}
-            <AiBuilderReview session={session} onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={closeReview} onLaunchChat={() => undefined} showLaunchChat={false} />
+            {businessKnowledge}
           </div>
         ) : workspaceContent}
       </AiBuilderWorkspaceFrame>
