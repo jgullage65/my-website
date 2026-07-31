@@ -148,9 +148,19 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
 }
 
 @media (min-width: 1200px) {
+  .ai-builder-form > div > div.relative {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
   .ai-builder-form > div > div.relative > div {
+    margin-top: 0 !important;
     grid-template-columns: minmax(22rem, 0.66fr) minmax(0, 1.34fr) !important;
     column-gap: 1.5rem !important;
+  }
+
+  .ai-builder-form > div > div.relative > div > div:first-child {
+    padding-top: 0 !important;
   }
 
   .ai-builder-form > div > div.relative > div > section:last-child {
@@ -194,11 +204,12 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
   }
 
   .ai-builder-form > div {
-    padding-bottom: 1.5rem;
+    padding-top: 0 !important;
+    padding-bottom: 1rem;
   }
 
   .ai-builder-form > div > section {
-    margin-top: 0.75rem !important;
+    margin-top: 0 !important;
   }
 
   .ai-builder-shell__content > div.hidden {
@@ -234,7 +245,7 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
     height: auto;
     min-height: 0;
     flex: 1 1 auto;
-    padding: 12px 16px 16px;
+    padding: 2px 16px 12px;
   }
 
   .ai-builder-shell__content > div.hidden > main > div > div,
