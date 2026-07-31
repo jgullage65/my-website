@@ -9,8 +9,10 @@ import {
   useState,
 } from "react";
 import type { KnowledgePack } from "@/app/lib/ai-engine/knowledge";
+import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
+import { useAiBuilderWorkspace } from "./AiBuilderWorkspaceContext";
 import type {
   ChatDiagnostics,
   ChatResponse,
@@ -33,9 +35,9 @@ type ChatThread = {
 };
 
 type Props = {
-  knowledge: KnowledgePack;
-  projectId: string;
-  chatThread: ChatThread | null;
+  knowledge?: KnowledgePack;
+  projectId?: string;
+  chatThread?: ChatThread | null;
   onBack: () => void;
   demoMode?: boolean;
   previewMode?: boolean;
@@ -156,13 +158,20 @@ function buildPreviewAnswer(knowledge: KnowledgePack, question: string): string 
 }
 
 export default function AiBuilderDemoChat({
-  knowledge,
-  projectId,
-  chatThread,
+  knowledge: providedKnowledge,
+  projectId: providedProjectId,
+  chatThread: providedChatThread,
   onBack,
   demoMode = false,
   previewMode = false,
 }: Props) {
+  const workspace = useAiBuilderWorkspace();
+  const knowledge = providedKnowledge ?? buildKnowledgePack(workspace.session);
+  const projectId = providedProjectId ?? workspace.projectId;
+  const chatThread = providedChatThread ?? {
+    id: workspace.projectId,
+    messages: workspace.messages,
+  };
   const retrySubmissionRef = useRef<{message:string;idempotencyKey:string}|null>(null);
   const modalRootRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<ChatMessage[]>(() => createInitialMessages(knowledge, chatThread));
