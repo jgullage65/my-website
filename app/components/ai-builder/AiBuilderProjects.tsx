@@ -239,7 +239,7 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-[minmax(112px,1fr)_auto_minmax(112px,1fr)] items-center gap-4 border-t border-white/[.07] pt-2">
+      <div className="mt-3 grid grid-cols-[minmax(112px,1fr)_auto_minmax(112px,1fr)] items-center gap-6 border-t border-white/[.07] pt-2">
         <div className="min-w-0 justify-self-end text-center">
           <p className="text-[9px] font-black uppercase tracking-[.12em] text-[var(--gold)]">Knowledge model</p>
           <p className="mt-1 truncate text-[11px] font-semibold text-white" title={project.model || "Not available"}>{project.model || "Not available"}</p>
