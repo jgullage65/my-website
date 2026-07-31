@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { SignIn, SignInButton } from "@clerk/nextjs";
+import { SignInButton } from "@clerk/nextjs";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
@@ -366,59 +366,6 @@ export default function AiBuilderLanding() {
               <button type="button" className={primaryButton}>Sign In</button>
               <button type="button" className={primaryButton}>Ask Support</button>
             </div>
-          </div>
-        </section>
-
-        <section className="relative mt-12 w-full border-t border-white/[0.07] pt-10">
-          <div className="grid items-start gap-8 sm:grid-cols-2 min-[1200px]:mx-auto min-[1200px]:w-full min-[1200px]:max-w-[824px] min-[1200px]:grid-cols-[minmax(280px,.9fr)_minmax(320px,1.1fr)]">
-            <div className="flex w-full max-w-sm justify-start overflow-hidden rounded-[24px] border border-white/[0.08] bg-[#050505] sm:max-w-none min-[1200px]:max-w-sm">
-              <SignIn
-                routing="hash"
-                forceRedirectUrl="/ai-builder"
-                appearance={{
-                  elements: {
-                    rootBox: "w-full max-w-sm sm:max-w-none min-[1200px]:max-w-sm",
-                    cardBox: "w-full shadow-none",
-                    card: "w-full rounded-none border-0 bg-[#050505] shadow-none",
-                    headerTitle: "text-white",
-                    headerSubtitle: "text-slate-400",
-                    socialButtonsBlockButton: "border-white/[0.08] bg-[#080808] text-white hover:bg-[#111111]",
-                    socialButtonsBlockButtonText: "text-white",
-                    dividerLine: "bg-white/[0.08]",
-                    dividerText: "text-slate-500",
-                    formFieldLabel: "text-slate-300",
-                    formFieldInput: "border-white/[0.08] bg-[#080808] text-white",
-                    formButtonPrimary: "border border-amber-300/20 bg-[#080808] text-white hover:bg-[#111111]",
-                    footerActionText: "text-slate-400",
-                    footerActionLink: "text-amber-300 hover:text-amber-200",
-                    identityPreviewText: "text-white",
-                    identityPreviewEditButton: "text-amber-300",
-                  },
-                }}
-              />
-            </div>
-
-            <form className="w-full rounded-[24px] border border-white/[0.08] bg-[#020202] p-5 text-center shadow-[0_18px_50px_rgba(0,0,0,.28)] sm:p-6">
-              <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Contact</p>
-              <h3 className="mt-3 text-xl font-medium tracking-[-.02em] text-white">Have a question?</h3>
-              <p className="mt-2 text-sm leading-6 text-slate-400">Send a quick note and we’ll get back to you.</p>
-
-              <div className="mt-6 grid gap-4">
-                <label className="grid gap-2 text-center text-sm font-medium text-slate-300">
-                  Name
-                  <input type="text" name="name" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="Your name" />
-                </label>
-                <label className="grid gap-2 text-center text-sm font-medium text-slate-300">
-                  Email
-                  <input type="email" name="email" className="min-h-11 rounded-xl border border-amber-300/10 bg-[#070707] px-4 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="you@company.com" />
-                </label>
-                <label className="grid gap-2 text-center text-sm font-medium text-slate-300">
-                  Message
-                  <textarea name="message" rows={4} className="rounded-xl border border-amber-300/10 bg-[#070707] px-4 py-3 text-center text-sm text-white outline-none transition placeholder:text-center placeholder:text-slate-600 focus:border-amber-300/30" placeholder="How can we help?" />
-                </label>
-                <button type="submit" className={primaryButton}>Send Message</button>
-              </div>
-            </form>
           </div>
         </section>
       </main>
