@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
+import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderModelSelect from "./AiBuilderModelSelect";
 import AiBuilderWorkspaceView from "./AiBuilderWorkspaceView";
 
@@ -24,6 +25,7 @@ export type AiBuilderSurfaceShowcaseProps = {
   session: AiBuilderSession;
   builder: BuilderState;
   models: AiBuilderModelChoice[];
+  diagnostics?: ProjectDiagnostics | null;
   initialSlide?: AiBuilderShowcaseSlide;
   autoAdvance?: boolean;
   className?: string;
@@ -33,6 +35,7 @@ export default function AiBuilderSurfaceShowcase({
   session,
   builder,
   models,
+  diagnostics = null,
   initialSlide = "dashboard",
   autoAdvance = false,
   className = "",
@@ -73,11 +76,11 @@ export default function AiBuilderSurfaceShowcase({
       return (
         <div className={`h-full transition-transform duration-700 ease-in-out ${showDashboardInsights ? "-translate-y-full" : "translate-y-0"}`}>
           <div className="h-full pb-5">
-            <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} dashboardShowcase />
+            <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builderValue} diagnostics={diagnostics} dashboardShowcase />
           </div>
           {showDashboardInsights ? (
             <div className="h-full overflow-hidden pt-5">
-              <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builderValue} />
+              <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builderValue} diagnostics={diagnostics} />
             </div>
           ) : null}
         </div>
@@ -111,7 +114,7 @@ export default function AiBuilderSurfaceShowcase({
         />
       </div>
     );
-  }, [activeSlide, builderValue, models, selectedModel, session, showDashboardInsights]);
+  }, [activeSlide, builderValue, diagnostics, models, selectedModel, session, showDashboardInsights]);
 
   return (
     <div className={className}>
