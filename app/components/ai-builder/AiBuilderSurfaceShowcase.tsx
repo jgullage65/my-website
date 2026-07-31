@@ -149,11 +149,10 @@ export default function AiBuilderSurfaceShowcase({
           aria-modal="true"
           aria-label="AI Builder visual demo"
         >
-          <div className="relative flex shrink-0 items-center justify-center border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur sm:px-6">
+          <div className="relative flex shrink-0 items-center justify-center border-b border-white/[0.08] bg-black/95 px-4 py-3 backdrop-blur sm:px-6 lg:hidden">
             <h2 className="text-sm font-semibold text-white sm:text-base">
               <span className="sm:hidden">Mobile Visual Demo</span>
-              <span className="hidden sm:inline lg:hidden">Tablet Visual Demo</span>
-              <span className="hidden lg:inline">Visual Demo</span>
+              <span className="hidden sm:inline">Tablet Visual Demo</span>
             </h2>
             <button
               type="button"
@@ -164,6 +163,15 @@ export default function AiBuilderSurfaceShowcase({
               ×
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setDemoOpen(false)}
+            aria-label="Close demo"
+            className="absolute right-6 top-6 z-10 hidden h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl leading-none text-white transition hover:border-amber-300/40 hover:bg-[#111] lg:inline-flex"
+          >
+            ×
+          </button>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-black">
             <div className="min-h-full">{surface}</div>
