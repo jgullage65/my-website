@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
@@ -39,6 +39,7 @@ type ChatThread = {
 
 type ProjectResponse = {
   ok?: boolean;
+  stateRevision?: number;
   session?: AiBuilderSession;
   builder?: {
     businessName?: string;
@@ -112,6 +113,7 @@ export default function AiBuilderProjectWorkspace({
   const [overviewOpen, setOverviewOpen] = useState(initialTab === "overview");
   const [knowledgeOpen, setKnowledgeOpen] = useState(reviewOpen);
   const [builder, setBuilder] = useState<BuilderState>(EMPTY_BUILDER);
+  const [projectStateRevision, setProjectStateRevision] = useState(0);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [chatThread, setChatThread] = useState<ChatThread | null>(null);
   const [diagnostics, setDiagnostics] = useState<ProjectDiagnostics | null>(null);
@@ -129,6 +131,7 @@ export default function AiBuilderProjectWorkspace({
       .then((payload) => {
         if (!active || !payload.session) return;
         setSession(payload.session);
+        setProjectStateRevision(payload.stateRevision ?? 0);
         setChatThread(payload.chatThread ?? null);
         setDiagnostics(payload.diagnostics ?? null);
         setBuilder((current) => ({
@@ -288,6 +291,43 @@ export default function AiBuilderProjectWorkspace({
     });
   }, []);
 
+  const renameProject = useCallback(async (businessName: string) => {
+    const nextName = businessName.trim();
+    if (!nextName || nextName === builder.businessName) return;
+
+    const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(projectId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        businessName: nextName,
+        expectedRevision: projectStateRevision,
+      }),
+    });
+    const payload = (await response.json()) as {
+      ok?: boolean;
+      businessName?: string;
+      stateRevision?: number;
+      currentRevision?: number;
+      error?: { message?: string };
+    };
+
+    if (!response.ok || !payload.ok) {
+      if (response.status === 409 && Number.isSafeInteger(payload.currentRevision)) {
+        setProjectStateRevision(Number(payload.currentRevision));
+      }
+      throw new Error(payload.error?.message || "The project could not be renamed.");
+    }
+
+    setProjectStateRevision(payload.stateRevision ?? projectStateRevision);
+    setBuilder((current) => ({
+      ...current,
+      businessName: payload.businessName ?? nextName,
+      websiteKnowledge: current.websiteKnowledge
+        ? { ...current.websiteKnowledge, businessName: payload.businessName ?? nextName }
+        : null,
+    }));
+  }, [builder.businessName, projectId, projectStateRevision]);
+
   const openReview = useCallback(() => {
     setOverviewOpen(false);
     setKnowledgeOpen(true);
@@ -337,6 +377,14 @@ export default function AiBuilderProjectWorkspace({
         source_blocks: builder.websiteKnowledge.sourceBlocks,
       }
     : null;
+
+  const project = useMemo(() => ({
+    businessName: builder.businessName,
+    industry: builder.industry,
+    website: builder.website,
+    tone: builder.tone,
+    stateRevision: projectStateRevision,
+  }), [builder.businessName, builder.industry, builder.tone, builder.website, projectStateRevision]);
 
   if (error) {
     return (
@@ -454,6 +502,7 @@ export default function AiBuilderProjectWorkspace({
   return (
     <AiBuilderWorkspaceProvider
       projectId={projectId}
+      project={project}
       session={session}
       websiteKnowledge={websiteKnowledge}
       diagnostics={diagnostics}
@@ -469,6 +518,7 @@ export default function AiBuilderProjectWorkspace({
       closeOverview={() => setOverviewOpen(false)}
       openKnowledge={openReview}
       closeKnowledge={closeReview}
+      renameProject={renameProject}
     >
       <AiBuilderWorkspaceFrame
         title={title}
