@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { SignOutButton } from "@clerk/nextjs";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { ChatDiagnostics } from "@/app/lib/ai-engine/chat";
@@ -15,7 +14,6 @@ import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderEmptyWorkspace from "./AiBuilderEmptyWorkspace";
 import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderReview from "./AiBuilderReview";
-import AiBuilderDesktopScrollArea from "./AiBuilderDesktopScrollArea";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
@@ -23,6 +21,7 @@ import AiBuilderProjects from "./AiBuilderProjects";
 import AiBuilderSources from "./AiBuilderSources";
 import AiBuilderSettings from "./AiBuilderSettings";
 import AiBuilderAuthCta from "./AiBuilderAuthCta";
+import AiBuilderWorkspaceFrame from "./AiBuilderWorkspaceFrame";
 import { AiBuilderWorkspaceProvider } from "./AiBuilderWorkspaceContext";
 import "./AiBuilderFormOverrides.css";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
@@ -47,8 +46,8 @@ export type WebsiteKnowledge = {
   warnings: string[];
   importedAt: string;
   crawlAttemptId?: string;
-  sourceDocuments?:WebsiteSourceDocumentRecord[];
-  sourceBlocks?:WebsiteSourceBlockRecord[];
+  sourceDocuments?: WebsiteSourceDocumentRecord[];
+  sourceBlocks?: WebsiteSourceBlockRecord[];
 };
 
 export type BuilderState = {
@@ -126,10 +125,9 @@ const WORKSPACE_ITEMS: ReadonlyArray<readonly [WorkspaceTab, string]> = [
 ];
 
 async function fetchProject(projectId: string): Promise<ProjectResponse> {
-  const response = await fetch(
-    `/api/ai-builder/projects/${encodeURIComponent(projectId)}`,
-    { cache: "no-store" },
-  );
+  const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(projectId)}`, {
+    cache: "no-store",
+  });
   const payload = (await response.json()) as ProjectResponse;
   if (!response.ok || !payload.ok || !payload.session) {
     throw new Error(payload.error?.message || "The AI Builder project could not be loaded.");
@@ -141,12 +139,11 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   const [step, setStep] = useState<BuilderStep>(initialProjectId ? "loading" : "form");
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("dashboard");
   const [projectsOpen, setProjectsOpen] = useState(false);
-  const [mobileWorkspaceMenuOpen, setMobileWorkspaceMenuOpen] = useState(false);
   const [builder, setBuilder] = useState(initial);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [chatThread, setChatThread] = useState<ChatThread | null>(null);
-  const [diagnostics,setDiagnostics]=useState<ProjectDiagnostics|null>(null);
-  const [projectStateRevision,setProjectStateRevision]=useState(0);
+  const [diagnostics, setDiagnostics] = useState<ProjectDiagnostics | null>(null);
+  const [projectStateRevision, setProjectStateRevision] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -258,15 +255,6 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   }, [session]);
 
   useEffect(() => {
-    if (!mobileWorkspaceMenuOpen) return;
-    const closeMenu = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobileWorkspaceMenuOpen(false);
-    };
-    window.addEventListener("keydown", closeMenu);
-    return () => window.removeEventListener("keydown", closeMenu);
-  }, [mobileWorkspaceMenuOpen]);
-
-  useEffect(() => {
     if (!projectsOpen) return;
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape") setProjectsOpen(false);
@@ -287,17 +275,19 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     });
   }, []);
 
-  const selectWorkspaceTab = useCallback((nextTab: WorkspaceTab) => {
-    setWorkspaceTab(nextTab);
-    setMobileWorkspaceMenuOpen(false);
-    if (nextTab === "knowledge") {
-      navigateToStep("review");
-    } else if (nextTab === "overview") {
-      navigateToStep("results");
-    } else if (step === "review") {
-      navigateToStep("results");
-    }
-  }, [navigateToStep, step]);
+  const selectWorkspaceTab = useCallback(
+    (nextTab: WorkspaceTab) => {
+      setWorkspaceTab(nextTab);
+      if (nextTab === "knowledge") {
+        navigateToStep("review");
+      } else if (nextTab === "overview") {
+        navigateToStep("results");
+      } else if (step === "review") {
+        navigateToStep("results");
+      }
+    },
+    [navigateToStep, step],
+  );
 
   useEffect(() => {
     if (step !== "building") return;
@@ -312,10 +302,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     return () => window.clearInterval(timer);
   }, [step]);
 
-  const knowledgePack = useMemo(
-    () => (session ? buildKnowledgePack(session) : null),
-    [session],
-  );
+  const knowledgePack = useMemo(() => (session ? buildKnowledgePack(session) : null), [session]);
 
   useEffect(() => {
     if (!initialProjectId) return;
@@ -353,14 +340,34 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
 
   const reviewSaveStatus = pendingReviewItems.size > 0 ? "saving" : saveStatus;
 
-  const renameProject = useCallback(async (businessName:string) => {
-    if (!session) throw new Error("The AI Builder project is not loaded.");
-    const response=await fetch(`/api/ai-builder/projects/${encodeURIComponent(session.id)}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({businessName,expectedRevision:projectStateRevision})});
-    const payload=await response.json() as {ok?:boolean;stateRevision?:number;builder?:{businessName?:string};error?:{message?:string}};
-    if(!response.ok||!payload.ok) throw new Error(payload.error?.message||"The project could not be renamed.");
-    setProjectStateRevision(payload.stateRevision??projectStateRevision+1);
-    setBuilder(current=>({...current,businessName:payload.builder?.businessName??businessName,websiteKnowledge:current.websiteKnowledge?{...current.websiteKnowledge,businessName:payload.builder?.businessName??businessName}:current.websiteKnowledge}));
-  },[projectStateRevision,session]);
+  const renameProject = useCallback(
+    async (businessName: string) => {
+      if (!session) throw new Error("The AI Builder project is not loaded.");
+      const response = await fetch(`/api/ai-builder/projects/${encodeURIComponent(session.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessName, expectedRevision: projectStateRevision }),
+      });
+      const payload = (await response.json()) as {
+        ok?: boolean;
+        stateRevision?: number;
+        builder?: { businessName?: string };
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.error?.message || "The project could not be renamed.");
+      }
+      setProjectStateRevision(payload.stateRevision ?? projectStateRevision + 1);
+      setBuilder((current) => ({
+        ...current,
+        businessName: payload.builder?.businessName ?? businessName,
+        websiteKnowledge: current.websiteKnowledge
+          ? { ...current.websiteKnowledge, businessName: payload.builder?.businessName ?? businessName }
+          : current.websiteKnowledge,
+      }));
+    },
+    [projectStateRevision, session],
+  );
 
   const buildAi = async () => {
     setError(null);
@@ -378,7 +385,12 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let payload: { ok?: boolean; projectId?: string; session?: AiBuilderSession; error?: { message?: string } } | null = null;
+      let payload: {
+        ok?: boolean;
+        projectId?: string;
+        session?: AiBuilderSession;
+        error?: { message?: string };
+      } | null = null;
 
       while (true) {
         const { value, done } = await reader.read();
@@ -427,8 +439,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       } catch (projectLoadError) {
         console.error("AI_BUILDER_NEW_PROJECT_RELOAD_FAILED", {
           projectId,
-          message:
-            projectLoadError instanceof Error ? projectLoadError.message : "unknown_error",
+          message: projectLoadError instanceof Error ? projectLoadError.message : "unknown_error",
         });
         setChatThread(null);
       }
@@ -444,150 +455,119 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     }
   };
 
-  const websiteKnowledge = builder.websiteKnowledge ? {
-    schema_version: 2 as const,
-    document_version: 1,
-    current_crawl_attempt_id: builder.websiteKnowledge.crawlAttemptId ?? null,
-    imported_at: builder.websiteKnowledge.importedAt,
-    requested_url: builder.websiteKnowledge.requestedUrl,
-    resolved_url: builder.websiteKnowledge.resolvedUrl,
-    pages: builder.websiteKnowledge.pages,
-    warnings: builder.websiteKnowledge.warnings,
-    knowledge: builder.websiteKnowledge.knowledge ?? {
-      facts: [],
-      coverage: {} as PersistedWebsiteKnowledge["knowledge"]["coverage"],
-      unresolvedQuestions: [],
-    },
-    source_documents: builder.websiteKnowledge.sourceDocuments,
-    source_blocks: builder.websiteKnowledge.sourceBlocks,
-  } : null;
+  const websiteKnowledge = builder.websiteKnowledge
+    ? {
+        schema_version: 2 as const,
+        document_version: 1,
+        current_crawl_attempt_id: builder.websiteKnowledge.crawlAttemptId ?? null,
+        imported_at: builder.websiteKnowledge.importedAt,
+        requested_url: builder.websiteKnowledge.requestedUrl,
+        resolved_url: builder.websiteKnowledge.resolvedUrl,
+        pages: builder.websiteKnowledge.pages,
+        warnings: builder.websiteKnowledge.warnings,
+        knowledge: builder.websiteKnowledge.knowledge ?? {
+          facts: [],
+          coverage: {} as PersistedWebsiteKnowledge["knowledge"]["coverage"],
+          unresolvedQuestions: [],
+        },
+        source_documents: builder.websiteKnowledge.sourceDocuments,
+        source_blocks: builder.websiteKnowledge.sourceBlocks,
+      }
+    : null;
 
-  const project = useMemo(() => ({businessName:builder.businessName,industry:builder.industry,website:builder.website,tone:builder.tone,stateRevision:projectStateRevision}),[builder.businessName,builder.industry,builder.website,builder.tone,projectStateRevision]);
+  const project = useMemo(
+    () => ({
+      businessName: builder.businessName,
+      industry: builder.industry,
+      website: builder.website,
+      tone: builder.tone,
+      stateRevision: projectStateRevision,
+    }),
+    [builder.businessName, builder.industry, builder.website, builder.tone, projectStateRevision],
+  );
 
-  const desktopWorkspace = session && knowledgePack ? (
-    <AiBuilderWorkspaceProvider
-      projectId={session.id}
-      project={project}
-      renameProject={renameProject}
-      session={session}
-      websiteKnowledge={websiteKnowledge}
-      diagnostics={diagnostics}
-      messages={chatThread?.messages ?? []}
-      activeTab={workspaceTab}
-      overviewOpen={false}
-      knowledgeOpen={workspaceTab === "knowledge"}
-      setActiveTab={selectWorkspaceTab}
-      openOverview={() => selectWorkspaceTab("overview")}
-      closeOverview={() => undefined}
-      openKnowledge={() => selectWorkspaceTab("knowledge")}
-      closeKnowledge={() => selectWorkspaceTab("overview")}
-    >
-      <div className="hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
-        <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
-          <button
-            type="button"
-            onClick={() => setProjectsOpen(true)}
-            className="mb-7 inline-flex items-center text-xs font-semibold text-white transition hover:text-amber-200"
+  const workspaceContent = session ? (
+    workspaceTab === "dashboard" ? (
+      <AiBuilderDashboard />
+    ) : workspaceTab === "insights" ? (
+      <AiBuilderProjectInsights />
+    ) : workspaceTab === "knowledge" ? (
+      <>
+        {reviewSaveStatus !== "idle" || saveError ? (
+          <div
+            className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${
+              reviewSaveStatus === "error"
+                ? "border-red-500/30 bg-red-500/10 text-red-200"
+                : "border-white/[0.08] bg-[#050505] text-slate-400"
+            }`}
+            role={reviewSaveStatus === "error" ? "alert" : "status"}
+            aria-live="polite"
           >
-            ← All Projects
-          </button>
-          <div className="mb-5 flex min-h-[64px] items-center justify-center border-b border-white/[0.08] px-2 pb-5">
-            <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-11 w-full max-w-[158px] object-contain" />
+            {reviewSaveStatus === "saving"
+              ? "Applying review command..."
+              : reviewSaveStatus === "saved"
+                ? "Review command applied."
+                : saveError}
           </div>
-          <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
-          <nav className="mt-3 space-y-0.5">
-            {WORKSPACE_ITEMS.map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => selectWorkspaceTab(value)}
-                className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${
-                  workspaceTab === value
-                    ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300"
-                    : "text-white hover:bg-white/[0.035]"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-          <div className="mt-auto border-t border-white/[0.08] pt-4">
-            <SignOutButton redirectUrl="/ai-builder">
-              <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
-            </SignOutButton>
-          </div>
-        </aside>
-
-        <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
-          <header className="flex min-h-[76px] flex-none items-center justify-center border-b border-white/[0.08] px-6 py-3 text-center min-[1400px]:px-8">
-            <div className="min-w-0 max-w-full text-center">
-              <h1 className="truncate text-xl font-semibold text-slate-100">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</h1>
-            </div>
-          </header>
-
-          <AiBuilderDesktopScrollArea>
-            {workspaceTab === "dashboard" ? (
-              <AiBuilderDashboard />
-            ) : workspaceTab === "insights" ? (
-              <AiBuilderProjectInsights />
-            ) : workspaceTab === "knowledge" ? (
-              <>
-                {reviewSaveStatus !== "idle" || saveError ? (
-                  <div
-                    className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${
-                      reviewSaveStatus === "error"
-                        ? "border-red-500/30 bg-red-500/10 text-red-200"
-                        : "border-white/[0.08] bg-[#050505] text-slate-400"
-                    }`}
-                    role={reviewSaveStatus === "error" ? "alert" : "status"}
-                    aria-live="polite"
-                  >
-                    {reviewSaveStatus === "saving"
-                      ? "Applying review command..."
-                      : reviewSaveStatus === "saved"
-                        ? "Review command applied."
-                        : saveError}
-                  </div>
-                ) : null}
-                <AiBuilderReview
-                  onReviewCommand={submitReviewCommand}
-                  pendingReviewItems={pendingReviewItems}
-                  onBack={() => setWorkspaceTab("overview")}
-                  onLaunchChat={() => undefined}
-                  showLaunchChat={false}
-                  embedded
-                />
-              </>
-            ) : workspaceTab === "overview" ? (
-              <AiBuilderProgress
-                builder={builder}
-                session={session}
-                complete
-                percent={100}
-                onReview={() => setWorkspaceTab("knowledge")}
-                embedded
-              />
-            ) : workspaceTab === "sources" ? (
-              <AiBuilderSources />
-            ) : (
-              <AiBuilderSettings />
-            )}
-          </AiBuilderDesktopScrollArea>
-        </main>
-
-        <aside className="flex min-h-0 flex-col border-l border-white/[0.08] bg-black">
-          <div className="min-h-0 flex-1 [&>div]:flex [&>div]:h-full [&>div]:max-w-none [&>div]:flex-col [&>div]:space-y-0 [&>div>section:last-of-type]:flex [&>div>section:last-of-type]:min-h-0 [&>div>section:last-of-type]:flex-1 [&>div>section:last-of-type]:flex-col [&>div>section:last-of-type]:rounded-none [&>div>section:last-of-type]:border-0 [&>div>section:last-of-type>div.relative]:min-h-0 [&>div>section:last-of-type>div.relative]:flex-1 [&_.ai-builder-chat-scrollbar]:h-full [&_.ai-builder-chat-scrollbar]:min-h-0 [&_.ai-builder-chat-scrollbar]:max-h-none">
-            <AiBuilderDemoChat onBack={() => undefined} />
-          </div>
-        </aside>
-
-        {projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
-      </div>
-    </AiBuilderWorkspaceProvider>
+        ) : null}
+        <AiBuilderReview
+          onReviewCommand={submitReviewCommand}
+          pendingReviewItems={pendingReviewItems}
+          onBack={() => selectWorkspaceTab("overview")}
+          onLaunchChat={() => navigateToStep("chat")}
+          showLaunchChat={false}
+          embedded
+        />
+      </>
+    ) : workspaceTab === "overview" ? (
+      <AiBuilderProgress
+        builder={builder}
+        session={session}
+        complete
+        percent={100}
+        onReview={() => selectWorkspaceTab("knowledge")}
+        embedded
+      />
+    ) : workspaceTab === "sources" ? (
+      <AiBuilderSources />
+    ) : (
+      <AiBuilderSettings />
+    )
   ) : null;
 
   if (step === "form") {
     return <AiBuilderEmptyWorkspace builder={builder} error={error} onChange={setBuilder} onBuild={buildAi} />;
+  }
+
+  if (step === "chat" && knowledgePack && session) {
+    return (
+      <AiBuilderShell>
+        <AiBuilderWorkspaceProvider
+          projectId={session.id}
+          project={project}
+          renameProject={renameProject}
+          session={session}
+          websiteKnowledge={websiteKnowledge}
+          diagnostics={diagnostics}
+          messages={chatThread?.messages ?? []}
+          activeTab={workspaceTab}
+          overviewOpen={false}
+          knowledgeOpen={workspaceTab === "knowledge"}
+          setActiveTab={selectWorkspaceTab}
+          openOverview={() => selectWorkspaceTab("overview")}
+          closeOverview={() => undefined}
+          openKnowledge={() => selectWorkspaceTab("knowledge")}
+          closeKnowledge={() => selectWorkspaceTab("overview")}
+        >
+          <AiBuilderDemoChat
+            onBack={() => {
+              setWorkspaceTab("knowledge");
+              navigateToStep("review");
+            }}
+          />
+        </AiBuilderWorkspaceProvider>
+      </AiBuilderShell>
+    );
   }
 
   return (
@@ -601,94 +581,50 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       ) : null}
 
       {step === "building" ? (
-        <AiBuilderProgress builder={builder} session={null} complete={false} percent={buildPercent} onReview={() => undefined} />
+        <AiBuilderProgress
+          builder={builder}
+          session={null}
+          complete={false}
+          percent={buildPercent}
+          onReview={() => undefined}
+        />
       ) : null}
 
-      {session && (step === "results" || step === "review" || step === "chat") ? desktopWorkspace : null}
-
-      <div className="xl:hidden">
-        {session && knowledgePack && step !== "chat" ? (
-          <AiBuilderWorkspaceProvider
-            projectId={session.id}
-            project={project}
-            renameProject={renameProject}
-            session={session}
-            websiteKnowledge={websiteKnowledge}
-            diagnostics={diagnostics}
-            messages={chatThread?.messages ?? []}
-            activeTab={workspaceTab}
-            overviewOpen={false}
-            knowledgeOpen={workspaceTab === "knowledge"}
-            setActiveTab={selectWorkspaceTab}
-            openOverview={() => selectWorkspaceTab("overview")}
-            closeOverview={() => undefined}
-            openKnowledge={() => selectWorkspaceTab("knowledge")}
-            closeKnowledge={() => selectWorkspaceTab("overview")}
+      {session && knowledgePack && (step === "results" || step === "review") ? (
+        <AiBuilderWorkspaceProvider
+          projectId={session.id}
+          project={project}
+          renameProject={renameProject}
+          session={session}
+          websiteKnowledge={websiteKnowledge}
+          diagnostics={diagnostics}
+          messages={chatThread?.messages ?? []}
+          activeTab={workspaceTab}
+          overviewOpen={false}
+          knowledgeOpen={workspaceTab === "knowledge"}
+          setActiveTab={selectWorkspaceTab}
+          openOverview={() => selectWorkspaceTab("overview")}
+          closeOverview={() => undefined}
+          openKnowledge={() => selectWorkspaceTab("knowledge")}
+          closeKnowledge={() => selectWorkspaceTab("overview")}
+        >
+          <AiBuilderWorkspaceFrame
+            title={WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1] ?? "AI Builder"}
+            items={WORKSPACE_ITEMS.map(([value, label]) => ({
+              value,
+              label,
+              active: workspaceTab === value,
+              onSelect: () => selectWorkspaceTab(value),
+            }))}
+            onBuilderSelect={() => setProjectsOpen(true)}
+            builderActive={false}
+            rightRail={<AiBuilderDemoChat onBack={() => undefined} />}
+            overlays={projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
           >
-            <div className="min-h-[70vh] bg-black">
-              <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-black/95 px-16 text-center backdrop-blur">
-                <button type="button" onClick={() => setMobileWorkspaceMenuOpen(true)} aria-label="Open workspace menu" aria-haspopup="dialog" aria-expanded={mobileWorkspaceMenuOpen} className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-lg text-slate-200 sm:left-6">
-                  <span aria-hidden="true" className="leading-none">☰</span>
-                </button>
-                <div className="min-w-0 text-center">
-                  <p className="truncate text-sm font-semibold text-white">{WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1]}</p>
-                  <p className="mt-0.5 truncate text-xs text-slate-500">{builder.businessName || "AI Builder Project"}</p>
-                </div>
-              </header>
-
-              {mobileWorkspaceMenuOpen ? (
-                <div className="fixed inset-0 z-[90] bg-black/70" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileWorkspaceMenuOpen(false); }}>
-                  <aside role="dialog" aria-modal="true" aria-label="Project workspace navigation" className="flex h-full w-[min(220px,86vw)] flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]">
-                    <div className="mb-5 flex items-center justify-between gap-3">
-                      <button type="button" onClick={() => window.location.assign("/ai-builder")} className="inline-flex text-xs font-semibold text-slate-500 transition hover:text-white">← All Projects</button>
-                      <button type="button" onClick={() => setMobileWorkspaceMenuOpen(false)} aria-label="Close workspace menu" className="text-2xl font-light leading-none text-slate-400 hover:text-white">×</button>
-                    </div>
-                    <div className="mb-5 flex min-h-[60px] items-center justify-center border-b border-white/[0.08] px-2 pb-5">
-                      <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-10 w-full max-w-[150px] object-contain" />
-                    </div>
-                    <p className="px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-slate-600">Workspace</p>
-                    <nav className="mt-3 space-y-0.5">
-                      {WORKSPACE_ITEMS.map(([value, label]) => <button key={value} type="button" onClick={() => selectWorkspaceTab(value)} className={`relative w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold transition ${workspaceTab === value ? "bg-white/[0.055] text-amber-200 before:absolute before:bottom-2 before:left-0 before:top-2 before:w-0.5 before:rounded-full before:bg-amber-300" : "text-slate-500 hover:bg-white/[0.035] hover:text-slate-200"}`}>{label}</button>)}
-                    </nav>
-                    <div className="mt-auto border-t border-white/[0.08] pt-4"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-slate-500 transition hover:bg-white/[0.035] hover:text-slate-200">Sign out</button></SignOutButton></div>
-                  </aside>
-                </div>
-              ) : null}
-
-              <main className="px-4 py-5 sm:px-6 sm:py-6">
-                {workspaceTab === "dashboard" ? <AiBuilderDashboard /> : null}
-                {workspaceTab === "insights" ? <AiBuilderProjectInsights /> : null}
-                {workspaceTab === "overview" ? <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={() => selectWorkspaceTab("knowledge")} /> : null}
-                {workspaceTab === "knowledge" ? <>{reviewSaveStatus !== "idle" || saveError ? <div className={`mb-4 rounded-xl border px-4 py-3 text-center text-sm ${reviewSaveStatus === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-white/[0.08] bg-[#050505] text-slate-400"}`} role={reviewSaveStatus === "error" ? "alert" : "status"} aria-live="polite">{reviewSaveStatus === "saving" ? "Applying review command..." : reviewSaveStatus === "saved" ? "Review command applied." : saveError}</div> : null}<AiBuilderReview onReviewCommand={submitReviewCommand} pendingReviewItems={pendingReviewItems} onBack={() => selectWorkspaceTab("overview")} onLaunchChat={() => navigateToStep("chat")} /></> : null}
-                {workspaceTab === "sources" ? <AiBuilderSources /> : null}
-                {workspaceTab === "settings" ? <AiBuilderSettings /> : null}
-              </main>
-            </div>
-          </AiBuilderWorkspaceProvider>
-        ) : null}
-
-        {step === "chat" && knowledgePack && session ? (
-          <AiBuilderWorkspaceProvider
-            projectId={session.id}
-            project={project}
-            renameProject={renameProject}
-            session={session}
-            websiteKnowledge={websiteKnowledge}
-            diagnostics={diagnostics}
-            messages={chatThread?.messages ?? []}
-            activeTab={workspaceTab}
-            overviewOpen={false}
-            knowledgeOpen={workspaceTab === "knowledge"}
-            setActiveTab={selectWorkspaceTab}
-            openOverview={() => selectWorkspaceTab("overview")}
-            closeOverview={() => undefined}
-            openKnowledge={() => selectWorkspaceTab("knowledge")}
-            closeKnowledge={() => selectWorkspaceTab("overview")}
-          >
-            <AiBuilderDemoChat onBack={() => { setWorkspaceTab("knowledge"); navigateToStep("review"); }} />
-          </AiBuilderWorkspaceProvider>
-        ) : null}
-      </div>
+            {workspaceContent}
+          </AiBuilderWorkspaceFrame>
+        </AiBuilderWorkspaceProvider>
+      ) : null}
     </AiBuilderShell>
   );
 }
