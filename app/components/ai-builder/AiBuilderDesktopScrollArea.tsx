@@ -14,6 +14,7 @@ type Metrics = {
 };
 
 const MIN_THUMB_HEIGHT = 48;
+const MAX_THUMB_HEIGHT = 120;
 
 export default function AiBuilderDesktopScrollArea({ children }: Props) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -29,20 +30,24 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
   const updateMetrics = useCallback(() => {
     const scrollElement = scrollRef.current;
     const trackElement = trackRef.current;
-    if (!scrollElement || !trackElement) return;
+    if (!scrollElement) return;
 
     const { clientHeight, scrollHeight, scrollTop } = scrollElement;
-    const trackHeight = trackElement.clientHeight;
     const scrollable = scrollHeight > clientHeight + 1;
 
-    if (!scrollable || trackHeight <= 0) {
-      setMetrics({ thumbHeight: trackHeight, thumbTop: 0, scrollable: false });
+    if (!scrollable) {
+      setMetrics({ thumbHeight: MIN_THUMB_HEIGHT, thumbTop: 0, scrollable: false });
       return;
     }
 
+    if (!trackElement) return;
+    const trackHeight = trackElement.clientHeight;
+    if (trackHeight <= 0) return;
+
+    const proportionalHeight = (clientHeight / scrollHeight) * trackHeight;
     const thumbHeight = Math.max(
       MIN_THUMB_HEIGHT,
-      Math.min(trackHeight, (clientHeight / scrollHeight) * trackHeight),
+      Math.min(MAX_THUMB_HEIGHT, proportionalHeight),
     );
     const maxThumbTop = Math.max(0, trackHeight - thumbHeight);
     const maxScrollTop = Math.max(1, scrollHeight - clientHeight);
@@ -53,12 +58,10 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
 
   useEffect(() => {
     const scrollElement = scrollRef.current;
-    const trackElement = trackRef.current;
-    if (!scrollElement || !trackElement) return;
+    if (!scrollElement) return;
 
     const resizeObserver = new ResizeObserver(updateMetrics);
     resizeObserver.observe(scrollElement);
-    resizeObserver.observe(trackElement);
     if (scrollElement.firstElementChild) resizeObserver.observe(scrollElement.firstElementChild);
 
     scrollElement.addEventListener("scroll", updateMetrics, { passive: true });
@@ -69,6 +72,14 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
       scrollElement.removeEventListener("scroll", updateMetrics);
     };
   }, [updateMetrics]);
+
+  useEffect(() => {
+    if (!metrics.scrollable || !trackRef.current) return;
+    const resizeObserver = new ResizeObserver(updateMetrics);
+    resizeObserver.observe(trackRef.current);
+    updateMetrics();
+    return () => resizeObserver.disconnect();
+  }, [metrics.scrollable, updateMetrics]);
 
   const scrollFromPointer = useCallback(
     (clientY: number) => {
@@ -133,29 +144,28 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
         {children}
       </div>
 
-      <div
-        ref={trackRef}
-        className="absolute bottom-4 right-2 top-4 w-1.5 cursor-pointer rounded-full bg-white/[0.045]"
-        onPointerDown={(event) => {
-          if (event.target === event.currentTarget) scrollFromPointer(event.clientY);
-        }}
-        aria-hidden={!metrics.scrollable}
-      >
-        {metrics.scrollable ? (
+      {metrics.scrollable ? (
+        <div
+          ref={trackRef}
+          className="absolute bottom-4 right-2 top-4 w-1.5 cursor-pointer rounded-full bg-white/[0.025]"
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) scrollFromPointer(event.clientY);
+          }}
+        >
           <button
             type="button"
-            aria-label="Scroll review content"
+            aria-label="Scroll workspace content"
             onPointerDown={handleThumbPointerDown}
             onPointerMove={handleThumbPointerMove}
             onPointerUp={stopDragging}
             onPointerCancel={stopDragging}
-            className={`absolute left-0 w-1.5 touch-none rounded-full bg-amber-300/70 transition-colors hover:bg-amber-200 ${
+            className={`absolute left-0 w-1.5 touch-none rounded-full bg-amber-300/55 transition-colors hover:bg-amber-200/80 ${
               dragging ? "cursor-grabbing" : "cursor-grab"
             }`}
             style={{ height: metrics.thumbHeight, transform: `translateY(${metrics.thumbTop}px)` }}
           />
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
