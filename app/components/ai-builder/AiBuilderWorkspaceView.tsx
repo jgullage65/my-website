@@ -9,6 +9,10 @@ import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderReview from "./AiBuilderReview";
+import {
+  AiBuilderWorkspaceProvider,
+  type AiBuilderWorkspaceTab,
+} from "./AiBuilderWorkspaceContext";
 import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
 
 export type AiBuilderWorkspaceViewName = "dashboard" | "builder" | "review" | "insights" | "chat";
@@ -47,30 +51,95 @@ export type AiBuilderWorkspaceViewProps = {
 const noop = () => undefined;
 const noopAsync = async () => undefined;
 
+function workspaceTabForView(view: AiBuilderWorkspaceViewName): AiBuilderWorkspaceTab {
+  if (view === "dashboard") return "dashboard";
+  if (view === "insights") return "insights";
+  if (view === "review") return "knowledge";
+  return "overview";
+}
+
 export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProps) {
   const demo = props.mode === "demo";
   const preview = props.mode === "preview";
   const inert = demo ? "pointer-events-none" : "";
 
-  if (props.activeView === "dashboard") {
-    return <AiBuilderDashboard showcase={props.dashboardShowcase} />;
-  }
+  let content = null;
 
-  if (props.activeView === "builder") {
+  if (props.activeView === "dashboard") {
+    content = <AiBuilderDashboard showcase={props.dashboardShowcase} />;
+  } else if (props.activeView === "builder") {
     const previewClassName = props.previewMode
       ? "h-full overflow-hidden [&>div]:pb-0 [&>div]:px-0 [&>div>div]:rounded-none [&>div>div]:border-0 [&>div>div]:shadow-none"
       : "";
-    return <div className={`${inert} ${previewClassName}`}><AiBuilderForm value={props.builder} projectId={demo || preview ? null : props.projectId} onChange={demo ? noop : props.onBuilderChange ?? noop} onBuild={demo ? noop : props.onBuild ?? noop} demoMode={demo || preview} /></div>;
+    content = (
+      <div className={`${inert} ${previewClassName}`}>
+        <AiBuilderForm
+          value={props.builder}
+          projectId={demo || preview ? null : props.projectId}
+          onChange={demo ? noop : props.onBuilderChange ?? noop}
+          onBuild={demo ? noop : props.onBuild ?? noop}
+          demoMode={demo || preview}
+        />
+      </div>
+    );
+  } else if (props.activeView === "review") {
+    content = (
+      <div className={inert}>
+        <AiBuilderReview
+          onReviewCommand={demo ? noopAsync : props.onReviewCommand ?? noopAsync}
+          pendingReviewItems={props.pendingReviewItems ?? new Set()}
+          onBack={demo ? noop : props.onBack ?? noop}
+          onLaunchChat={demo ? noop : props.onLaunchChat ?? noop}
+          showLaunchChat={demo || preview ? false : props.showLaunchChat}
+          embedded={props.embeddedReview}
+        />
+      </div>
+    );
+  } else if (props.activeView === "insights") {
+    content = <AiBuilderProjectInsights />;
+  } else if (props.knowledge) {
+    content = (
+      <div className={inert}>
+        <AiBuilderDemoChat
+          knowledge={props.knowledge}
+          projectId={props.projectId ?? props.session.id}
+          chatThread={props.chatThread ?? null}
+          onBack={demo ? noop : props.onBack ?? noop}
+          demoMode={demo}
+          previewMode={preview}
+        />
+      </div>
+    );
   }
 
-  if (props.activeView === "review") {
-    return <div className={inert}><AiBuilderReview onReviewCommand={demo ? noopAsync : props.onReviewCommand ?? noopAsync} pendingReviewItems={props.pendingReviewItems ?? new Set()} onBack={demo ? noop : props.onBack ?? noop} onLaunchChat={demo ? noop : props.onLaunchChat ?? noop} showLaunchChat={demo || preview ? false : props.showLaunchChat} embedded={props.embeddedReview} /></div>;
-  }
+  const projectId = props.projectId ?? props.session.id;
+  const project = {
+    businessName: props.builder.businessName,
+    industry: props.builder.industry,
+    website: props.builder.website,
+    tone: props.builder.tone,
+    stateRevision: 0,
+  };
 
-  if (props.activeView === "insights") {
-    return <AiBuilderProjectInsights />;
-  }
-
-  if (!props.knowledge) return null;
-  return <div className={inert}><AiBuilderDemoChat knowledge={props.knowledge} projectId={props.projectId ?? props.session.id} chatThread={props.chatThread ?? null} onBack={demo ? noop : props.onBack ?? noop} demoMode={demo} previewMode={preview} /></div>;
+  return (
+    <AiBuilderWorkspaceProvider
+      projectId={projectId}
+      project={project}
+      session={props.session}
+      websiteKnowledge={props.websiteKnowledge ?? null}
+      diagnostics={props.diagnostics ?? null}
+      messages={props.messages ?? []}
+      activeTab={workspaceTabForView(props.activeView)}
+      overviewOpen={false}
+      knowledgeOpen={props.activeView === "review"}
+      setActiveTab={noop}
+      openOverview={noop}
+      closeOverview={noop}
+      openKnowledge={noop}
+      closeKnowledge={noop}
+      renameProject={noopAsync}
+    >
+      {content}
+    </AiBuilderWorkspaceProvider>
+  );
 }
