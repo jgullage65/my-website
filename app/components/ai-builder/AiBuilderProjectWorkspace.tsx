@@ -369,14 +369,9 @@ export default function AiBuilderProjectWorkspace({
   const workspaceContent = workspaceTab === "projects" ? (
     projectsPage
   ) : workspaceTab === "dashboard" ? (
-    <AiBuilderDashboard
-      session={session}
-      websiteKnowledge={websiteKnowledge}
-      messages={chatThread?.messages ?? []}
-      diagnostics={diagnostics}
-    />
+    <AiBuilderDashboard />
   ) : workspaceTab === "insights" ? (
-    <AiBuilderProjectInsights session={session} diagnostics={diagnostics} messageCount={chatThread?.messages.length ?? 0} />
+    <AiBuilderProjectInsights diagnostics={diagnostics} />
   ) : workspaceTab === "overview" ? (
     <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={openReview} embedded />
   ) : (
@@ -448,6 +443,10 @@ export default function AiBuilderProjectWorkspace({
   return (
     <AiBuilderWorkspaceProvider
       projectId={projectId}
+      session={session}
+      websiteKnowledge={websiteKnowledge}
+      diagnostics={diagnostics}
+      messages={chatThread?.messages ?? []}
       activeTab={workspaceTab}
       overviewOpen={overviewOpen}
       knowledgeOpen={knowledgeOpen}
