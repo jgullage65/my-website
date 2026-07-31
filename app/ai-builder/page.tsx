@@ -25,7 +25,7 @@ const WORKSPACE_TABS = new Set<WorkspaceTab>([
 ]);
 
 export default async function Page({ searchParams }: PageProps) {
-  const { projectId, tab, review } = searchParams;
+  const { projectId, new: newProject, tab, review } = searchParams;
   const normalizedProjectId = Array.isArray(projectId) ? projectId[0] : projectId;
   const requestedTab = Array.isArray(tab) ? tab[0] : tab;
   const requestedReview = Array.isArray(review) ? review[0] : review;
@@ -52,5 +52,13 @@ export default async function Page({ searchParams }: PageProps) {
     );
   }
 
-  return <AiBuilderClient />;
+  if (newProject) {
+    return <AiBuilderClient />;
+  }
+
+  return (
+    <AiBuilderShell>
+      <AiBuilderLanding />
+    </AiBuilderShell>
+  );
 }
