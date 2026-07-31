@@ -24,6 +24,10 @@ function host(value?: string | null) {
   }
 }
 
+function statusFromAttempt(value: unknown) {
+  return String(value ?? "unknown").replaceAll("_", " ");
+}
+
 export default function AiBuilderSources() {
   const { websiteKnowledge, session, diagnostics, setActiveTab } = useAiBuilderWorkspace();
 
@@ -42,13 +46,18 @@ export default function AiBuilderSources() {
     (item) => item.source.sourceType === "website",
   ).length;
   const manualKnowledgeCount = session.contextEntries.filter(
-    (item) => item.source.sourceType === "manual_intake" || item.source.sourceType === "user_edit",
+    (item) =>
+      (item.source.sourceType === "manual_intake" || item.source.sourceType === "user_edit") &&
+      (item.status === "approved" || item.status === "corrected"),
   ).length;
   const unresolvedQuestions = websiteKnowledge?.knowledge.unresolvedQuestions.length ?? 0;
   const processedPages = Number(latestAttempt?.pages_processed ?? stats.pages);
   const failedPages = Number(latestAttempt?.pages_failed ?? 0);
   const skippedPages = Number(latestAttempt?.pages_skipped ?? 0);
-  const sourceHealthy = Boolean(websiteKnowledge) && failedPages === 0;
+  const attemptStatus = statusFromAttempt(latestAttempt?.status);
+  const warningCount = websiteKnowledge?.warnings.length ?? 0;
+  const sourceHealthy = Boolean(websiteKnowledge) && failedPages === 0 && warningCount === 0;
+  const sourceNeedsReview = Boolean(websiteKnowledge) && (failedPages > 0 || warningCount > 0);
 
   if (!websiteKnowledge) {
     return (
@@ -78,8 +87,8 @@ export default function AiBuilderSources() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300">Primary source</p>
-              <span className={`rounded-full border px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] ${sourceHealthy ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-300" : "border-amber-300/20 bg-amber-300/[0.06] text-amber-300"}`}>
-                {sourceHealthy ? "Healthy" : "Needs review"}
+              <span className={`rounded-full border px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] ${sourceHealthy ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-300" : sourceNeedsReview ? "border-amber-300/20 bg-amber-300/[0.06] text-amber-300" : "border-white/[0.08] bg-white/[0.03] text-slate-400"}`}>
+                {sourceHealthy ? "Imported cleanly" : sourceNeedsReview ? "Needs review" : "Import recorded"}
               </span>
             </div>
             <h2 className="mt-3 truncate text-2xl font-semibold text-white">
@@ -103,7 +112,7 @@ export default function AiBuilderSources() {
 
       <section className="grid gap-4 lg:grid-cols-3">
         <SummaryCard label="Website knowledge" value={websiteKnowledgeCount} detail="Persisted knowledge items sourced from the imported website." />
-        <SummaryCard label="Manual knowledge" value={manualKnowledgeCount} detail="Approved or edited knowledge contributed directly by the user." />
+        <SummaryCard label="Manual knowledge" value={manualKnowledgeCount} detail="Approved or corrected knowledge contributed directly by the user." />
         <SummaryCard label="Open questions" value={unresolvedQuestions} detail="Unresolved questions still detected in the imported material." />
       </section>
 
@@ -143,10 +152,11 @@ export default function AiBuilderSources() {
           <div className="rounded-[20px] border border-white/[0.07] bg-[#070707] p-5">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Import health</p>
             <div className="mt-4 space-y-3">
+              <StatusRow label="Latest attempt" value={attemptStatus} />
               <StatusRow label="Requested URL" value={websiteKnowledge.requested_url || "Not recorded"} />
               <StatusRow label="Resolved URL" value={websiteKnowledge.resolved_url || "Not recorded"} />
               <StatusRow label="Import version" value={`v${websiteKnowledge.document_version}`} />
-              <StatusRow label="Warnings" value={String(websiteKnowledge.warnings.length)} />
+              <StatusRow label="Warnings" value={String(warningCount)} />
               <StatusRow label="Processed pages" value={String(processedPages)} />
               <StatusRow label="Skipped pages" value={String(skippedPages)} />
               <StatusRow label="Failed pages" value={String(failedPages)} />
@@ -208,7 +218,7 @@ function StatusRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3">
       <span className="text-sm text-slate-500">{label}</span>
-      <span className="max-w-[62%] truncate text-right text-sm font-semibold text-white" title={value}>{value}</span>
+      <span className="max-w-[62%] truncate text-right text-sm font-semibold capitalize text-white" title={value}>{value}</span>
     </div>
   );
 }
