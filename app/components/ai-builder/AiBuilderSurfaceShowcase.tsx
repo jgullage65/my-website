@@ -116,7 +116,6 @@ export default function AiBuilderSurfaceShowcase({
   const [demoOpen, setDemoOpen] = useState(false);
   const [previewBuilding, setPreviewBuilding] = useState(false);
   const [previewBuildStep, setPreviewBuildStep] = useState(0);
-  const [guidedFlow, setGuidedFlow] = useState(false);
   const [completedSlides, setCompletedSlides] = useState<Set<AiBuilderShowcaseSlide>>(new Set());
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
@@ -170,7 +169,6 @@ export default function AiBuilderSurfaceShowcase({
       setPreviewSession(session);
       setActiveSlide("builder");
       setCompletedSlides(new Set());
-      setGuidedFlow(true);
       setDemoOpen(true);
     }
   };
@@ -183,17 +181,11 @@ export default function AiBuilderSurfaceShowcase({
     });
   };
 
-  const goToSlide = (slide: AiBuilderShowcaseSlide) => {
-    if (previewBuilding) return;
-    setActiveSlide(slide);
-  };
-
-  const advanceGuidedFlow = () => {
+  const goToNextSlide = () => {
     const index = AI_BUILDER_SHOWCASE_SLIDES.findIndex((slide) => slide.id === activeSlide);
     const next = AI_BUILDER_SHOWCASE_SLIDES[index + 1];
     markComplete(activeSlide);
     if (next) setActiveSlide(next.id);
-    else setGuidedFlow(false);
   };
 
   const runPreviewBuild = async () => {
@@ -285,28 +277,6 @@ export default function AiBuilderSurfaceShowcase({
     [activeSlide, builderValue, previewBuilding, previewDiagnostics, previewKnowledge, previewSession],
   );
 
-  const switcher = (compact = false) => (
-    <div className={`grid grid-cols-5 gap-2 ${compact ? "w-full max-w-3xl" : ""}`}>
-      {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => (
-        <button
-          key={slide.id}
-          type="button"
-          onClick={() => goToSlide(slide.id)}
-          disabled={previewBuilding}
-          className={`rounded-lg border px-2 py-2 text-[11px] font-semibold transition sm:px-3 sm:text-xs ${
-            activeSlide === slide.id
-              ? "border-amber-300/30 bg-[#0a0a0a] text-white"
-              : completedSlides.has(slide.id)
-                ? "border-emerald-300/20 bg-emerald-300/[0.05] text-emerald-200"
-                : "border-white/[0.06] bg-[#030303] text-slate-500 hover:text-white"
-          } disabled:cursor-not-allowed disabled:opacity-50`}
-        >
-          {completedSlides.has(slide.id) ? "✓ " : ""}{slide.label}
-        </button>
-      ))}
-    </div>
-  );
-
   const previewBuildLabels = [
     "Structuring your business details",
     "Creating temporary Business Brain knowledge",
@@ -337,7 +307,7 @@ export default function AiBuilderSurfaceShowcase({
     chat: {
       title: "Test the temporary assistant",
       detail: "Ask a question and the deterministic preview will answer from approved knowledge only.",
-      action: "Finish Guided Demo",
+      action: "Finish Demo",
     },
   };
 
@@ -354,8 +324,6 @@ export default function AiBuilderSurfaceShowcase({
           <div className="hidden h-full lg:block">{showcaseSurface}</div>
         </div>
       </div>
-
-      <div className="mt-3">{switcher()}</div>
 
       <div className="mt-4 flex justify-center">
         <button type="button" onClick={openDemo} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-amber-300/30 bg-[#0a0a0a] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_35px_rgba(0,0,0,.32)] transition hover:border-amber-200/50 hover:bg-[#101010]">Open Demo</button>
@@ -395,25 +363,21 @@ export default function AiBuilderSurfaceShowcase({
             ) : null}
           </div>
 
-          <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5">
-            <div className="mx-auto flex max-w-5xl flex-col gap-3">
-              {guidedFlow ? (
-                <div className="flex flex-col gap-3 rounded-xl border border-amber-300/15 bg-[#070707] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Guided demo</p>
-                    <p className="mt-1 text-sm font-semibold text-white">{guidedCopy[activeSlide].title}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">{guidedCopy[activeSlide].detail}</p>
-                  </div>
-                  {activeSlide !== "builder" ? (
-                    <button type="button" onClick={advanceGuidedFlow} className="cta-raised shrink-0 rounded-lg border border-amber-300/20 bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">{guidedCopy[activeSlide].action}</button>
-                  ) : (
-                    <span className="shrink-0 text-xs font-semibold text-slate-500">{guidedCopy.builder.action}</span>
-                  )}
+          {activeSlide !== "builder" ? (
+            <div className="shrink-0 border-t border-white/[0.08] bg-black/95 px-3 py-3 backdrop-blur sm:px-5">
+              <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">{guidedCopy[activeSlide].title}</p>
+                  <p className="mt-1 truncate text-xs text-slate-500">{guidedCopy[activeSlide].detail}</p>
                 </div>
-              ) : null}
-              <div className="mx-auto flex w-full justify-center">{switcher(true)}</div>
+                {activeSlide === "chat" ? (
+                  <button type="button" onClick={() => { markComplete("chat"); setDemoOpen(false); }} className="cta-raised shrink-0 rounded-lg border border-amber-300/20 bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">{guidedCopy.chat.action}</button>
+                ) : (
+                  <button type="button" onClick={goToNextSlide} className="cta-raised shrink-0 rounded-lg border border-amber-300/20 bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">{guidedCopy[activeSlide].action}</button>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       ) : null}
     </div>
