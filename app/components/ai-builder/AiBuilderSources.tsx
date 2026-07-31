@@ -15,8 +15,17 @@ function formatDate(value?: string | null) {
       }).format(date);
 }
 
+function host(value?: string | null) {
+  if (!value) return "Website";
+  try {
+    return new URL(value).hostname.replace(/^www\./, "");
+  } catch {
+    return value;
+  }
+}
+
 export default function AiBuilderSources() {
-  const { websiteKnowledge } = useAiBuilderWorkspace();
+  const { websiteKnowledge, session, diagnostics, setActiveTab } = useAiBuilderWorkspace();
 
   const stats = useMemo(
     () => ({
@@ -28,6 +37,19 @@ export default function AiBuilderSources() {
     [websiteKnowledge],
   );
 
+  const latestAttempt = diagnostics?.crawls[0] ?? null;
+  const websiteKnowledgeCount = session.contextEntries.filter(
+    (item) => item.source.sourceType === "website",
+  ).length;
+  const manualKnowledgeCount = session.contextEntries.filter(
+    (item) => item.source.sourceType === "manual_intake" || item.source.sourceType === "user_edit",
+  ).length;
+  const unresolvedQuestions = websiteKnowledge?.knowledge.unresolvedQuestions.length ?? 0;
+  const processedPages = Number(latestAttempt?.pages_processed ?? stats.pages);
+  const failedPages = Number(latestAttempt?.pages_failed ?? 0);
+  const skippedPages = Number(latestAttempt?.pages_skipped ?? 0);
+  const sourceHealthy = Boolean(websiteKnowledge) && failedPages === 0;
+
   if (!websiteKnowledge) {
     return (
       <section className="flex min-h-[52vh] items-center justify-center rounded-[22px] border border-white/[0.08] bg-[#050505] px-6 py-12 text-center">
@@ -35,8 +57,15 @@ export default function AiBuilderSources() {
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300">Sources</p>
           <h2 className="mt-4 text-2xl font-semibold text-white">No connected source material yet</h2>
           <p className="mt-3 text-sm leading-6 text-slate-400">
-            This project does not currently have imported website material. Add or refresh source material from the Builder to populate this workspace.
+            This project does not currently have imported website material. Add source material from the Builder to populate this workspace.
           </p>
+          <button
+            type="button"
+            onClick={() => setActiveTab("overview")}
+            className="cta-raised mt-5 rounded-lg border border-amber-300/20 bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:border-amber-300/40"
+          >
+            Open project overview
+          </button>
         </div>
       </section>
     );
@@ -47,11 +76,19 @@ export default function AiBuilderSources() {
       <section className="rounded-[22px] border border-white/[0.08] bg-[#050505] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300">Primary source</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300">Primary source</p>
+              <span className={`rounded-full border px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-[0.12em] ${sourceHealthy ? "border-emerald-300/20 bg-emerald-300/[0.06] text-emerald-300" : "border-amber-300/20 bg-amber-300/[0.06] text-amber-300"}`}>
+                {sourceHealthy ? "Healthy" : "Needs review"}
+              </span>
+            </div>
             <h2 className="mt-3 truncate text-2xl font-semibold text-white">
-              {websiteKnowledge.resolved_url || websiteKnowledge.requested_url || "Imported website"}
+              {host(websiteKnowledge.resolved_url || websiteKnowledge.requested_url)}
             </h2>
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 truncate text-sm text-slate-400">
+              {websiteKnowledge.resolved_url || websiteKnowledge.requested_url || "Imported website"}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
               Last imported {formatDate(websiteKnowledge.imported_at)}
             </p>
           </div>
@@ -64,15 +101,34 @@ export default function AiBuilderSources() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className="grid gap-4 lg:grid-cols-3">
+        <SummaryCard label="Website knowledge" value={websiteKnowledgeCount} detail="Persisted knowledge items sourced from the imported website." />
+        <SummaryCard label="Manual knowledge" value={manualKnowledgeCount} detail="Approved or edited knowledge contributed directly by the user." />
+        <SummaryCard label="Open questions" value={unresolvedQuestions} detail="Unresolved questions still detected in the imported material." />
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
         <div className="rounded-[20px] border border-white/[0.07] bg-[#070707] p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Imported pages</p>
-          <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Imported pages</p>
+              <p className="mt-1 text-xs text-slate-600">The latest saved page set for this project.</p>
+            </div>
+            <span className="text-xs font-semibold text-slate-500">{stats.pages} total</span>
+          </div>
+          <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
             {websiteKnowledge.pages.length ? (
               websiteKnowledge.pages.map((page, index) => (
                 <article key={`${page.url}-${index}`} className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3">
-                  <p className="truncate text-sm font-semibold text-white">{page.title || page.url}</p>
-                  <p className="mt-1 truncate text-xs text-slate-500">{page.url}</p>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white">{page.title || page.url}</p>
+                      <p className="mt-1 truncate text-xs text-slate-500">{page.url}</p>
+                    </div>
+                    <span className="flex-none rounded-full border border-white/[0.08] bg-black px-2 py-1 text-[0.62rem] font-bold uppercase tracking-[0.1em] text-slate-500">
+                      Page {index + 1}
+                    </span>
+                  </div>
                 </article>
               ))
             ) : (
@@ -83,31 +139,46 @@ export default function AiBuilderSources() {
           </div>
         </div>
 
-        <div className="rounded-[20px] border border-white/[0.07] bg-[#070707] p-5">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Import health</p>
-          <div className="mt-4 space-y-3">
-            <StatusRow label="Requested URL" value={websiteKnowledge.requested_url || "Not recorded"} />
-            <StatusRow label="Resolved URL" value={websiteKnowledge.resolved_url || "Not recorded"} />
-            <StatusRow label="Import version" value={`v${websiteKnowledge.document_version}`} />
-            <StatusRow label="Warnings" value={String(websiteKnowledge.warnings.length)} />
+        <div className="space-y-4">
+          <div className="rounded-[20px] border border-white/[0.07] bg-[#070707] p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Import health</p>
+            <div className="mt-4 space-y-3">
+              <StatusRow label="Requested URL" value={websiteKnowledge.requested_url || "Not recorded"} />
+              <StatusRow label="Resolved URL" value={websiteKnowledge.resolved_url || "Not recorded"} />
+              <StatusRow label="Import version" value={`v${websiteKnowledge.document_version}`} />
+              <StatusRow label="Warnings" value={String(websiteKnowledge.warnings.length)} />
+              <StatusRow label="Processed pages" value={String(processedPages)} />
+              <StatusRow label="Skipped pages" value={String(skippedPages)} />
+              <StatusRow label="Failed pages" value={String(failedPages)} />
+            </div>
           </div>
 
-          {websiteKnowledge.warnings.length ? (
-            <div className="mt-5 rounded-xl border border-amber-300/15 bg-amber-300/[0.04] p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">Warnings</p>
-              <div className="mt-3 space-y-2">
+          <div className="rounded-[20px] border border-white/[0.07] bg-[#070707] p-5">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Warnings</p>
+              <button
+                type="button"
+                onClick={() => setActiveTab("insights")}
+                className="text-xs font-semibold text-amber-300 transition hover:text-amber-200"
+              >
+                View diagnostics
+              </button>
+            </div>
+
+            {websiteKnowledge.warnings.length ? (
+              <div className="mt-4 space-y-2">
                 {websiteKnowledge.warnings.map((warning, index) => (
-                  <p key={`${warning}-${index}`} className="text-sm leading-6 text-slate-300">
+                  <p key={`${warning}-${index}`} className="rounded-xl border border-amber-300/15 bg-amber-300/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
                     {warning}
                   </p>
                 ))}
               </div>
-            </div>
-          ) : (
-            <p className="mt-5 rounded-xl border border-white/[0.06] bg-black/30 px-4 py-4 text-sm text-slate-500">
-              No import warnings were recorded.
-            </p>
-          )}
+            ) : (
+              <p className="mt-4 rounded-xl border border-white/[0.06] bg-black/30 px-4 py-4 text-sm text-slate-500">
+                No import warnings were recorded.
+              </p>
+            )}
+          </div>
         </div>
       </section>
     </div>
@@ -123,11 +194,21 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
+function SummaryCard({ label, value, detail }: { label: string; value: number; detail: string }) {
+  return (
+    <article className="rounded-[18px] border border-white/[0.07] bg-[#070707] p-5 text-center">
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">{label}</p>
+      <p className="mt-2 text-3xl font-semibold text-white">{value}</p>
+      <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>
+    </article>
+  );
+}
+
 function StatusRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3">
       <span className="text-sm text-slate-500">{label}</span>
-      <span className="max-w-[62%] truncate text-right text-sm font-semibold text-white">{value}</span>
+      <span className="max-w-[62%] truncate text-right text-sm font-semibold text-white" title={value}>{value}</span>
     </div>
   );
 }
