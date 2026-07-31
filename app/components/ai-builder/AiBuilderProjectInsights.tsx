@@ -35,6 +35,8 @@ const timestamp = (item: Record<string, unknown>) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const humanize = (value: unknown) => String(value ?? "unknown").replace(/_/g, " ");
+
 export default function AiBuilderProjectInsights() {
   const { projectId, diagnostics, setActiveTab } = useAiBuilderWorkspace();
   const crawls = useMemo(
@@ -75,7 +77,7 @@ export default function AiBuilderProjectInsights() {
               ["Skipped", n(crawl?.pages_skipped)],
               ["Failed", n(crawl?.pages_failed)],
               ["Duration", duration(crawl?.duration_ms)],
-              ["Failure stage", crawl?.failure_stage ? String(crawl.failure_stage).replaceAll("_", " ") : null],
+              ["Failure stage", crawl?.failure_stage ? humanize(crawl.failure_stage) : null],
             ]}
           />
 
@@ -203,7 +205,7 @@ function AttemptTable({ items, kind }: { items: Array<Record<string, unknown>>; 
 }
 
 function statusLabel(value: string) {
-  return value === "not_available" ? "No data" : value.replaceAll("_", " ");
+  return value === "not_available" ? "No data" : humanize(value);
 }
 
 function statusTone(value: string) {
@@ -217,7 +219,7 @@ function Status({ value }: { value: unknown }) {
   const normalized = String(value ?? "unknown");
   return (
     <span className={`inline-flex justify-center rounded-lg border border-white/[0.08] bg-black px-2.5 py-1 text-xs font-bold capitalize ${statusTone(normalized)}`}>
-      {normalized.replaceAll("_", " ")}
+      {humanize(normalized)}
     </span>
   );
 }
