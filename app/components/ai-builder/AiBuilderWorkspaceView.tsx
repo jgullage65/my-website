@@ -62,7 +62,7 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
     const previewClassName = props.previewMode
       ? "h-full overflow-hidden [&>div]:pb-0 [&>div]:px-0 [&>div>div]:rounded-none [&>div>div]:border-0 [&>div>div]:shadow-none"
       : "";
-    return <div className={`${inert} ${previewClassName}`}><AiBuilderForm value={props.builder} projectId={demo || preview ? null : props.projectId} onChange={demo ? noop : props.onBuilderChange ?? noop} onBuild={demo || preview ? noop : props.onBuild ?? noop} demoMode={demo || preview} /></div>;
+    return <div className={`${inert} ${previewClassName}`}><AiBuilderForm value={props.builder} projectId={demo || preview ? null : props.projectId} onChange={demo ? noop : props.onBuilderChange ?? noop} onBuild={demo ? noop : props.onBuild ?? noop} demoMode={demo || preview} /></div>;
   }
 
   if (props.activeView === "review") {
