@@ -1,21 +1,23 @@
-# One-time repair workflow. It deletes itself after the tested fix is committed.
+# One-time repair workflow. Remove after the tested fix is merged.
 name: Restore AI Builder crawler coverage
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
-      - ".github/workflows/restore-ai-builder-crawler-coverage.yml"
+      - ".github/crawler-coverage-repair-trigger"
 
 permissions:
   contents: write
 
 jobs:
   restore-coverage:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
 
       - name: Restore large-site crawl budget
@@ -66,11 +68,10 @@ test("does not cap sitemap-backed crawls at the priority-path count", async () =
       - name: Run crawler tests
         run: npm run test:ai-builder-crawler
 
-      - name: Commit restored crawler coverage
+      - name: Commit tested crawler repair to PR branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/lib/ai-engine/crawler/crawlBusinessWebsite.ts app/lib/ai-engine/crawler/crawlBusinessWebsite.test.ts
-          git rm .github/workflows/restore-ai-builder-crawler-coverage.yml
           git commit -m "Restore large-site crawler coverage"
           git push
