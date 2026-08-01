@@ -196,9 +196,9 @@ function Grid({ items }: { items: Array<[string, unknown]> }) {
             key={label}
             className="border-b border-r border-white/[.07] bg-black/40 px-3.5 py-2.5 text-center even:border-r-0"
           >
-            <dt className="text-[.68rem] font-medium text-slate-500">{label}</dt>
+            <dt className="text-xs font-semibold text-slate-500">{label}</dt>
             <dd
-              className={`mt-1 ${quiet ? "text-xs font-medium leading-5 text-slate-300" : "text-base font-semibold"} ${
+              className={`mt-0.5 ${quiet ? "text-xs font-medium leading-5 text-slate-300" : "text-base font-semibold"} ${
                 value === null || value === undefined ? "text-slate-600" : quiet ? "" : "text-white"
               }`}
             >
