@@ -113,7 +113,11 @@ export function AiBuilderWorkspaceProvider({
   return (
     <AiBuilderWorkspaceContext.Provider value={value}>
       {children}
-      {knowledgeOpen ? <AiBuilderKnowledgeInspector /> : null}
+      {knowledgeOpen ? (
+        <div className="fixed bottom-5 left-1/2 z-[110] w-[min(700px,calc(100vw-3rem))] -translate-x-1/2">
+          <AiBuilderKnowledgeInspector />
+        </div>
+      ) : null}
     </AiBuilderWorkspaceContext.Provider>
   );
 }
