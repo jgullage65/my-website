@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/fix-crawler-syntax.mjs && next build",
     "typecheck": "tsc -p tsconfig.production-check.json --pretty false",
     "start": "next start",
     "db:migrate": "node scripts/run-database-migrations.mjs",
