@@ -15,7 +15,11 @@ function runGateway(
   input: RunModelInput,
   model: ModelDefinition,
 ) {
-  const adapterInput = { ...input, model, timeoutMs: 60_000 };
+  const adapterInput = {
+    ...input,
+    model,
+    timeoutMs: input.purpose === "crawl" ? 800_000 : 60_000,
+  };
   return gateway === "openai"
     ? runOpenAI(adapterInput)
     : runPerplexity(adapterInput);
