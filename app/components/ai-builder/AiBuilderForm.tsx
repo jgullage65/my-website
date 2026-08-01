@@ -57,6 +57,10 @@ type WebsiteImportEvent =
   | ({ type: "result" } & WebsiteImportPayload)
   | { type: "error"; error?: WebsiteImportError; crawlAttemptId?: string };
 
+type UserKnowledgeWithPolicies = UserKnowledge & {
+  businessPoliciesOperations?: string;
+};
+
 const inputClassName =
   "w-full rounded-xl border border-white/10 bg-[#020202] px-4 py-3 text-center text-sm text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
 
@@ -227,6 +231,16 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
     onChange({ ...value, userKnowledge: { ...value.userKnowledge, [key]: nextValue } });
   };
 
+  const updateBusinessPoliciesOperations = (nextValue: string) => {
+    onChange({
+      ...value,
+      userKnowledge: {
+        ...value.userKnowledge,
+        businessPoliciesOperations: nextValue,
+      } as UserKnowledgeWithPolicies,
+    });
+  };
+
   const importWebsite = async () => {
     if (demoMode) return;
     const website = value.website.trim();
@@ -386,6 +400,9 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       (value.userKnowledge.idealCustomers.trim() || value.websiteKnowledge?.idealCustomers.trim()),
   );
 
+  const businessPoliciesOperations =
+    (value.userKnowledge as UserKnowledgeWithPolicies).businessPoliciesOperations ?? "";
+
   return (
     <div className="w-full pb-10 min-[1200px]:px-8">
       <div className="relative bg-[#000000] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[28px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:p-8 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
@@ -394,8 +411,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
 
         <div className="mt-12 space-y-6 min-[1200px]:mt-0 min-[1200px]:grid min-[1200px]:grid-cols-[minmax(25rem,0.8fr)_minmax(34rem,1.2fr)] min-[1200px]:items-start min-[1200px]:gap-x-10 min-[1200px]:gap-y-8 min-[1200px]:space-y-0">
           <div className="space-y-6 min-[1200px]:self-start min-[1200px]:pt-7">
-            <header className="grid justify-items-center gap-2 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-300">AI Builder</p>
+            <header className="grid justify-items-center text-center">
               <AiBuilderModelSelect models={modelChoices} value={modelId} disabled={importing} onChange={(next) => void selectModel(next)} />
             </header>
 
@@ -453,8 +469,9 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
               </KnowledgeCard>
               <KnowledgeCard title="Products & Services" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder={value.websiteKnowledge?.productsServices ? "Add private details, corrections, packages, pricing, or anything your website does not explain." : "Describe your services, packages, deliverables, pricing structure, and what each option is for."} value={value.userKnowledge.productsServices} onChange={(event) => updateUserKnowledge("productsServices", event.target.value)} /></KnowledgeCard>
               <KnowledgeCard title="Ideal Customers" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder={value.websiteKnowledge?.idealCustomers ? "Add more specific customer details or correct anything the website got wrong." : "Describe your best-fit customers, industries, company sizes, locations, needs, and goals."} value={value.userKnowledge.idealCustomers} onChange={(event) => updateUserKnowledge("idealCustomers", event.target.value)} /></KnowledgeCard>
-              <KnowledgeCard title="Brand Voice & Communication Style" fill><textarea rows={6} maxLength={4000} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Describe how your business communicates. Include your tone, preferred terminology, phrases to use or avoid, level of formality, and how you want customers to feel after interacting with your AI." value={value.tone === "Professional" ? "" : value.tone} onChange={(event) => updateProfile("tone", event.target.value)} /></KnowledgeCard>
+              <KnowledgeCard title="Brand Voice & Communication Style" fill><textarea rows={6} maxLength={4000} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Teach your AI how your business communicates." value={value.tone === "Professional" ? "" : value.tone} onChange={(event) => updateProfile("tone", event.target.value)} /></KnowledgeCard>
               <KnowledgeCard title="Additional Business Knowledge" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} /></KnowledgeCard>
+              <KnowledgeCard title="Business Policies & Operations" fill><textarea rows={6} maxLength={12000} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Add policies, hours, service areas, scheduling, payments, refunds, guarantees, or operating procedures." value={businessPoliciesOperations} onChange={(event) => updateBusinessPoliciesOperations(event.target.value)} /></KnowledgeCard>
             </div>
           </section>
 
