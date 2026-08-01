@@ -25,6 +25,7 @@ export type ProvenanceAvailability = "exact" | "partial" | "classification_only"
 
 export type KnowledgeEvidenceReadModel = {
   url: string | null;
+  pageTitle: string | null;
   excerpt: string;
   sourceDocumentId: string | null;
   sourceBlockId: string | null;
@@ -44,18 +45,51 @@ export type KnowledgeProvenanceReadModel = {
   availability: ProvenanceAvailability;
   evidence: KnowledgeEvidenceReadModel[];
   relatedEntryIds: string[];
+  importedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-function evidenceReadModel(evidence: WebsiteKnowledgeEvidence): KnowledgeEvidenceReadModel {
+function comparableUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    if (url.pathname !== "/") url.pathname = url.pathname.replace(/\/+$/g, "");
+    return url.toString();
+  } catch {
+    return value;
+  }
+}
+
+function evidenceReadModel(
+  evidence: WebsiteKnowledgeEvidence,
+  websiteKnowledge: PersistedWebsiteKnowledge | null,
+): KnowledgeEvidenceReadModel {
+  const document = evidence.sourceDocumentId
+    ? websiteKnowledge?.source_documents?.find((item) => item.id === evidence.sourceDocumentId)
+    : websiteKnowledge?.source_documents?.find((item) =>
+        [item.canonicalUrl, item.actualFetchedUrl]
+          .filter((value): value is string => Boolean(value))
+          .some((value) => comparableUrl(value) === comparableUrl(evidence.url)),
+      );
+
+  const block = evidence.sourceBlockId
+    ? websiteKnowledge?.source_blocks?.find((item) => item.id === evidence.sourceBlockId)
+    : undefined;
+
+  const page = websiteKnowledge?.pages.find((item) =>
+    (document && item.sourceDocumentId === document.id) ||
+    comparableUrl(item.url) === comparableUrl(evidence.url),
+  );
+
   return {
-    url: evidence.url || null,
-    excerpt: evidence.excerpt,
-    sourceDocumentId: evidence.sourceDocumentId ?? null,
-    sourceBlockId: evidence.sourceBlockId ?? null,
-    crawlAttemptId: evidence.crawlAttemptId ?? null,
-    sourceCoordinates: evidence.sourceCoordinates ?? null,
+    url: document?.canonicalUrl ?? document?.actualFetchedUrl ?? evidence.url || null,
+    pageTitle: page?.title?.trim() || null,
+    excerpt: block?.normalizedText?.trim() || evidence.excerpt,
+    sourceDocumentId: evidence.sourceDocumentId ?? document?.id ?? null,
+    sourceBlockId: evidence.sourceBlockId ?? block?.id ?? null,
+    crawlAttemptId: evidence.crawlAttemptId ?? document?.crawlAttemptId ?? null,
+    sourceCoordinates: evidence.sourceCoordinates ?? block?.coordinates ?? null,
   };
 }
 
@@ -97,10 +131,11 @@ function contextReadModel(
 ): KnowledgeProvenanceReadModel {
   const fact = matchingWebsiteFact(session.id, entry, websiteKnowledge);
   const evidence = fact
-    ? fact.evidence.map(evidenceReadModel)
+    ? fact.evidence.map((item) => evidenceReadModel(item, websiteKnowledge))
     : entry.source.excerpt
       ? [{
           url: entry.source.sourceUrl ?? null,
+          pageTitle: websiteKnowledge?.pages.find((page) => page.url === entry.source.sourceUrl)?.title ?? null,
           excerpt: entry.source.excerpt,
           sourceDocumentId: null,
           sourceBlockId: null,
@@ -121,6 +156,7 @@ function contextReadModel(
     availability: availability(evidence),
     evidence,
     relatedEntryIds: Array.from(new Set(entry.metadata.upstreamSourceEntryIds ?? [])),
+    importedAt: websiteKnowledge?.imported_at ?? null,
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
@@ -154,6 +190,7 @@ function faqReadModel(
     availability: availability(uniqueEvidence),
     evidence: uniqueEvidence,
     relatedEntryIds: Array.from(new Set(entry.sourceEntryIds)),
+    importedAt: websiteKnowledge?.imported_at ?? null,
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
