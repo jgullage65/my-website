@@ -23,6 +23,7 @@ type UserKnowledgeRequest = {
   productsServices?: unknown;
   idealCustomers?: unknown;
   businessPoliciesOperations?: unknown;
+  successStoriesCaseStudies?: unknown;
   additionalKnowledge?: unknown;
 };
 
@@ -266,6 +267,10 @@ export async function POST(request: Request) {
     body.userKnowledge?.businessPoliciesOperations,
     12_000,
   );
+  const userSuccessStoriesCaseStudies = normalizeBoundedText(
+    body.userKnowledge?.successStoriesCaseStudies,
+    12_000,
+  );
   const userAdditionalKnowledge = normalizeText(
     body.userKnowledge?.additionalKnowledge,
   );
@@ -331,6 +336,7 @@ export async function POST(request: Request) {
     userProductsServices.length +
     userIdealCustomers.length +
     userBusinessPoliciesOperations.length +
+    userSuccessStoriesCaseStudies.length +
     userAdditionalKnowledge.length +
     websiteBusinessName.length +
     websiteIndustry.length +
@@ -395,6 +401,12 @@ export async function POST(request: Request) {
     "user_business_policies_operations_block",
     "USER-PROVIDED KNOWLEDGE: Business policies and operations",
     userBusinessPoliciesOperations,
+  );
+  addKnowledgeBlock(
+    blocks,
+    "user_success_stories_case_studies_block",
+    "USER-PROVIDED KNOWLEDGE: Success stories and case studies",
+    userSuccessStoriesCaseStudies,
   );
   addKnowledgeBlock(
     blocks,
