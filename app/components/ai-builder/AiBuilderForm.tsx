@@ -61,7 +61,7 @@ const inputClassName =
   "w-full rounded-xl border border-white/10 bg-[#020202] px-4 py-3 text-center text-sm text-white shadow-inner shadow-black/30 outline-none transition placeholder:text-center placeholder:text-slate-500 focus:border-amber-400/60 focus:ring-4 focus:ring-amber-400/5";
 
 const cardClassName =
-  "rounded-2xl border border-amber-300/20 bg-[#070707]/88 p-5 shadow-[0_14px_42px_rgba(0,0,0,0.2)]";
+  "rounded-2xl border border-white/[0.07] bg-[#070707] p-5 shadow-[0_14px_42px_rgba(0,0,0,0.2)]";
 
 function formatImportError(error: WebsiteImportError | undefined, fallback: string) {
   const message = error?.message || fallback;
@@ -439,18 +439,6 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
                 </div>
               </article>
             </section>
-
-            <section className={cardClassName}>
-              <label className="grid gap-2 text-center">
-                <span className="text-sm font-semibold text-slate-200">Assistant tone</span>
-                <div className="relative">
-                  <select className={`${inputClassName} appearance-none px-12`} value={value.tone} onChange={(event) => updateProfile("tone", event.target.value)}>
-                    <option>Professional</option><option>Friendly</option><option>Consultative</option><option>Direct</option><option>Warm</option>
-                  </select>
-                  <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400"><path d="m6 8 4 4 4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                </div>
-              </label>
-            </section>
           </div>
 
           <section className="min-w-0 space-y-5 min-[1200px]:col-start-2 min-[1200px]:row-start-1 min-[1200px]:space-y-5">
@@ -460,11 +448,12 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
             </div>
             <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-2 min-[1200px]:gap-4">
               <KnowledgeCard title="Business profile">
-                <Field label="Business name" required><input className={inputClassName} placeholder="JG Creative Studio" value={value.businessName} onChange={(event) => updateProfile("businessName", event.target.value)} /></Field>
-                <Field label="Industry / business type" required><input className={inputClassName} placeholder="Web design and AI automation agency" value={value.industry} onChange={(event) => updateProfile("industry", event.target.value)} /></Field>
+                <Field label="Business name"><input className={inputClassName} placeholder="Arkena Studio" value={value.businessName} onChange={(event) => updateProfile("businessName", event.target.value)} /></Field>
+                <Field label="Industry"><input className={inputClassName} placeholder="AI automation studio" value={value.industry} onChange={(event) => updateProfile("industry", event.target.value)} /></Field>
               </KnowledgeCard>
               <KnowledgeCard title="Products & Services" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder={value.websiteKnowledge?.productsServices ? "Add private details, corrections, packages, pricing, or anything your website does not explain." : "Describe your services, packages, deliverables, pricing structure, and what each option is for."} value={value.userKnowledge.productsServices} onChange={(event) => updateUserKnowledge("productsServices", event.target.value)} /></KnowledgeCard>
               <KnowledgeCard title="Ideal Customers" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder={value.websiteKnowledge?.idealCustomers ? "Add more specific customer details or correct anything the website got wrong." : "Describe your best-fit customers, industries, company sizes, locations, needs, and goals."} value={value.userKnowledge.idealCustomers} onChange={(event) => updateUserKnowledge("idealCustomers", event.target.value)} /></KnowledgeCard>
+              <KnowledgeCard title="Brand Voice & Communication Style" fill><textarea rows={6} maxLength={4000} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Describe how your business communicates. Include your tone, preferred terminology, phrases to use or avoid, level of formality, and how you want customers to feel after interacting with your AI." value={value.tone === "Professional" ? "" : value.tone} onChange={(event) => updateProfile("tone", event.target.value)} /></KnowledgeCard>
               <KnowledgeCard title="Additional Business Knowledge" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} /></KnowledgeCard>
             </div>
           </section>
@@ -485,8 +474,8 @@ function KnowledgeCard({ title, children, fill = false }: { title: string; child
   return <article className={`${cardClassName} ${fill ? "min-[1200px]:flex min-[1200px]:h-full min-[1200px]:flex-col" : ""}`}><h3 className="text-center text-lg font-semibold text-white">{title}</h3><div className={`${fill ? "min-[1200px]:mt-2 min-[1200px]:flex min-[1200px]:flex-1 min-[1200px]:flex-col" : "mt-4 grid gap-4"}`}>{children}</div></article>;
 }
 
-function Field({ label, required = false, children }: { label: string; required?: boolean; children: ReactNode }) {
-  return <label className="grid gap-2 text-center"><span className="text-sm font-semibold text-slate-200">{label}{required ? <span className="text-amber-300"> *</span> : null}</span>{children}</label>;
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return <label className="grid gap-2 text-center"><span className="text-sm font-semibold text-slate-200">{label}</span>{children}</label>;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
