@@ -37,6 +37,24 @@ const timestamp = (item: Record<string, unknown>) => {
 
 const humanize = (value: unknown) => String(value ?? "unknown").replace(/_/g, " ");
 
+const modelLabel = (value: unknown) => {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+
+  const normalized = raw.toLowerCase();
+  if (normalized.includes("gpt-5-mini")) return "GPT-5 Mini";
+  if (normalized.includes("gpt-5.5") || normalized.includes("gpt-5-5")) return "GPT-5.5";
+  if (normalized.includes("gpt-5")) return "GPT-5";
+  if (normalized.includes("claude") && normalized.includes("sonnet")) return "Claude Sonnet";
+  if (normalized.includes("claude") && normalized.includes("opus")) return "Claude Opus";
+  if (normalized.includes("gemini")) return "Gemini";
+
+  return raw
+    .replace(/-20\d{2}-\d{2}-\d{2}$/i, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+};
+
 export default function AiBuilderProjectInsights() {
   const { projectId, diagnostics } = useAiBuilderWorkspace();
   const crawls = useMemo(
@@ -105,7 +123,7 @@ export default function AiBuilderProjectInsights() {
               ["Last attempt", when(generation?.completed_at ?? generation?.started_at)],
               ["Knowledge items", n(generation?.knowledge_count)],
               ["Generated Q&A", n(generation?.faq_count)],
-              ["Model", generation?.model ? String(generation.model) : null],
+              ["Model", modelLabel(generation?.model)],
               ["Input tokens", n(generation?.input_tokens)],
               ["Output tokens", n(generation?.output_tokens)],
               ["Total tokens", n(generation?.total_tokens)],
@@ -160,23 +178,28 @@ function HistorySection({ children }: { children: React.ReactNode }) {
 }
 
 function Grid({ items }: { items: Array<[string, unknown]> }) {
+  const quietValueLabels = new Set(["Last import", "Last attempt", "Model"]);
+
   return (
     <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-white/[.07]">
-      {items.map(([label, value]) => (
-        <div
-          key={label}
-          className="border-b border-r border-white/[.07] bg-black/40 px-3.5 py-2.5 text-center even:border-r-0"
-        >
-          <dt className="text-[.68rem] font-medium text-slate-500">{label}</dt>
-          <dd
-            className={`mt-1 text-base font-semibold ${
-              value === null || value === undefined ? "text-slate-600" : "text-white"
-            }`}
+      {items.map(([label, value]) => {
+        const quiet = quietValueLabels.has(label);
+        return (
+          <div
+            key={label}
+            className="border-b border-r border-white/[.07] bg-black/40 px-3.5 py-2.5 text-center even:border-r-0"
           >
-            {value === null || value === undefined ? "Not available" : String(value)}
-          </dd>
-        </div>
-      ))}
+            <dt className="text-[.68rem] font-medium text-slate-500">{label}</dt>
+            <dd
+              className={`mt-1 ${quiet ? "text-xs font-medium leading-5 text-slate-300" : "text-base font-semibold"} ${
+                value === null || value === undefined ? "text-slate-600" : quiet ? "" : "text-white"
+              }`}
+            >
+              {value === null || value === undefined ? "Not available" : String(value)}
+            </dd>
+          </div>
+        );
+      })}
     </dl>
   );
 }
@@ -209,15 +232,15 @@ function AttemptTable({
         {rows.map((item, index) => (
           <div
             key={`${kind}-${String(item.started_at ?? index)}`}
-            className="grid grid-cols-[1.2fr_.8fr_.7fr] items-center px-3 py-2.5 text-center text-sm"
+            className="grid grid-cols-[1.2fr_.8fr_.7fr] items-center px-3 py-2.5 text-center"
           >
-            <span className="text-slate-400">{when(item.started_at) ?? "Not available"}</span>
-            <span className="font-semibold text-white">
+            <span className="text-xs font-medium leading-5 text-slate-500">
+              {when(item.started_at) ?? "Not available"}
+            </span>
+            <span className={kind === "crawl" ? "text-sm font-semibold text-white" : "text-xs font-medium text-slate-300"}>
               {kind === "crawl"
                 ? String(n(item.pages_processed) ?? n(item.pages_discovered) ?? "Not available")
-                : item.model
-                  ? String(item.model)
-                  : "Not available"}
+                : modelLabel(item.model) ?? "Not available"}
             </span>
             <Status value={item.status} />
           </div>
