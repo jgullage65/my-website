@@ -7,7 +7,7 @@ type ItemKind = "context_entry" | "faq";
 
 type ProvenanceResponse = {
   ok: true;
-  provenance: {
+  detail: {
     item: {
       itemKind: ItemKind;
       itemId: string;
@@ -44,14 +44,14 @@ type SelectedItem = {
   label: string;
 };
 
-function sourceLabel(value: ProvenanceResponse["provenance"]["item"]["classification"]) {
+function sourceLabel(value: ProvenanceResponse["detail"]["item"]["classification"]) {
   if (value === "website") return "Website";
   if (value === "manual") return "Manual";
   if (value === "user_corrected") return "User corrected";
   return "Generated";
 }
 
-function availabilityLabel(value: ProvenanceResponse["provenance"]["item"]["availability"]) {
+function availabilityLabel(value: ProvenanceResponse["detail"]["item"]["availability"]) {
   if (value === "exact") return "Exact source details";
   if (value === "partial") return "URL and excerpt available";
   return "Source type only";
@@ -70,7 +70,7 @@ export default function AiBuilderKnowledgeInspector() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [detail, setDetail] = useState<ProvenanceResponse["provenance"] | null>(null);
+  const [detail, setDetail] = useState<ProvenanceResponse["detail"] | null>(null);
 
   useEffect(() => {
     if (!selectedKey && items[0]) setSelectedKey(`${items[0].kind}:${items[0].id}`);
@@ -102,7 +102,7 @@ export default function AiBuilderKnowledgeInspector() {
       if (!response.ok || payload?.ok !== true) {
         throw new Error(payload?.error?.message ?? "Source details could not be loaded.");
       }
-      setDetail((payload as ProvenanceResponse).provenance);
+      setDetail((payload as ProvenanceResponse).detail);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Source details could not be loaded.");
     } finally {
