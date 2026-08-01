@@ -32,6 +32,7 @@ export default function AiBuilderWorkspaceFrame({
   overlays,
 }: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const visibleItems = items.filter((item) => item.value !== "overview");
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -72,7 +73,7 @@ export default function AiBuilderWorkspaceFrame({
       </button>
       <p className="mt-4 px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
       <nav className="mt-3 space-y-0.5" aria-label="AI Builder workspace">
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <button
             key={item.value}
             type="button"
