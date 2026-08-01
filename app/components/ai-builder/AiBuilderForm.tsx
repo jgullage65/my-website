@@ -57,8 +57,9 @@ type WebsiteImportEvent =
   | ({ type: "result" } & WebsiteImportPayload)
   | { type: "error"; error?: WebsiteImportError; crawlAttemptId?: string };
 
-type UserKnowledgeWithPolicies = UserKnowledge & {
+type ExtendedUserKnowledge = UserKnowledge & {
   businessPoliciesOperations?: string;
+  successStoriesCaseStudies?: string;
 };
 
 const inputClassName =
@@ -95,67 +96,18 @@ function buildPreviewWebsiteKnowledge(website: string): WebsiteKnowledge {
     additionalKnowledge: "The website emphasizes expertise, reliability, customer support, and a straightforward path to getting started.",
     knowledge: {
       facts: [
-        {
-          category: "company_overview",
-          title: "Business overview",
-          value: `${businessName} provides professional services and helps customers understand available solutions.`,
-          confidence: "medium",
-          evidence: [],
-        },
-        {
-          category: "service",
-          title: "Core services",
-          value: "The website presents core services, packaged solutions, and customer-focused outcomes.",
-          confidence: "medium",
-          evidence: [],
-        },
-        {
-          category: "customer_segment",
-          title: "Ideal customers",
-          value: "The business serves customers looking for dependable expertise and clear next steps.",
-          confidence: "medium",
-          evidence: [],
-        },
-        {
-          category: "policy",
-          title: "Customer experience",
-          value: "The website communicates a straightforward, supportive customer experience.",
-          confidence: "medium",
-          evidence: [],
-        },
+        { category: "company_overview", title: "Business overview", value: `${businessName} provides professional services and helps customers understand available solutions.`, confidence: "medium", evidence: [] },
+        { category: "service", title: "Core services", value: "The website presents core services, packaged solutions, and customer-focused outcomes.", confidence: "medium", evidence: [] },
+        { category: "customer_segment", title: "Ideal customers", value: "The business serves customers looking for dependable expertise and clear next steps.", confidence: "medium", evidence: [] },
+        { category: "policy", title: "Customer experience", value: "The website communicates a straightforward, supportive customer experience.", confidence: "medium", evidence: [] },
       ],
       coverage: {
-        businessIdentity: 1,
-        offers: 1,
-        customers: 1,
-        pricing: 0,
-        policies: 1,
-        processes: 0,
-        faq: 0,
-        contact: 0,
-        overall: 0.5,
-        companyOverview: 1,
-        missionValueProposition: 0,
-        products: 0,
-        services: 1,
-        featuresCapabilities: 0,
-        pricingPlans: 0,
-        customerSegments: 1,
-        industriesServed: 0,
-        primaryUseCases: 0,
-        integrations: 0,
-        aiFeaturesAutomation: 0,
-        technicalCapabilities: 0,
-        securityCompliance: 0,
-        certifications: 0,
-        supportOnboarding: 0,
-        partnerships: 0,
-        locationsServiceAreas: 0,
-        contactInformation: 0,
-        brandVoiceTerminology: 0,
-        frequentlyAskedQuestions: 0,
-        competitiveDifferentiators: 0,
-        additionalBusinessKnowledge: 0,
+        businessIdentity: 1, offers: 1, customers: 1, pricing: 0, policies: 1, processes: 0, faq: 0, contact: 0, overall: 0.5,
+        companyOverview: 1, missionValueProposition: 0, products: 0, services: 1, featuresCapabilities: 0, pricingPlans: 0,
+        customerSegments: 1, industriesServed: 0, primaryUseCases: 0, integrations: 0, aiFeaturesAutomation: 0,
+        technicalCapabilities: 0, securityCompliance: 0, certifications: 0, supportOnboarding: 0, partnerships: 0,
+        locationsServiceAreas: 0, contactInformation: 0, brandVoiceTerminology: 0, frequentlyAskedQuestions: 0,
+        competitiveDifferentiators: 0, additionalBusinessKnowledge: 0,
       },
       unresolvedQuestions: [],
     },
@@ -231,13 +183,13 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
     onChange({ ...value, userKnowledge: { ...value.userKnowledge, [key]: nextValue } });
   };
 
-  const updateBusinessPoliciesOperations = (nextValue: string) => {
+  const updateExtendedKnowledge = (key: "businessPoliciesOperations" | "successStoriesCaseStudies", nextValue: string) => {
     onChange({
       ...value,
       userKnowledge: {
         ...value.userKnowledge,
-        businessPoliciesOperations: nextValue,
-      } as UserKnowledgeWithPolicies,
+        [key]: nextValue,
+      } as ExtendedUserKnowledge,
     });
   };
 
@@ -253,7 +205,6 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       setImportStage("crawl");
       setImportError(null);
       setImportMessage(null);
-
       await new Promise((resolve) => window.setTimeout(resolve, 500));
       setCrawlPages(2);
       setImportProgress(55);
@@ -262,7 +213,6 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       setImportStage("processing");
       setImportProgress(82);
       await new Promise((resolve) => window.setTimeout(resolve, 700));
-
       const websiteKnowledge = buildPreviewWebsiteKnowledge(website);
       onChange({
         ...value,
@@ -271,7 +221,6 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         website: websiteKnowledge.website,
         websiteKnowledge,
       });
-
       setImportProgress(100);
       setImportStage("complete");
       setImportMessage("Imported 3 pages into your temporary Business Brain. Nothing was saved.");
@@ -292,17 +241,14 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ website, modelId, projectId }),
       });
-
       if (!response.ok || !response.body) {
         const payload = (await response.json()) as WebsiteImportPayload;
         throw new Error(formatImportError(payload.error, "The website could not be imported."));
       }
-
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
       const result = { payload: null as WebsiteImportPayload | null };
-
       const handleEvent = (event: WebsiteImportEvent) => {
         if (event.type === "crawl_progress") {
           setCrawlPages(event.pagesCrawled);
@@ -329,7 +275,6 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         setImportProgress((current) => Math.max(current, 96));
         result.payload = event;
       };
-
       while (true) {
         const { done, value: chunk } = await reader.read();
         buffer += decoder.decode(chunk, { stream: !done });
@@ -344,12 +289,10 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
           break;
         }
       }
-
       const payload = result.payload;
       if (!payload?.ok || !payload.import) {
         throw new Error(formatImportError(payload?.error, "The website could not be imported."));
       }
-
       const imported = payload.import;
       const websiteKnowledge: WebsiteKnowledge = {
         businessName: imported.businessName?.trim() || "",
@@ -368,19 +311,16 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         sourceDocuments: payload.sourceDocuments ?? [],
         sourceBlocks: payload.sourceBlocks ?? [],
       };
-
       onChange({
         ...value,
-        crawlAttemptIds:
-          payload.crawlAttemptId && !value.crawlAttemptIds.includes(payload.crawlAttemptId)
-            ? [...value.crawlAttemptIds, payload.crawlAttemptId]
-            : value.crawlAttemptIds,
+        crawlAttemptIds: payload.crawlAttemptId && !value.crawlAttemptIds.includes(payload.crawlAttemptId)
+          ? [...value.crawlAttemptIds, payload.crawlAttemptId]
+          : value.crawlAttemptIds,
         businessName: value.businessName.trim() ? value.businessName : websiteKnowledge.businessName,
         industry: value.industry.trim() ? value.industry : websiteKnowledge.industry,
         website: websiteKnowledge.website,
         websiteKnowledge,
       });
-
       setImportProgress(100);
       setImportStage("complete");
       await new Promise((resolve) => window.setTimeout(resolve, 1200));
@@ -400,21 +340,55 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       (value.userKnowledge.idealCustomers.trim() || value.websiteKnowledge?.idealCustomers.trim()),
   );
 
-  const businessPoliciesOperations =
-    (value.userKnowledge as UserKnowledgeWithPolicies).businessPoliciesOperations ?? "";
+  const extendedKnowledge = value.userKnowledge as ExtendedUserKnowledge;
+  const businessPoliciesOperations = extendedKnowledge.businessPoliciesOperations ?? "";
+  const successStoriesCaseStudies = extendedKnowledge.successStoriesCaseStudies ?? "";
+
+  async function reviewAndBuild() {
+    const lines = [
+      "Website knowledge",
+      value.websiteKnowledge
+        ? `✓ ${value.websiteKnowledge.pages.length} page${value.websiteKnowledge.pages.length === 1 ? "" : "s"} imported`
+        : "○ Not provided",
+      "",
+      "Manual knowledge",
+      `${value.businessName.trim() && value.industry.trim() ? "✓" : "○"} Business profile`,
+      `${value.userKnowledge.productsServices.trim() ? "✓" : "○"} Products & Services`,
+      `${value.userKnowledge.idealCustomers.trim() ? "✓" : "○"} Ideal Customers`,
+      `${value.tone.trim() && value.tone !== "Professional" ? "✓" : "○"} Brand Voice`,
+      `${businessPoliciesOperations.trim() ? "✓" : "○"} Business Policies & Operations`,
+      `${successStoriesCaseStudies.trim() ? "✓" : "○"} Success Stories & Case Studies`,
+      `${value.userKnowledge.additionalKnowledge.trim() ? "✓" : "○"} Additional Business Knowledge`,
+    ];
+    const confirmed = await showConfirm({
+      title: "Build Your AI",
+      message: lines.join("\n"),
+      cancelLabel: "Cancel",
+      confirmLabel: "Build AI",
+      confirmDisabled: !valid || importing,
+    });
+    if (confirmed) onBuild();
+  }
 
   return (
     <div className="w-full pb-10 min-[1200px]:px-8">
       <div className="relative bg-[#000000] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-[28px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:p-8 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]">
         <AiBuilderAuthCta />
         <Link href="/ai-builder" className={`${aiBuilderCornerCtaClassName} absolute left-4 top-4 z-10 sm:left-6 lg:left-8`}>← AI Projects</Link>
+        <button
+          type="button"
+          disabled={importing}
+          onClick={() => void reviewAndBuild()}
+          className={`${aiBuilderCornerCtaClassName} absolute right-4 top-4 z-20 sm:right-6 lg:right-8 disabled:cursor-not-allowed disabled:opacity-40`}
+        >
+          Build AI
+        </button>
 
         <div className="mt-12 space-y-6 min-[1200px]:mt-0 min-[1200px]:grid min-[1200px]:grid-cols-[minmax(25rem,0.8fr)_minmax(34rem,1.2fr)] min-[1200px]:items-start min-[1200px]:gap-x-10 min-[1200px]:gap-y-8 min-[1200px]:space-y-0">
           <div className="space-y-3 min-[1200px]:self-start min-[1200px]:pt-7">
             <header className="grid justify-items-center text-center">
               <AiBuilderModelSelect models={modelChoices} value={modelId} disabled={importing} onChange={(next) => void selectModel(next)} />
             </header>
-
             <section>
               <article className={`${cardClassName} relative overflow-hidden text-center`}>
                 <div className="relative">
@@ -423,7 +397,6 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
                   </span>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300 max-[640px]:pt-8">{value.websiteKnowledge ? "Website connected" : "Connect your website"}</p>
                   <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-400">We safely crawl public pages and organize the useful information into a read-only source.</p>
-
                   {value.websiteKnowledge ? (
                     <div className="mt-5 grid grid-cols-3 gap-3">
                       <Metric label="Pages" value={String(value.websiteKnowledge.pages.length)} />
@@ -431,7 +404,6 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
                       <Metric label="Updated" value={new Date(value.websiteKnowledge.importedAt).toLocaleDateString()} />
                     </div>
                   ) : null}
-
                   <div className="mt-5 grid gap-3">
                     <input type="url" className={inputClassName} placeholder="https://yourbusiness.com" value={value.website} onChange={(event) => updateProfile("website", event.target.value)} />
                     <button type="button" disabled={!value.website.trim() || importing} onClick={importWebsite} className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:border-[rgba(212,175,55,0.18)] disabled:bg-[#000000] disabled:text-white disabled:shadow-none disabled:[border-width:0.5px] disabled:hover:translate-y-0 disabled:hover:border-[rgba(212,175,55,0.18)] disabled:hover:bg-[#000000]">
@@ -446,7 +418,6 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
                           : "Import Website"}
                     </button>
                   </div>
-
                   {importError ? <Status tone="error">{importError}</Status> : null}
                   {importMessage ? <Status tone="success">{importMessage}</Status> : null}
                   {value.websiteKnowledge ? (
@@ -471,12 +442,9 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
               <KnowledgeCard title="Ideal Customers" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder={value.websiteKnowledge?.idealCustomers ? "Add more specific customer details or correct anything the website got wrong." : "Describe your best-fit customers, industries, company sizes, locations, needs, and goals."} value={value.userKnowledge.idealCustomers} onChange={(event) => updateUserKnowledge("idealCustomers", event.target.value)} /></KnowledgeCard>
               <KnowledgeCard title="Brand Voice & Communication Style" fill><textarea rows={6} maxLength={4000} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Teach your AI how your business communicates." value={value.tone === "Professional" ? "" : value.tone} onChange={(event) => updateProfile("tone", event.target.value)} /></KnowledgeCard>
               <KnowledgeCard title="Additional Business Knowledge" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Share private pricing, policies, processes, guarantees, objections, FAQs, and anything else your AI should know." value={value.userKnowledge.additionalKnowledge} onChange={(event) => updateUserKnowledge("additionalKnowledge", event.target.value)} /></KnowledgeCard>
-              <KnowledgeCard title="Business Policies & Operations" fill><textarea rows={6} maxLength={12000} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Add policies, hours, service areas, scheduling, payments, refunds, guarantees, or operating procedures." value={businessPoliciesOperations} onChange={(event) => updateBusinessPoliciesOperations(event.target.value)} /></KnowledgeCard>
+              <KnowledgeCard title="Business Policies & Operations" fill><textarea rows={6} maxLength={12000} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Add policies, hours, service areas, scheduling, payments, refunds, guarantees, or operating procedures." value={businessPoliciesOperations} onChange={(event) => updateExtendedKnowledge("businessPoliciesOperations", event.target.value)} /></KnowledgeCard>
+              <KnowledgeCard title="Success Stories & Case Studies" fill><textarea rows={6} maxLength={12000} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Share real customer wins, transformations, results, testimonials, or projects your AI can reference." value={successStoriesCaseStudies} onChange={(event) => updateExtendedKnowledge("successStoriesCaseStudies", event.target.value)} /></KnowledgeCard>
             </div>
-          </section>
-
-          <section className={`${cardClassName} mx-auto text-center min-[1200px]:col-span-2 min-[1200px]:row-start-2 min-[1200px]:w-full min-[1200px]:max-w-[44rem] min-[1200px]:justify-self-center min-[1200px]:py-4`}>
-            <div><p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-300">Final step</p><h3 className="mt-2 text-xl font-semibold text-white">Ready to build your AI?</h3><button type="button" disabled={!valid || importing} onClick={onBuild} className={`${aiBuilderCornerCtaClassName} mt-4 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0`}>Build My AI</button></div>
           </section>
         </div>
       </div>
