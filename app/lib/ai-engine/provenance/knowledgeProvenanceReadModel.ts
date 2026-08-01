@@ -83,7 +83,7 @@ function evidenceReadModel(
   );
 
   return {
-    url: document?.canonicalUrl ?? document?.actualFetchedUrl ?? evidence.url || null,
+    url: (document?.canonicalUrl ?? document?.actualFetchedUrl ?? evidence.url) || null,
     pageTitle: page?.title?.trim() || null,
     excerpt: block?.normalizedText?.trim() || evidence.excerpt,
     sourceDocumentId: evidence.sourceDocumentId ?? document?.id ?? null,
