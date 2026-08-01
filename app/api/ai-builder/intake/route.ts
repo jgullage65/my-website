@@ -47,6 +47,7 @@ type IntakeRequestBody = {
   businessName?: unknown;
   industry?: unknown;
   website?: unknown;
+  brandVoice?: unknown;
   tone?: unknown;
   userKnowledge?: UserKnowledgeRequest;
   websiteKnowledge?: WebsiteKnowledgeRequest | null;
@@ -250,7 +251,9 @@ export async function POST(request: Request) {
   const businessName = normalizeText(body.businessName);
   const industry = normalizeText(body.industry);
   const website = normalizeText(body.website);
-  const tone = normalizeText(body.tone) || "Professional";
+  const legacyTone = normalizeBoundedText(body.tone, 4_000);
+  const brandVoice = normalizeBoundedText(body.brandVoice, 4_000) || legacyTone;
+  const assistantCommunicationStyle = brandVoice || "Professional";
 
   const userProductsServices = normalizeText(
     body.userKnowledge?.productsServices,
@@ -319,6 +322,7 @@ export async function POST(request: Request) {
     businessName.length +
     industry.length +
     website.length +
+    brandVoice.length +
     userProductsServices.length +
     userIdealCustomers.length +
     userAdditionalKnowledge.length +
@@ -379,6 +383,12 @@ export async function POST(request: Request) {
     "user_ideal_customers_block",
     "USER-PROVIDED KNOWLEDGE: Ideal customers",
     userIdealCustomers,
+  );
+  addKnowledgeBlock(
+    blocks,
+    "user_brand_voice_block",
+    "USER-PROVIDED COMMUNICATION GUIDANCE: Brand voice and communication style",
+    brandVoice,
   );
   addKnowledgeBlock(
     blocks,
@@ -452,9 +462,13 @@ export async function POST(request: Request) {
               "USER-PROVIDED KNOWLEDGE has higher authority than WEBSITE KNOWLEDGE.",
               "When the two sources conflict, follow the user-provided knowledge and do not repeat the conflicting website claim as current fact.",
               "Website knowledge may supplement topics the user did not address.",
+              brandVoice
+                ? `Follow this user-provided brand voice and communication style in every response: ${brandVoice}`
+                : "Use a professional communication style unless the user later provides more specific brand guidance.",
+              "Communication guidance controls presentation and wording, but it must never override approved business facts.",
               "Be accurate, useful, and transparent when information is missing.",
             ].join(" "),
-            assistantTone: tone,
+            assistantTone: assistantCommunicationStyle,
           },
           state: {
             conversationMemory: initialMemory,
@@ -471,11 +485,9 @@ export async function POST(request: Request) {
         session.assistantConfiguration = {
           ...session.assistantConfiguration,
           name: assistantName,
-          tone,
+          tone: assistantCommunicationStyle,
         };
 
-        // The stream and the database must agree: website facts become durable
-        // review rows before this session is ever returned to the browser.
         const reconciledSession = reconcileStructuredWebsiteKnowledge(
           session,
           persistedWebsiteKnowledge?.knowledge,
