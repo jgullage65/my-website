@@ -1,3 +1,4 @@
+# One-time repair workflow. It deletes itself after the tested fix is committed.
 name: Restore AI Builder crawler coverage
 
 on:
