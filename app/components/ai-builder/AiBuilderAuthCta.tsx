@@ -29,14 +29,22 @@ export default function AiBuilderAuthCta() {
   }, []);
 
   return (
-    <div className="absolute right-4 top-4 z-10 flex justify-end sm:right-6 lg:right-8">
-      <SignedOut>
-        <SignInButton mode="modal" forceRedirectUrl="/ai-builder">
-          <button type="button" className={aiBuilderCornerCtaClassName}>
-            Sign In
-          </button>
-        </SignInButton>
-      </SignedOut>
-    </div>
+    <>
+      <style>{`
+        .ai-builder-form [class~="border-amber-300/20"][class~="bg-[#070707]/88"] {
+          border-color: rgba(255, 255, 255, 0.07) !important;
+          background: #070707 !important;
+        }
+      `}</style>
+      <div className="absolute right-4 top-4 z-10 flex justify-end sm:right-6 lg:right-8">
+        <SignedOut>
+          <SignInButton mode="modal" forceRedirectUrl="/ai-builder">
+            <button type="button" className={aiBuilderCornerCtaClassName}>
+              Sign In
+            </button>
+          </SignInButton>
+        </SignedOut>
+      </div>
+    </>
   );
 }
