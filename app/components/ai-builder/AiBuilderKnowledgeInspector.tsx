@@ -18,8 +18,10 @@ type ProvenanceResponse = {
       confidenceScore: number;
       availability: "exact" | "partial" | "classification_only";
       relatedEntryIds: string[];
+      importedAt: string | null;
       evidence: Array<{
         url: string | null;
+        pageTitle: string | null;
         excerpt: string;
         sourceDocumentId: string | null;
         sourceBlockId: string | null;
@@ -45,16 +47,28 @@ type SelectedItem = {
 };
 
 function sourceLabel(value: ProvenanceResponse["detail"]["item"]["classification"]) {
-  if (value === "website") return "Website";
-  if (value === "manual") return "Manual";
+  if (value === "website") return "Website import";
+  if (value === "manual") return "Manual entry";
   if (value === "user_corrected") return "User corrected";
-  return "Generated";
+  return "Generated from knowledge";
 }
 
-function availabilityLabel(value: ProvenanceResponse["detail"]["item"]["availability"]) {
-  if (value === "exact") return "Exact source details";
-  if (value === "partial") return "URL and excerpt available";
-  return "Source type only";
+function formatDate(value: string | null) {
+  if (!value) return "Not available";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? "Not available"
+    : date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function pageLabel(url: string | null) {
+  if (!url) return "Website page";
+  try {
+    const parsed = new URL(url);
+    return `${parsed.hostname}${parsed.pathname === "/" ? "" : parsed.pathname}`;
+  } catch {
+    return url;
+  }
 }
 
 export default function AiBuilderKnowledgeInspector() {
@@ -167,32 +181,40 @@ export default function AiBuilderKnowledgeInspector() {
 
               {detail ? (
                 <>
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                    <Meta label="Source" value={sourceLabel(detail.item.classification)} />
-                    <Meta label="Confidence" value={`${detail.item.confidence} · ${Math.round(detail.item.confidenceScore * 100)}%`} />
-                    <Meta label="Coverage" value={availabilityLabel(detail.item.availability)} />
-                    <Meta label="Evidence" value={String(detail.item.evidence.length)} />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <Meta label="Origin" value={sourceLabel(detail.item.classification)} />
+                    <Meta label="Imported" value={formatDate(detail.item.importedAt)} />
+                    <Meta label="Supporting pages" value={String(detail.item.evidence.length)} />
                   </div>
 
                   {detail.item.originalClassification ? (
                     <p className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-3 text-sm text-slate-300">
-                      Original source: <span className="font-semibold text-white">{sourceLabel(detail.item.originalClassification)}</span>
+                      Originally from <span className="font-semibold text-white">{sourceLabel(detail.item.originalClassification)}</span>
                     </p>
                   ) : null}
 
                   <section>
-                    <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Supporting evidence</h3>
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Found on your website</h3>
+                      {detail.item.evidence.length > 1 ? (
+                        <span className="text-xs text-slate-500">{detail.item.evidence.length} supporting pages</span>
+                      ) : null}
+                    </div>
                     <div className="mt-3 space-y-3">
                       {detail.item.evidence.length ? detail.item.evidence.map((evidence, index) => (
                         <article key={`${evidence.sourceBlockId ?? evidence.url ?? "evidence"}:${index}`} className="rounded-xl border border-white/[0.065] bg-black/30 p-4">
-                          <p className="whitespace-pre-wrap text-sm leading-6 text-slate-200">{evidence.excerpt}</p>
-                          <div className="mt-3 flex flex-wrap gap-2 text-[0.68rem] text-slate-500">
-                            {evidence.url ? <a href={evidence.url} target="_blank" rel="noreferrer" className="text-amber-300 transition hover:text-amber-200">Open source page</a> : null}
-                            {evidence.sourceBlockId ? <span>Exact block</span> : null}
-                            {evidence.crawlAttemptId ? <span>Crawl linked</span> : null}
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-white">{evidence.pageTitle || pageLabel(evidence.url)}</p>
+                              {evidence.url ? <p className="mt-1 truncate text-xs text-slate-500">{pageLabel(evidence.url)}</p> : null}
+                            </div>
+                            {evidence.url ? (
+                              <a href={evidence.url} target="_blank" rel="noreferrer" className="shrink-0 text-xs font-semibold text-amber-300 transition hover:text-amber-200">Open page</a>
+                            ) : null}
                           </div>
+                          <p className="mt-4 whitespace-pre-wrap border-l-2 border-white/[0.08] pl-4 text-sm leading-6 text-slate-300">{evidence.excerpt}</p>
                         </article>
-                      )) : <p className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-5 text-center text-sm text-slate-500">No supporting excerpt is available for this older item.</p>}
+                      )) : <p className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-5 text-center text-sm text-slate-500">No saved website excerpt is available for this item.</p>}
                     </div>
                   </section>
 
@@ -208,7 +230,7 @@ export default function AiBuilderKnowledgeInspector() {
                           <span className="text-sm font-semibold capitalize text-slate-200">{review.action.replace("_", " ")}</span>
                           <span className="text-xs text-slate-500">{new Date(review.reviewedAt).toLocaleString()}</span>
                         </div>
-                      )) : <p className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-4 text-sm text-slate-500">No canonical review history is available yet.</p>}
+                      )) : <p className="rounded-xl border border-white/[0.06] bg-black/30 px-4 py-4 text-sm text-slate-500">Not yet reviewed.</p>}
                     </div>
                   </section>
                 </>
