@@ -155,15 +155,65 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
 
   .ai-builder-form > div > div.relative > div {
     margin-top: 0 !important;
-    grid-template-columns: minmax(22rem, 0.66fr) minmax(0, 1.34fr) !important;
+    grid-template-columns: minmax(22rem, 0.66fr) minmax(0, 0.67fr) minmax(0, 0.67fr) !important;
     column-gap: 1.5rem !important;
   }
 
-  .ai-builder-form > div > div.relative > div > div:first-child {
-    padding-top: 0 !important;
+  .ai-builder-form > div > div.relative > div > div:first-child,
+  .ai-builder-form > div > div.relative > div > section:nth-child(2),
+  .ai-builder-form > div > div.relative > div > section:nth-child(2) > div:nth-child(2) {
+    display: contents;
+  }
+
+  .ai-builder-form > div > div.relative > div > div:first-child > header {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: end;
+  }
+
+  .ai-builder-form > div > div.relative > div > div:first-child > section {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .ai-builder-form > div > div.relative > div > section:nth-child(2) > div:first-child {
+    grid-column: 2 / 4;
+    grid-row: 1;
+  }
+
+  .ai-builder-form > div > div.relative > div > section:nth-child(2) > div:nth-child(2) > article:nth-child(1) {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .ai-builder-form > div > div.relative > div > section:nth-child(2) > div:nth-child(2) > article:nth-child(2) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .ai-builder-form > div > div.relative > div > section:nth-child(2) > div:nth-child(2) > article:nth-child(3) {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .ai-builder-form > div > div.relative > div > section:nth-child(2) > div:nth-child(2) > article:nth-child(4) {
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  .ai-builder-form > div > div.relative > div > section:nth-child(2) > div:nth-child(2) > article:nth-child(5) {
+    grid-column: 3;
+    grid-row: 3;
+  }
+
+  .ai-builder-form > div > div.relative > div > section:nth-child(2) > div:nth-child(2) > article:nth-child(6) {
+    grid-column: 2;
+    grid-row: 4;
   }
 
   .ai-builder-form > div > div.relative > div > section:last-child {
+    grid-column: 1 / 4;
+    grid-row: 5;
     width: 20rem !important;
     max-width: 20rem !important;
     padding: 0.85rem 1rem !important;
