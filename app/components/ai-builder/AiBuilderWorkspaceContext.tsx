@@ -114,7 +114,7 @@ export function AiBuilderWorkspaceProvider({
     <AiBuilderWorkspaceContext.Provider value={value}>
       {children}
       {knowledgeOpen ? (
-        <div className="fixed bottom-5 left-1/2 z-[110] w-[min(700px,calc(100vw-3rem))] -translate-x-1/2">
+        <div className="fixed left-[calc(50%-390px)] top-[calc(5dvh+16px)] z-[125] hidden xl:block">
           <AiBuilderKnowledgeInspector />
         </div>
       ) : null}
