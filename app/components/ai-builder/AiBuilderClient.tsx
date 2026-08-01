@@ -61,7 +61,7 @@ export type BuilderState = {
 };
 
 type BuilderStep = "form" | "loading" | "building" | "results" | "review" | "chat";
-type WorkspaceTab = Exclude<AiBuilderWorkspaceTab, "projects">;
+type WorkspaceTab = Exclude<AiBuilderWorkspaceTab, "projects" | "overview">;
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export type ReviewCommandPending = ReadonlySet<string>;
@@ -118,7 +118,6 @@ const initial: BuilderState = {
 const WORKSPACE_ITEMS: ReadonlyArray<readonly [WorkspaceTab, string]> = [
   ["dashboard", "Dashboard"],
   ["insights", "Project Insights"],
-  ["overview", "Overview"],
   ["knowledge", "Business Knowledge"],
   ["sources", "Sources"],
   ["settings", "Settings"],
@@ -139,6 +138,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   const [step, setStep] = useState<BuilderStep>(initialProjectId ? "loading" : "form");
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("dashboard");
   const [projectsOpen, setProjectsOpen] = useState(false);
+  const [overviewOpen, setOverviewOpen] = useState(false);
   const [builder, setBuilder] = useState(initial);
   const [session, setSession] = useState<AiBuilderSession | null>(null);
   const [chatThread, setChatThread] = useState<ChatThread | null>(null);
@@ -263,6 +263,15 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     return () => window.removeEventListener("keydown", close);
   }, [projectsOpen]);
 
+  useEffect(() => {
+    if (!overviewOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOverviewOpen(false);
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [overviewOpen]);
+
   const navigateToStep = useCallback((nextStep: BuilderStep) => {
     setStep(nextStep);
     if (nextStep === "results" || nextStep === "review" || nextStep === "chat") {
@@ -278,10 +287,9 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
   const selectWorkspaceTab = useCallback(
     (nextTab: WorkspaceTab) => {
       setWorkspaceTab(nextTab);
+      setOverviewOpen(false);
       if (nextTab === "knowledge") {
         navigateToStep("review");
-      } else if (nextTab === "overview") {
-        navigateToStep("results");
       } else if (step === "review") {
         navigateToStep("results");
       }
@@ -293,6 +301,10 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     (nextTab: AiBuilderWorkspaceTab) => {
       if (nextTab === "projects") {
         setProjectsOpen(true);
+        return;
+      }
+      if (nextTab === "overview") {
+        setOverviewOpen(true);
         return;
       }
       selectWorkspaceTab(nextTab);
@@ -440,10 +452,13 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
 
       const projectId = payload.projectId ?? payload.session.id;
       setSession(payload.session);
+      setWorkspaceTab("dashboard");
       setStep("results");
+      setOverviewOpen(true);
       const url = new URL(window.location.href);
       url.searchParams.set("projectId", projectId);
       url.searchParams.set("step", "results");
+      url.searchParams.set("tab", "dashboard");
       window.history.replaceState(null, "", url.toString());
 
       try {
@@ -462,6 +477,7 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     } catch (buildError) {
       setSession(null);
       setChatThread(null);
+      setOverviewOpen(false);
       setError(
         buildError instanceof Error
           ? buildError.message
@@ -502,6 +518,11 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
     [builder.businessName, builder.industry, builder.website, builder.tone, projectStateRevision],
   );
 
+  const openReview = useCallback(() => {
+    setOverviewOpen(false);
+    selectWorkspaceTab("knowledge");
+  }, [selectWorkspaceTab]);
+
   const workspaceContent = session ? (
     workspaceTab === "dashboard" ? (
       <AiBuilderDashboard />
@@ -529,21 +550,12 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
         <AiBuilderReview
           onReviewCommand={submitReviewCommand}
           pendingReviewItems={pendingReviewItems}
-          onBack={() => selectWorkspaceTab("overview")}
+          onBack={() => selectWorkspaceTab("dashboard")}
           onLaunchChat={() => navigateToStep("chat")}
           showLaunchChat={false}
           embedded
         />
       </>
-    ) : workspaceTab === "overview" ? (
-      <AiBuilderProgress
-        builder={builder}
-        session={session}
-        complete
-        percent={100}
-        onReview={() => selectWorkspaceTab("knowledge")}
-        embedded
-      />
     ) : workspaceTab === "sources" ? (
       <AiBuilderSources />
     ) : (
@@ -567,13 +579,13 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           diagnostics={diagnostics}
           messages={chatThread?.messages ?? []}
           activeTab={workspaceTab}
-          overviewOpen={false}
+          overviewOpen={overviewOpen}
           knowledgeOpen={workspaceTab === "knowledge"}
           setActiveTab={selectAiBuilderWorkspaceTab}
-          openOverview={() => selectWorkspaceTab("overview")}
-          closeOverview={() => undefined}
-          openKnowledge={() => selectWorkspaceTab("knowledge")}
-          closeKnowledge={() => selectWorkspaceTab("overview")}
+          openOverview={() => setOverviewOpen(true)}
+          closeOverview={() => setOverviewOpen(false)}
+          openKnowledge={openReview}
+          closeKnowledge={() => selectWorkspaceTab("dashboard")}
         >
           <AiBuilderDemoChat
             onBack={() => {
@@ -585,6 +597,35 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
       </AiBuilderShell>
     );
   }
+
+  const completionOverlay = overviewOpen && session ? (
+    <>
+      <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md sm:flex" role="presentation">
+        <section role="dialog" aria-modal="true" aria-label="Project overview" className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
+          <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-20 py-4 text-center">
+            <h2 className="text-base font-semibold text-white">Overview</h2>
+            <button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] text-xl leading-none text-slate-300 transition hover:bg-white/[0.05] hover:text-white">×</button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="mx-auto w-full max-w-[700px]">
+              <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={openReview} embedded />
+            </div>
+          </div>
+        </section>
+      </div>
+      <section role="dialog" aria-modal="true" aria-label="Project overview" className="fixed inset-0 z-[100] flex min-h-dvh flex-col bg-[#030303] sm:hidden">
+        <div className="relative flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] px-16 text-center">
+          <h2 className="text-sm font-semibold text-white">Overview</h2>
+          <button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-2xl leading-none text-slate-300">×</button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6">
+          <div className="mx-auto w-full max-w-[700px]">
+            <AiBuilderProgress builder={builder} session={session} complete percent={100} onReview={openReview} embedded />
+          </div>
+        </div>
+      </section>
+    </>
+  ) : null;
 
   return (
     <AiBuilderShell>
@@ -616,13 +657,13 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           diagnostics={diagnostics}
           messages={chatThread?.messages ?? []}
           activeTab={workspaceTab}
-          overviewOpen={false}
+          overviewOpen={overviewOpen}
           knowledgeOpen={workspaceTab === "knowledge"}
           setActiveTab={selectAiBuilderWorkspaceTab}
-          openOverview={() => selectWorkspaceTab("overview")}
-          closeOverview={() => undefined}
-          openKnowledge={() => selectWorkspaceTab("knowledge")}
-          closeKnowledge={() => selectWorkspaceTab("overview")}
+          openOverview={() => setOverviewOpen(true)}
+          closeOverview={() => setOverviewOpen(false)}
+          openKnowledge={openReview}
+          closeKnowledge={() => selectWorkspaceTab("dashboard")}
         >
           <AiBuilderWorkspaceFrame
             title={WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1] ?? "AI Builder"}
@@ -635,7 +676,12 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
             onBuilderSelect={() => setProjectsOpen(true)}
             builderActive={false}
             rightRail={<AiBuilderDemoChat onBack={() => undefined} />}
-            overlays={projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
+            overlays={
+              <>
+                {projectsOpen ? <AiBuilderProjects embedded onClose={() => setProjectsOpen(false)} /> : null}
+                {completionOverlay}
+              </>
+            }
           >
             {workspaceContent}
           </AiBuilderWorkspaceFrame>
