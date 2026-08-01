@@ -60,7 +60,7 @@ export default function AiBuilderModelSelect({models,value,disabled,onChange,cla
       await showConfirm({
         title: "Claude is available for chat only",
         message:
-          "Claude requires output limits that can affect Business Knowledge extraction. Choose another model for the website crawler. You can still use Claude for chat assistant messages.",
+          "Claude currently has limits that can reduce Business Knowledge extraction quality. Please choose another model for Business Knowledge generation. Claude remains available for AI assistant conversations.",
         cancelLabel: "Close",
         confirmLabel: "Got it",
       });
