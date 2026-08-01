@@ -169,6 +169,7 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
     grid-column: 1;
     grid-row: 1;
     align-self: end;
+    transform: translateY(-18px);
   }
 
   .ai-builder-form > div > div.relative > div > div:first-child > section {
