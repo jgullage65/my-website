@@ -175,8 +175,8 @@ const PRIORITY_PATHS = [
   "/terms",
 ] as const;
 
-const MAX_PAGES = PRIORITY_PATHS.length;
-const MAX_SITEMAP_FETCHES = MAX_PAGES;
+const MAX_PAGES = 500;
+const MAX_SITEMAP_FETCHES = 100;
 
 const BROWSER_LIMITS = {
   pages: 3,
@@ -211,7 +211,7 @@ type LoadPlaywright = () => Promise<{ chromium: { launch: (options: { headless: 
 export async function createPlaywrightRenderer(assertSafe: DestinationSafetyCheck, baseHost: string, loadPlaywright?: LoadPlaywright, renderHost = baseHost): Promise<BrowserRenderer> {
   // Browser code and process startup are deliberately deferred until a weak page exists.
   // @ts-ignore Playwright is dynamically loaded so HTML-only crawls never initialize it; the local interface limits what the crawler can invoke.
-  const { chromium } = await (loadPlaywright ? loadPlaywright() : import("playwright") as Promise<{ chromium: { launch: (options: { headless: boolean; args?: string[] }) => Promise<PlaywrightBrowser> } }>);
+  const { chromium } = await (loadPlaywright ? loadPlaywright() : import("playwright") as Promise<{ chromium: { launch: (options: { headless: boolean; args?: string[] }) => Promise<PlaywrightBrowser> }>);
   const pinnedHost = networkHost(renderHost);
   const browserUrlHost = net.isIP(pinnedHost) === 6 ? `[${pinnedHost}]` : pinnedHost;
   const approved = await assertSafe(new URL(`https://${browserUrlHost}/`));
@@ -676,10 +676,8 @@ function isDiscoverableBusinessUrl(url: URL, discoveryText = ""): boolean {
   if (segments.some((segment) => EDITORIAL_PATH_SEGMENT.test(segment))) return false;
   if (segments.length > 1 && YEAR_PATH_SEGMENT.test(segments[0] ?? "")) return false;
 
-  const normalizedMetadata = discoveryText.toLowerCase();
-  return DISCOVERY_KEYWORDS.some((keyword) =>
-    path.includes(keyword) || normalizedMetadata.includes(keyword),
-  );
+  void discoveryText;
+  return true;
 }
 
 export async function fetchHtml(
