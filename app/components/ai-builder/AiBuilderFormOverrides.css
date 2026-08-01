@@ -157,6 +157,7 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
     margin-top: 0 !important;
     grid-template-columns: minmax(22rem, 0.66fr) minmax(0, 0.67fr) minmax(0, 0.67fr) !important;
     column-gap: 1.5rem !important;
+    row-gap: 0.75rem !important;
   }
 
   .ai-builder-form > div > div.relative > div > div:first-child,
