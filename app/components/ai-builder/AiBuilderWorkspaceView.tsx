@@ -7,6 +7,7 @@ import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/r
 import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderForm from "./AiBuilderForm";
+import AiBuilderKnowledgeInspector from "./AiBuilderKnowledgeInspector";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderReview from "./AiBuilderReview";
 import {
@@ -85,6 +86,7 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   } else if (props.activeView === "review") {
     content = (
       <div className={inert}>
+        {!demo && !preview ? <AiBuilderKnowledgeInspector /> : null}
         <AiBuilderReview
           onReviewCommand={demo ? noopAsync : props.onReviewCommand ?? noopAsync}
           pendingReviewItems={props.pendingReviewItems ?? new Set()}
