@@ -212,24 +212,9 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
     grid-row: 4;
   }
 
-  .ai-builder-form > div > div.relative > div > section:last-child {
-    grid-column: 1 / 4;
-    grid-row: 5;
-    width: 20rem !important;
-    max-width: 20rem !important;
-    padding: 0.85rem 1rem !important;
-    transform: translateY(-6px);
-  }
-
-  .ai-builder-form > div > div.relative > div > section:last-child h3 {
-    font-size: 1rem !important;
-    line-height: 1.35rem !important;
-  }
-
-  .ai-builder-form > div > div.relative > div > section:last-child button {
-    margin-top: 0.65rem !important;
-    min-height: 2.5rem !important;
-    padding: 0.6rem 1rem !important;
+  .ai-builder-form > div > div.relative > div > section:nth-child(2) > div:nth-child(2) > article:nth-child(7) {
+    grid-column: 3;
+    grid-row: 4;
   }
 }
 
