@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import AiBuilderClient from "@/app/components/ai-builder/AiBuilderClient";
+import AiBuilderFirstRun from "@/app/components/ai-builder/AiBuilderFirstRun";
 import AiBuilderLanding from "@/app/components/ai-builder/AiBuilderLanding";
 import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 import AiBuilderShell from "@/app/components/ai-builder/AiBuilderShell";
@@ -49,7 +49,7 @@ export default async function Page({ searchParams }: PageProps) {
   }
 
   if (newProject) {
-    return <AiBuilderClient />;
+    return <AiBuilderFirstRun />;
   }
 
   if (normalizedProjectId) {
