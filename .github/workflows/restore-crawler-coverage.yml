@@ -1,0 +1,89 @@
+name: Restore crawler coverage
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/restore-crawler-coverage-trigger"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Restore broad crawler discovery
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          crawler = Path('app/lib/ai-engine/crawler/crawlBusinessWebsite.ts')
+          text = crawler.read_text()
+
+          old_limits = '''const MAX_PAGES = PRIORITY_PATHS.length;
+          const MAX_SITEMAP_FETCHES = MAX_PAGES;'''
+          new_limits = '''const MAX_PAGES = 500;
+          const MAX_SITEMAP_FETCHES = 100;'''
+          if old_limits not in text:
+              raise SystemExit('Expected regressed crawler limits were not found')
+          text = text.replace(old_limits, new_limits, 1)
+
+          old_discovery = '''  const normalizedMetadata = discoveryText.toLowerCase();
+          return DISCOVERY_KEYWORDS.some((keyword) =>
+            path.includes(keyword) || normalizedMetadata.includes(keyword),
+          );'''
+          new_discovery = '''  void discoveryText;
+          return true;'''
+          if old_discovery not in text:
+              raise SystemExit('Expected keyword-gated discovery logic was not found')
+          text = text.replace(old_discovery, new_discovery, 1)
+          crawler.write_text(text)
+
+          tests = Path('app/lib/ai-engine/crawler/crawlBusinessWebsite.test.ts')
+          test_text = tests.read_text()
+          marker = 'test("restores broad sitemap and non-keyword route coverage", async () => {'
+          if marker not in test_text:
+              test_text += r'''
+
+          test("restores broad sitemap and non-keyword route coverage", async () => {
+            const sitemapUrls = Array.from({ length: 30 }, (_, index) => `https://example.test/platform/capability-${index + 1}`);
+            const requested: string[] = [];
+            const result = await crawlBusinessWebsite("https://example.test", undefined, {
+              assertSafe: async () => undefined,
+              fetchSitemap: async (url) => url.pathname === "/sitemap.xml"
+                ? { resolvedUrl: url, xml: `<urlset>${sitemapUrls.map((entry) => `<url><loc>${entry}</loc></url>`).join("")}</urlset>` }
+                : null,
+              fetchPage: async (url) => {
+                requested.push(url.pathname);
+                if (url.pathname === "/") return { resolvedUrl: url, html: page("Home") };
+                if (url.pathname.startsWith("/platform/capability-")) return { resolvedUrl: url, html: page(`Capability ${url.pathname}`) };
+                return null;
+              },
+            });
+
+            assert.ok(result.pages.length > 12);
+            assert.ok(requested.includes("/platform/capability-30"));
+            assert.ok(result.pages.some((entry) => entry.url.includes("/platform/capability-30")));
+          });
+          '''
+              tests.write_text(test_text)
+          PY
+      - run: npm ci
+      - run: npm run test:ai-builder-crawler
+      - name: Commit repair
+        run: |
+          rm -f .github/restore-crawler-coverage-trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/lib/ai-engine/crawler/crawlBusinessWebsite.ts app/lib/ai-engine/crawler/crawlBusinessWebsite.test.ts .github/restore-crawler-coverage-trigger
+          git commit -m "Restore broad AI Builder crawler coverage"
+          git push
