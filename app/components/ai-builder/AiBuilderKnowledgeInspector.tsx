@@ -114,34 +114,17 @@ export default function AiBuilderKnowledgeInspector() {
 
   return (
     <>
-      <section className="mb-5 rounded-[14px] border border-white/[0.055] bg-[#080808]/90 px-4 py-4 shadow-[0_14px_36px_rgba(0,0,0,0.2)] sm:px-5">
-        <p className="text-center text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-slate-400">Source details</p>
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-          <select
-            value={selectedKey}
-            onChange={(event) => setSelectedKey(event.target.value)}
-            className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-[#030303] px-3 text-sm text-slate-200 outline-none transition focus:border-amber-300/35"
-            aria-label="Choose knowledge item"
-          >
-            {items.map((item) => (
-              <option key={`${item.kind}:${item.id}`} value={`${item.kind}:${item.id}`}>
-                {item.kind === "faq" ? "Q&A: " : "Knowledge: "}{item.label}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => void inspect()}
-            className="cta-raised min-h-11 rounded-lg border border-amber-300/20 bg-black px-5 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/40 hover:bg-[#0a0a0a] sm:min-w-[150px]"
-          >
-            View source
-          </button>
-        </div>
-      </section>
+      <button
+        type="button"
+        onClick={() => void inspect()}
+        className="fixed left-4 top-4 z-[115] min-h-10 rounded-lg border border-white/[0.1] bg-[#080808] px-4 py-2 text-xs font-semibold text-slate-300 shadow-[0_10px_28px_rgba(0,0,0,0.35)] transition hover:bg-white/[0.05] hover:text-white xl:left-1/2 xl:top-[calc(5dvh+14px)] xl:-translate-x-[390px]"
+      >
+        Source details
+      </button>
 
       {open ? (
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setOpen(false);
@@ -157,6 +140,28 @@ export default function AiBuilderKnowledgeInspector() {
             </header>
 
             <div className="space-y-5 p-5 sm:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <select
+                  value={selectedKey}
+                  onChange={(event) => setSelectedKey(event.target.value)}
+                  className="min-h-11 min-w-0 flex-1 rounded-lg border border-white/[0.08] bg-[#030303] px-3 text-sm text-slate-200 outline-none transition focus:border-amber-300/35"
+                  aria-label="Choose knowledge item"
+                >
+                  {items.map((item) => (
+                    <option key={`${item.kind}:${item.id}`} value={`${item.kind}:${item.id}`}>
+                      {item.kind === "faq" ? "Q&A: " : "Knowledge: "}{item.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => void inspect()}
+                  className="cta-raised min-h-11 rounded-lg border border-amber-300/20 bg-black px-5 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/40 hover:bg-[#0a0a0a] sm:min-w-[150px]"
+                >
+                  View source
+                </button>
+              </div>
+
               {loading ? <p className="py-12 text-center text-sm text-slate-400">Loading source details...</p> : null}
               {error ? <p className="rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p> : null}
 
