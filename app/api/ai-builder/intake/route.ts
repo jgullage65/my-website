@@ -22,6 +22,7 @@ export const dynamic = "force-dynamic";
 type UserKnowledgeRequest = {
   productsServices?: unknown;
   idealCustomers?: unknown;
+  businessPoliciesOperations?: unknown;
   additionalKnowledge?: unknown;
 };
 
@@ -261,6 +262,10 @@ export async function POST(request: Request) {
   const userIdealCustomers = normalizeText(
     body.userKnowledge?.idealCustomers,
   );
+  const userBusinessPoliciesOperations = normalizeBoundedText(
+    body.userKnowledge?.businessPoliciesOperations,
+    12_000,
+  );
   const userAdditionalKnowledge = normalizeText(
     body.userKnowledge?.additionalKnowledge,
   );
@@ -325,6 +330,7 @@ export async function POST(request: Request) {
     brandVoice.length +
     userProductsServices.length +
     userIdealCustomers.length +
+    userBusinessPoliciesOperations.length +
     userAdditionalKnowledge.length +
     websiteBusinessName.length +
     websiteIndustry.length +
@@ -383,6 +389,12 @@ export async function POST(request: Request) {
     "user_ideal_customers_block",
     "USER-PROVIDED KNOWLEDGE: Ideal customers",
     userIdealCustomers,
+  );
+  addKnowledgeBlock(
+    blocks,
+    "user_business_policies_operations_block",
+    "USER-PROVIDED KNOWLEDGE: Business policies and operations",
+    userBusinessPoliciesOperations,
   );
   addKnowledgeBlock(
     blocks,
