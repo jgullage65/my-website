@@ -19,9 +19,6 @@ const pendingSteps = [
   "Preparing business memory",
 ];
 
-const shellClassName =
-  "relative overflow-hidden bg-[#050505] px-4 py-8 sm:px-6 sm:py-10 min-[1200px]:rounded-2xl min-[1200px]:border min-[1200px]:border-white/[0.08] min-[1200px]:px-6 min-[1200px]:py-6";
-
 export default function AiBuilderProgress({
   builder,
   session,
@@ -37,8 +34,12 @@ export default function AiBuilderProgress({
     : 0;
 
   const goToDashboard = (event: React.MouseEvent<HTMLButtonElement>) => {
-    const dialog = event.currentTarget.closest<HTMLElement>('[role="dialog"][aria-label="Project overview"]');
-    const closeButton = dialog?.querySelector<HTMLButtonElement>('button[aria-label="Close overview"]');
+    const dialog = event.currentTarget.closest<HTMLElement>(
+      '[role="dialog"][aria-label="Project overview"]',
+    );
+    const closeButton = dialog?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Close overview"]',
+    );
 
     if (closeButton) {
       closeButton.click();
@@ -52,20 +53,22 @@ export default function AiBuilderProgress({
     window.location.assign(url.toString());
   };
 
-  return (
-    <div className={embedded ? "w-full" : "w-full min-[1200px]:mx-auto min-[1200px]:max-w-5xl"}>
-      <section className={embedded ? "w-full" : shellClassName}>
+  const content = (
+    <div className="w-full">
+      <section className="w-full">
         {!embedded ? <AiBuilderAuthCta /> : null}
 
-        <div className={embedded ? "relative border-b border-white/[0.08] pb-5 text-center" : "relative text-center"}>
+        <div className="relative border-b border-white/[0.08] pb-5 text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-amber-300 sm:text-sm">
             {complete ? "Your AI is ready" : "Building your AI system"}
           </p>
 
-          {!embedded ? <h1 className="mt-3 text-3xl font-semibold tracking-[-0.035em] text-white sm:text-4xl min-[1200px]:mt-2 min-[1200px]:text-3xl">{builder.businessName}</h1> : null}
+          <h1 className="mt-3 text-2xl font-semibold tracking-[-0.035em] text-white sm:text-3xl">
+            {builder.businessName}
+          </h1>
         </div>
 
-        <div className="relative mt-8 grid gap-3 sm:grid-cols-2 min-[1200px]:mt-5">
+        <div className="relative mt-5 grid gap-3 sm:grid-cols-2">
           {(complete ? progress : pendingSteps).map((item, index) => {
             const message = typeof item === "string" ? item : item.message;
             const itemCount = typeof item === "string" ? null : item.count;
@@ -76,7 +79,9 @@ export default function AiBuilderProgress({
             const stepPercent = complete
               ? 100
               : Math.max(0, Math.min(100, (percent - index * 20) * 5));
-            const completed = stepPercent === 100 || (typeof item !== "string" && item.completed);
+            const completed =
+              stepPercent === 100 ||
+              (typeof item !== "string" && item.completed);
 
             return (
               <article
@@ -85,12 +90,16 @@ export default function AiBuilderProgress({
               >
                 <div className="flex flex-col items-center justify-center gap-1.5 text-center">
                   <span className="text-sm font-semibold text-white">
-                    {completed ? <span className="text-amber-300">✓ </span> : null}
+                    {completed ? (
+                      <span className="text-amber-300">✓ </span>
+                    ) : null}
                     {message}
                   </span>
 
                   {!complete ? (
-                    <span className="text-xs font-bold text-amber-300">{Math.round(stepPercent)}%</span>
+                    <span className="text-xs font-bold text-amber-300">
+                      {Math.round(stepPercent)}%
+                    </span>
                   ) : typeof count === "number" ? (
                     <span className="text-sm font-bold text-amber-300">
                       {count}
@@ -99,7 +108,10 @@ export default function AiBuilderProgress({
                 </div>
 
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.08]">
-                  <div className="h-full rounded-full bg-amber-300 transition-[width] duration-300" style={{ width: `${stepPercent}%` }} />
+                  <div
+                    className="h-full rounded-full bg-amber-300 transition-[width] duration-300"
+                    style={{ width: `${stepPercent}%` }}
+                  />
                 </div>
               </article>
             );
@@ -137,17 +149,36 @@ export default function AiBuilderProgress({
       </section>
     </div>
   );
+
+  if (embedded) return content;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-md sm:p-8"
+      role="presentation"
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI build progress"
+        className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]"
+      >
+        <div className="flex flex-none items-center justify-center border-b border-white/[0.08] px-6 py-4 text-center">
+          <h2 className="text-base font-semibold text-white">AI Builder</h2>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="mx-auto w-full max-w-[700px]">{content}</div>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function Stat({ value, label }: { value: number; label: string }) {
   return (
     <div className="rounded-xl border border-amber-300/25 bg-black/20 px-2 py-2.5 text-center sm:px-3">
-      <div className="text-xl font-semibold text-amber-300">
-        {value}
-      </div>
-      <div className="mt-0.5 text-xs font-medium text-slate-400">
-        {label}
-      </div>
+      <div className="text-xl font-semibold text-amber-300">{value}</div>
+      <div className="mt-0.5 text-xs font-medium text-slate-400">{label}</div>
     </div>
   );
 }
