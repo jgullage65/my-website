@@ -111,7 +111,7 @@ export default function AiBuilderProjectInsights() {
               ["Failure stage", crawl?.failure_stage ? humanize(crawl.failure_stage) : null],
             ]}
           />
-          <HistorySection>
+          <HistorySection title="Import history">
             <AttemptTable items={crawls} kind="crawl" />
           </HistorySection>
         </Panel>
@@ -131,7 +131,7 @@ export default function AiBuilderProjectInsights() {
               ["Duration", duration(generation?.duration_ms)],
             ]}
           />
-          <HistorySection>
+          <HistorySection title="Generation history">
             <AttemptTable items={generations} kind="generation" />
           </HistorySection>
         </Panel>
@@ -173,8 +173,15 @@ function Panel({ eyebrow, children }: { eyebrow: string; children: React.ReactNo
   );
 }
 
-function HistorySection({ children }: { children: React.ReactNode }) {
-  return <div className="mt-4 border-t border-white/[.08] pt-4">{children}</div>;
+function HistorySection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mt-4 border-t border-white/[.08] pt-4">
+      <p className="mb-4 text-center text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+        {title}
+      </p>
+      {children}
+    </div>
+  );
 }
 
 function Grid({ items }: { items: Array<[string, unknown]> }) {
