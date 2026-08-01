@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import { buildKnowledgeProvenanceSummaries } from "@/app/lib/ai-engine/provenance/knowledgeProvenanceSummary";
 import {
   archiveAiBuilderProject,
   getAiBuilderProject,
@@ -110,6 +111,11 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
+    const session = withCombinedReviewCounts(project.session);
+    const provenanceSummaries = buildKnowledgeProvenanceSummaries({
+      session,
+      websiteKnowledge: project.websiteKnowledge,
+    });
     const sql = getSql();
     let chatThread: {
       id: string;
@@ -181,14 +187,15 @@ export async function GET(_request: Request, context: RouteContext) {
 
     return NextResponse.json({
       ok: true,
-      projectId: project.session.id,
+      projectId: session.id,
       stateRevision: project.stateRevision,
-      session: withCombinedReviewCounts(project.session),
+      session,
+      provenanceSummaries,
       builder: {
         businessName: project.businessName,
         industry: project.industry,
         website: project.website ?? "",
-        tone: project.session.assistantConfiguration.tone,
+        tone: session.assistantConfiguration.tone,
       },
       websiteKnowledge: project.websiteKnowledge,
       chatThread,
