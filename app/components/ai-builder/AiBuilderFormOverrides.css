@@ -215,9 +215,7 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
 
   .ai-builder-shell__content > div.hidden {
     width: 100%;
-    height: calc(100dvh - 112px);
     min-height: 680px;
-    max-height: calc(100dvh - 112px);
     border-radius: 20px;
     grid-template-columns: 190px minmax(0,1fr) 430px;
   }
