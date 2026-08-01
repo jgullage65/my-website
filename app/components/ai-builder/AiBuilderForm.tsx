@@ -410,7 +410,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         <Link href="/ai-builder" className={`${aiBuilderCornerCtaClassName} absolute left-4 top-4 z-10 sm:left-6 lg:left-8`}>← AI Projects</Link>
 
         <div className="mt-12 space-y-6 min-[1200px]:mt-0 min-[1200px]:grid min-[1200px]:grid-cols-[minmax(25rem,0.8fr)_minmax(34rem,1.2fr)] min-[1200px]:items-start min-[1200px]:gap-x-10 min-[1200px]:gap-y-8 min-[1200px]:space-y-0">
-          <div className="space-y-6 min-[1200px]:self-start min-[1200px]:pt-7">
+          <div className="space-y-4 min-[1200px]:self-start min-[1200px]:pt-7">
             <header className="grid justify-items-center text-center">
               <AiBuilderModelSelect models={modelChoices} value={modelId} disabled={importing} onChange={(next) => void selectModel(next)} />
             </header>
@@ -455,6 +455,11 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
                 </div>
               </article>
             </section>
+
+            <KnowledgeCard title="Business profile">
+              <Field label="Business name"><input className={inputClassName} placeholder="Arkena Studio" value={value.businessName} onChange={(event) => updateProfile("businessName", event.target.value)} /></Field>
+              <Field label="Industry"><input className={inputClassName} placeholder="AI automation studio" value={value.industry} onChange={(event) => updateProfile("industry", event.target.value)} /></Field>
+            </KnowledgeCard>
           </div>
 
           <section className="min-w-0 space-y-5 min-[1200px]:col-start-2 min-[1200px]:row-start-1 min-[1200px]:space-y-5">
@@ -462,11 +467,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Your expertise</p>
               <p className="mt-2 text-sm leading-6 text-slate-400">Your answers always take priority over imported website knowledge.</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-2 min-[1200px]:gap-4">
-              <KnowledgeCard title="Business profile">
-                <Field label="Business name"><input className={inputClassName} placeholder="Arkena Studio" value={value.businessName} onChange={(event) => updateProfile("businessName", event.target.value)} /></Field>
-                <Field label="Industry"><input className={inputClassName} placeholder="AI automation studio" value={value.industry} onChange={(event) => updateProfile("industry", event.target.value)} /></Field>
-              </KnowledgeCard>
+            <div className="grid gap-4 md:grid-cols-2 min-[1200px]:grid-cols-2 min-[1200px]:auto-rows-fr min-[1200px]:gap-4">
               <KnowledgeCard title="Products & Services" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder={value.websiteKnowledge?.productsServices ? "Add private details, corrections, packages, pricing, or anything your website does not explain." : "Describe your services, packages, deliverables, pricing structure, and what each option is for."} value={value.userKnowledge.productsServices} onChange={(event) => updateUserKnowledge("productsServices", event.target.value)} /></KnowledgeCard>
               <KnowledgeCard title="Ideal Customers" fill><textarea rows={6} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder={value.websiteKnowledge?.idealCustomers ? "Add more specific customer details or correct anything the website got wrong." : "Describe your best-fit customers, industries, company sizes, locations, needs, and goals."} value={value.userKnowledge.idealCustomers} onChange={(event) => updateUserKnowledge("idealCustomers", event.target.value)} /></KnowledgeCard>
               <KnowledgeCard title="Brand Voice & Communication Style" fill><textarea rows={6} maxLength={4000} className={`${inputClassName} resize-y min-[1200px]:h-full min-[1200px]:min-h-0 min-[1200px]:resize-none`} placeholder="Teach your AI how your business communicates." value={value.tone === "Professional" ? "" : value.tone} onChange={(event) => updateProfile("tone", event.target.value)} /></KnowledgeCard>
