@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import AiBuilderKnowledgeInspector from "./AiBuilderKnowledgeInspector";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 
 export type AiBuilderWorkspaceTab =
@@ -112,6 +113,7 @@ export function AiBuilderWorkspaceProvider({
   return (
     <AiBuilderWorkspaceContext.Provider value={value}>
       {children}
+      {knowledgeOpen ? <AiBuilderKnowledgeInspector /> : null}
     </AiBuilderWorkspaceContext.Provider>
   );
 }
