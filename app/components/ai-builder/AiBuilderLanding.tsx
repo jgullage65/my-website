@@ -124,9 +124,9 @@ export default function AiBuilderLanding() {
       </div>
 
       {plansOpen ? (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center overflow-y-auto bg-black/85 px-4 py-8 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Business Brain plans">
-          <button type="button" className="absolute inset-0 cursor-default" aria-label="Close plans" onClick={() => setPlansOpen(false)} />
-          <div className="relative z-10 w-full max-w-6xl rounded-[28px] border border-white/[0.09] bg-[#000000] p-5 shadow-[0_30px_100px_rgba(0,0,0,.7)] sm:p-7 lg:p-8">
+        <div className="fixed inset-0 z-[9998] overflow-y-auto overscroll-contain bg-black/85 px-4 py-4 backdrop-blur-md sm:py-8" role="dialog" aria-modal="true" aria-label="Business Brain plans">
+          <button type="button" className="fixed inset-0 cursor-default" aria-label="Close plans" onClick={() => setPlansOpen(false)} />
+          <div className="relative z-10 mx-auto my-0 w-full max-w-6xl rounded-[28px] border border-white/[0.09] bg-[#000000] p-5 shadow-[0_30px_100px_rgba(0,0,0,.7)] sm:my-4 sm:p-7 lg:p-8">
             <button type="button" onClick={() => setPlansOpen(false)} className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111]" aria-label="Close plans">×</button>
             <div className="mx-auto max-w-3xl text-center">
               <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-amber-300">Plans</p>
