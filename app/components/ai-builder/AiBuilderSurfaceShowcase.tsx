@@ -73,7 +73,7 @@ export default function AiBuilderSurfaceShowcase({
     const confirmed = await showConfirm({
       title: "Try the Full Platform Demo?",
       message:
-        "Explore the full AI Builder workspace without signing in. The demo uses temporary deterministic data, makes no AI calls, writes nothing to the database, and resets when you close it.",
+        "Explore the full AI Builder workspace without signing in. You can move through the platform, review the Business Brain, and test the assistant. Your demo is temporary and resets when you close it.",
       confirmLabel: "Open Full Demo",
       cancelLabel: "Cancel",
     });
