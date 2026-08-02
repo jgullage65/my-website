@@ -86,8 +86,8 @@ function assessHealth(
   conflicts: readonly MaterialConflict[],
 ): ConceptHealth {
   const sourceCount = new Set(evidence.map(sourceIdentity)).size;
-  const ownerSupported = facts.some(fact => fact.provenance === "owner");
-  const websiteSupported = facts.some(fact => fact.provenance === "website");
+  const ownerSupported = evidence.some(item => item.provenance === "owner");
+  const websiteSupported = evidence.some(item => item.provenance === "website");
   const mixedSourceSupport = ownerSupported && websiteSupported;
   const unresolvedConflictIds = conflicts.map(conflict => conflict.id).sort();
   const missing = missingSignals(category, facts);
@@ -107,7 +107,7 @@ function assessHealth(
   else if (sourceCount === 1) reasons.push("single_source_only");
   if (ownerSupported) reasons.push("owner_supported");
   if (websiteSupported) reasons.push("website_supported");
-  if (mixedSourceSupport && !hasConflicts) reasons.push("mixed_source_agreement");
+  if (mixedSourceSupport) reasons.push("mixed_source_support");
   if (websiteSupported && !ownerSupported) reasons.push("missing_owner_confirmation");
   if (hasConflicts) reasons.push("unresolved_conflict");
   if (confidenceScore < 52) reasons.push("low_confidence");
@@ -163,10 +163,10 @@ export function assembleBusinessConcepts(
       overallConfidence: confidenceLevel(confidenceScore),
       confidenceScore,
       supportingSourceCount: new Set(supportingEvidence.map(sourceIdentity)).size,
-      firstSeenSource: supportingEvidence[0]!,
-      lastSeenSource: supportingEvidence[supportingEvidence.length - 1]!,
-      ownerKnowledgeContributes: supportingFacts.some(fact => fact.provenance === "owner"),
-      websiteKnowledgeContributes: supportingFacts.some(fact => fact.provenance === "website"),
+      firstSeenSource: supportingEvidence[0] ?? null,
+      lastSeenSource: supportingEvidence[supportingEvidence.length - 1] ?? null,
+      ownerKnowledgeContributes: supportingEvidence.some(evidence => evidence.provenance === "owner"),
+      websiteKnowledgeContributes: supportingEvidence.some(evidence => evidence.provenance === "website"),
       health: assessHealth(
         supportingFacts[0]!.category, supportingFacts, supportingEvidence, confidenceScore, conceptConflicts,
       ),

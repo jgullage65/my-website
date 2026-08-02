@@ -44,7 +44,7 @@ test("strong multi-source health is bounded, deterministic, and low priority", (
   assert.equal(first.health.supportingSourceCount, 2);
   assert.equal(first.health.mixedSourceSupport, true);
   assert.deepEqual(first.health.reasons, [
-    "multi_source_support", "owner_supported", "website_supported", "mixed_source_agreement", "strong_evidence",
+    "multi_source_support", "owner_supported", "website_supported", "mixed_source_support", "strong_evidence",
   ]);
   assert.deepEqual(first, second);
   assert.deepEqual(facts, original, "health projection must not mutate authoritative facts");
@@ -76,7 +76,56 @@ test("owner and website disagreement links every existing conflict and needs att
   assert.equal(concept.health.status, "needs_attention");
   assert.equal(concept.health.reviewPriority, "high");
   assert.ok(concept.health.reasons.includes("unresolved_conflict"));
+  assert.ok(concept.health.reasons.includes("mixed_source_support"));
   assert.ok(!concept.health.reasons.includes("mixed_source_agreement"));
+});
+
+test("merged fact support and concept contribution flags use all evidence provenance", () => {
+  const ownerEvidence = evidence("owner", "owner");
+  const websiteEvidence = evidence("services");
+  const merged = { ...fact("merged", ownerEvidence), evidence: [ownerEvidence, websiteEvidence] };
+  const concept = assembleBusinessConcepts([merged])[0]!;
+
+  assert.equal(merged.provenance, "owner", "merged fact authority remains unchanged");
+  assert.equal(concept.ownerKnowledgeContributes, true);
+  assert.equal(concept.websiteKnowledgeContributes, true);
+  assert.equal(concept.health.ownerSupported, true);
+  assert.equal(concept.health.websiteSupported, true);
+  assert.equal(concept.health.mixedSourceSupport, true);
+  assert.ok(concept.health.reasons.includes("mixed_source_support"));
+  assert.ok(!concept.health.reasons.includes("mixed_source_agreement"));
+});
+
+test("mixed evidence remains visible when an existing conflict is attached", () => {
+  const ownerEvidence = evidence("owner", "owner");
+  const websiteEvidence = evidence("services");
+  const merged = { ...fact("merged", ownerEvidence), evidence: [ownerEvidence, websiteEvidence] };
+  const concept = assembleBusinessConcepts([merged], [conflict("conflict-mixed")])[0]!;
+
+  assert.equal(concept.health.ownerSupported, true);
+  assert.equal(concept.health.websiteSupported, true);
+  assert.equal(concept.health.mixedSourceSupport, true);
+  assert.deepEqual(concept.health.unresolvedConflictIds, ["conflict-mixed"]);
+  assert.ok(concept.health.reasons.includes("mixed_source_support"));
+  assert.ok(concept.health.reasons.includes("unresolved_conflict"));
+});
+
+test("concepts without evidence use safe source values and report missing evidence", () => {
+  const unsupported = { ...fact("no-evidence", evidence("unused")), evidence: [] };
+  const original = structuredClone(unsupported);
+  const concept = assembleBusinessConcepts([unsupported])[0]!;
+
+  assert.equal(concept.firstSeenSource, null);
+  assert.equal(concept.lastSeenSource, null);
+  assert.deepEqual(concept.supportingEvidence, []);
+  assert.equal(concept.ownerKnowledgeContributes, false);
+  assert.equal(concept.websiteKnowledgeContributes, false);
+  assert.equal(concept.health.ownerSupported, false);
+  assert.equal(concept.health.websiteSupported, false);
+  assert.ok(concept.health.missingSignals.includes("missing_supporting_evidence"));
+  assert.deepEqual(unsupported, original, "concept assembly does not mutate the fact");
+  assert.equal(concept.canonicalTopicIdentity, unsupported.topicKey);
+  assert.deepEqual(concept.supportingFactIds, [unsupported.id]);
 });
 
 test("duplicate evidence never inflates source support", () => {

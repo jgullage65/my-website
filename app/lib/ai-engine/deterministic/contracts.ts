@@ -111,8 +111,8 @@ export type BusinessConcept = {
     overallConfidence: WebsiteKnowledgeFact["confidence"];
     confidenceScore: number;
     supportingSourceCount: number;
-    firstSeenSource: NormalizedEvidence;
-    lastSeenSource: NormalizedEvidence;
+    firstSeenSource: NormalizedEvidence | null;
+    lastSeenSource: NormalizedEvidence | null;
     ownerKnowledgeContributes: boolean;
     websiteKnowledgeContributes: boolean;
     health: ConceptHealth;
