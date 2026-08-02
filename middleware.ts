@@ -21,6 +21,7 @@ function isAllowedPublicRoute(pathname: string): boolean {
 
 export default clerkMiddleware(async (auth, request) => {
   const pathname = request.nextUrl.pathname;
+  const publicDemoApi = pathname === "/api/ai-builder/public-demo/crawl";
   const cronSecret = process.env.CRON_SECRET?.trim();
   const internalCrawlWorker = (pathname === "/api/ai-builder/crawl" || pathname === "/api/ai-builder/crawl/jobs/process")
     && Boolean(cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`);
@@ -28,7 +29,7 @@ export default clerkMiddleware(async (auth, request) => {
   if (internalCrawlWorker) return;
 
   if (pathname.startsWith("/api/")) {
-    if (isProtectedRoute(pathname)) await auth.protect();
+    if (isProtectedRoute(pathname) && !publicDemoApi) await auth.protect();
     return;
   }
 

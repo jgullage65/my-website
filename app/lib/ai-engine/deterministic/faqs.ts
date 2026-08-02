@@ -1,0 +1,40 @@
+import type { DeterministicFaq, NormalizedSourceBlock } from "./contracts";
+import { cleanText, stableId, uniqueBy } from "./util";
+export function assembleFaqs(blocks: readonly NormalizedSourceBlock[]): DeterministicFaq[] {
+    const faqs: DeterministicFaq[] = [];
+    for (let i = 0; i < blocks.length; i++) {
+        const question = blocks[i]!;
+        const isQuestion = question.type === "faq_question" ||
+            (/\?$/.test(question.text) && (question.pageType === "faq" || question.type === "heading"));
+        if (!isQuestion)
+            continue;
+        const answers: NormalizedSourceBlock[] = [];
+        for (let j = i + 1; j < Math.min(blocks.length, i + 5); j++) {
+            const block = blocks[j]!;
+            if (block.evidence.sourceDocumentId !== question.evidence.sourceDocumentId ||
+                block.type === "faq_question" || (block.type === "heading" && /\?$/.test(block.text)))
+                break;
+            if (block.type === "faq_answer" || block.type === "paragraph" || block.type === "list_item")
+                answers.push(block);
+            if (block.type === "faq_answer")
+                continue;
+            if (answers.length >= 2)
+                break;
+        }
+        const answer = cleanText(answers.map(a => a.text).join(" "));
+        if (!answer)
+            continue;
+        const q = cleanText(question.text);
+        const evidence = uniqueBy([question.evidence, ...answers.map(a => a.evidence)], e => e.sourceBlockId ?? `${e.url}:${e.excerpt}`);
+        faqs.push({
+            id: stableId("faq", `${q.toLowerCase()}\0${answer.toLowerCase()}`),
+            question: q,
+            answer,
+            confidence: evidence.length > 2 ? "high" : "medium",
+            confidenceScore: evidence.length > 2 ? 84 : 70,
+            evidence,
+            sourceFactIds: []
+        });
+    }
+    return uniqueBy(faqs, f => f.id);
+}

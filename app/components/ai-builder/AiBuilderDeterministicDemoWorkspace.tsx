@@ -8,6 +8,7 @@ import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderWorkspaceFrame from "./AiBuilderWorkspaceFrame";
 import AiBuilderWorkspaceView, { type AiBuilderWorkspaceViewName } from "./AiBuilderWorkspaceView";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import { buildDeterministicBusinessBrain } from "@/app/lib/ai-engine/deterministic";
 
 type Props = {
   session: AiBuilderSession;
@@ -106,6 +107,28 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, diagnosti
   const knowledge = useMemo(() => buildKnowledgePack(previewSession), [previewSession]);
   const currentBusiness = businessLabel(builderValue);
 
+  const buildTemporaryBrain = () => {
+    const website = builderValue.websiteKnowledge;
+    const result = buildDeterministicBusinessBrain({
+      sessionId: previewSession.id,
+      pages: website?.pages,
+      sourceDocuments: website?.sourceDocuments,
+      sourceBlocks: website?.sourceBlocks,
+      owner: {
+        businessName: builderValue.businessName,
+        industry: builderValue.industry,
+        productsServices: builderValue.userKnowledge.productsServices,
+        idealCustomers: builderValue.userKnowledge.idealCustomers,
+        additionalKnowledge: builderValue.userKnowledge.additionalKnowledge,
+        policiesOperations: (builderValue.userKnowledge as typeof builderValue.userKnowledge & { businessPoliciesOperations?: string }).businessPoliciesOperations,
+        caseStudiesTestimonials: (builderValue.userKnowledge as typeof builderValue.userKnowledge & { successStoriesCaseStudies?: string }).successStoriesCaseStudies,
+        tone: builderValue.tone,
+      },
+    });
+    if (result.session) setPreviewSession(result.session);
+    setActiveTab("review");
+  };
+
   const activeView: AiBuilderWorkspaceViewName =
     activeTab === "builder"
       ? "builder"
@@ -154,7 +177,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, diagnosti
       embeddedReview
       dashboardShowcase
       onBuilderChange={setBuilderValue}
-      onBuild={() => setActiveTab("review")}
+      onBuild={buildTemporaryBrain}
       onReviewCommand={async (command) => setPreviewSession((current) => updatePreviewSession(current, command))}
       onBack={() => setActiveTab("dashboard")}
       onLaunchChat={() => setActiveTab("chat")}
