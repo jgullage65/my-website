@@ -29,6 +29,20 @@ const ITEMS: ReadonlyArray<readonly [DemoTab, string]> = [
   ["chat", "Assistant"],
 ];
 
+const EMPTY_BUILDER: BuilderState = {
+  businessName: "",
+  industry: "",
+  website: "",
+  tone: "Professional",
+  userKnowledge: {
+    productsServices: "",
+    idealCustomers: "",
+    additionalKnowledge: "",
+  },
+  websiteKnowledge: null,
+  crawlAttemptIds: [],
+};
+
 function updatePreviewSession(session: AiBuilderSession, command: ReviewCommandRequest): AiBuilderSession {
   const now = new Date().toISOString();
   const nextContextEntries = session.contextEntries.map((entry) => {
@@ -81,11 +95,16 @@ function updatePreviewSession(session: AiBuilderSession, command: ReviewCommandR
   };
 }
 
-export default function AiBuilderDeterministicDemoWorkspace({ session, builder, diagnostics = null, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<DemoTab>("dashboard");
-  const [builderValue, setBuilderValue] = useState(builder);
+function businessLabel(builder: BuilderState): string {
+  return builder.businessName.trim() || "Your Business";
+}
+
+export default function AiBuilderDeterministicDemoWorkspace({ session, diagnostics = null, onClose }: Props) {
+  const [activeTab, setActiveTab] = useState<DemoTab>("builder");
+  const [builderValue, setBuilderValue] = useState<BuilderState>(EMPTY_BUILDER);
   const [previewSession, setPreviewSession] = useState(session);
   const knowledge = useMemo(() => buildKnowledgePack(previewSession), [previewSession]);
+  const currentBusiness = businessLabel(builderValue);
 
   const activeView: AiBuilderWorkspaceViewName =
     activeTab === "builder"
@@ -104,18 +123,22 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, builder, 
 
   const mainContent = activeTab === "sources" ? (
     <section className="grid gap-4 sm:grid-cols-2">
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Website source</p><h2 className="mt-3 text-lg font-semibold text-white">Imported website pages</h2><p className="mt-2 text-sm leading-6 text-slate-400">Explore how public website content is separated, reviewed, and transformed into trusted Business Brain knowledge.</p></article>
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Owner knowledge</p><h2 className="mt-3 text-lg font-semibold text-white">Direct business expertise</h2><p className="mt-2 text-sm leading-6 text-slate-400">Owner-provided knowledge stays distinct from website-derived information so users can clearly see where each insight came from.</p></article>
+      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Website source</p><h2 className="mt-3 text-lg font-semibold text-white">{builderValue.websiteKnowledge ? "Imported website pages" : "Add your website"}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{builderValue.websiteKnowledge ? `Review the website content collected for ${currentBusiness}.` : "Use the AI Builder to import your website and bring your own business into the demo."}</p></article>
+      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Owner knowledge</p><h2 className="mt-3 text-lg font-semibold text-white">Your business expertise</h2><p className="mt-2 text-sm leading-6 text-slate-400">The details you enter in the builder stay separate from website content so you can clearly review both.</p></article>
     </section>
   ) : activeTab === "settings" ? (
     <section className="grid gap-4 sm:grid-cols-2">
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-sm font-semibold text-white">Assistant tone</p><p className="mt-2 text-sm text-slate-400">Professional</p></article>
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-sm font-semibold text-white">Demo experience</p><p className="mt-2 text-sm text-slate-400">Explore the workspace, review the Business Brain, and test the assistant. Your changes reset when you close the demo.</p></article>
+      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-sm font-semibold text-white">Assistant tone</p><p className="mt-2 text-sm text-slate-400">{builderValue.tone || "Professional"}</p></article>
+      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-sm font-semibold text-white">Demo experience</p><p className="mt-2 text-sm text-slate-400">Explore the workspace for {currentBusiness}, review the Business Brain, and test the assistant. Your changes reset when you close the demo.</p></article>
     </section>
   ) : activeTab === "overview" ? (
     <section className="grid gap-4 sm:grid-cols-3">
-      {["Business details", "Knowledge review", "Assistant readiness"].map((label, index) => (
-        <article key={label} className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5 text-center"><p className="text-3xl font-semibold text-white">{index === 2 ? "Ready" : "100%"}</p><p className="mt-2 text-sm text-slate-400">{label}</p></article>
+      {[
+        ["Business details", builderValue.businessName.trim() && builderValue.industry.trim() ? "Ready" : "Add details"],
+        ["Website knowledge", builderValue.websiteKnowledge ? "Imported" : "Not added"],
+        ["Assistant readiness", builderValue.businessName.trim() ? "In progress" : "Start building"],
+      ].map(([label, value]) => (
+        <article key={label} className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5 text-center"><p className="text-2xl font-semibold text-white">{value}</p><p className="mt-2 text-sm text-slate-400">{label}</p></article>
       ))}
     </section>
   ) : (
@@ -141,7 +164,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, builder, 
 
   const rightRail = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b border-white/[0.08] px-5 py-4 text-center"><p className="text-sm font-semibold text-white">Assistant Preview</p><p className="mt-1 text-xs text-slate-500">Try it out. Your demo resets when you close it.</p></div>
+      <div className="border-b border-white/[0.08] px-5 py-4 text-center"><p className="text-sm font-semibold text-white">{currentBusiness} Assistant</p><p className="mt-1 text-xs text-slate-500">Try it out. Your demo resets when you close it.</p></div>
       <div className="min-h-0 flex-1">
         <AiBuilderWorkspaceView
           mode="preview"
@@ -160,7 +183,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, builder, 
     <div className="fixed inset-0 z-[220] bg-black">
       <button type="button" onClick={onClose} aria-label="Close demo" className="fixed right-4 top-4 z-[240] inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111]">×</button>
       <AiBuilderWorkspaceFrame
-        title={`${title} · Demo`}
+        title={`${title} · ${currentBusiness}`}
         onBuilderSelect={() => setActiveTab("builder")}
         builderActive={activeTab === "builder"}
         items={ITEMS.filter(([value]) => value !== "builder").map(([value, label]) => ({
