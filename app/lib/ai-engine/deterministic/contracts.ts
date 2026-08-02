@@ -83,6 +83,21 @@ export type DeterministicFaq = {
     evidence: NormalizedEvidence[];
     sourceFactIds: string[];
 };
+export type BusinessConcept = {
+    id: string;
+    canonicalTopicIdentity: string;
+    category: WebsiteKnowledgeFact["category"];
+    displayName: string;
+    supportingFactIds: string[];
+    supportingEvidence: NormalizedEvidence[];
+    overallConfidence: WebsiteKnowledgeFact["confidence"];
+    confidenceScore: number;
+    supportingSourceCount: number;
+    firstSeenSource: NormalizedEvidence;
+    lastSeenSource: NormalizedEvidence;
+    ownerKnowledgeContributes: boolean;
+    websiteKnowledgeContributes: boolean;
+};
 export type MissingInformationSignal = {
     id: string;
     topic: string;
@@ -91,6 +106,7 @@ export type MissingInformationSignal = {
 };
 export type DeterministicEngineResult = {
     facts: DeterministicFact[];
+    concepts: BusinessConcept[];
     categories: WebsiteKnowledgeFact["category"][];
     duplicateGroups: DuplicateGroup[];
     conflicts: MaterialConflict[];
