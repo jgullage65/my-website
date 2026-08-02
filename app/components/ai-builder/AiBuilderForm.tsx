@@ -79,50 +79,6 @@ function formatImportError(error: WebsiteImportError | undefined, fallback: stri
   return diagnostics.length ? `${message} (${diagnostics.join(", ")})` : message;
 }
 
-function buildPreviewWebsiteKnowledge(website: string): WebsiteKnowledge {
-  const normalizedWebsite = /^https?:\/\//i.test(website) ? website : `https://${website}`;
-  const hostname = normalizedWebsite.replace(/^https?:\/\//i, "").replace(/\/$/, "");
-  const businessName = hostname.split(".")[0]?.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) || "Your Business";
-  const importedAt = new Date().toISOString();
-
-  return {
-    businessName,
-    industry: "Professional services",
-    website: normalizedWebsite,
-    requestedUrl: normalizedWebsite,
-    resolvedUrl: normalizedWebsite,
-    productsServices: "Primary services, packages, and customer outcomes found across the public website.",
-    idealCustomers: "Customers seeking a trusted provider with clear expertise, responsive service, and practical solutions.",
-    additionalKnowledge: "The website emphasizes expertise, reliability, customer support, and a straightforward path to getting started.",
-    knowledge: {
-      facts: [
-        { category: "company_overview", title: "Business overview", value: `${businessName} provides professional services and helps customers understand available solutions.`, confidence: "medium", evidence: [] },
-        { category: "service", title: "Core services", value: "The website presents core services, packaged solutions, and customer-focused outcomes.", confidence: "medium", evidence: [] },
-        { category: "customer_segment", title: "Ideal customers", value: "The business serves customers looking for dependable expertise and clear next steps.", confidence: "medium", evidence: [] },
-        { category: "policy", title: "Customer experience", value: "The website communicates a straightforward, supportive customer experience.", confidence: "medium", evidence: [] },
-      ],
-      coverage: {
-        businessIdentity: 1, offers: 1, customers: 1, pricing: 0, policies: 1, processes: 0, faq: 0, contact: 0, overall: 0.5,
-        companyOverview: 1, missionValueProposition: 0, products: 0, services: 1, featuresCapabilities: 0, pricingPlans: 0,
-        customerSegments: 1, industriesServed: 0, primaryUseCases: 0, integrations: 0, aiFeaturesAutomation: 0,
-        technicalCapabilities: 0, securityCompliance: 0, certifications: 0, supportOnboarding: 0, partnerships: 0,
-        locationsServiceAreas: 0, contactInformation: 0, brandVoiceTerminology: 0, frequentlyAskedQuestions: 0,
-        competitiveDifferentiators: 0, additionalBusinessKnowledge: 0,
-      },
-      unresolvedQuestions: [],
-    },
-    pages: [
-      { url: normalizedWebsite, title: `${businessName} Home`, pageType: "home" },
-      { url: `${normalizedWebsite.replace(/\/$/, "")}/services`, title: "Services", pageType: "services" },
-      { url: `${normalizedWebsite.replace(/\/$/, "")}/about`, title: "About", pageType: "about" },
-    ],
-    warnings: [],
-    importedAt,
-    sourceDocuments: [],
-    sourceBlocks: [],
-  };
-}
-
 export default function AiBuilderForm({ value, projectId, onChange, onBuild, demoMode = false, previewMode = false }: Props) {
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -201,30 +157,19 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
     if (previewMode) {
       setImporting(true);
       setImportProgress(18);
-      setCrawlPages(1);
       setImportStage("crawl");
       setImportError(null);
       setImportMessage(null);
-      await new Promise((resolve) => window.setTimeout(resolve, 500));
-      setCrawlPages(2);
-      setImportProgress(55);
-      await new Promise((resolve) => window.setTimeout(resolve, 500));
-      setCrawlPages(3);
-      setImportStage("processing");
-      setImportProgress(82);
-      await new Promise((resolve) => window.setTimeout(resolve, 700));
-      const websiteKnowledge = buildPreviewWebsiteKnowledge(website);
-      onChange({
-        ...value,
-        businessName: value.businessName.trim() ? value.businessName : websiteKnowledge.businessName,
-        industry: value.industry.trim() ? value.industry : websiteKnowledge.industry,
-        website: websiteKnowledge.website,
-        websiteKnowledge,
-      });
-      setImportProgress(100);
-      setImportStage("complete");
-      setImportMessage("Imported 3 pages into your temporary Business Brain. Nothing was saved.");
-      setImporting(false);
+      try {
+        const response = await fetch("/api/ai-builder/demo/crawl", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ website }) });
+        const payload = await response.json() as WebsiteImportPayload;
+        if (!response.ok || !payload.ok || !payload.import) throw new Error(payload.error?.message || "This website could not be imported safely.");
+        setImportStage("processing"); setImportProgress(85); setCrawlPages(payload.pages?.length ?? 0);
+        const imported=payload.import; const websiteKnowledge:WebsiteKnowledge={businessName:imported.businessName?.trim()||"",industry:imported.industry?.trim()||"",website:imported.website?.trim()||website,requestedUrl:imported.requestedUrl?.trim()||website,resolvedUrl:imported.resolvedUrl?.trim()||website,productsServices:imported.productsServices?.trim()||"",idealCustomers:imported.idealCustomers?.trim()||"",additionalKnowledge:imported.additionalKnowledge?.trim()||"",knowledge:payload.knowledge,pages:payload.pages??[],warnings:payload.warnings??[],importedAt:new Date().toISOString(),crawlAttemptId:payload.crawlAttemptId,sourceDocuments:payload.sourceDocuments??[],sourceBlocks:payload.sourceBlocks??[]};
+        onChange({...value,businessName:value.businessName.trim()?value.businessName:websiteKnowledge.businessName,industry:value.industry.trim()?value.industry:websiteKnowledge.industry,website:websiteKnowledge.website,websiteKnowledge});
+        setImportProgress(100);setImportStage("complete");setImportMessage(`Imported ${websiteKnowledge.pages.length} public page${websiteKnowledge.pages.length===1?"":"s"} for this demo.`);
+      } catch(error) { setImportError(error instanceof Error?error.message:"This website could not be imported safely."); }
+      finally { setImporting(false); }
       return;
     }
 

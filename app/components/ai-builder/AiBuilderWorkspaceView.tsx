@@ -79,7 +79,8 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
           projectId={demo || preview ? null : props.projectId}
           onChange={demo ? noop : props.onBuilderChange ?? noop}
           onBuild={demo ? noop : props.onBuild ?? noop}
-          demoMode={demo || preview}
+          demoMode={demo}
+          previewMode={preview}
         />
       </div>
     );

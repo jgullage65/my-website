@@ -21,6 +21,7 @@
     "test:trusted-knowledge-db": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/db/trusted-knowledge-projection.test.ts",
     "test:ai-builder-chat-orchestration": "node --experimental-strip-types --experimental-loader ./test/node-alias-loader.mjs --test app/api/ai-builder/chat/route.orchestration.test.ts",
     "test:ai-builder-architecture-verification": "node test/ai-builder-architecture-verification/run-verification.mjs"
+    ,"test:deterministic-brain": "node --experimental-transform-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/ai-engine/deterministic/*.test.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.6",

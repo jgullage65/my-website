@@ -1,0 +1,11 @@
+import { NextResponse } from "next/server";
+import { crawlBusinessWebsite, resolveCrawledBusinessName } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
+import { buildDeterministicBrain, normalizeWebsiteSources } from "@/app/lib/ai-engine/deterministic";
+import type { WebsiteKnowledgeFact } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+export const runtime="nodejs";export const dynamic="force-dynamic";export const maxDuration=120;
+const summary=(facts:WebsiteKnowledgeFact[],categories:string[])=>facts.filter((f)=>categories.includes(f.category)).map((f)=>f.value).slice(0,12).join("\n\n");
+export async function POST(request:Request){let website="";try{website=String((await request.json()).website??"").trim();}catch{return NextResponse.json({ok:false,error:{message:"Enter a valid website."}},{status:400});}if(!website)return NextResponse.json({ok:false,error:{message:"Enter a website to continue."}},{status:400});try{
+  // The result exists only in this response; this route has no external side effects.
+  const crawl=await crawlBusinessWebsite(website,undefined,{crawlAttemptId:crypto.randomUUID(),crawlStartedAt:new Date().toISOString()});const brain=buildDeterministicBrain(normalizeWebsiteSources(crawl.sourceDocuments,crawl.sourceBlocks,crawl.pages));const facts=brain.facts;
+  return NextResponse.json({ok:true,import:{businessName:resolveCrawledBusinessName("",crawl),industry:summary(facts,["industry_served"]),website:crawl.resolvedUrl,requestedUrl:crawl.requestedUrl,resolvedUrl:crawl.resolvedUrl,productsServices:summary(facts,["product","service","feature_capability"]),idealCustomers:summary(facts,["customer_segment","industry_served"]),additionalKnowledge:summary(facts,["policy","support_onboarding","competitive_differentiator","contact_information"])},knowledge:{facts,coverage:brain.coverage,unresolvedQuestions:brain.unresolvedQuestions},pages:crawl.pages.map((p)=>({url:p.url,title:p.title,pageType:p.pageType,sourceDocumentId:p.sourceDocumentId})),warnings:crawl.warnings,sourceDocuments:crawl.sourceDocuments,sourceBlocks:crawl.sourceBlocks,crawlAttemptId:crawl.crawlAttempt.id,conflicts:brain.conflicts});
+ }catch{return NextResponse.json({ok:false,error:{message:"This website could not be imported safely."}},{status:422});}}

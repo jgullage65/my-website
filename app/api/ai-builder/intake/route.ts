@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { createConversationMemory } from "@/app/lib/ai-engine/memory/conversationMemory";
-import { runOpenAiIntakeModel } from "@/app/lib/ai-engine/providers";
-import type { OpenAiIntakeCallMetadata } from "@/app/lib/ai-engine/providers/openaiIntakeRunner";
-import { runEngine } from "@/app/lib/ai-engine/runtime";
 import { persistAiBuilderProject } from "@/app/lib/db/ai-builder-repository";
-import { finishGenerationTelemetry, linkCrawlTelemetry, startGenerationTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
+import { linkCrawlTelemetry } from "@/app/lib/telemetry/ai-builder-telemetry";
 import { requireClerkUserId } from "@/app/lib/auth/clerk";
 import {
   WEBSITE_KNOWLEDGE_CATEGORIES,
@@ -15,6 +12,7 @@ import {
   reconcileStructuredWebsiteKnowledge,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import { normalizeWebsiteSourceBlocks,normalizeWebsiteSourceDocuments } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
+import { assembleDeterministicSession, normalizeOwnerSources, normalizeWebsiteSources } from "@/app/lib/ai-engine/deterministic";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -365,7 +363,6 @@ export async function POST(request: Request) {
   }
 
   const sessionId = createId("ai_builder_session");
-  const generationAttemptId = crypto.randomUUID();
   const threadId = createId("ai_builder_thread");
   const blocks: Array<{
     id: string;
@@ -458,119 +455,31 @@ export async function POST(request: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      let generationStartedAt = new Date().toISOString();
-      let generationFinished = false;
-      let generationStage = "initialization";
-      let providerMetadata: OpenAiIntakeCallMetadata | undefined;
-      const send = (event: Record<string, unknown>) => {
-        const line = `${JSON.stringify(event)}\n`;
-        const padding = " ".repeat(Math.max(0, 2048 - line.length));
-        controller.enqueue(encoder.encode(`${line}${padding}\n`));
-      };
-
+      const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       try {
-        await startGenerationTelemetry(generationAttemptId,sessionId,generationStartedAt);
-        send({ type: "progress", percent: 0 });
-        const initialMemory = buildEmptyConversationMemory(threadId, sessionId);
         send({ type: "progress", percent: 20 });
-
-        generationStartedAt = new Date().toISOString();
-        const session = await runEngine({
-          request: {
-            sessionId,
-            blocks,
-            assistantPurpose: [
-              `Act as ${assistantName}, the business AI for ${businessName}.`,
-              `The business operates in this industry: ${industry}.`,
-              "Answer using approved business knowledge only.",
-              "USER-PROVIDED KNOWLEDGE has higher authority than WEBSITE KNOWLEDGE.",
-              "When the two sources conflict, follow the user-provided knowledge and do not repeat the conflicting website claim as current fact.",
-              "Website knowledge may supplement topics the user did not address.",
-              brandVoice
-                ? `Follow this user-provided brand voice and communication style in every response: ${brandVoice}`
-                : "Use a professional communication style unless the user later provides more specific brand guidance.",
-              "Communication guidance controls presentation and wording, but it must never override approved business facts.",
-              "Be accurate, useful, and transparent when information is missing.",
-            ].join(" "),
-            assistantTone: assistantCommunicationStyle,
-          },
-          state: {
-            conversationMemory: initialMemory,
-          },
-          dependencies: {
-            runIntakeModel: (input) => { generationStage="provider_request"; return runOpenAiIntakeModel(input,(metadata)=>{providerMetadata=metadata;generationStage="output_validation";}); },
-          },
+        const initialMemory = buildEmptyConversationMemory(threadId, sessionId);
+        const ownerSources = normalizeOwnerSources({
+          businessName, industry, productsServices: userProductsServices,
+          idealCustomers: userIdealCustomers, policiesOperations: userBusinessPoliciesOperations,
+          successStoriesCaseStudies: userSuccessStoriesCaseStudies,
+          additionalKnowledge: userAdditionalKnowledge,
         });
-        await finishGenerationTelemetry(generationAttemptId,{status:"completed",startedAt:generationStartedAt,completedAt:new Date().toISOString(),model:providerMetadata?.model||process.env.AI_BUILDER_INTAKE_MODEL?.trim()||"gpt-5-mini",usage:providerMetadata?.usage,providerMetadata,knowledgeCount:session.contextEntries.length,faqCount:session.faqEntries.length});
-        generationFinished = true;
-
-        send({ type: "progress", percent: 80 });
-
-        session.assistantConfiguration = {
-          ...session.assistantConfiguration,
-          name: assistantName,
-          tone: assistantCommunicationStyle,
-        };
-
-        const reconciledSession = reconcileStructuredWebsiteKnowledge(
-          session,
-          persistedWebsiteKnowledge?.knowledge,
-          { defaultStatus: "proposed" },
-        );
-
-        send({ type: "progress", percent: 90 });
-
-        await persistAiBuilderProject({
-          session: reconciledSession,
-          businessName,
-          industry,
-          website: website || null,
-          websiteKnowledge: persistedWebsiteKnowledge,
-          initialThread: {
-            id: threadId,
-            memory: initialMemory,
-          },
-        });
-        await Promise.all(
-          crawlAttemptIds.map((attemptId) =>
-            linkCrawlTelemetry(attemptId, session.id),
-          ),
-        );
-
+        const websiteSources = persistedWebsiteKnowledge
+          ? normalizeWebsiteSources(persistedWebsiteKnowledge.source_documents ?? [], persistedWebsiteKnowledge.source_blocks ?? [], persistedWebsiteKnowledge.pages)
+          : [];
+        send({ type: "progress", percent: 55 });
+        const { session } = assembleDeterministicSession({ sessionId, sources: [...websiteSources, ...ownerSources], businessName, tone: assistantCommunicationStyle });
+        // Compatibility: retain already-submitted structured website facts when old imports have no source blocks.
+        const reconciledSession = reconcileStructuredWebsiteKnowledge(session, persistedWebsiteKnowledge?.knowledge, { defaultStatus: "proposed" });
+        send({ type: "progress", percent: 85 });
+        await persistAiBuilderProject({ session: reconciledSession, businessName, industry, website: website || null, websiteKnowledge: persistedWebsiteKnowledge, initialThread: { id: threadId, memory: initialMemory } });
+        await Promise.all(crawlAttemptIds.map((attemptId) => linkCrawlTelemetry(attemptId, session.id)));
         send({ type: "progress", percent: 100 });
-        send({
-          type: "result",
-          ok: true,
-          projectId: reconciledSession.id,
-          session: reconciledSession,
-        });
+        send({ type: "result", ok: true, projectId: reconciledSession.id, session: reconciledSession });
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "unknown_error";
-        if (!generationFinished) await finishGenerationTelemetry(generationAttemptId,{status:"failed",startedAt:generationStartedAt,completedAt:new Date().toISOString(),model:providerMetadata?.model||process.env.AI_BUILDER_INTAKE_MODEL?.trim()||"gpt-5-mini",usage:providerMetadata?.usage,providerMetadata,errors:[{stage:generationStage,message:message.slice(0,500)}],failureStage:generationStage});
-
-        if (message === "openai_api_key_missing") {
-          send({
-            type: "error",
-            error: {
-              code: "openai_not_configured",
-              message: "The AI builder is not configured yet.",
-            },
-          });
-          return;
-        }
-
-        console.error("AI_BUILDER_INTAKE_FAILED", {
-          message,
-        });
-
-        send({
-          type: "error",
-          error: {
-            code: "intake_failed",
-            message: "The AI builder could not process this business information.",
-          },
-        });
+        console.error("AI_BUILDER_INTAKE_FAILED", { message: error instanceof Error ? error.message : "unknown_error" });
+        send({ type: "error", error: { code: "intake_failed", message: "The AI builder could not process this business information." } });
       } finally {
         try {
           controller.close();

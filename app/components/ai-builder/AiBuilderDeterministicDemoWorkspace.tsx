@@ -8,6 +8,7 @@ import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderWorkspaceFrame from "./AiBuilderWorkspaceFrame";
 import AiBuilderWorkspaceView, { type AiBuilderWorkspaceViewName } from "./AiBuilderWorkspaceView";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import { assembleDeterministicSession, normalizeOwnerSources, normalizeWebsiteSources } from "@/app/lib/ai-engine/deterministic";
 
 type Props = {
   session: AiBuilderSession;
@@ -106,6 +107,15 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, diagnosti
   const knowledge = useMemo(() => buildKnowledgePack(previewSession), [previewSession]);
   const currentBusiness = businessLabel(builderValue);
 
+  const buildVisitorBrain = () => {
+    const owner = builderValue.userKnowledge as BuilderState["userKnowledge"] & { businessPoliciesOperations?: string; successStoriesCaseStudies?: string };
+    const ownerSources = normalizeOwnerSources({ businessName: builderValue.businessName, industry: builderValue.industry, productsServices: owner.productsServices, idealCustomers: owner.idealCustomers, policiesOperations: owner.businessPoliciesOperations, successStoriesCaseStudies: owner.successStoriesCaseStudies, additionalKnowledge: owner.additionalKnowledge });
+    const websiteSources = builderValue.websiteKnowledge ? normalizeWebsiteSources(builderValue.websiteKnowledge.sourceDocuments ?? [], builderValue.websiteKnowledge.sourceBlocks ?? [], builderValue.websiteKnowledge.pages) : [];
+    const result = assembleDeterministicSession({ sessionId: "visitor-demo", sources: [...websiteSources, ...ownerSources], businessName: currentBusiness, tone: builderValue.tone });
+    setPreviewSession(result.session);
+    setActiveTab("review");
+  };
+
   const activeView: AiBuilderWorkspaceViewName =
     activeTab === "builder"
       ? "builder"
@@ -154,7 +164,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, diagnosti
       embeddedReview
       dashboardShowcase
       onBuilderChange={setBuilderValue}
-      onBuild={() => setActiveTab("review")}
+      onBuild={buildVisitorBrain}
       onReviewCommand={async (command) => setPreviewSession((current) => updatePreviewSession(current, command))}
       onBack={() => setActiveTab("dashboard")}
       onLaunchChat={() => setActiveTab("chat")}
