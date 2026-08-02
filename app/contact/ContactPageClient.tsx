@@ -7,8 +7,8 @@ export default function ContactPageClient() {
   const params = useSearchParams();
   const preEmail = params.get("email") || "";
 
-  const field = "contact-field mt-2 w-full rounded-xl border border-white/[0.08] bg-[#050505] px-4 py-3 text-center text-white placeholder:text-center placeholder:text-slate-600 outline-none transition focus:border-white/[0.18] focus:ring-2 focus:ring-white/[0.05]";
-  const label = "block text-center text-sm font-semibold text-slate-300";
+  const field = "contact-field mt-2 w-full rounded-xl border border-white/[0.16] bg-white/[0.035] px-4 py-3 text-center text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.035)] placeholder:text-center placeholder:text-slate-500 outline-none transition hover:border-white/[0.22] hover:bg-white/[0.045] focus:border-white/[0.28] focus:bg-white/[0.05] focus:ring-2 focus:ring-white/[0.06]";
+  const label = "block text-center text-sm font-semibold text-slate-200";
 
   return (
     <main className="fixed inset-0 z-[81] min-h-dvh w-screen overflow-y-auto overscroll-contain bg-black text-white [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[1200px]:static min-[1200px]:min-h-screen min-[1200px]:w-auto">
@@ -18,8 +18,8 @@ export default function ContactPageClient() {
         .contact-field:-webkit-autofill:focus {
           -webkit-text-fill-color: #ffffff;
           caret-color: #ffffff;
-          -webkit-box-shadow: 0 0 0 1000px #050505 inset;
-          box-shadow: 0 0 0 1000px #050505 inset;
+          -webkit-box-shadow: 0 0 0 1000px #090909 inset;
+          box-shadow: 0 0 0 1000px #090909 inset;
           transition: background-color 9999s ease-out 0s;
         }
       `}</style>
@@ -37,7 +37,7 @@ export default function ContactPageClient() {
 
           <header className="mx-auto max-w-xl text-center">
             <h1 className="text-3xl font-medium tracking-[-.04em] text-white sm:text-4xl">Contact</h1>
-            <p className="mt-3 text-sm leading-6 text-slate-500 sm:text-base">Questions, concerns, or interested in collaborating? Send a message.</p>
+            <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">Questions, concerns, or interested in collaborating? Send a message.</p>
           </header>
 
           <form action="https://formspree.io/f/mlgldrnk" method="POST" className="mt-8 grid gap-5">
