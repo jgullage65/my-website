@@ -105,12 +105,12 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, builder, 
   const mainContent = activeTab === "sources" ? (
     <section className="grid gap-4 sm:grid-cols-2">
       <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Website source</p><h2 className="mt-3 text-lg font-semibold text-white">Imported website pages</h2><p className="mt-2 text-sm leading-6 text-slate-400">Explore how public website content is separated, reviewed, and transformed into trusted Business Brain knowledge.</p></article>
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Owner knowledge</p><h2 className="mt-3 text-lg font-semibold text-white">Direct business expertise</h2><p className="mt-2 text-sm leading-6 text-slate-400">Owner-provided knowledge stays distinct from website-derived information so users can review provenance clearly.</p></article>
+      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Owner knowledge</p><h2 className="mt-3 text-lg font-semibold text-white">Direct business expertise</h2><p className="mt-2 text-sm leading-6 text-slate-400">Owner-provided knowledge stays distinct from website-derived information so users can clearly see where each insight came from.</p></article>
     </section>
   ) : activeTab === "settings" ? (
     <section className="grid gap-4 sm:grid-cols-2">
       <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-sm font-semibold text-white">Assistant tone</p><p className="mt-2 text-sm text-slate-400">Professional</p></article>
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-sm font-semibold text-white">Model behavior</p><p className="mt-2 text-sm text-slate-400">Deterministic demo mode. No AI calls, persistence, or usage charges.</p></article>
+      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-sm font-semibold text-white">Demo experience</p><p className="mt-2 text-sm text-slate-400">Explore the workspace, review the Business Brain, and test the assistant. Your changes reset when you close the demo.</p></article>
     </section>
   ) : activeTab === "overview" ? (
     <section className="grid gap-4 sm:grid-cols-3">
@@ -141,7 +141,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, builder, 
 
   const rightRail = (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b border-white/[0.08] px-5 py-4 text-center"><p className="text-sm font-semibold text-white">Deterministic Assistant</p><p className="mt-1 text-xs text-slate-500">Temporary demo. Nothing is saved.</p></div>
+      <div className="border-b border-white/[0.08] px-5 py-4 text-center"><p className="text-sm font-semibold text-white">Assistant Preview</p><p className="mt-1 text-xs text-slate-500">Try it out. Your demo resets when you close it.</p></div>
       <div className="min-h-0 flex-1">
         <AiBuilderWorkspaceView
           mode="preview"
