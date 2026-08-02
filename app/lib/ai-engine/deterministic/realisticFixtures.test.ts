@@ -85,7 +85,7 @@ test("merges agreeing duplicate facts without losing independent evidence", () =
   const fact = result.facts.find(item => item.category === "feature_capability");
   assert.equal(fact?.evidence.length, 2);
   assert.ok(result.duplicateGroups.length >= 1);
-  const entry = result.session?.contextEntries.find(item => item.content === statement);
+  const entry = result.session?.contextEntries.find(item => item.content === statement && item.metadata.tags.includes("feature_capability"));
   assert.equal(entry?.metadata.supportingEvidence?.length, 2);
 });
 
@@ -100,4 +100,40 @@ test("classification is structural and malformed URLs remain safe", () => {
   assert.equal(classifyPage({ url: "not a valid url", title: "Compliance and privacy" }), "compliance");
   assert.equal(classifyPage({ url: "https://example.test/customer-stories", title: "Customer stories" }), "case_studies");
   assert.equal(classifyPage({ url: "https://example.test/locations", title: "Find an office" }), "locations");
+});
+
+test("assigns one plan topic to repeated mentions without merging distinct facts", () => {
+  const result = buildDeterministicBusinessBrain(fixture([
+    { path: "/pricing", type: "pricing", heading: "Professional plan", bodies: [{ text: "The Professional plan costs $99 per month." }] },
+    { path: "/compare", type: "pricing", heading: "Compare plans", bodies: [{ text: "The Professional plan is billed annually at $990." }] },
+  ]));
+  const plans = result.facts.filter(fact => fact.topicKey === "pricing_plan:professional");
+  assert.equal(plans.length, 2);
+  assert.equal(plans.flatMap(fact => fact.evidence).length, 2);
+  assert.notEqual(plans[0]?.id, plans[1]?.id);
+});
+
+test("canonicalizes supported aliases while keeping different concepts separate", () => {
+  const result = buildDeterministicBusinessBrain(fixture([
+    { path: "/security", type: "security", heading: "Compliance", bodies: [{ text: "Our platform is SOC II compliant and customer data is encrypted." }, { text: "The service is HIPAA compliant." }] },
+    { path: "/about", type: "about", heading: "Credentials", bodies: [{ text: "We are SOC2 certified." }] },
+    { path: "/integrations", type: "integrations", heading: "Google Apps", bodies: [{ text: "The platform integrates with Google Apps." }] },
+    { path: "/connectors", type: "integrations", heading: "Google Workspace", bodies: [{ text: "Connects with Google Workspace." }] },
+  ]));
+  assert.equal(result.facts.filter(fact => fact.topicKey === "certification:soc2").length, 2,
+    JSON.stringify(result.facts.map(fact => [fact.category, fact.topicKey, fact.value])));
+  assert.ok(result.facts.some(fact => fact.topicKey === "certification:hipaa"));
+  assert.equal(result.facts.filter(fact => fact.topicKey === "integration:google_workspace").length, 2);
+  assert.notEqual("certification:soc2", "certification:hipaa");
+});
+
+test("keeps topic identity stable across different page structures", () => {
+  const homepage = buildDeterministicBusinessBrain(fixture([
+    { path: "/", type: "home", heading: "SEO", bodies: [{ text: "Our SEO service includes reporting and enables teams to track conversions." }] },
+  ]));
+  const services = buildDeterministicBusinessBrain(fixture([
+    { path: "/services/search", type: "services", heading: "Search engine optimization services", bodies: [{ text: "We provide search engine optimization consulting for growing teams." }] },
+  ]));
+  assert.ok(homepage.facts.some(fact => fact.topicKey === "service:seo"));
+  assert.ok(services.facts.some(fact => fact.topicKey === "service:seo"));
 });
