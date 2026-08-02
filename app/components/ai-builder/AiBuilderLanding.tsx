@@ -61,7 +61,7 @@ export default function AiBuilderLanding() {
 
   return (
     <>
-      <div className="h-[calc(100dvh-56px)] min-h-0 overflow-y-scroll overscroll-y-contain bg-black text-white xl:h-full">
+      <div className="h-[calc(100dvh-56px)] min-h-0 overflow-y-auto overscroll-y-contain bg-black text-white [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:h-full">
         <main className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 lg:px-8 xl:px-10">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.018)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:linear-gradient(to_bottom,black,transparent_64%)]" />
 
@@ -123,11 +123,11 @@ export default function AiBuilderLanding() {
       </div>
 
       {plansOpen ? (
-        <div className="fixed inset-0 z-[9998] overflow-y-auto overscroll-contain bg-black/85 px-4 py-4 backdrop-blur-md sm:py-8" role="dialog" aria-modal="true" aria-label="Business Brain plans">
-          <button type="button" className="fixed inset-0 cursor-default" aria-label="Close plans" onClick={() => setPlansOpen(false)} />
-          <div className="relative z-10 mx-auto my-0 w-full max-w-6xl rounded-[28px] border border-white/[0.09] bg-[#000000] p-5 shadow-[0_30px_100px_rgba(0,0,0,.7)] sm:my-4 sm:p-7 lg:p-8">
-            <button type="button" onClick={() => setPlansOpen(false)} className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111]" aria-label="Close plans">×</button>
-            <div className="mx-auto max-w-3xl text-center">
+        <div className="fixed inset-0 z-[9998] overflow-y-auto overscroll-contain bg-black text-white [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:bg-black/85 sm:px-4 sm:py-8 sm:backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Business Brain plans">
+          <button type="button" className="fixed inset-0 hidden cursor-default sm:block" aria-label="Close plans" onClick={() => setPlansOpen(false)} />
+          <div className="relative z-10 min-h-dvh w-full bg-black px-4 pb-8 pt-5 sm:mx-auto sm:my-4 sm:min-h-0 sm:max-w-6xl sm:rounded-[28px] sm:border sm:border-white/[0.09] sm:p-7 sm:shadow-[0_30px_100px_rgba(0,0,0,.7)] lg:p-8">
+            <button type="button" onClick={() => setPlansOpen(false)} className="fixed right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111] sm:absolute" aria-label="Close plans">×</button>
+            <div className="mx-auto max-w-3xl pr-12 text-center sm:pr-0">
               <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-amber-300">Plans</p>
               <h2 className="mt-3 text-2xl font-medium tracking-[-.03em] text-white sm:text-3xl">Choose how far you want to take your Business Brain.</h2>
               <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">Start with the knowledge itself, deploy one assistant, or operate multiple assistants with a small team.</p>
@@ -163,7 +163,7 @@ export default function AiBuilderLanding() {
       ) : null}
 
       {signInOpen ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/85 px-4 py-8 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Sign in">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/85 px-4 py-8 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="dialog" aria-modal="true" aria-label="Sign in">
           <button type="button" className="absolute inset-0 cursor-default" aria-label="Close sign in" onClick={() => setSignInOpen(false)} />
           <div className="relative z-10 w-full max-w-md">
             <button type="button" onClick={() => setSignInOpen(false)} className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-300/20 bg-black text-lg text-amber-300 transition hover:border-amber-300/40 hover:bg-[#0a0a0a]" aria-label="Close sign in">×</button>
