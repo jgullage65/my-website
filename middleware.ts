@@ -1,4 +1,11 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+
+const PUBLIC_ARKENA_ROUTES = new Set([
+  "/",
+  "/ai-builder",
+  "/contact",
+]);
 
 function isProtectedRoute(pathname: string): boolean {
   return ["/api/ai-builder", "/admin"].some(
@@ -6,12 +13,33 @@ function isProtectedRoute(pathname: string): boolean {
   );
 }
 
+function isAllowedPublicRoute(pathname: string): boolean {
+  if (PUBLIC_ARKENA_ROUTES.has(pathname)) return true;
+  if (pathname.startsWith("/ai-builder/")) return true;
+  return false;
+}
+
 export default clerkMiddleware(async (auth, request) => {
+  const pathname = request.nextUrl.pathname;
   const cronSecret = process.env.CRON_SECRET?.trim();
-  const internalCrawlWorker = (request.nextUrl.pathname === "/api/ai-builder/crawl" || request.nextUrl.pathname === "/api/ai-builder/crawl/jobs/process")
+  const internalCrawlWorker = (pathname === "/api/ai-builder/crawl" || pathname === "/api/ai-builder/crawl/jobs/process")
     && Boolean(cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`);
+
   if (internalCrawlWorker) return;
-  if (isProtectedRoute(request.nextUrl.pathname)) await auth.protect();
+
+  if (pathname.startsWith("/api/")) {
+    if (isProtectedRoute(pathname)) await auth.protect();
+    return;
+  }
+
+  if (!isAllowedPublicRoute(pathname) && !pathname.startsWith("/admin")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/ai-builder";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (isProtectedRoute(pathname)) await auth.protect();
 });
 
 export const config = {
