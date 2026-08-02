@@ -235,9 +235,16 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       }
       if (previewMode) {
         const payload = await response.json() as WebsiteImportPayload;
-        if (!payload.ok || !payload.import) throw new Error(formatImportError(payload.error, "The website could not be imported."));
+        if (!payload.ok || !payload.import) throw new Error("public_demo_import_unavailable");
         const imported=payload.import; const websiteKnowledge:WebsiteKnowledge={businessName:imported.businessName?.trim()||"",industry:imported.industry?.trim()||"",website:imported.website?.trim()||website,requestedUrl:imported.requestedUrl?.trim()||website,resolvedUrl:imported.resolvedUrl?.trim()||website,productsServices:imported.productsServices?.trim()||"",idealCustomers:imported.idealCustomers?.trim()||"",additionalKnowledge:imported.additionalKnowledge?.trim()||"",knowledge:payload.knowledge,pages:payload.pages??[],warnings:payload.warnings??[],importedAt:new Date().toISOString(),crawlAttemptId:payload.crawlAttemptId,sourceDocuments:payload.sourceDocuments??[],sourceBlocks:payload.sourceBlocks??[]};
-        onChange({...value,businessName:value.businessName.trim()?value.businessName:websiteKnowledge.businessName,industry:value.industry,website:websiteKnowledge.website,websiteKnowledge,crawlAttemptIds:[]});setCrawlPages(websiteKnowledge.pages.length);setImportProgress(100);setImportStage("complete");setImportMessage(`Imported ${websiteKnowledge.pages.length} public pages into your temporary Business Brain. Nothing was saved.`);return;
+        onChange({...value,businessName:value.businessName.trim()?value.businessName:websiteKnowledge.businessName,industry:value.industry,website:websiteKnowledge.website,websiteKnowledge,crawlAttemptIds:[]});setCrawlPages(websiteKnowledge.pages.length);setImportProgress(100);setImportStage("complete");
+        await showConfirm({
+          title: "Your website is ready",
+          message: `We brought ${websiteKnowledge.pages.length} public page${websiteKnowledge.pages.length === 1 ? "" : "s"} into your temporary Business Brain. You can review everything before deciding what to keep.`,
+          cancelLabel: "Close",
+          confirmLabel: "Continue",
+        });
+        return;
       }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
@@ -321,7 +328,16 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       const pageCount = websiteKnowledge.pages.length;
       setImportMessage(`Imported ${pageCount} page${pageCount === 1 ? "" : "s"}. Your expertise remains separate and always takes priority.`);
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : "The website could not be imported.");
+      if (previewMode) {
+        await showConfirm({
+          title: "We couldn’t bring in that website",
+          message: "Check the website address and try again. If the site is temporarily unavailable, you can still continue by adding your business information directly.",
+          cancelLabel: "Close",
+          confirmLabel: "Try again",
+        });
+      } else {
+        setImportError(error instanceof Error ? error.message : "The website could not be imported.");
+      }
     } finally {
       setImporting(false);
     }
@@ -403,7 +419,9 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
                     <button type="button" disabled={!value.website.trim() || importing} onClick={importWebsite} className="mx-auto inline-flex w-full max-w-xs items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111] disabled:cursor-not-allowed disabled:border-[rgba(212,175,55,0.18)] disabled:bg-[#000000] disabled:text-white disabled:shadow-none disabled:[border-width:0.5px] disabled:hover:translate-y-0 disabled:hover:border-[rgba(212,175,55,0.18)] disabled:hover:bg-[#000000]">
                       {importing
                         ? importStage === "crawl"
-                          ? `${crawlPages} page${crawlPages === 1 ? "" : "s"} crawled`
+                          ? previewMode
+                            ? `${crawlPages} page${crawlPages === 1 ? "" : "s"} found`
+                            : `${crawlPages} page${crawlPages === 1 ? "" : "s"} crawled`
                           : importStage === "processing"
                             ? `Building Business Memory… ${Math.round(importProgress)}%`
                             : "Business Memory complete"
@@ -412,8 +430,8 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
                           : "Import Website"}
                     </button>
                   </div>
-                  {importError ? <Status tone="error">{importError}</Status> : null}
-                  {importMessage ? <Status tone="success">{importMessage}</Status> : null}
+                  {!previewMode && importError ? <Status tone="error">{importError}</Status> : null}
+                  {!previewMode && importMessage ? <Status tone="success">{importMessage}</Status> : null}
                   {value.websiteKnowledge ? (
                     <button type="button" onClick={() => setShowWebsiteKnowledge(true)} className="cta-raised mt-4 inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111]">View Website Knowledge</button>
                   ) : null}

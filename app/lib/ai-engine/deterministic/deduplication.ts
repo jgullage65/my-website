@@ -1,2 +1,35 @@
-import type { DeterministicFact, DuplicateGroup } from "./contracts"; import { keyText, stableId, uniqueBy } from "./util";
-export function deduplicateFacts(input:readonly DeterministicFact[]):{facts:DeterministicFact[];duplicateGroups:DuplicateGroup[]}{ const groups=new Map<string,DeterministicFact[]>(); for(const original of input){const fact:DeterministicFact={...original,evidence:original.evidence.map(e=>({...e}))}; const agreement=keyText(fact.value).replace(/\b(the|a|an)\b/g,"").replace(/\s+/g," "); const key=`${fact.topicKey}\0${agreement}`; if(!groups.has(key))groups.set(key,[]);groups.get(key)!.push(fact);} const facts:DeterministicFact[]=[];const duplicateGroups:DuplicateGroup[]=[]; for(const values of Array.from(groups.values())){const owner=values.find(v=>v.provenance==="owner");const first=owner??values[0]!;const merged={...first,evidence:uniqueBy(values.flatMap(v=>v.evidence),e=>`${e.sourceBlockId??""}\0${e.url}\0${keyText(e.excerpt)}`)}; facts.push(merged);if(values.length>1)duplicateGroups.push({id:stableId("duplicate",values.map(v=>v.id).sort().join("\0")),topicKey:first.topicKey,factIds:values.map(v=>v.id).sort(),mergedFactId:merged.id});} return {facts:facts.sort((a,b)=>a.id.localeCompare(b.id)),duplicateGroups}; }
+import type { DeterministicFact, DuplicateGroup } from "./contracts";
+import { keyText, stableId, uniqueBy } from "./util";
+export function deduplicateFacts(input: readonly DeterministicFact[]): {
+    facts: DeterministicFact[];
+    duplicateGroups: DuplicateGroup[];
+} {
+    const groups = new Map<string, DeterministicFact[]>();
+    for (const original of input) {
+        const fact: DeterministicFact = { ...original, evidence: original.evidence.map(e => ({ ...e })) };
+        const agreement = keyText(fact.value).replace(/\b(the|a|an)\b/g, "").replace(/\s+/g, " ");
+        const key = `${fact.topicKey}\0${agreement}`;
+        if (!groups.has(key))
+            groups.set(key, []);
+        groups.get(key)!.push(fact);
+    }
+    const facts: DeterministicFact[] = [];
+    const duplicateGroups: DuplicateGroup[] = [];
+    for (const values of Array.from(groups.values())) {
+        const owner = values.find(v => v.provenance === "owner");
+        const first = owner ?? values[0]!;
+        const merged = {
+            ...first,
+            evidence: uniqueBy(values.flatMap(v => v.evidence), e => `${e.sourceBlockId ?? ""}\0${e.url}\0${keyText(e.excerpt)}`)
+        };
+        facts.push(merged);
+        if (values.length > 1)
+            duplicateGroups.push({
+                id: stableId("duplicate", values.map(v => v.id).sort().join("\0")),
+                topicKey: first.topicKey,
+                factIds: values.map(v => v.id).sort(),
+                mergedFactId: merged.id
+            });
+    }
+    return { facts: facts.sort((a, b) => a.id.localeCompare(b.id)), duplicateGroups };
+}

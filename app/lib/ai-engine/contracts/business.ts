@@ -49,6 +49,18 @@ export type BusinessContextMetadata = {
     originalProvenanceClassification?: import("../provenance").AiBuilderProvenanceClassification;
     upstreamSourceEntryIds?: string[];
     mixedSourceProvenance?: boolean;
+    /** Complete additive evidence; the legacy primary source remains review-compatible. */
+    supportingEvidence?: Array<{
+      sourceUrl: string;
+      excerpt: string;
+      sourceDocumentId?: string;
+      sourceBlockId?: string;
+      crawlAttemptId?: string;
+      heading?: string;
+      pageType?: string;
+      sourceType?: string;
+      provenance?: "owner" | "website";
+    }>;
   };
   
   export type BusinessContextEntry = {
@@ -87,4 +99,3 @@ export type GeneratedFaqEntry = {
     archived: number;
     byCategory: Partial<Record<BusinessContextCategory, number>>;
   };
-

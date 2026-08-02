@@ -1,5 +1,42 @@
 export const cleanText = (value: unknown) => String(value ?? "").replace(/\u0000/g, "").replace(/\s+/g, " ").trim();
-export const keyText = (value: unknown) => cleanText(value).toLocaleLowerCase().replace(/[’']/g, "'").replace(/[^a-z0-9@.+$%]+/g, " ").trim();
-export function stableId(prefix: string, value: string): string { let hash = 2166136261; for (let i = 0; i < value.length; i += 1) { hash ^= value.charCodeAt(i); hash = Math.imul(hash, 16777619); } return `${prefix}_${(hash >>> 0).toString(16).padStart(8, "0")}`; }
-export function canonicalUrl(value: string): string { try { const url = new URL(value); url.hash = ""; url.hostname = url.hostname.toLowerCase(); url.protocol = url.protocol.toLowerCase(); for (const name of Array.from(url.searchParams.keys())) if (/^utm_|^(fbclid|gclid)$/i.test(name)) url.searchParams.delete(name); url.searchParams.sort(); if (url.pathname !== "/") url.pathname = url.pathname.replace(/\/+$/, ""); return url.toString(); } catch { return cleanText(value); } }
-export const uniqueBy = <T>(values: readonly T[], identity: (value: T) => string): T[] => { const seen = new Set<string>(); return values.filter((value) => { const key = identity(value); if (seen.has(key)) return false; seen.add(key); return true; }); };
+export const keyText = (value: unknown) => cleanText(value)
+    .toLocaleLowerCase()
+    .replace(/[’']/g, "'")
+    .replace(/[^a-z0-9@.+$%]+/g, " ")
+    .trim();
+export function stableId(prefix: string, value: string): string {
+    let hash = 2166136261;
+    for (let i = 0; i < value.length; i += 1) {
+        hash ^= value.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return `${prefix}_${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+export function canonicalUrl(value: string): string {
+    try {
+        const url = new URL(value);
+        url.hash = "";
+        url.hostname = url.hostname.toLowerCase();
+        url.protocol = url.protocol.toLowerCase();
+        for (const name of Array.from(url.searchParams.keys()))
+            if (/^utm_|^(fbclid|gclid)$/i.test(name))
+                url.searchParams.delete(name);
+        url.searchParams.sort();
+        if (url.pathname !== "/")
+            url.pathname = url.pathname.replace(/\/+$/, "");
+        return url.toString();
+    }
+    catch {
+        return cleanText(value);
+    }
+}
+export const uniqueBy = <T>(values: readonly T[], identity: (value: T) => string): T[] => {
+    const seen = new Set<string>();
+    return values.filter((value) => {
+        const key = identity(value);
+        if (seen.has(key))
+            return false;
+        seen.add(key);
+        return true;
+    });
+};

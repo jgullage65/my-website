@@ -4,6 +4,7 @@ import {
   resolveCrawledBusinessName,
 } from "@/app/lib/ai-engine/crawler/crawlBusinessWebsite";
 import { buildDeterministicBusinessBrain } from "@/app/lib/ai-engine/deterministic";
+import { enforcePublicRateLimit } from "@/app/lib/security/publicRateLimit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,8 +13,6 @@ export const maxDuration = 60;
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 3;
 const MAX_CONCURRENT = 2;
-const requests = new Map<string, number[]>();
-let active = 0;
 
 const clientKey = (request: Request) =>
   (request.headers.get("x-forwarded-for")?.split(",")[0] ??
@@ -28,26 +27,53 @@ export async function POST(request: Request) {
     );
   }
 
-  const key = clientKey(request);
-  const now = Date.now();
-  const recent = (requests.get(key) ?? []).filter((timestamp) => now - timestamp < WINDOW_MS);
-  if (recent.length >= MAX_REQUESTS) {
+  let rateLimit: Awaited<ReturnType<typeof enforcePublicRateLimit>>;
+  try {
+    rateLimit = await enforcePublicRateLimit({
+      scope: "ai-builder-public-demo-crawl",
+      subject: clientKey(request),
+      limit: MAX_REQUESTS,
+      windowMs: WINDOW_MS,
+      concurrency: MAX_CONCURRENT,
+    });
+  } catch (error) {
+    console.error("AI_BUILDER_PUBLIC_DEMO_RATE_LIMIT_FAILED", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
-      { ok: false, error: { code: "rate_limited", message: "Please wait a minute before importing another website." } },
-      { status: 429 },
-    );
-  }
-  if (active >= MAX_CONCURRENT) {
-    return NextResponse.json(
-      { ok: false, error: { code: "demo_busy", message: "The public demo is busy. Please try again shortly." } },
+      {
+        ok: false,
+        error: {
+          code: "demo_temporarily_unavailable",
+          message: "The demo needs a short break. Please try again in a moment.",
+        },
+      },
       { status: 503 },
     );
   }
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: {
+          code: "demo_temporarily_unavailable",
+          message: "The demo needs a short break. Please try again in a moment.",
+        },
+      },
+      { status: 429 },
+    );
+  }
+  const releaseRateLimit = () => rateLimit.release().catch((error) => {
+    console.error("AI_BUILDER_PUBLIC_DEMO_RATE_LIMIT_RELEASE_FAILED", {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  });
 
   let body: { website?: unknown };
   try {
     body = await request.json();
   } catch {
+    await releaseRateLimit();
     return NextResponse.json(
       { ok: false, error: { code: "invalid_json", message: "Add a valid website." } },
       { status: 400 },
@@ -55,15 +81,13 @@ export async function POST(request: Request) {
   }
   const website = String(body.website ?? "").trim().slice(0, 2048);
   if (!website) {
+    await releaseRateLimit();
     return NextResponse.json(
       { ok: false, error: { code: "website_required", message: "Add a website before importing business information." } },
       { status: 400 },
     );
   }
 
-  recent.push(now);
-  requests.set(key, recent);
-  active += 1;
   try {
     // The shared crawler enforces destination safety, page/byte budgets, request
     // timeouts, redirect validation, and extraction bounds. No artifacts are saved.
@@ -100,17 +124,27 @@ export async function POST(request: Request) {
       },
       knowledge: brain.websiteKnowledge,
       pages: crawl.pages.map(({ url, title, pageType, sourceDocumentId }) => ({ url, title, pageType, sourceDocumentId })),
-      warnings: crawl.warnings,
+      // Operational warnings stay server-side in the public experience.
+      warnings: [],
       sourceDocuments: crawl.sourceDocuments,
       sourceBlocks: crawl.sourceBlocks,
       crawlAttemptId: crawl.crawlAttempt.id,
     });
   } catch (error) {
+    console.error("AI_BUILDER_PUBLIC_DEMO_IMPORT_FAILED", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
-      { ok: false, error: { code: "website_import_failed", message: error instanceof Error ? error.message : "The website could not be imported." } },
+      {
+        ok: false,
+        error: {
+          code: "website_unavailable",
+          message: "We couldn’t bring in that website right now. Check the address and try again.",
+        },
+      },
       { status: 400 },
     );
   } finally {
-    active -= 1;
+    await releaseRateLimit();
   }
 }
