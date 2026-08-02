@@ -19,10 +19,13 @@ const Check = () => (
   <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-amber-300/20 bg-[#070707] text-[11px] font-black text-amber-200">✓</span>
 );
 
+type BillingPeriod = "monthly" | "yearly";
+
 const plans = [
   {
     name: "Business Brain",
-    price: "$12",
+    monthlyPrice: 12,
+    yearlyPrice: 120,
     description: "Build, review, and manage Business Brains for multiple websites.",
     features: [
       "Build Business Brains for multiple websites",
@@ -33,7 +36,8 @@ const plans = [
   },
   {
     name: "Hosted Assistant",
-    price: "$39",
+    monthlyPrice: 39,
+    yearlyPrice: 390,
     description: "Turn your Business Brain into one hosted assistant for your business.",
     features: [
       "Everything in Business Brain",
@@ -44,7 +48,8 @@ const plans = [
   },
   {
     name: "Growth",
-    price: "$79",
+    monthlyPrice: 79,
+    yearlyPrice: 790,
     description: "Operate multiple assistants with a small team from one workspace.",
     features: [
       "Everything in Hosted Assistant",
@@ -55,9 +60,39 @@ const plans = [
   },
 ] as const;
 
+function BillingToggle({ billingPeriod, onChange }: { billingPeriod: BillingPeriod; onChange: (period: BillingPeriod) => void }) {
+  return (
+    <div className="flex justify-center">
+      <div className="inline-grid grid-cols-2 gap-1 rounded-xl border border-white/[0.08] bg-black p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.035),0_10px_24px_rgba(0,0,0,0.28)]" role="tablist" aria-label="Billing period">
+        {(["monthly", "yearly"] as BillingPeriod[]).map((period) => {
+          const selected = billingPeriod === period;
+          return (
+            <button
+              key={period}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => onChange(period)}
+              className={[
+                "min-w-[108px] rounded-lg border px-4 py-2 text-sm font-semibold transition-[border-color,background-color,color,box-shadow] duration-150",
+                selected
+                  ? "border-amber-300/35 bg-[#0b0b0b] text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.035),0_0_0_1px_rgba(245,158,11,0.05)]"
+                  : "border-transparent bg-black text-slate-400 hover:bg-white/[0.025] hover:text-slate-200",
+              ].join(" ")}
+            >
+              <span className="capitalize">{period}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function AiBuilderLanding() {
   const [signInOpen, setSignInOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
 
   return (
     <>
@@ -127,36 +162,39 @@ export default function AiBuilderLanding() {
           <button type="button" className="fixed inset-0 hidden cursor-default sm:block" aria-label="Close plans" onClick={() => setPlansOpen(false)} />
           <div className="relative z-10 min-h-dvh w-full bg-black px-4 pb-8 pt-5 sm:mx-auto sm:my-4 sm:min-h-0 sm:max-w-6xl sm:rounded-[28px] sm:border sm:border-white/[0.09] sm:p-7 sm:shadow-[0_30px_100px_rgba(0,0,0,.7)] lg:p-8">
             <button type="button" onClick={() => setPlansOpen(false)} className="fixed right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111] sm:absolute" aria-label="Close plans">×</button>
-            <div className="mx-auto max-w-3xl pr-12 text-center sm:pr-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-amber-300">Plans</p>
-              <h2 className="mt-3 text-2xl font-medium tracking-[-.03em] text-white sm:text-3xl">Choose how far you want to take your Business Brain.</h2>
-              <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">Start with the knowledge itself, deploy one assistant, or operate multiple assistants with a small team.</p>
+
+            <div className="pt-1 pr-12 sm:pr-0">
+              <BillingToggle billingPeriod={billingPeriod} onChange={setBillingPeriod} />
             </div>
 
-            <div className="mt-7 grid gap-4 lg:grid-cols-3">
-              {plans.map((plan) => (
-                <article key={plan.name} className="flex h-full flex-col rounded-[22px] border border-white/[0.08] bg-[#050505] p-5 shadow-[0_16px_44px_rgba(0,0,0,.26)] sm:p-6">
-                  <div className="text-center">
-                    <h3 className="text-xl font-semibold text-white">{plan.name}</h3>
-                    <div className="mt-3 flex items-end justify-center gap-1">
-                      <span className="text-4xl font-semibold tracking-[-.04em] text-white">{plan.price}</span>
-                      <span className="pb-1 text-sm text-slate-500">/month</span>
-                    </div>
-                    <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-slate-400">{plan.description}</p>
-                  </div>
-
-                  <div className="mt-6 grid gap-3 border-t border-white/[0.07] pt-5">
-                    {plan.features.map((feature) => (
-                      <div key={feature} className="flex items-start gap-3">
-                        <Check />
-                        <p className="text-sm leading-6 text-slate-300">{feature}</p>
+            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+              {plans.map((plan) => {
+                const price = billingPeriod === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
+                const suffix = billingPeriod === "monthly" ? "/month" : "/year";
+                return (
+                  <article key={plan.name} className="flex h-full flex-col rounded-[22px] border border-white/[0.08] bg-[#050505] p-5 shadow-[0_16px_44px_rgba(0,0,0,.26)] sm:p-6">
+                    <div className="text-center">
+                      <h3 className="text-xl font-semibold text-white">{plan.name}</h3>
+                      <div className="mt-3 flex items-end justify-center gap-1">
+                        <span className="text-4xl font-semibold tracking-[-.04em] text-white">${price}</span>
+                        <span className="pb-1 text-sm text-slate-500">{suffix}</span>
                       </div>
-                    ))}
-                  </div>
+                      <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-slate-400">{plan.description}</p>
+                    </div>
 
-                  <button type="button" onClick={() => { setPlansOpen(false); setSignInOpen(true); }} className={`${primaryButton} mt-6 w-full`}>Choose {plan.name}</button>
-                </article>
-              ))}
+                    <div className="mt-6 grid gap-3 border-t border-white/[0.07] pt-5">
+                      {plan.features.map((feature) => (
+                        <div key={feature} className="flex items-start gap-3">
+                          <Check />
+                          <p className="text-sm leading-6 text-slate-300">{feature}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button type="button" onClick={() => { setPlansOpen(false); setSignInOpen(true); }} className={`${primaryButton} mt-6 w-full`}>Choose {plan.name}</button>
+                  </article>
+                );
+              })}
             </div>
           </div>
         </div>
