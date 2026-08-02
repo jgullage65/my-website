@@ -136,7 +136,16 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   useEffect(() => {
-    if (demoMode || previewMode) return;
+    if (previewMode) {
+      setModelChoices([
+        { id: "gpt-5", displayName: "GPT-5", provider: "OpenAI", recommended: true, highUsage: false },
+        { id: "claude-sonnet", displayName: "Claude Sonnet", provider: "Anthropic", recommended: false, highUsage: false },
+        { id: "gemini-pro", displayName: "Gemini Pro", provider: "Google", recommended: false, highUsage: false },
+      ]);
+      setModelId("gpt-5");
+      return;
+    }
+    if (demoMode) return;
     void fetch("/api/ai-builder/models?purpose=crawl")
       .then((response) => response.json())
       .then((payload) => {
@@ -151,6 +160,15 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
   async function selectModel(next: string) {
     const choice = modelChoices.find((model) => model.id === next);
     if (!choice || importing) return;
+    if (previewMode) {
+      await showConfirm({
+        title: "Model selection isn’t available in the public demo",
+        message: "The public demo uses one fixed model setup so the experience stays fast and consistent. Model selection is available in a full workspace after choosing a plan.",
+        cancelLabel: "Close",
+        confirmLabel: "Got it",
+      });
+      return;
+    }
     if (choice.highUsage) {
       const confirmed = await showConfirm({
         title: `Use ${choice.displayName}?`,
@@ -198,36 +216,6 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
     const website = value.website.trim();
     if (!website || importing) return;
 
-    if (previewMode) {
-      setImporting(true);
-      setImportProgress(18);
-      setCrawlPages(1);
-      setImportStage("crawl");
-      setImportError(null);
-      setImportMessage(null);
-      await new Promise((resolve) => window.setTimeout(resolve, 500));
-      setCrawlPages(2);
-      setImportProgress(55);
-      await new Promise((resolve) => window.setTimeout(resolve, 500));
-      setCrawlPages(3);
-      setImportStage("processing");
-      setImportProgress(82);
-      await new Promise((resolve) => window.setTimeout(resolve, 700));
-      const websiteKnowledge = buildPreviewWebsiteKnowledge(website);
-      onChange({
-        ...value,
-        businessName: value.businessName.trim() ? value.businessName : websiteKnowledge.businessName,
-        industry: value.industry.trim() ? value.industry : websiteKnowledge.industry,
-        website: websiteKnowledge.website,
-        websiteKnowledge,
-      });
-      setImportProgress(100);
-      setImportStage("complete");
-      setImportMessage("Imported 3 pages into your temporary Business Brain. Nothing was saved.");
-      setImporting(false);
-      return;
-    }
-
     setImporting(true);
     setImportProgress(0);
     setCrawlPages(0);
@@ -236,7 +224,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
     setImportMessage(null);
 
     try {
-      const response = await fetch("/api/ai-builder/crawl", {
+      const response = await fetch(previewMode ? "/api/ai-builder/public-demo/crawl" : "/api/ai-builder/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ website, modelId, projectId }),
@@ -244,6 +232,12 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       if (!response.ok || !response.body) {
         const payload = (await response.json()) as WebsiteImportPayload;
         throw new Error(formatImportError(payload.error, "The website could not be imported."));
+      }
+      if (previewMode) {
+        const payload = await response.json() as WebsiteImportPayload;
+        if (!payload.ok || !payload.import) throw new Error(formatImportError(payload.error, "The website could not be imported."));
+        const imported=payload.import; const websiteKnowledge:WebsiteKnowledge={businessName:imported.businessName?.trim()||"",industry:imported.industry?.trim()||"",website:imported.website?.trim()||website,requestedUrl:imported.requestedUrl?.trim()||website,resolvedUrl:imported.resolvedUrl?.trim()||website,productsServices:imported.productsServices?.trim()||"",idealCustomers:imported.idealCustomers?.trim()||"",additionalKnowledge:imported.additionalKnowledge?.trim()||"",knowledge:payload.knowledge,pages:payload.pages??[],warnings:payload.warnings??[],importedAt:new Date().toISOString(),crawlAttemptId:payload.crawlAttemptId,sourceDocuments:payload.sourceDocuments??[],sourceBlocks:payload.sourceBlocks??[]};
+        onChange({...value,businessName:value.businessName.trim()?value.businessName:websiteKnowledge.businessName,industry:value.industry,website:websiteKnowledge.website,websiteKnowledge,crawlAttemptIds:[]});setCrawlPages(websiteKnowledge.pages.length);setImportProgress(100);setImportStage("complete");setImportMessage(`Imported ${websiteKnowledge.pages.length} public pages into your temporary Business Brain. Nothing was saved.`);return;
       }
       const reader = response.body.getReader();
       const decoder = new TextDecoder();

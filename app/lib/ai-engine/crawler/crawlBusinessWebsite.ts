@@ -211,7 +211,7 @@ type LoadPlaywright = () => Promise<{ chromium: { launch: (options: { headless: 
 export async function createPlaywrightRenderer(assertSafe: DestinationSafetyCheck, baseHost: string, loadPlaywright?: LoadPlaywright, renderHost = baseHost): Promise<BrowserRenderer> {
   // Browser code and process startup are deliberately deferred until a weak page exists.
   // @ts-ignore Playwright is dynamically loaded so HTML-only crawls never initialize it; the local interface limits what the crawler can invoke.
-  const { chromium } = await (loadPlaywright ? loadPlaywright() : import("playwright") as Promise<{ chromium: { launch: (options: { headless: boolean; args?: string[] }) => Promise<PlaywrightBrowser> }>);
+  const { chromium } = await (loadPlaywright ? loadPlaywright() : import("playwright") as Promise<{ chromium: { launch: (options: { headless: boolean; args?: string[] }) => Promise<PlaywrightBrowser> } }>);
   const pinnedHost = networkHost(renderHost);
   const browserUrlHost = net.isIP(pinnedHost) === 6 ? `[${pinnedHost}]` : pinnedHost;
   const approved = await assertSafe(new URL(`https://${browserUrlHost}/`));

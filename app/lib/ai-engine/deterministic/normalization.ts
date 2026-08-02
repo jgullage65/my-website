@@ -1,0 +1,14 @@
+import type { DeterministicEngineInput, DeterministicSourceType, NormalizedSourceBlock } from "./contracts";
+import { classifyPage } from "./classification";
+import { canonicalUrl, cleanText, keyText, stableId } from "./util";
+const CHROME = /^(skip to (?:main )?content|accept (?:all )?cookies?|cookie settings|privacy preferences|subscribe(?: to our newsletter)?|follow us|all rights reserved|© ?\d{4}|menu|close menu|back to top|get started|learn more|read more|contact us)$/i;
+export function normalizeSources(input: DeterministicEngineInput): NormalizedSourceBlock[] {
+  const documents = new Map((input.sourceDocuments ?? []).map((doc) => [doc.id, doc]));
+  const pageByUrl = new Map((input.pages ?? []).map((page) => [canonicalUrl(page.url), page]));
+  const candidates: NormalizedSourceBlock[] = []; let heading: string | undefined;
+  for (const block of input.sourceBlocks ?? []) { const doc = documents.get(block.sourceDocumentId); if (!doc) continue; const url = canonicalUrl(doc.canonicalUrl ?? doc.actualFetchedUrl); const page = pageByUrl.get(url); const text = cleanText(block.normalizedText); if (!text) continue; if (block.type === "heading") heading = text; const pageType = classifyPage(page ?? { url }, heading); candidates.push({ id: block.id, text, type: block.type, pageType, heading, evidence: { url, excerpt: text, sourceDocumentId: doc.id, sourceBlockId: block.id, crawlAttemptId: block.crawlAttemptId, heading, pageTitle: page?.title, pageType, sourceType: (block.extractionMethod === "json_ld" ? "structured_data" : doc.sourceType) as DeterministicSourceType, provenance: "website", structured: block.extractionMethod === "json_ld" } }); }
+  for (const page of input.pages ?? []) if (page.text && !candidates.some((item) => item.evidence.url === canonicalUrl(page.url))) { const text = cleanText(page.text); const pageType = classifyPage(page); candidates.push({ id: stableId("page", `${canonicalUrl(page.url)}\0${text}`), text, type: "page_text", pageType, evidence: { url: canonicalUrl(page.url), excerpt: text, sourceDocumentId: page.sourceDocumentId, crawlAttemptId: page.crawlAttemptId, pageTitle: page.title, pageType, sourceType: "html", provenance: "website", structured: false } }); }
+  const occurrences = new Map<string, Set<string>>(); for (const item of candidates) { const key = keyText(item.text); if (!occurrences.has(key)) occurrences.set(key, new Set()); occurrences.get(key)!.add(item.evidence.url); }
+  const retained = candidates.filter((item) => { const repeated = (occurrences.get(keyText(item.text))?.size ?? 0) > 1; if (!repeated) return true; if (/\b(price|refund|cancel|support|email|phone|address|location|service|policy|hours?)\b/i.test(item.text)) return true; return !CHROME.test(item.text) && item.text.length > 180; });
+  return retained.map((item, index) => ({ ...item, previousBlockId: retained[index - 1]?.id, nextBlockId: retained[index + 1]?.id }));
+}
