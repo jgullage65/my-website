@@ -9,11 +9,13 @@ import { normalizeSources } from "./normalization";
 import { assembleSession } from "./sessionAssembly";
 import { assembleWebsiteKnowledge } from "./websiteKnowledge";
 import { stableId } from "./util";
+import { canonicalTopicKey } from "./topics";
 export * from "./contracts";
 export { canonicalUrl } from "./util";
 export { classifyPage } from "./classification";
 export { normalizeSources } from "./normalization";
 export { assembleSession } from "./sessionAssembly";
+export { canonicalTopicKey } from "./topics";
 export function buildDeterministicBusinessBrain(input: DeterministicEngineInput): DeterministicEngineResult {
     const started = performance.now();
     const normalizedBlocks = normalizeSources(input);
@@ -25,7 +27,7 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
     const faqs = assembleFaqs(normalizedBlocks);
     const faqFacts = faqs.map(f => ({
         id: f.id,
-        topicKey: `faq:${f.question.toLowerCase()}`,
+        topicKey: canonicalTopicKey({ category: "faq", value: f.question, suggestedTopic: f.question }),
         category: "faq" as const,
         title: f.question,
         value: f.answer,

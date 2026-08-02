@@ -1,6 +1,7 @@
 import type { WebsiteKnowledgeFact } from "../knowledge/websiteKnowledge";
 import type { DeterministicEngineInput, DeterministicFact, NormalizedEvidence, NormalizedSourceBlock } from "./contracts";
 import { cleanText, keyText, stableId } from "./util";
+import { canonicalTopicKey } from "./topics";
 type Category = WebsiteKnowledgeFact["category"];
 type Rule = {
     category: Category;
@@ -198,21 +199,8 @@ function sentences(text: string): string[] {
         .map(cleanText)
         .filter((x) => x.length >= 12 && x.length <= 1200);
 }
-function canonicalTopic(category: Category, value: string, fallback: string): string {
-    if (category === "pricing_plan")
-        return value.match(/\b([\w-]{2,24})\s+(?:plan|package|tier)\b/i)?.[1] ?? fallback;
-    if (category === "policy")
-        return value.match(/\b(refund|return|cancel(?:lation)?|privacy|warranty|guarantee|terms|retention)\b/i)?.[0] ?? fallback;
-    if (category === "contact_information") {
-        if (/support/i.test(value))
-            return "support contact";
-        if (/sales/i.test(value))
-            return "sales contact";
-    }
-    return fallback;
-}
 function makeFact(category: Category, title: string, value: string, topic: string, evidence: NormalizedEvidence, explicit = true): DeterministicFact {
-    const topicKey = `${category}:${keyText(canonicalTopic(category, value, topic))}`;
+    const topicKey = canonicalTopicKey({ category, value, suggestedTopic: topic, heading: evidence.heading, pageType: evidence.pageType });
     return {
         id: stableId("det_fact", `${topicKey}\0${keyText(value)}\0${evidence.provenance}`),
         category,
