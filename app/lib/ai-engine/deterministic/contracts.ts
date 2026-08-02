@@ -83,6 +83,40 @@ export type DeterministicFaq = {
     evidence: NormalizedEvidence[];
     sourceFactIds: string[];
 };
+export type ConceptHealthStatus = "strong" | "review_recommended" | "needs_attention";
+export type ConceptReviewPriority = "low" | "medium" | "high";
+export type ConceptHealth = {
+    status: ConceptHealthStatus;
+    score: number;
+    confidence: WebsiteKnowledgeFact["confidence"];
+    supportingFactCount: number;
+    supportingSourceCount: number;
+    ownerSupported: boolean;
+    websiteSupported: boolean;
+    mixedSourceSupport: boolean;
+    conflictCount: number;
+    hasConflicts: boolean;
+    unresolvedConflictIds: string[];
+    reviewPriority: ConceptReviewPriority;
+    reasons: string[];
+    missingSignals: string[];
+};
+export type BusinessConcept = {
+    id: string;
+    canonicalTopicIdentity: string;
+    category: WebsiteKnowledgeFact["category"];
+    displayName: string;
+    supportingFactIds: string[];
+    supportingEvidence: NormalizedEvidence[];
+    overallConfidence: WebsiteKnowledgeFact["confidence"];
+    confidenceScore: number;
+    supportingSourceCount: number;
+    firstSeenSource: NormalizedEvidence | null;
+    lastSeenSource: NormalizedEvidence | null;
+    ownerKnowledgeContributes: boolean;
+    websiteKnowledgeContributes: boolean;
+    health: ConceptHealth;
+};
 export type MissingInformationSignal = {
     id: string;
     topic: string;
@@ -91,6 +125,7 @@ export type MissingInformationSignal = {
 };
 export type DeterministicEngineResult = {
     facts: DeterministicFact[];
+    concepts: BusinessConcept[];
     categories: WebsiteKnowledgeFact["category"][];
     duplicateGroups: DuplicateGroup[];
     conflicts: MaterialConflict[];
