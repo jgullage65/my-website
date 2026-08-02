@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
 import { useState } from "react";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
@@ -71,7 +72,6 @@ export default function AiBuilderLanding() {
               <h1 className="mt-5 text-3xl font-medium leading-[1.04] tracking-[-.035em] text-white sm:text-4xl xl:text-5xl">Build the Brain.<span className="block text-slate-400">Keep the knowledge.</span></h1>
               <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
               <div className="mt-7 flex flex-wrap gap-3">
-                <button type="button" className={primaryButton}>Build Your Business Brain</button>
                 <button type="button" className={primaryButton} onClick={() => setPlansOpen(true)}>Plans</button>
                 <button type="button" className={primaryButton} onClick={() => setSignInOpen(true)}>Sign In</button>
               </div>
@@ -113,10 +113,9 @@ export default function AiBuilderLanding() {
               <h2 className="text-2xl font-medium tracking-[-.025em] text-white sm:text-3xl">Ready to start your Business Brain?</h2>
               <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-400 sm:text-base">Choose how you want to move forward. We’ll wire each path into the right experience next.</p>
               <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <button type="button" className={primaryButton}>Build Your Business Brain</button>
                 <button type="button" className={primaryButton} onClick={() => setPlansOpen(true)}>Plans</button>
                 <button type="button" className={primaryButton} onClick={() => setSignInOpen(true)}>Sign In</button>
-                <button type="button" className={primaryButton}>Ask Support</button>
+                <Link href="/contact" className={primaryButton}>Contact</Link>
               </div>
             </div>
           </section>
