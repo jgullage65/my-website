@@ -83,6 +83,24 @@ export type DeterministicFaq = {
     evidence: NormalizedEvidence[];
     sourceFactIds: string[];
 };
+export type ConceptHealthStatus = "strong" | "review_recommended" | "needs_attention";
+export type ConceptReviewPriority = "low" | "medium" | "high";
+export type ConceptHealth = {
+    status: ConceptHealthStatus;
+    score: number;
+    confidence: WebsiteKnowledgeFact["confidence"];
+    supportingFactCount: number;
+    supportingSourceCount: number;
+    ownerSupported: boolean;
+    websiteSupported: boolean;
+    mixedSourceSupport: boolean;
+    conflictCount: number;
+    hasConflicts: boolean;
+    unresolvedConflictIds: string[];
+    reviewPriority: ConceptReviewPriority;
+    reasons: string[];
+    missingSignals: string[];
+};
 export type BusinessConcept = {
     id: string;
     canonicalTopicIdentity: string;
@@ -97,6 +115,7 @@ export type BusinessConcept = {
     lastSeenSource: NormalizedEvidence;
     ownerKnowledgeContributes: boolean;
     websiteKnowledgeContributes: boolean;
+    health: ConceptHealth;
 };
 export type MissingInformationSignal = {
     id: string;

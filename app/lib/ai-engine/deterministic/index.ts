@@ -40,7 +40,7 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
         explicit: true
     }));
     const allFacts = [...facts, ...faqFacts].sort((a, b) => a.id.localeCompare(b.id));
-    const concepts = assembleBusinessConcepts(allFacts);
+    const concepts = assembleBusinessConcepts(allFacts, conflicts);
     const sessionId = input.sessionId ?? stableId("demo_session", allFacts.map(f => f.id).join("\0"));
     const linkedConflicts = conflicts.map(conflict => ({
         ...conflict,
