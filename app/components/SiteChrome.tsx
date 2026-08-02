@@ -18,7 +18,7 @@ const footerNavItems = [
 
 export default function SiteChrome({ children, year }: { children: ReactNode; year: number }) {
   const pathname = usePathname();
-  const isAiBuilder = pathname === "/ai-builder" || pathname.startsWith("/ai-builder/");
+  const isAiBuilder = pathname === "/" || pathname === "/ai-builder" || pathname.startsWith("/ai-builder/");
 
   return (
     <div className={`relative z-10 overflow-x-hidden ${isAiBuilder ? "xl:h-dvh xl:min-h-0 xl:overflow-hidden" : "min-h-screen"}`}>
@@ -122,7 +122,7 @@ export default function SiteChrome({ children, year }: { children: ReactNode; ye
         </footer>
       ) : null}
 
-      <JGChatWidget />
+      {!isAiBuilder ? <JGChatWidget /> : null}
     </div>
   );
 }
