@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import AiBuilderLanding from "./components/ai-builder/AiBuilderLanding";
 
 export default function HomePage() {
-  redirect("/ai-builder");
+  return <AiBuilderLanding />;
 }
