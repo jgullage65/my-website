@@ -41,7 +41,7 @@ const plans = [
     description: "Turn your Business Brain into one hosted assistant for your business.",
     features: [
       "Everything in Business Brain",
-      "One hosted assistant",
+      "One hosted assistant per month",
       "Connect your AI provider",
       "Deploy and manage one live assistant",
     ],
@@ -53,7 +53,7 @@ const plans = [
     description: "Operate multiple assistants with a small team from one workspace.",
     features: [
       "Everything in Hosted Assistant",
-      "Up to three hosted assistants",
+      "Up to three hosted assistants per month",
       "Team workspace for up to three members",
       "Priority access to new platform features",
     ],
