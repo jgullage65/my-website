@@ -22,12 +22,12 @@ const plans = [
   {
     name: "Business Brain",
     price: "$12",
-    description: "Build, review, and manage the Business Brain that powers your AI.",
+    description: "Build, review, and manage Business Brains for multiple websites.",
     features: [
-      "Build and manage your Business Brain",
+      "Build Business Brains for multiple websites",
       "Import website knowledge",
       "Review, approve, edit, and organize knowledge",
-      "Export or download your Business Brain as a PDF",
+      "Export or download any Business Brain as a PDF",
     ],
   },
   {
