@@ -9,3 +9,7 @@ CREATE TABLE IF NOT EXISTS public_api_rate_limit_leases (
 
 CREATE INDEX IF NOT EXISTS public_api_rate_limit_leases_usage_idx
   ON public_api_rate_limit_leases (scope, subject_hash, requested_at DESC);
+
+CREATE INDEX IF NOT EXISTS public_api_rate_limit_leases_active_idx
+  ON public_api_rate_limit_leases (scope, subject_hash, requested_at DESC)
+  WHERE released_at IS NULL;

@@ -238,12 +238,13 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
         if (!payload.ok || !payload.import) throw new Error("public_demo_import_unavailable");
         const imported=payload.import; const websiteKnowledge:WebsiteKnowledge={businessName:imported.businessName?.trim()||"",industry:imported.industry?.trim()||"",website:imported.website?.trim()||website,requestedUrl:imported.requestedUrl?.trim()||website,resolvedUrl:imported.resolvedUrl?.trim()||website,productsServices:imported.productsServices?.trim()||"",idealCustomers:imported.idealCustomers?.trim()||"",additionalKnowledge:imported.additionalKnowledge?.trim()||"",knowledge:payload.knowledge,pages:payload.pages??[],warnings:payload.warnings??[],importedAt:new Date().toISOString(),crawlAttemptId:payload.crawlAttemptId,sourceDocuments:payload.sourceDocuments??[],sourceBlocks:payload.sourceBlocks??[]};
         onChange({...value,businessName:value.businessName.trim()?value.businessName:websiteKnowledge.businessName,industry:value.industry,website:websiteKnowledge.website,websiteKnowledge,crawlAttemptIds:[]});setCrawlPages(websiteKnowledge.pages.length);setImportProgress(100);setImportStage("complete");
-        await showConfirm({
+        const continueBuilding = await showConfirm({
           title: "Your website is ready",
           message: `We brought ${websiteKnowledge.pages.length} public page${websiteKnowledge.pages.length === 1 ? "" : "s"} into your temporary Business Brain. You can review everything before deciding what to keep.`,
-          cancelLabel: "Close",
-          confirmLabel: "Continue",
+          cancelLabel: "Review website",
+          confirmLabel: "Continue building",
         });
+        if (!continueBuilding) setShowWebsiteKnowledge(true);
         return;
       }
       const reader = response.body.getReader();
@@ -329,12 +330,15 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       setImportMessage(`Imported ${pageCount} page${pageCount === 1 ? "" : "s"}. Your expertise remains separate and always takes priority.`);
     } catch (error) {
       if (previewMode) {
-        await showConfirm({
+        const retry = await showConfirm({
           title: "We couldn’t bring in that website",
           message: "Check the website address and try again. If the site is temporarily unavailable, you can still continue by adding your business information directly.",
-          cancelLabel: "Close",
+          cancelLabel: "Continue without it",
           confirmLabel: "Try again",
         });
+        if (retry) {
+          window.setTimeout(() => void importWebsite(), 0);
+        }
       } else {
         setImportError(error instanceof Error ? error.message : "The website could not be imported.");
       }

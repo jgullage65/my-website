@@ -2,13 +2,25 @@ import type { AiBuilderSession, BusinessContextCategory } from "../contracts";
 import type { DeterministicEngineResult, OwnerKnowledge } from "./contracts";
 import { stableId } from "./util";
 const category = (value: string): BusinessContextCategory => value === "pricing_plan" ? "pricing" : value === "policy" || value === "security_compliance" ? "policy" : value === "customer_segment" || value === "industry_served" ? "audience" : value === "support_onboarding" ? "process" : value === "competitive_differentiator" ? "differentiator" : ["product", "service", "feature_capability", "primary_use_case", "integration", "ai_automation", "technical_capability"].includes(value) ? "service" : "business_profile";
+const primaryEvidence = (fact: DeterministicEngineResult["facts"][number]) => [...fact.evidence].sort((left, right) => {
+    const authority = Number(right.provenance === "owner") - Number(left.provenance === "owner");
+    if (authority)
+        return authority;
+    const structure = Number(right.structured) - Number(left.structured);
+    if (structure)
+        return structure;
+    return `${left.url}\0${left.sourceDocumentId ?? ""}\0${left.sourceBlockId ?? ""}\0${left.excerpt}`
+        .localeCompare(`${right.url}\0${right.sourceDocumentId ?? ""}\0${right.sourceBlockId ?? ""}\0${right.excerpt}`);
+})[0];
 export function assembleSession(result: Omit<DeterministicEngineResult, "session">, options: {
     sessionId?: string;
     now?: string;
     owner?: OwnerKnowledge;
 } = {}): AiBuilderSession {
     const now = options.now ?? new Date().toISOString(), sessionId = options.sessionId ?? stableId("demo_session", result.facts.map(f => f.id).join("\0"));
-    const entries = result.facts.map(f => ({
+    const entries = result.facts.map(f => {
+        const primary = primaryEvidence(f);
+        return ({
         id: stableId("context", `${sessionId}\0${f.id}`),
         sessionId,
         category: category(f.category),
@@ -18,10 +30,10 @@ export function assembleSession(result: Omit<DeterministicEngineResult, "session
         confidenceScore: f.confidenceScore,
         status: "proposed" as const,
         source: {
-            intakeBlockId: f.evidence[0]?.sourceBlockId ?? f.id,
-            excerpt: f.evidence[0]?.excerpt ?? f.value,
+            intakeBlockId: primary?.sourceBlockId ?? f.id,
+            excerpt: primary?.excerpt ?? f.value,
             sourceType: f.provenance === "owner" ? "manual_intake" as const : "website" as const,
-            sourceUrl: f.evidence[0]?.url
+            sourceUrl: primary?.url
         },
         metadata: {
             generated: false,
@@ -45,15 +57,17 @@ export function assembleSession(result: Omit<DeterministicEngineResult, "session
         },
         createdAt: now,
         updatedAt: now
-    }));
+        });
+    });
     const idByFact = new Map(result.facts.map((f, i) => [f.id, entries[i]!.id]));
     for (const conflict of result.conflicts) {
-        conflict.sessionEntryIds =
-            conflict.factIds.map(id => idByFact.get(id)).filter((x): x is string => Boolean(x));
-        for (const id of conflict.sessionEntryIds) {
+        const sessionEntryIds = conflict.factIds
+            .map(id => idByFact.get(id))
+            .filter((id): id is string => Boolean(id));
+        for (const id of sessionEntryIds) {
             const entry = entries.find(e => e.id === id);
             if (entry)
-                entry.metadata.conflictingEntryIds = conflict.sessionEntryIds.filter(other => other !== id);
+                entry.metadata.conflictingEntryIds = sessionEntryIds.filter(other => other !== id);
         }
     }
     const faqEntries = result.faqs.map(f => ({

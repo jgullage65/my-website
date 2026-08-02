@@ -163,14 +163,56 @@ const RULES: Rule[] = [
         topic: t => t.slice(0, 55),
         title: "Brand terminology"
     },
+    {
+        category: "additional_business_knowledge",
+        pages: ["case_studies"],
+        evidence: /\b(?:case study|resulted in|increased|reduced|grew|saved|delivered)\b/i,
+        heading: /./,
+        topic: t => t.slice(0, 55),
+        title: "Case study"
+    },
+    {
+        category: "additional_business_knowledge",
+        pages: ["testimonials"],
+        evidence: /(?:[“”"]|\b(?:testimonial|customer said|client said|recommend|working with)\b)/i,
+        heading: /./,
+        topic: t => t.slice(0, 55),
+        title: "Testimonial"
+    },
 ];
+const RULE_PRIORITY: Partial<Record<Category, number>> = {
+    pricing_plan: 100,
+    policy: 95,
+    contact_information: 95,
+    integration: 90,
+    security_compliance: 90,
+    feature_capability: 80,
+    product: 60,
+    service: 60,
+    additional_business_knowledge: 50
+};
+const PRIORITIZED_RULES = [...RULES].sort((left, right) =>
+    (RULE_PRIORITY[right.category] ?? 70) - (RULE_PRIORITY[left.category] ?? 70));
 function sentences(text: string): string[] {
     return text.split(/(?<=[.!])\s+|\n+/)
         .map(cleanText)
         .filter((x) => x.length >= 12 && x.length <= 1200);
 }
+function canonicalTopic(category: Category, value: string, fallback: string): string {
+    if (category === "pricing_plan")
+        return value.match(/\b([\w-]{2,24})\s+(?:plan|package|tier)\b/i)?.[1] ?? fallback;
+    if (category === "policy")
+        return value.match(/\b(refund|return|cancel(?:lation)?|privacy|warranty|guarantee|terms|retention)\b/i)?.[0] ?? fallback;
+    if (category === "contact_information") {
+        if (/support/i.test(value))
+            return "support contact";
+        if (/sales/i.test(value))
+            return "sales contact";
+    }
+    return fallback;
+}
 function makeFact(category: Category, title: string, value: string, topic: string, evidence: NormalizedEvidence, explicit = true): DeterministicFact {
-    const topicKey = `${category}:${keyText(topic)}`;
+    const topicKey = `${category}:${keyText(canonicalTopic(category, value, topic))}`;
     return {
         id: stableId("det_fact", `${topicKey}\0${keyText(value)}\0${evidence.provenance}`),
         category,
@@ -193,12 +235,13 @@ export function extractWebsiteFacts(blocks: readonly NormalizedSourceBlock[]): D
         const previous = block.previousBlockId ? byId.get(block.previousBlockId) : undefined;
         const structuralContext = `${block.heading ?? ""} ${previous?.type === "heading" ? previous.text : ""}`;
         for (const text of sentences(block.text)) {
-            for (const rule of RULES) {
+            const matchedCategories = new Set<Category>();
+            for (const rule of PRIORITIZED_RULES) {
                 const pageMatch = !rule.pages || rule.pages.includes(block.pageType);
                 const headingMatch = !rule.heading || rule.heading.test(structuralContext);
-                if (pageMatch && headingMatch && rule.evidence.test(text)) {
+                if (pageMatch && headingMatch && rule.evidence.test(text) && !matchedCategories.has(rule.category)) {
                     facts.push(makeFact(rule.category, rule.title, text, rule.topic(text), block.evidence));
-                    break;
+                    matchedCategories.add(rule.category);
                 }
             }
         }

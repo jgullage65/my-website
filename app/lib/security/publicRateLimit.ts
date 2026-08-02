@@ -37,7 +37,9 @@ export async function enforcePublicRateLimit(input: PublicRateLimitInput): Promi
       SELECT pg_advisory_xact_lock(hashtext(${`${input.scope}:${subjectHash}`}))
     ), cleaned AS (
       DELETE FROM public_api_rate_limit_leases
-      WHERE requested_at < NOW() - INTERVAL '1 day'
+      WHERE scope = ${input.scope}
+        AND subject_hash = ${subjectHash}
+        AND requested_at < NOW() - INTERVAL '1 day'
       RETURNING lease_id
     ), usage AS (
       SELECT
@@ -64,7 +66,10 @@ export async function enforcePublicRateLimit(input: PublicRateLimitInput): Promi
           await sql`
             UPDATE public_api_rate_limit_leases
             SET released_at = NOW()
-            WHERE scope = ${input.scope} AND lease_id = ${leaseId}::uuid
+            WHERE scope = ${input.scope}
+              AND subject_hash = ${subjectHash}
+              AND lease_id = ${leaseId}::uuid
+              AND released_at IS NULL
           `;
         }
       : async () => undefined,

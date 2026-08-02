@@ -8,6 +8,7 @@ import { assembleFaqs } from "./faqs";
 import { normalizeSources } from "./normalization";
 import { assembleSession } from "./sessionAssembly";
 import { assembleWebsiteKnowledge } from "./websiteKnowledge";
+import { stableId } from "./util";
 export * from "./contracts";
 export { canonicalUrl } from "./util";
 export { classifyPage } from "./classification";
@@ -35,13 +36,20 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
         explicit: true
     }));
     const allFacts = [...facts, ...faqFacts].sort((a, b) => a.id.localeCompare(b.id));
-    const { coverage, missingInformation } = calculateCoverage(allFacts, conflicts, faqs.length);
+    const sessionId = input.sessionId ?? stableId("demo_session", allFacts.map(f => f.id).join("\0"));
+    const linkedConflicts = conflicts.map(conflict => ({
+        ...conflict,
+        factIds: [...conflict.factIds],
+        websiteFactIds: [...conflict.websiteFactIds],
+        sessionEntryIds: conflict.factIds.map(factId => stableId("context", `${sessionId}\0${factId}`))
+    }));
+    const { coverage, missingInformation } = calculateCoverage(allFacts, linkedConflicts, faqs.length);
     const unresolved = missingInformation.map(m => m.suggestedQuestion);
     const partial = {
         facts: allFacts,
         categories: Array.from(new Set(allFacts.map(f => f.category))).sort(),
         duplicateGroups: deduplicated.duplicateGroups,
-        conflicts,
+        conflicts: linkedConflicts,
         coverage,
         missingInformation,
         faqs,
@@ -51,6 +59,6 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
     };
     return {
         ...partial,
-        session: assembleSession(partial, { sessionId: input.sessionId, now: input.now, owner: input.owner })
+        session: assembleSession(partial, { sessionId, now: input.now, owner: input.owner })
     };
 }

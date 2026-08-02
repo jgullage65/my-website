@@ -86,7 +86,10 @@ export function normalizeSources(input: DeterministicEngineInput): NormalizedSou
             .test(item.text)) {
             return true;
         }
-        return !CHROME.test(item.text) && item.text.length > 180;
+        if (CHROME.test(item.text))
+            return false;
+        return !/\b(?:newsletter|cookie preferences|accessibility menu|follow us on|terms of website use)\b/i
+            .test(item.text);
     });
     return retained.map((item, index) => ({
         ...item,
