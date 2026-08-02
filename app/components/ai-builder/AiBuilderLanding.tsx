@@ -18,8 +18,45 @@ const Check = () => (
   <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-amber-300/20 bg-[#070707] text-[11px] font-black text-amber-200">✓</span>
 );
 
+const plans = [
+  {
+    name: "Business Brain",
+    price: "$12",
+    description: "Build, review, and manage the Business Brain that powers your AI.",
+    features: [
+      "Build and manage your Business Brain",
+      "Import website knowledge",
+      "Review, approve, edit, and organize knowledge",
+      "Export or download your Business Brain as a PDF",
+    ],
+  },
+  {
+    name: "Hosted Assistant",
+    price: "$39",
+    description: "Turn your Business Brain into one hosted assistant for your business.",
+    features: [
+      "Everything in Business Brain",
+      "One hosted assistant",
+      "Connect your AI provider",
+      "Deploy and manage one live assistant",
+    ],
+  },
+  {
+    name: "Growth",
+    price: "$79",
+    description: "Operate multiple assistants with a small team from one workspace.",
+    features: [
+      "Everything in Hosted Assistant",
+      "Up to three hosted assistants",
+      "Team workspace for up to three members",
+      "Priority access to new platform features",
+    ],
+  },
+] as const;
+
 export default function AiBuilderLanding() {
   const [signInOpen, setSignInOpen] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
 
   return (
     <>
@@ -35,6 +72,7 @@ export default function AiBuilderLanding() {
               <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <button type="button" className={primaryButton}>Build Your Business Brain</button>
+                <button type="button" className={primaryButton} onClick={() => setPlansOpen(true)}>Plans</button>
                 <button type="button" className={primaryButton} onClick={() => setSignInOpen(true)}>Sign In</button>
               </div>
 
@@ -76,6 +114,7 @@ export default function AiBuilderLanding() {
               <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-400 sm:text-base">Choose how you want to move forward. We’ll wire each path into the right experience next.</p>
               <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <button type="button" className={primaryButton}>Build Your Business Brain</button>
+                <button type="button" className={primaryButton} onClick={() => setPlansOpen(true)}>Plans</button>
                 <button type="button" className={primaryButton} onClick={() => setSignInOpen(true)}>Sign In</button>
                 <button type="button" className={primaryButton}>Ask Support</button>
               </div>
@@ -83,6 +122,46 @@ export default function AiBuilderLanding() {
           </section>
         </main>
       </div>
+
+      {plansOpen ? (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center overflow-y-auto bg-black/85 px-4 py-8 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Business Brain plans">
+          <button type="button" className="absolute inset-0 cursor-default" aria-label="Close plans" onClick={() => setPlansOpen(false)} />
+          <div className="relative z-10 w-full max-w-6xl rounded-[28px] border border-white/[0.09] bg-[#000000] p-5 shadow-[0_30px_100px_rgba(0,0,0,.7)] sm:p-7 lg:p-8">
+            <button type="button" onClick={() => setPlansOpen(false)} className="absolute right-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111]" aria-label="Close plans">×</button>
+            <div className="mx-auto max-w-3xl text-center">
+              <p className="text-[10px] font-semibold uppercase tracking-[.22em] text-amber-300">Plans</p>
+              <h2 className="mt-3 text-2xl font-medium tracking-[-.03em] text-white sm:text-3xl">Choose how far you want to take your Business Brain.</h2>
+              <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-400">Start with the knowledge itself, deploy one assistant, or operate multiple assistants with a small team.</p>
+            </div>
+
+            <div className="mt-7 grid gap-4 lg:grid-cols-3">
+              {plans.map((plan) => (
+                <article key={plan.name} className="flex h-full flex-col rounded-[22px] border border-white/[0.08] bg-[#050505] p-5 shadow-[0_16px_44px_rgba(0,0,0,.26)] sm:p-6">
+                  <div className="text-center">
+                    <h3 className="text-xl font-semibold text-white">{plan.name}</h3>
+                    <div className="mt-3 flex items-end justify-center gap-1">
+                      <span className="text-4xl font-semibold tracking-[-.04em] text-white">{plan.price}</span>
+                      <span className="pb-1 text-sm text-slate-500">/month</span>
+                    </div>
+                    <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-slate-400">{plan.description}</p>
+                  </div>
+
+                  <div className="mt-6 grid gap-3 border-t border-white/[0.07] pt-5">
+                    {plan.features.map((feature) => (
+                      <div key={feature} className="flex items-start gap-3">
+                        <Check />
+                        <p className="text-sm leading-6 text-slate-300">{feature}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button type="button" onClick={() => { setPlansOpen(false); setSignInOpen(true); }} className={`${primaryButton} mt-6 w-full`}>Choose {plan.name}</button>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {signInOpen ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/85 px-4 py-8 backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Sign in">
