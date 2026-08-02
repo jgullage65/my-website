@@ -163,7 +163,7 @@ export default function AiBuilderLanding() {
           <div className="relative z-10 min-h-dvh w-full bg-black px-4 pb-8 pt-5 sm:mx-auto sm:my-4 sm:min-h-0 sm:max-w-6xl sm:rounded-[28px] sm:border sm:border-white/[0.09] sm:p-7 sm:shadow-[0_30px_100px_rgba(0,0,0,.7)] lg:p-8">
             <button type="button" onClick={() => setPlansOpen(false)} className="fixed right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111] sm:absolute" aria-label="Close plans">×</button>
 
-            <div className="pt-1 pr-12 sm:pr-0">
+            <div className="pt-1 sm:pt-0">
               <BillingToggle billingPeriod={billingPeriod} onChange={setBillingPeriod} />
             </div>
 
