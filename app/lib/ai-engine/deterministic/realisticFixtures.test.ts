@@ -127,13 +127,80 @@ test("canonicalizes supported aliases while keeping different concepts separate"
   assert.notEqual("certification:soc2", "certification:hipaa");
 });
 
-test("keeps topic identity stable across different page structures", () => {
-  const homepage = buildDeterministicBusinessBrain(fixture([
-    { path: "/", type: "home", heading: "SEO", bodies: [{ text: "Our SEO service includes reporting and enables teams to track conversions." }] },
+test("keeps topic identity stable across different service page structures", () => {
+  const overview = buildDeterministicBusinessBrain(fixture([
+    { path: "/offerings", type: "services", heading: "What We Offer", bodies: [{ text: "We provide SEO consulting for growing teams." }] },
   ]));
   const services = buildDeterministicBusinessBrain(fixture([
     { path: "/services/search", type: "services", heading: "Search engine optimization services", bodies: [{ text: "We provide search engine optimization consulting for growing teams." }] },
   ]));
-  assert.ok(homepage.facts.some(fact => fact.topicKey === "service:seo"));
+  assert.ok(overview.facts.some(fact => fact.topicKey === "service:seo"));
   assert.ok(services.facts.some(fact => fact.topicKey === "service:seo"));
+});
+
+test("keeps FAQ identities isolated from aliases mentioned in questions", () => {
+  const result = buildDeterministicBusinessBrain(fixture([{ path: "/faq", type: "faq", heading: "FAQ", bodies: [
+    { type: "faq_question", text: "Is HIPAA supported?" },
+    { type: "faq_answer", text: "Contact our compliance team for current details." },
+    { type: "faq_question", text: "Does this integrate with Google Workspace?" },
+    { type: "faq_answer", text: "See the integrations page for supported connections." },
+  ] }]));
+  const topics = result.facts.filter(fact => fact.category === "faq").map(fact => fact.topicKey);
+  assert.deepEqual(topics.sort(), ["faq:does_this_integrate_with_google_workspace", "faq:is_hipaa_supported"]);
+  assert.ok(topics.every(topic => topic.startsWith("faq:")));
+});
+
+test("does not replace incompatible product and feature namespaces from keywords", () => {
+  const result = buildDeterministicBusinessBrain(fixture([
+    { path: "/products", type: "products", heading: "Our Solutions", bodies: [
+      { text: "Our Campaign Pilot product contains Google Ads automation." },
+      { text: "SEO reporting includes weekly keyword tracking capabilities." },
+    ] },
+  ]));
+  const product = result.facts.find(fact => fact.category === "product");
+  const feature = result.facts.find(fact => fact.category === "feature_capability" && /SEO reporting/.test(fact.value));
+  assert.equal(product?.topicKey, "product:campaign_pilot");
+  assert.ok(feature?.topicKey.startsWith("feature_capability:"));
+  assert.notEqual(feature?.topicKey, "service:seo");
+});
+
+test("generic container headings do not collapse distinct item facts", () => {
+  const result = buildDeterministicBusinessBrain(fixture([
+    { path: "/services", type: "services", heading: "What We Offer", bodies: [{ text: "We offer website design services." }, { text: "We provide conversion optimization consulting." }] },
+    { path: "/products", type: "products", heading: "Our Solutions", bodies: [{ text: "Our Atlas software platform helps teams work." }, { text: "Our Beacon product enables reporting." }] },
+    { path: "/industries", type: "industries", heading: "Who We Serve", bodies: [{ text: "Solutions for healthcare organizations." }, { text: "Solutions for financial services companies." }] },
+    { path: "/locations", type: "locations", heading: "Where We Work", bodies: [{ text: "Our office is located in Atlanta." }, { text: "Our office is located in Denver." }] },
+  ]));
+  for (const category of ["service", "product", "industry_served", "location_service_area"] as const) {
+    const facts = result.facts.filter(fact => fact.category === category);
+    assert.equal(facts.length, 2, `${category}: ${JSON.stringify(facts)}`);
+    assert.equal(new Set(facts.map(fact => fact.topicKey)).size, 2, category);
+  }
+});
+
+test("removes sentence prefixes from stable pricing plan identities", () => {
+  const result = buildDeterministicBusinessBrain(fixture([
+    { path: "/pricing", type: "pricing", heading: "Plans", bodies: [
+      { text: "The Professional plan costs $99 per month." },
+      { text: "Our Professional plan costs $99 per month." },
+      { text: "Choose the Professional plan for larger teams at $99 monthly." },
+      { text: "Select the Professional plan at $99 monthly." },
+    ] },
+  ]));
+  const plans = result.facts.filter(fact => fact.category === "pricing_plan");
+  assert.ok(plans.length >= 3);
+  assert.ok(plans.every(fact => fact.topicKey === "pricing_plan:professional"));
+});
+
+test("canonical identity preserves fact fields and evidence deterministically", () => {
+  const input = fixture([{ path: "/security", type: "security", heading: "Security", bodies: [{ text: "Our platform is SOC II compliant and customer data is encrypted." }] }]);
+  const first = buildDeterministicBusinessBrain(input).facts.find(fact => fact.category === "security_compliance");
+  const second = buildDeterministicBusinessBrain(input).facts.find(fact => fact.category === "security_compliance");
+  assert.ok(first && second);
+  assert.equal(first.id, second.id);
+  assert.equal(first.value, "Our platform is SOC II compliant and customer data is encrypted.");
+  assert.equal(first.category, "security_compliance");
+  assert.equal(first.provenance, "website");
+  assert.equal(first.confidence, second.confidence);
+  assert.deepEqual(first.evidence, second.evidence);
 });
