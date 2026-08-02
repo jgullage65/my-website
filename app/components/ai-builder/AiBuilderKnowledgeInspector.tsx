@@ -128,13 +128,15 @@ export default function AiBuilderKnowledgeInspector() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => void inspect()}
-        className="fixed left-4 top-4 z-[115] min-h-10 rounded-lg border border-white/[0.1] bg-[#080808] px-4 py-2 text-xs font-semibold text-slate-300 shadow-[0_10px_28px_rgba(0,0,0,0.35)] transition hover:bg-white/[0.05] hover:text-white xl:left-1/2 xl:top-[calc(5dvh+14px)] xl:-translate-x-[390px]"
-      >
-        Source details
-      </button>
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => void inspect()}
+          className="inline-flex min-h-10 items-center justify-center rounded-lg border border-white/[0.1] bg-[#080808] px-4 py-2 text-xs font-semibold text-slate-300 shadow-[0_10px_28px_rgba(0,0,0,0.35)] transition hover:bg-white/[0.05] hover:text-white"
+        >
+          Source details
+        </button>
+      </div>
 
       {open ? (
         <div
