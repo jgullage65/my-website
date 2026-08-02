@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import type { BuilderState } from "./AiBuilderClient";
@@ -21,6 +22,8 @@ export const AI_BUILDER_SHOWCASE_SLIDES = [
 export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]["id"];
 
 const SHOWCASE_VIEWPORT_CLASS = "h-[clamp(430px,calc(100dvh-360px),620px)]";
+const heroButtonClass =
+  "cta-raised inline-flex min-h-12 items-center justify-center rounded-xl border border-amber-300/20 bg-[#080808] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,.28),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-[#111111]";
 
 export type AiBuilderSurfaceShowcaseProps = {
   session: AiBuilderSession;
@@ -42,7 +45,19 @@ export default function AiBuilderSurfaceShowcase({
 }: AiBuilderSurfaceShowcaseProps) {
   const [activeSlide, setActiveSlide] = useState<AiBuilderShowcaseSlide>(initialSlide);
   const [demoOpen, setDemoOpen] = useState(false);
+  const [heroActions, setHeroActions] = useState<HTMLElement | null>(null);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
+
+  useEffect(() => {
+    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
+    const signInButton = buttons.find((button) => {
+      if (button.textContent?.trim() !== "Sign In") return false;
+      return Array.from(button.parentElement?.children ?? []).some(
+        (sibling) => sibling.textContent?.trim() === "Plans",
+      );
+    });
+    setHeroActions(signInButton?.parentElement ?? null);
+  }, []);
 
   useEffect(() => {
     if (!autoAdvance || demoOpen) return;
@@ -101,6 +116,15 @@ export default function AiBuilderSurfaceShowcase({
   return (
     <div className={className}>
       {confirmDialogNode}
+      {heroActions
+        ? createPortal(
+            <button type="button" onClick={openDemo} className={heroButtonClass}>
+              Open Demo
+            </button>,
+            heroActions,
+          )
+        : null}
+
       <div className="overflow-hidden rounded-[24px] border border-amber-300/30 bg-black p-3 shadow-[0_28px_90px_rgba(0,0,0,.58)] sm:p-4">
         <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>
           <div className="relative h-full lg:hidden">
@@ -110,10 +134,6 @@ export default function AiBuilderSurfaceShowcase({
           </div>
           <div className="hidden h-full lg:block">{showcaseSurface}</div>
         </div>
-      </div>
-
-      <div className="mt-4 flex justify-center">
-        <button type="button" onClick={openDemo} className="inline-flex min-h-10 items-center justify-center rounded-xl border border-amber-300/30 bg-[#0a0a0a] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_35px_rgba(0,0,0,.32)] transition hover:border-amber-200/50 hover:bg-[#101010]">Open Demo</button>
       </div>
 
       {demoOpen ? (
