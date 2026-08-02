@@ -163,10 +163,10 @@ export default function AiBuilderLanding() {
       ) : null}
 
       {signInOpen ? (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/85 px-4 py-8 backdrop-blur-md [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="dialog" aria-modal="true" aria-label="Sign in">
-          <button type="button" className="absolute inset-0 cursor-default" aria-label="Close sign in" onClick={() => setSignInOpen(false)} />
-          <div className="relative z-10 w-full max-w-md">
-            <button type="button" onClick={() => setSignInOpen(false)} className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-300/20 bg-black text-lg text-amber-300 transition hover:border-amber-300/40 hover:bg-[#0a0a0a]" aria-label="Close sign in">×</button>
+        <div className="fixed inset-0 z-[9999] overflow-y-auto overscroll-contain bg-black text-white [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex sm:items-center sm:justify-center sm:bg-black/85 sm:px-4 sm:py-8 sm:backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Sign in">
+          <button type="button" className="fixed inset-0 hidden cursor-default sm:block" aria-label="Close sign in" onClick={() => setSignInOpen(false)} />
+          <div className="relative z-10 min-h-dvh w-full bg-black px-4 pb-8 pt-16 sm:min-h-0 sm:max-w-md sm:bg-transparent sm:p-0">
+            <button type="button" onClick={() => setSignInOpen(false)} className="fixed right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111] sm:absolute sm:right-3 sm:top-3 sm:h-9 sm:w-9 sm:border-amber-300/20 sm:text-lg sm:text-amber-300" aria-label="Close sign in">×</button>
             <SignIn
               routing="hash"
               forceRedirectUrl="/ai-builder"
@@ -174,7 +174,7 @@ export default function AiBuilderLanding() {
                 elements: {
                   rootBox: "w-full",
                   cardBox: "w-full shadow-none",
-                  card: "w-full rounded-[24px] border border-amber-300/20 bg-black shadow-[0_26px_70px_rgba(0,0,0,.5)]",
+                  card: "w-full rounded-none border-0 bg-black shadow-none sm:rounded-[24px] sm:border sm:border-amber-300/20 sm:shadow-[0_26px_70px_rgba(0,0,0,.5)]",
                 },
               }}
             />
