@@ -1,0 +1,73 @@
+import { WEBSITE_KNOWLEDGE_COVERAGE_FIELDS, type WebsiteKnowledgeCoverage } from "../knowledge/websiteKnowledge";
+import type { DeterministicFact, MaterialConflict, MissingInformationSignal } from "./contracts";
+import { stableId } from "./util";
+const MAP: Partial<Record<keyof WebsiteKnowledgeCoverage, DeterministicFact["category"][]>> = {
+    businessIdentity: ["business_identity", "company_overview"],
+    offers: ["product", "service", "pricing_plan"],
+    customers: ["customer_segment", "industry_served"],
+    pricing: ["pricing_plan"],
+    policies: ["policy", "security_compliance"],
+    processes: ["support_onboarding"],
+    faq: ["faq"],
+    contact: ["contact_information", "location_service_area"],
+    companyOverview: ["company_overview", "business_identity"],
+    missionValueProposition: ["mission_value_proposition"],
+    products: ["product"],
+    services: ["service"],
+    featuresCapabilities: ["feature_capability"],
+    pricingPlans: ["pricing_plan"],
+    customerSegments: ["customer_segment"],
+    industriesServed: ["industry_served"],
+    primaryUseCases: ["primary_use_case"],
+    integrations: ["integration"],
+    aiFeaturesAutomation: ["ai_automation"],
+    technicalCapabilities: ["technical_capability"],
+    securityCompliance: ["security_compliance"],
+    certifications: ["certification"],
+    supportOnboarding: ["support_onboarding"],
+    partnerships: ["partnership"],
+    locationsServiceAreas: ["location_service_area"],
+    contactInformation: ["contact_information"],
+    brandVoiceTerminology: ["brand_voice_terminology"],
+    frequentlyAskedQuestions: ["faq"],
+    competitiveDifferentiators: ["competitive_differentiator"],
+    additionalBusinessKnowledge: ["additional_business_knowledge"]
+};
+export function calculateCoverage(facts: readonly DeterministicFact[], conflicts: readonly MaterialConflict[], faqCount: number): {
+    coverage: WebsiteKnowledgeCoverage;
+    missingInformation: MissingInformationSignal[];
+} {
+    const conflictIds = new Set(conflicts.flatMap(c => c.factIds));
+    const coverage = {} as WebsiteKnowledgeCoverage;
+    for (const field of WEBSITE_KNOWLEDGE_COVERAGE_FIELDS) {
+        if (field === "overall")
+            continue;
+        const categories = MAP[field] ?? [];
+        const matches = facts.filter(f => categories.includes(f.category));
+        if ((field === "faq" || field === "frequentlyAskedQuestions") && faqCount)
+            coverage[field] = Math.min(100, 55 + faqCount * 10);
+        else if (!matches.length)
+            coverage[field] = 0;
+        else {
+            const average = matches.reduce((n, f) => n + f.confidenceScore, 0) / matches.length;
+            const independent = new Set(matches.flatMap(f => f.evidence.map(e => e.url))).size;
+            const penalty = matches.some(f => conflictIds.has(f.id)) ? 18 : 0;
+            coverage[field] =
+                Math.round(Math.max(0, Math.min(100, average * .72 + Math.min(18, independent * 6) +
+                    Math.min(10, matches.length * 2) - penalty)));
+        }
+    }
+    const core = ["businessIdentity", "offers", "customers", "contact"] as const;
+    coverage.overall = Math.round(core.reduce((n, k) => n + coverage[k], 0) / core.length * .55 +
+        WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.filter(k => k !== "overall")
+            .reduce((n, k) => n + coverage[k], 0) /
+            (WEBSITE_KNOWLEDGE_COVERAGE_FIELDS.length - 1) * .45);
+    const missingInformation = core.filter(k => coverage[k] < 45)
+        .map(topic => ({
+        id: stableId("missing", topic),
+        topic,
+        reason: `Supported ${topic} information is incomplete or low confidence.`,
+        suggestedQuestion: `What should customers know about ${topic.replace(/([A-Z])/g, " $1").toLowerCase()}?`
+    }));
+    return { coverage, missingInformation };
+}

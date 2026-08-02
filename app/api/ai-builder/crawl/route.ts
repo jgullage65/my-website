@@ -27,6 +27,7 @@ import { persistMergedWebsiteKnowledge } from "@/app/lib/db/ai-builder-repositor
 import { reconcileWebsiteRecrawl } from "@/app/lib/ai-engine/crawler/websiteRecrawlReconciliation";
 import { persistWebsiteRecrawlReconciliation } from "@/app/lib/ai-engine/crawler/websiteRecrawlReconciliationStore";
 import { buildBusinessMemory } from "@/app/lib/ai-engine/business-memory/buildBusinessMemory";
+import { buildDeterministicBusinessBrain } from "@/app/lib/ai-engine/deterministic";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -414,6 +415,43 @@ export async function POST(request: Request) {
           unresolvedQuestions: extractionPlan.mode === "recrawl" ? Array.from(new Set([...previousKnowledge!.knowledge.unresolvedQuestions, ...extracted.knowledge.unresolvedQuestions])).sort() : extracted.knowledge.unresolvedQuestions,
         };
         const currentKnowledge: PersistedWebsiteKnowledge = { ...currentBase, document_version: extractionPlan.mode === "recrawl" && deltaFacts.length === 0 && extractionPlan.blockChanges.every((change) => change.state === "unchanged") ? previousKnowledge!.document_version : currentBase.document_version + (extractionPlan.mode === "recrawl" ? 1 : 0), knowledge };
+
+        // Shadow-only first-stage extraction. This deliberately has no repository,
+        // response, reconciliation, document-version, or review side effects; the
+        // model-backed result above remains the production authority.
+        try {
+          const deterministicStarted = performance.now();
+          const deterministic = buildDeterministicBusinessBrain({
+            pages: crawl.pages.map((page) => ({ ...page, crawlAttemptId: crawl.crawlAttempt.id })),
+            sourceDocuments: crawl.sourceDocuments,
+            sourceBlocks: crawl.sourceBlocks,
+          });
+          const modelCategories = new Set(knowledge.facts.map((fact) => fact.category));
+          const deterministicCategories = new Set(deterministic.categories);
+          console.info("AI_BUILDER_DETERMINISTIC_COMPARISON", {
+            attemptId,
+            projectId: projectId || null,
+            authority: "model_extraction",
+            deterministicFactsFound: deterministic.facts.length,
+            modelFactsFound: knowledge.facts.length,
+            deterministicCategoriesCovered: deterministicCategories.size,
+            evidenceRetained: deterministic.facts.reduce((count, fact) => count + fact.evidence.length, 0),
+            conflictsFound: deterministic.conflicts.length,
+            duplicateGroups: deterministic.duplicateGroups.length,
+            missingCategories: WEBSITE_KNOWLEDGE_CATEGORIES.filter((category) => !deterministicCategories.has(category)),
+            missingFromDeterministic: Array.from(modelCategories).filter((category) => !deterministicCategories.has(category)),
+            additionalDeterministicCategories: Array.from(deterministicCategories).filter((category) => !modelCategories.has(category)),
+            executionTimeMs: performance.now() - deterministicStarted,
+          });
+        } catch (error) {
+          // Shadow extraction is deliberately fail-open. It can never block the
+          // authoritative model result, persistence, or recrawl reconciliation.
+          console.error("AI_BUILDER_DETERMINISTIC_COMPARISON_FAILED", {
+            attemptId,
+            projectId: projectId || null,
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
 
         if (extractionPlan.mode === "recrawl") {
           const reconciliation = reconcileWebsiteRecrawl({ previous: previousKnowledge!, current: currentKnowledge, currentCrawlAttempt: crawl.crawlAttempt, businessMemory: project ? buildBusinessMemory({ session: project.session, websiteKnowledge: previousKnowledge }) : undefined });

@@ -1,0 +1,22 @@
+import type { StructuredWebsiteKnowledge, WebsiteKnowledgeFact } from "../knowledge/websiteKnowledge";
+import type { DeterministicFact } from "./contracts";
+export function assembleWebsiteKnowledge(facts: readonly DeterministicFact[], coverage: StructuredWebsiteKnowledge["coverage"], questions: readonly string[]): StructuredWebsiteKnowledge {
+    return {
+        facts: facts.filter(f => f.provenance === "website")
+            .map(({ category, title, value, confidence, evidence }) => ({
+            category,
+            title,
+            value,
+            confidence,
+            evidence: evidence.map(e => ({
+                url: e.url,
+                excerpt: e.excerpt,
+                sourceDocumentId: e.sourceDocumentId,
+                sourceBlockId: e.sourceBlockId,
+                crawlAttemptId: e.crawlAttemptId
+            }))
+        }) satisfies WebsiteKnowledgeFact),
+        coverage,
+        unresolvedQuestions: [...questions]
+    };
+}
