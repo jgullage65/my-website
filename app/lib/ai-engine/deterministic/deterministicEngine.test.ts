@@ -69,6 +69,10 @@ test("uses structure, separates owner products and services, and retains session
   assert.ok(result.facts.some(fact => fact.category === "product"));
   assert.ok(result.facts.some(fact => fact.category === "service"));
   assert.ok(!result.facts.some(fact => /customer satisfaction/i.test(fact.value)));
+  assert.ok(result.concepts.some(concept => concept.category === "pricing_plan"));
+  assert.ok(result.concepts.some(concept => concept.category === "product"));
+  assert.ok(result.concepts.some(concept => concept.category === "service"));
+  assert.ok(result.concepts.every(concept => concept.supportingFactIds.every(id => result.facts.some(fact => fact.id === id))));
 
   const pricingEntry = result.session?.contextEntries.find(entry => entry.category === "pricing");
   assert.equal(pricingEntry?.metadata.supportingEvidence?.[0]?.sourceBlockId, "pricing-body");

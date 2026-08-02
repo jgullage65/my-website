@@ -10,12 +10,14 @@ import { assembleSession } from "./sessionAssembly";
 import { assembleWebsiteKnowledge } from "./websiteKnowledge";
 import { stableId } from "./util";
 import { canonicalTopicKey } from "./topics";
+import { assembleBusinessConcepts } from "./concepts";
 export * from "./contracts";
 export { canonicalUrl } from "./util";
 export { classifyPage } from "./classification";
 export { normalizeSources } from "./normalization";
 export { assembleSession } from "./sessionAssembly";
 export { canonicalTopicKey } from "./topics";
+export { assembleBusinessConcepts, conceptDisplayName } from "./concepts";
 export function buildDeterministicBusinessBrain(input: DeterministicEngineInput): DeterministicEngineResult {
     const started = performance.now();
     const normalizedBlocks = normalizeSources(input);
@@ -38,6 +40,7 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
         explicit: true
     }));
     const allFacts = [...facts, ...faqFacts].sort((a, b) => a.id.localeCompare(b.id));
+    const concepts = assembleBusinessConcepts(allFacts);
     const sessionId = input.sessionId ?? stableId("demo_session", allFacts.map(f => f.id).join("\0"));
     const linkedConflicts = conflicts.map(conflict => ({
         ...conflict,
@@ -49,6 +52,7 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
     const unresolved = missingInformation.map(m => m.suggestedQuestion);
     const partial = {
         facts: allFacts,
+        concepts,
         categories: Array.from(new Set(allFacts.map(f => f.category))).sort(),
         duplicateGroups: deduplicated.duplicateGroups,
         conflicts: linkedConflicts,

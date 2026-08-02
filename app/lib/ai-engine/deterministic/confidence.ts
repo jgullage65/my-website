@@ -1,4 +1,5 @@
 import type { DeterministicFact, MaterialConflict } from "./contracts";
+import type { WebsiteKnowledgeFact } from "../knowledge/websiteKnowledge";
 const RELEVANCE: Record<string, string[]> = {
     pricing_plan: ["pricing"],
     policy: ["policies", "support", "pricing"],
@@ -10,6 +11,9 @@ const RELEVANCE: Record<string, string[]> = {
     certification: ["certifications"],
     location_service_area: ["locations", "contact"]
 };
+export function confidenceLevel(score: number): WebsiteKnowledgeFact["confidence"] {
+    return score >= 78 ? "high" : score >= 52 ? "medium" : "low";
+}
 export function scoreConfidence(facts: readonly DeterministicFact[], conflicts: readonly MaterialConflict[]): DeterministicFact[] {
     const conflicting = new Set(conflicts.flatMap(c => c.factIds));
     return facts.map(fact => {
@@ -35,9 +39,7 @@ export function scoreConfidence(facts: readonly DeterministicFact[], conflicts: 
         return {
             ...fact,
             confidenceScore: score,
-            confidence: score >= 78 ? "high"
-                : score >= 52 ? "medium"
-                    : "low"
+            confidence: confidenceLevel(score)
         };
     });
 }
