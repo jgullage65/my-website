@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
-import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
+import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
@@ -12,11 +12,11 @@ import AiBuilderWorkspaceView from "./AiBuilderWorkspaceView";
 import AiBuilderDeterministicDemoWorkspace from "./AiBuilderDeterministicDemoWorkspace";
 
 export const AI_BUILDER_SHOWCASE_SLIDES = [
-  { id: "builder", label: "Builder" },
-  { id: "review", label: "Review" },
+  { id: "builder", label: "AI Builder" },
   { id: "dashboard", label: "Dashboard" },
-  { id: "insights", label: "Insights" },
-  { id: "chat", label: "Chat" },
+  { id: "insights", label: "Project Insights" },
+  { id: "review", label: "Business Knowledge" },
+  { id: "sources", label: "Sources" },
 ] as const;
 
 export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]["id"];
@@ -24,6 +24,136 @@ export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]
 const SHOWCASE_VIEWPORT_CLASS = "h-[clamp(430px,calc(100dvh-360px),620px)]";
 const heroButtonClass =
   "cta-raised inline-flex min-h-12 items-center justify-center rounded-xl border border-amber-300/20 bg-[#080808] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,.28),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-[#111111]";
+
+const showcaseWebsiteKnowledge = {
+  schema_version: 2,
+  document_version: 1,
+  current_crawl_attempt_id: "landing-demo-crawl-3",
+  imported_at: "2026-07-18T21:42:14.000Z",
+  requested_url: "https://arkena.studio",
+  resolved_url: "https://arkena.studio",
+  pages: [
+    {
+      url: "https://arkena.studio",
+      title: "Arkena Studio",
+      pageType: "website",
+      sourceDocumentId: "landing-source-home",
+    },
+    {
+      url: "https://arkena.studio/services",
+      title: "AI Products and Automation Services",
+      pageType: "website",
+      sourceDocumentId: "landing-source-services",
+    },
+    {
+      url: "https://arkena.studio/ai-builder",
+      title: "AI Builder",
+      pageType: "website",
+      sourceDocumentId: "landing-source-builder",
+    },
+    {
+      url: "https://arkena.studio/about",
+      title: "About Arkena Studio",
+      pageType: "website",
+      sourceDocumentId: "landing-source-about",
+    },
+    {
+      url: "https://arkena.studio/contact",
+      title: "Contact",
+      pageType: "website",
+      sourceDocumentId: "landing-source-contact",
+    },
+    {
+      url: "https://arkena.studio/privacy",
+      title: "Privacy Policy",
+      pageType: "website",
+      sourceDocumentId: "landing-source-privacy",
+    },
+  ],
+  warnings: [
+    "Duplicate page content was skipped during extraction.",
+  ],
+  knowledge: {
+    facts: [],
+    coverage: {},
+    unresolvedQuestions: [],
+  },
+  source_documents: [
+    {
+      id: "landing-source-home",
+      url: "https://arkena.studio",
+      canonicalUrl: "https://arkena.studio",
+      title: "Arkena Studio",
+      sourceType: "html",
+      contentType: "text/html",
+      fetchedAt: "2026-07-18T21:42:01.000Z",
+      status: "retained",
+      sourceTruncated: false,
+      extractionTruncated: false,
+    },
+    {
+      id: "landing-source-services",
+      url: "https://arkena.studio/services",
+      canonicalUrl: "https://arkena.studio/services",
+      title: "AI Products and Automation Services",
+      sourceType: "html",
+      contentType: "text/html",
+      fetchedAt: "2026-07-18T21:42:04.000Z",
+      status: "retained",
+      sourceTruncated: false,
+      extractionTruncated: false,
+    },
+    {
+      id: "landing-source-builder",
+      url: "https://arkena.studio/ai-builder",
+      canonicalUrl: "https://arkena.studio/ai-builder",
+      title: "AI Builder",
+      sourceType: "rendered_html",
+      contentType: "text/html",
+      fetchedAt: "2026-07-18T21:42:07.000Z",
+      status: "retained",
+      sourceTruncated: false,
+      extractionTruncated: false,
+    },
+    {
+      id: "landing-source-about",
+      url: "https://arkena.studio/about",
+      canonicalUrl: "https://arkena.studio/about",
+      title: "About Arkena Studio",
+      sourceType: "html",
+      contentType: "text/html",
+      fetchedAt: "2026-07-18T21:42:09.000Z",
+      status: "retained",
+      sourceTruncated: false,
+      extractionTruncated: false,
+    },
+    {
+      id: "landing-source-contact",
+      url: "https://arkena.studio/contact",
+      canonicalUrl: "https://arkena.studio/contact",
+      title: "Contact",
+      sourceType: "html",
+      contentType: "text/html",
+      fetchedAt: "2026-07-18T21:42:11.000Z",
+      status: "retained",
+      sourceTruncated: false,
+      extractionTruncated: false,
+    },
+    {
+      id: "landing-source-privacy",
+      url: "https://arkena.studio/privacy",
+      canonicalUrl: "https://arkena.studio/privacy",
+      title: "Privacy Policy",
+      sourceType: "html",
+      contentType: "text/html",
+      fetchedAt: "2026-07-18T21:42:13.000Z",
+      status: "retained",
+      sourceTruncated: false,
+      extractionTruncated: false,
+    },
+  ],
+  source_blocks: [],
+} as unknown as PersistedWebsiteKnowledge;
 
 export type AiBuilderSurfaceShowcaseProps = {
   session: AiBuilderSession;
@@ -95,23 +225,67 @@ export default function AiBuilderSurfaceShowcase({
     if (confirmed) setDemoOpen(true);
   };
 
-  const knowledge = useMemo(() => buildKnowledgePack(session), [session]);
+  let showcaseSurface = null;
 
-  const showcaseSurface = useMemo(() => {
-    if (activeSlide === "builder") {
-      return <AiBuilderWorkspaceView mode="demo" activeView="builder" session={session} builder={builder} previewMode />;
-    }
-    if (activeSlide === "review") {
-      return <AiBuilderWorkspaceView mode="demo" activeView="review" session={session} builder={builder} embeddedReview />;
-    }
-    if (activeSlide === "dashboard") {
-      return <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builder} diagnostics={diagnostics} dashboardShowcase />;
-    }
-    if (activeSlide === "insights") {
-      return <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builder} diagnostics={diagnostics} />;
-    }
-    return <AiBuilderWorkspaceView mode="demo" activeView="chat" session={session} builder={builder} knowledge={knowledge} projectId={session.id} />;
-  }, [activeSlide, builder, diagnostics, knowledge, session]);
+  if (activeSlide === "builder") {
+    showcaseSurface = (
+      <AiBuilderWorkspaceView
+        mode="demo"
+        activeView="builder"
+        session={session}
+        builder={builder}
+        websiteKnowledge={showcaseWebsiteKnowledge}
+        diagnostics={diagnostics}
+        previewMode
+      />
+    );
+  } else if (activeSlide === "dashboard") {
+    showcaseSurface = (
+      <AiBuilderWorkspaceView
+        mode="demo"
+        activeView="dashboard"
+        session={session}
+        builder={builder}
+        websiteKnowledge={showcaseWebsiteKnowledge}
+        diagnostics={diagnostics}
+        dashboardShowcase
+      />
+    );
+  } else if (activeSlide === "insights") {
+    showcaseSurface = (
+      <AiBuilderWorkspaceView
+        mode="demo"
+        activeView="insights"
+        session={session}
+        builder={builder}
+        websiteKnowledge={showcaseWebsiteKnowledge}
+        diagnostics={diagnostics}
+      />
+    );
+  } else if (activeSlide === "review") {
+    showcaseSurface = (
+      <AiBuilderWorkspaceView
+        mode="demo"
+        activeView="review"
+        session={session}
+        builder={builder}
+        websiteKnowledge={showcaseWebsiteKnowledge}
+        diagnostics={diagnostics}
+        embeddedReview
+      />
+    );
+  } else {
+    showcaseSurface = (
+      <AiBuilderWorkspaceView
+        mode="demo"
+        activeView="sources"
+        session={session}
+        builder={builder}
+        websiteKnowledge={showcaseWebsiteKnowledge}
+        diagnostics={diagnostics}
+      />
+    );
+  }
 
   return (
     <div className={className}>
