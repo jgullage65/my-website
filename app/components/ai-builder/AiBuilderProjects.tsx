@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/nextjs";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderLanding from "./AiBuilderLanding";
+import { aiBuilderCornerCtaClassName } from "./AiBuilderAuthCta";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 
 export type AiBuilderProjectPreview = {
@@ -273,7 +274,15 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
         </div>
 
         <div className="col-span-2 flex justify-end sm:col-span-1">
-          {!archived ? (showcase ? <span className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white">Open project</span> : <Link href={`/ai-builder?projectId=${encodeURIComponent(project.id)}&tab=dashboard`} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30">Open project</Link>) : <button type="button" disabled={busy === project.id || showcase} onClick={() => onRestore(project)} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30 disabled:opacity-50">Restore</button>}
+          {!archived ? (
+            showcase ? (
+              <span className={aiBuilderCornerCtaClassName}>Open project</span>
+            ) : (
+              <Link href={`/ai-builder?projectId=${encodeURIComponent(project.id)}&tab=dashboard`} className={aiBuilderCornerCtaClassName}>Open project</Link>
+            )
+          ) : (
+            <button type="button" disabled={busy === project.id || showcase} onClick={() => onRestore(project)} className={`${aiBuilderCornerCtaClassName} disabled:opacity-50`}>Restore</button>
+          )}
         </div>
       </div>
     </article>
