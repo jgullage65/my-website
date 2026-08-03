@@ -15,15 +15,15 @@ export default function AiBuilderAssistantShowcase({ models }: { models: AiBuild
 
   return (
     <section className="grid h-full min-h-0 grid-cols-2 overflow-hidden rounded-[20px] border border-white/[0.09] bg-black">
-      <div className="relative flex min-h-0 items-center justify-center border-r border-white/[0.09] bg-[#030303] px-7 py-7">
-        <div className="pointer-events-none relative z-20 flex w-full max-w-[430px] items-center justify-center">
+      <div className="relative flex min-h-0 items-start justify-center overflow-hidden border-r border-white/[0.09] bg-[#030303] px-7 pb-4 pt-5">
+        <div className="pointer-events-none relative z-20 flex w-full max-w-[430px] items-start justify-center">
           <AiBuilderModelSelect
             models={showcaseModels}
             value={selectedModel}
             disabled={false}
             defaultOpen
             onChange={() => undefined}
-            className="w-full"
+            className="w-full [&_[role=listbox]]:max-h-[330px]"
           />
         </div>
       </div>
@@ -59,8 +59,8 @@ export default function AiBuilderAssistantShowcase({ models }: { models: AiBuild
 
         <div className="flex-none border-t border-white/[0.08] p-5">
           <div className="flex items-end gap-2 rounded-2xl border border-white/[0.09] bg-[#080808] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">
-            <div className="min-h-[50px] flex-1 px-3 py-3 text-sm text-slate-500">Ask about your business...</div>
-            <button type="button" disabled className="min-h-[50px] rounded-xl border border-amber-300/15 bg-black px-5 text-sm font-black text-white opacity-80">Send</button>
+            <div className="min-h-[50px] flex-1 px-3 py-3 text-sm text-white">How should I position this for agencies?</div>
+            <button type="button" className="min-h-[50px] rounded-xl border border-blue-400/40 bg-blue-600 px-5 text-sm font-black text-white shadow-[0_8px_22px_rgba(37,99,235,.28)]">Send</button>
           </div>
         </div>
       </div>
