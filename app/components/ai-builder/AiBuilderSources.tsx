@@ -394,17 +394,17 @@ export default function AiBuilderSources() {
       {selectedSource ? (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeSourceSummary(); }}>
           <section role="dialog" aria-modal="true" aria-label="AI source summary" className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-[20px] border border-white/[.1] bg-[#080808] shadow-[0_28px_90px_rgba(0,0,0,.65)]">
-            <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/[.08] bg-[#080808]/95 px-5 py-4 backdrop-blur">
-              <div className="min-w-0">
+            <header className="sticky top-0 z-10 relative flex items-center justify-center border-b border-white/[.08] bg-[#080808]/95 px-5 py-4 backdrop-blur">
+              <div className="min-w-0 px-20 text-center">
                 <p className="text-[.66rem] font-semibold uppercase tracking-[.22em] text-slate-500">What the AI learned</p>
-                <h2 className="mt-1 truncate text-base font-semibold text-white">{selectedSource.page.title || "Untitled page"}</h2>
+                <h2 className="mt-1 break-words text-base font-semibold text-white">{selectedSource.page.title || "Untitled page"}</h2>
               </div>
-              <button type="button" onClick={closeSourceSummary} className="min-h-10 rounded-lg border border-white/[.08] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/20">Done</button>
+              <button type="button" onClick={closeSourceSummary} className="absolute right-5 top-1/2 min-h-10 -translate-y-1/2 rounded-lg border border-white/[.08] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/20">Done</button>
             </header>
 
             <div className="space-y-6 p-5 sm:p-6">
               <div className="rounded-xl border border-white/[.08] bg-black/30 p-4">
-                <p className="text-[.68rem] font-bold uppercase tracking-[.14em] text-slate-500">AI summary</p>
+                <p className="text-center text-[.68rem] font-bold uppercase tracking-[.14em] text-slate-500">AI summary</p>
                 <p className="mt-3 text-sm leading-7 text-slate-300">{selectedSource.summary}</p>
               </div>
 
@@ -414,15 +414,15 @@ export default function AiBuilderSources() {
               </div>
 
               {selectedSource.topics.length ? (
-                <section>
+                <section className="text-center">
                   <p className="text-[.68rem] font-bold uppercase tracking-[.14em] text-slate-500">Topics found</p>
-                  <div className="mt-3 flex flex-wrap gap-2">{selectedSource.topics.map((topic) => <span key={topic} className="rounded-lg border border-white/[.1] bg-black px-2.5 py-1.5 text-xs font-semibold text-slate-300">{topic}</span>)}</div>
+                  <div className="mt-3 flex flex-wrap justify-center gap-2">{selectedSource.topics.map((topic) => <span key={topic} className="rounded-lg border border-white/[.1] bg-black px-2.5 py-1.5 text-xs font-semibold text-slate-300">{topic}</span>)}</div>
                 </section>
               ) : null}
 
               {selectedSource.importNotes.length ? (
                 <section>
-                  <p className="text-[.68rem] font-bold uppercase tracking-[.14em] text-slate-500">Import notes</p>
+                  <p className="text-center text-[.68rem] font-bold uppercase tracking-[.14em] text-slate-500">Import notes</p>
                   <div className="mt-3 overflow-hidden rounded-xl border border-white/[.08] bg-black/30 divide-y divide-white/[.08]">{selectedSource.importNotes.map((note) => <p key={note} className="px-4 py-3 text-sm leading-6 text-slate-300">{note}</p>)}</div>
                 </section>
               ) : null}
