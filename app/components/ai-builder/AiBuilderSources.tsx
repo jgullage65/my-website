@@ -154,7 +154,7 @@ const sentence = (value: string) => {
 };
 
 export default function AiBuilderSources() {
-  const { websiteKnowledge, diagnostics, session, setActiveTab } = useAiBuilderWorkspace();
+  const { websiteKnowledge, diagnostics, session } = useAiBuilderWorkspace();
   const [visiblePages, setVisiblePages] = useState(INITIAL_PAGE_ROWS);
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const [search, setSearch] = useState("");
@@ -232,6 +232,7 @@ export default function AiBuilderSources() {
           document,
           status: document?.status ?? "retained",
           sourceType: document?.sourceType ?? page.pageType,
+          knowledge,
           knowledgeCount: knowledge.length,
           topics,
           confidence,
@@ -350,7 +351,14 @@ export default function AiBuilderSources() {
                         <p className="mt-1 break-words text-xs leading-5 text-slate-500">{document ? `Imported ${formatDate(document.fetchedAt)}` : host(page.url)} · {sourceTypeLabel(sourceType)}</p>
                       </div>
                       <div className="flex min-w-0 flex-wrap justify-start gap-2 lg:justify-end">
-                        <button type="button" onClick={() => setActiveTab("knowledge")} className="cta-raised rounded-lg border border-amber-300/20 bg-black px-3.5 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">{knowledgeCount ? `View knowledge (${knowledgeCount})` : "View knowledge"}</button>
+                        <button
+                          type="button"
+                          disabled={!knowledgeCount}
+                          onClick={() => knowledgeCount && openSourceSummary(id)}
+                          className="cta-raised rounded-lg border border-amber-300/20 bg-black px-3.5 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40 disabled:cursor-not-allowed disabled:border-white/[.08] disabled:text-slate-600 disabled:shadow-none"
+                        >
+                          {knowledgeCount ? `View knowledge (${knowledgeCount})` : "No knowledge generated"}
+                        </button>
                         <button type="button" onClick={() => openSourceSummary(id)} aria-label="Open AI source summary" className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[.12] bg-black text-sm text-slate-400 transition hover:border-white/25 hover:text-white">+</button>
                       </div>
                     </div>
@@ -420,6 +428,28 @@ export default function AiBuilderSources() {
                 </section>
               ) : null}
 
+              {selectedSource.knowledge.length ? (
+                <section>
+                  <p className="text-center text-[.68rem] font-bold uppercase tracking-[.14em] text-slate-500">Knowledge from this page</p>
+                  <div className="mt-3 space-y-3">
+                    {selectedSource.knowledge.map((entry) => (
+                      <article key={entry.id} className="rounded-xl border border-white/[.08] bg-black/30 p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <h3 className="text-sm font-semibold text-white">{entry.title}</h3>
+                          <span className="rounded-lg border border-white/[.08] bg-black px-2.5 py-1 text-[.65rem] font-semibold text-slate-400">{humanize(entry.status)}</span>
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-slate-300">{entry.content}</p>
+                        <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs text-slate-500">
+                          <span>{humanize(entry.category)}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{humanize(entry.confidence)} confidence</span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
               {selectedSource.importNotes.length ? (
                 <section>
                   <p className="text-center text-[.68rem] font-bold uppercase tracking-[.14em] text-slate-500">Import notes</p>
@@ -427,9 +457,8 @@ export default function AiBuilderSources() {
                 </section>
               ) : null}
 
-              <div className="flex flex-col gap-3 border-t border-white/[.08] pt-5 sm:flex-row sm:items-center sm:justify-between">
-                <a href={selectedSource.page.url} target="_blank" rel="noreferrer" className="min-w-0 break-all text-sm text-slate-400 transition hover:text-white">Open original page ↗</a>
-                <button type="button" onClick={() => { closeSourceSummary(); setActiveTab("knowledge"); }} className="cta-raised shrink-0 rounded-lg border border-amber-300/20 bg-black px-4 py-2.5 text-xs font-semibold text-white transition hover:border-amber-300/40">View knowledge{selectedSource.knowledgeCount ? ` (${selectedSource.knowledgeCount})` : ""}</button>
+              <div className="flex justify-center border-t border-white/[.08] pt-5">
+                <a href={selectedSource.page.url} target="_blank" rel="noreferrer" className="min-w-0 break-all text-center text-sm text-slate-400 transition hover:text-white">Open original page ↗</a>
               </div>
             </div>
           </section>
