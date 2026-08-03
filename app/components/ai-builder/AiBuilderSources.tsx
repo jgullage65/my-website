@@ -59,6 +59,24 @@ const timestamp = (value: unknown) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const normalizeUrl = (value: string | null | undefined) => {
+  if (!value) return "";
+  try {
+    const parsed = new URL(value);
+    parsed.hash = "";
+    if (parsed.pathname !== "/") parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+    return parsed.toString();
+  } catch {
+    return value.trim();
+  }
+};
+
+const sentence = (value: string) => {
+  const clean = value.replace(/\s+/g, " ").trim();
+  if (!clean) return "";
+  return /[.!?]$/.test(clean) ? clean : `${clean}.`;
+};
+
 export default function AiBuilderSources() {
   const { websiteKnowledge, diagnostics, session, setActiveTab } = useAiBuilderWorkspace();
   const [visiblePages, setVisiblePages] = useState(INITIAL_PAGE_ROWS);
@@ -67,6 +85,7 @@ export default function AiBuilderSources() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sort, setSort] = useState<PageSort>("title");
+  const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
 
   const pages = websiteKnowledge?.pages ?? [];
   const warnings = websiteKnowledge?.warnings ?? [];
@@ -84,25 +103,62 @@ export default function AiBuilderSources() {
   );
 
   const knowledgeByUrl = useMemo(() => {
-    const counts = new Map<string, number>();
+    const byUrl = new Map<string, typeof session.contextEntries>();
     for (const entry of session.contextEntries) {
-      const url = entry.source.sourceUrl;
+      const url = normalizeUrl(entry.source.sourceUrl);
       if (entry.source.sourceType !== "website" || !url) continue;
-      counts.set(url, (counts.get(url) ?? 0) + 1);
+      const existing = byUrl.get(url) ?? [];
+      existing.push(entry);
+      byUrl.set(url, existing);
     }
-    return counts;
+    return byUrl;
   }, [session.contextEntries]);
 
   const sourceRows = useMemo(
     () =>
       pages.map((page) => {
         const document = page.sourceDocumentId ? documentById.get(page.sourceDocumentId) : undefined;
+        const knowledge = knowledgeByUrl.get(normalizeUrl(page.url)) ?? [];
+        const topics = Array.from(
+          new Set(
+            knowledge.flatMap((entry) =>
+              [humanize(entry.category), ...entry.metadata.tags.map((tag) => humanize(tag))].filter(Boolean),
+            ),
+          ),
+        ).slice(0, 8);
+        const confidenceOrder = { low: 0, medium: 1, high: 2 } as const;
+        const confidence = knowledge.length
+          ? knowledge.reduce((best, entry) =>
+              confidenceOrder[entry.confidence] < confidenceOrder[best] ? entry.confidence : best,
+            knowledge[0]!.confidence)
+          : null;
+        const summary = knowledge.length
+          ? knowledge
+              .slice(0, 3)
+              .map((entry) => sentence(entry.content))
+              .filter(Boolean)
+              .join(" ")
+          : "No Business Knowledge was generated from this page.";
+        const importNotes = [
+          document?.sourceTruncated ? "Some page content was cut off during import." : null,
+          document?.extractionTruncated ? "Some extracted content was cut off during processing." : null,
+          document?.sourceType === "rendered_html" ? "This page required JavaScript rendering." : null,
+          document?.sourceType === "pdf" ? "PDF content was converted successfully." : null,
+          document?.status === "skipped" ? "This page was skipped during import." : null,
+          document?.status === "failed" ? "This page could not be imported." : null,
+        ].filter((note): note is string => Boolean(note));
+
         return {
           page,
           document,
           status: document?.status ?? "retained",
           sourceType: document?.sourceType ?? page.pageType,
-          knowledgeCount: knowledgeByUrl.get(page.url) ?? 0,
+          knowledge,
+          knowledgeCount: knowledge.length,
+          topics,
+          confidence,
+          summary,
+          importNotes,
         };
       }),
     [documentById, knowledgeByUrl, pages],
@@ -135,6 +191,7 @@ export default function AiBuilderSources() {
 
   useEffect(() => {
     setVisiblePages(INITIAL_PAGE_ROWS);
+    setExpandedSourceId(null);
   }, [search, sort, statusFilter, typeFilter]);
 
   const retainedDocuments = documents.filter((document) => document.status === "retained").length;
@@ -188,32 +245,95 @@ export default function AiBuilderSources() {
 
             {filteredRows.length ? (
               <div className="divide-y divide-white/[.12]">
-                {visiblePageRows.map(({ page, document, sourceType, knowledgeCount }) => (
-                  <div key={page.sourceDocumentId ?? page.url} className="grid min-w-0 gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1.5fr)_auto] lg:items-center">
-                    <div className="min-w-0">
-                      <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Page</p>
-                      <a href={page.url} target="_blank" rel="noreferrer" className="group mt-1 inline-flex max-w-full items-center gap-1.5 text-sm font-semibold text-white hover:text-slate-200 lg:mt-0" title={`Open ${page.title || page.url}`}>
-                        <span className="min-w-0 break-words">{page.title || "Untitled page"}</span>
-                        <span aria-hidden="true" className="shrink-0 text-slate-500 transition group-hover:text-white">↗</span>
-                      </a>
-                      <p className="mt-1 break-all text-xs leading-5 text-slate-500">{path(page.url)}</p>
-                    </div>
+                {visiblePageRows.map(({ page, document, sourceType, knowledgeCount, topics, confidence, summary, importNotes }) => {
+                  const sourceId = page.sourceDocumentId ?? page.url;
+                  const expanded = expandedSourceId === sourceId;
+                  return (
+                    <div key={sourceId} className="min-w-0">
+                      <div className="grid min-w-0 gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1.5fr)_auto] lg:items-center">
+                        <div className="min-w-0">
+                          <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Page</p>
+                          <a href={page.url} target="_blank" rel="noreferrer" className="group mt-1 inline-flex max-w-full items-center gap-1.5 text-sm font-semibold text-white hover:text-slate-200 lg:mt-0" title={`Open ${page.title || page.url}`}>
+                            <span className="min-w-0 break-words">{page.title || "Untitled page"}</span>
+                            <span aria-hidden="true" className="shrink-0 text-slate-500 transition group-hover:text-white">↗</span>
+                          </a>
+                          <p className="mt-1 break-all text-xs leading-5 text-slate-500">{path(page.url)}</p>
+                        </div>
 
-                    <div className="min-w-0">
-                      <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Source URL</p>
-                      <a href={page.url} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm leading-5 text-slate-300 hover:text-white lg:mt-0">{page.url}</a>
-                      <p className="mt-1 break-words text-xs leading-5 text-slate-500">
-                        {document ? `Fetched ${formatDate(document.fetchedAt)}` : host(page.url)} · {humanize(sourceType)}
-                      </p>
-                    </div>
+                        <div className="min-w-0">
+                          <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Source URL</p>
+                          <a href={page.url} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm leading-5 text-slate-300 hover:text-white lg:mt-0">{page.url}</a>
+                          <p className="mt-1 break-words text-xs leading-5 text-slate-500">
+                            {document ? `Fetched ${formatDate(document.fetchedAt)}` : host(page.url)} · {humanize(sourceType)}
+                          </p>
+                        </div>
 
-                    <div className="flex min-w-0 justify-start lg:justify-end">
-                      <button type="button" onClick={() => setActiveTab("knowledge")} className="cta-raised rounded-lg border border-amber-300/20 bg-black px-3.5 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">
-                        {knowledgeCount ? `View knowledge (${knowledgeCount})` : "View knowledge"}
-                      </button>
+                        <div className="flex min-w-0 flex-wrap justify-start gap-2 lg:justify-end">
+                          <button type="button" onClick={() => setActiveTab("knowledge")} className="cta-raised rounded-lg border border-amber-300/20 bg-black px-3.5 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">
+                            {knowledgeCount ? `View knowledge (${knowledgeCount})` : "View knowledge"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedSourceId(expanded ? null : sourceId)}
+                            aria-expanded={expanded}
+                            aria-label={expanded ? "Hide AI source summary" : "Show AI source summary"}
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[.12] bg-black text-sm text-slate-400 transition hover:border-white/25 hover:text-white"
+                          >
+                            {expanded ? "−" : "+"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {expanded ? (
+                        <div className="border-t border-white/[.12] bg-black/30 px-5 py-5">
+                          <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(240px,.8fr)]">
+                            <div className="min-w-0">
+                              <p className="text-[.68rem] font-bold uppercase tracking-[.12em] text-slate-500">AI summary</p>
+                              <p className="mt-2 text-sm leading-7 text-slate-300">{summary}</p>
+                            </div>
+
+                            <div className="min-w-0 space-y-5">
+                              {topics.length ? (
+                                <div>
+                                  <p className="text-[.68rem] font-bold uppercase tracking-[.12em] text-slate-500">Detected topics</p>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {topics.map((topic) => (
+                                      <span key={topic} className="rounded-lg border border-white/[.12] bg-black px-2.5 py-1 text-xs font-semibold text-slate-300">{topic}</span>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
+
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                <div>
+                                  <p className="text-[.68rem] font-bold uppercase tracking-[.12em] text-slate-500">Knowledge generated</p>
+                                  <p className="mt-2 text-sm font-semibold text-white">
+                                    {knowledgeCount ? `${knowledgeCount} Business Knowledge ${knowledgeCount === 1 ? "entry" : "entries"}` : "No Business Knowledge generated"}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="text-[.68rem] font-bold uppercase tracking-[.12em] text-slate-500">Confidence</p>
+                                  <p className="mt-2 text-sm font-semibold text-white">{confidence ? humanize(confidence) : "Not available"}</p>
+                                </div>
+                              </div>
+
+                              {importNotes.length ? (
+                                <div>
+                                  <p className="text-[.68rem] font-bold uppercase tracking-[.12em] text-slate-500">Import notes</p>
+                                  <div className="mt-2 space-y-2">
+                                    {importNotes.map((note) => (
+                                      <p key={note} className="text-sm leading-6 text-slate-400">{note}</p>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : <Empty text="No website sources match the current search and filters." />}
 
@@ -270,7 +390,7 @@ export default function AiBuilderSources() {
               <div className="mt-4 overflow-hidden rounded-lg border border-white/[.12]">
                 <div className="divide-y divide-white/[.12]">
                   {visibleWarnings.map((warning, index) => (
-                    <div key={`${warning}-${index}`} className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-start px-4 py-3.5">
+                    <div key={`${warning}-${index}`} className="grid grid-cols-[2.25rem_1fr] items-start px-4 py-3.5">
                       <span className="text-center text-xs font-bold text-amber-300">{index + 1}</span>
                       <p className="min-w-0 break-words text-sm leading-6 text-slate-300">{warning}</p>
                     </div>
@@ -278,7 +398,7 @@ export default function AiBuilderSources() {
                 </div>
               </div>
               {warnings.length > INITIAL_WARNING_ROWS ? (
-                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <div className="mt-4 flex justify-center gap-2">
                   <button type="button" disabled={!hasMoreWarnings} onClick={() => setShowAllWarnings(true)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show more</button>
                   <button type="button" disabled={!showAllWarnings} onClick={() => setShowAllWarnings(false)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show less</button>
                 </div>
@@ -300,9 +420,9 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function HistoryItem({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0 text-center"><p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500">{label}</p><p className="mt-1 break-words text-sm font-semibold text-white">{value}</p></div>;
+  return <div className="min-w-0 text-center"><p className="text-xs font-semibold text-slate-500">{label}</p><p className="mt-1 break-words text-sm font-semibold text-white">{value}</p></div>;
 }
 
 function Empty({ text, compact = false }: { text: string; compact?: boolean }) {
-  return <div className={`${compact ? "mt-4 min-h-[170px]" : "min-h-[280px]"} flex min-w-0 items-center justify-center px-5 text-center text-sm leading-6 text-slate-600`}>{text}</div>;
+  return <div className={`${compact ? "mt-4 min-h-[170px]" : "min-h-[280px]"} flex items-center justify-center px-5 text-center text-sm leading-6 text-slate-600`}>{text}</div>;
 }
