@@ -213,7 +213,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
             : "Core validation complete";
 
   const readinessCard = (
-    <section className="rounded-xl border border-white/[.08] bg-[#050505] p-5 text-center">
+    <section className="rounded-xl border border-white/[.12] bg-[#050505] p-5 text-center">
       <p className="text-xs font-bold uppercase tracking-[.18em] text-slate-500">
         Project readiness
       </p>
@@ -269,18 +269,18 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
         <div className="lg:col-span-2 min-[1200px]:hidden">{readinessCard}</div>
 
         <div className="space-y-5">
-          <section className="rounded-xl border border-white/[.08] bg-[#050505] p-5">
+          <section className="rounded-xl border border-white/[.12] bg-[#050505] p-5">
             <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">
               Action center
             </p>
             <div className="mt-2 flex items-center gap-2">
               <h3 className="text-base font-semibold text-white">Needs attention</h3>
-              <span className="rounded-full border border-white/[.08] bg-black px-2.5 py-1 text-xs font-semibold text-slate-400">
+              <span className="rounded-full border border-white/[.12] bg-black px-2.5 py-1 text-xs font-semibold text-slate-400">
                 {attention.length}
               </span>
             </div>
             {attention.length ? (
-              <div className="mt-3 divide-y divide-white/[.07]">
+              <div className="mt-3 divide-y divide-white/[.12]">
                 {attention.map((item) => (
                   <button
                     key={item.label}
@@ -301,12 +301,12 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
             )}
           </section>
 
-          <section className="rounded-xl border border-white/[.08] bg-[#050505] p-5 text-center">
+          <section className="rounded-xl border border-white/[.12] bg-[#050505] p-5 text-center">
             <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">
               Knowledge source
             </p>
             {Object.keys(sourceCounts).length ? (
-              <dl className="mt-4 divide-y divide-white/[.07] text-left">
+              <dl className="mt-4 divide-y divide-white/[.12] text-left">
                 {Object.entries(sourceCounts)
                   .sort((a, b) => b[1] - a[1])
                   .map(([source, count]) => (
@@ -340,7 +340,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
         <div className={showcase ? "flex min-h-0 flex-col gap-5" : "space-y-5"}>
           <div className="hidden min-[1200px]:block">{readinessCard}</div>
           <section
-            className={`rounded-xl border border-white/[.08] bg-[#050505] p-5 ${
+            className={`rounded-xl border border-white/[.12] bg-[#050505] p-5 ${
               showcase ? "flex flex-1 flex-col" : ""
             }`}
           >
@@ -348,7 +348,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
               Recent project changes
             </p>
             {recent.length ? (
-              <div className="mt-4 divide-y divide-white/[.07]">
+              <div className="mt-4 divide-y divide-white/[.12]">
                 {recent.map((item, index) => (
                   <div
                     key={`${item.label}-${item.at}-${index}`}
@@ -374,7 +374,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
 
 function Summary({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <article className="rounded-[18px] border border-white/[.07] bg-[#070707] p-5 text-center">
+    <article className="rounded-[18px] border border-white/[.12] bg-[#070707] p-5 text-center">
       <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">{label}</p>
       <p className="mt-2 truncate text-2xl font-semibold text-white" title={value}>
         {value}
@@ -400,7 +400,7 @@ function Action({ children, onClick }: { children: React.ReactNode; onClick: () 
 
 function Empty({ text }: { text: string }) {
   return (
-    <p className="mt-3 border-l border-white/10 py-2 pl-3 text-center text-sm leading-6 text-slate-500">
+    <p className="mt-3 border-l border-white/15 py-2 pl-3 text-center text-sm leading-6 text-slate-500">
       {text}
     </p>
   );
