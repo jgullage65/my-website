@@ -58,6 +58,14 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
           background: #000;
         }
 
+        @media (max-width: 1279px) {
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            article[class*="bg-[#070707]"] {
+            background-color: #020202 !important;
+          }
+        }
+
         @media (min-width: 1280px) {
           body[data-ai-builder-workspace="true"] .ai-builder-shell {
             height: 100dvh;
