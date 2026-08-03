@@ -27,8 +27,13 @@ const RULES: Array<[
 ];
 export function classifyPage(page: Partial<DeterministicPage>, context = ""): ClassifiedPageType {
     const declared = keyText(page.pageType);
-    if (declared === "home" || declared === "homepage")
-        return "home";
+    const declaredAliases: Record<string, ClassifiedPageType> = { homepage: "home" };
+    const recognized = new Set<ClassifiedPageType>(["home", "about", "products", "services", "pricing", "faq", "policies", "contact", "locations", "industries", "use_cases", "case_studies", "testimonials", "integrations", "security", "compliance", "technical", "onboarding", "support", "partnerships", "certifications", "other"]);
+    const canonicalDeclared = (declaredAliases[declared] ?? declared) as ClassifiedPageType;
+    // A crawler declaration is the canonical page type. Headings remain available
+    // to extraction as context, but cannot turn (for example) a services page into pricing.
+    if (recognized.has(canonicalDeclared) && canonicalDeclared !== "other")
+        return canonicalDeclared;
     let path = "";
     try {
         path = new URL(page.url ?? "").pathname;

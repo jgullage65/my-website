@@ -20,9 +20,15 @@ type Alias = {
 };
 
 const ALIASES: readonly Alias[] = [
-  { namespace: "certification", identity: "soc2", categories: ["certification", "security_compliance"], pattern: /\bsoc\s*(?:ii|2)\b/i },
-  { namespace: "certification", identity: "hipaa", categories: ["certification", "security_compliance"], pattern: /\bhipaa\b/i },
-  { namespace: "certification", identity: "iso_27001", categories: ["certification", "security_compliance"], pattern: /\biso\s*27001\b/i },
+  // Standards are conservatively modeled as security/compliance claims. A bare
+  // standard name is not proof that the business holds a certification.
+  { namespace: "security_compliance", identity: "soc2", categories: ["security_compliance"], pattern: /\bsoc\s*(?:ii|2)\b/i },
+  { namespace: "security_compliance", identity: "hipaa", categories: ["security_compliance"], pattern: /\bhipaa\b/i },
+  { namespace: "security_compliance", identity: "iso_27001", categories: ["security_compliance"], pattern: /\biso\s*27001\b/i },
+  { namespace: "security_compliance", identity: "gdpr", categories: ["security_compliance"], pattern: /\bgdpr\b/i },
+  { namespace: "security_compliance", identity: "encryption", categories: ["security_compliance"], pattern: /\bencrypt(?:ed|ion)?\b/i },
+  { namespace: "security_compliance", identity: "sso", categories: ["security_compliance"], pattern: /\bsso\b/i },
+  { namespace: "security_compliance", identity: "mfa", categories: ["security_compliance"], pattern: /\bmfa\b/i },
   { namespace: "integration", identity: "google_workspace", categories: ["integration"], pattern: /\bgoogle\s+(?:workspace|apps)\b/i },
   { namespace: "service", identity: "google_ads", categories: ["service"], pattern: /\bgoogle\s+ads?\b/i },
   { namespace: "service", identity: "seo", categories: ["service"], pattern: /\bseo\b|\bsearch engine optimi[sz]ation\b/i },
@@ -32,10 +38,10 @@ const NAMESPACE: Partial<Record<Category, string>> = {
   product: "product", service: "service", pricing_plan: "pricing_plan",
   policy: "policy", contact_information: "contact", location_service_area: "location",
   integration: "integration", industry_served: "industry", certification: "certification",
-  security_compliance: "certification", faq: "faq",
+  security_compliance: "security_compliance", faq: "faq",
 };
 
-const GENERIC_HEADINGS = /^(?:what we (?:offer|do)|our solutions|solutions for growth|products? and services?|services?|products?|industries|who we serve|locations?|where we work|capabilities)$/i;
+const GENERIC_HEADINGS = /^(?:what we (?:offer|do|help with)|our solutions|solutions (?:for|built for) growth|our expertise|popular services|featured products|products? and services?|services?|products?|industries|who we serve|locations?|where we work|capabilities)$/i;
 const LEADING_NAME_NOISE = /^(?:(?:our|choose|select|try|use)\s+(?:the\s+)?|the\s+)/i;
 
 function slug(value: string): string {
@@ -61,12 +67,17 @@ function explicitValueName(category: Category, value: string): string | undefine
     return match(value, /\b((?:(?:our|choose|select|try|use)\s+(?:the\s+)?|the\s+)?[a-z0-9][a-z0-9 '&.-]{0,35}?)\s+(?:plan|package|tier)\b/i);
   if (category === "product")
     return match(value, /\b(?:our\s+)?([a-z0-9][a-z0-9 '&.-]{0,40}?)\s+(?:product|platform|software|app|application|suite|tool)\b/i);
-  if (category === "service")
-    return match(value, /\b(?:we\s+(?:offer|provide|deliver)|our services? include)\s+([a-z0-9][a-z0-9 '&.-]{1,55}?)(?:\s+(?:services?|consulting|implementation|managed services?))?(?:[.,]|\s+for\b|$)/i);
+  if (category === "service") {
+    if (/^(?:implementation|consulting|training|management|design|optimization|cleaning|strategy)$/i.test(cleanText(value)))
+      return cleanName(value);
+    return match(value, /\b(?:we\s+(?:offer|provide|deliver)|our services? include)\s+([a-z0-9][a-z0-9 '&.-]{1,55}?)(?:\s+(?:services?|consulting|implementation|managed services?))?(?:[.,]|\s+for\b|$)/i)
+      ?? match(value, /^([a-z0-9][a-z0-9 '&.-]{1,55}?(?:consulting|implementation|training|management|design|optimization|cleaning|strategy))$/i);
+  }
   if (category === "industry_served")
     return match(value, /\b(?:solutions? for|serving (?:the\s+)?|industries? (?:we )?serve\s*:?|teams? in)\s+([a-z0-9][a-z0-9 '&.-]{1,45}?)(?:\s+(?:organizations?|companies|businesses|industry|sector))?(?:[.,]|$)/i);
   if (category === "location_service_area")
-    return match(value, /\b(?:located|based|office(?: is)? located)\s+in\s+([a-z0-9][a-z0-9 .'-]{1,45}?)(?:[.,]|\s+and\b|$)/i);
+    return match(value, /\b(?:(?:located|based|office(?: is)? located)\s+in|serve|available throughout)\s+([a-z0-9][a-z0-9 .'-]{1,45}?)(?:[.,]|\s+and\b|$)/i)
+      ?? (/^(?:[A-Z][a-z]+(?:[ -][A-Z][a-z]+){0,2})$/.test(cleanText(value)) ? cleanName(value) : undefined);
   return undefined;
 }
 
@@ -90,8 +101,11 @@ export function canonicalTopicKey(input: CanonicalTopicInput): string {
       evidence.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0] ?? evidence.match(/\+?\d[\d ().-]{7,}\d/)?.[0];
   else if (input.category === "integration")
     name = match(input.value, /\b(?:with|to|for)\s+([a-z0-9][a-z0-9 .&+-]{1,45}?)(?:[.!]|$)/i);
-  else if (["product", "service", "industry_served", "location_service_area"].includes(input.category))
-    name = itemHeading(input.heading);
+  else if (["product", "service", "industry_served", "location_service_area"].includes(input.category)) {
+    const itemName = explicitValueName(input.category, input.value);
+    name = itemName && !/^(?:software|product|platform|app|application|suite|tool)$/i.test(itemName)
+      ? itemName : itemHeading(input.heading);
+  }
 
   const suggested = cleanName(input.suggestedTopic);
   const explicit = explicitValueName(input.category, input.value);
