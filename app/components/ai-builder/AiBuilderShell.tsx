@@ -134,6 +134,58 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             font-size: 0.68rem;
             line-height: 1rem;
           }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            input,
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            select {
+            text-align: center;
+            text-align-last: center;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            input::placeholder {
+            text-align: center;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div,
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div
+            > div {
+            text-align: center;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div
+            a {
+            justify-content: center;
+            text-align: center;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div
+            > div:last-child {
+            justify-content: center;
+          }
         }
 
         @media (min-width: 1280px) {
