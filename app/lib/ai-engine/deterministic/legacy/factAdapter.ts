@@ -15,18 +15,43 @@ export function reportsToLegacyFacts(
   observations: readonly KnowledgeObservation[],
   expectedFacts: readonly DeterministicFact[],
 ): DeterministicFact[] {
-  const observationByFactId = new Map(
-    observations.map((observation) => [observation.sourceFactId, observation]),
+  const expectedObservationIds = new Set(
+    observations.map((observation) => observation.id),
   );
-  const seen = new Set<string>();
+  const seenObservationIds = new Set<string>();
   const reconstructed: Array<{ sourceIndex: number; fact: DeterministicFact }> = [];
 
   for (const report of reports) {
-    for (const fact of report.facts) {
-      if (seen.has(fact.id)) {
-        throw new Error(`Duplicate fact ID across bucket reports: ${fact.id}`);
+    if (report.observations.length !== report.facts.length) {
+      throw new Error(
+        `Bucket ${report.bucket} observation/fact count mismatch`,
+      );
+    }
+
+    report.observations.forEach((observation, index) => {
+      if (seenObservationIds.has(observation.id)) {
+        throw new Error(
+          `Duplicate observation across bucket reports: ${observation.id}`,
+        );
       }
-      seen.add(fact.id);
+      seenObservationIds.add(observation.id);
+
+      if (!expectedObservationIds.has(observation.id)) {
+        throw new Error(`Unexpected routed observation: ${observation.id}`);
+      }
+
+      if (observation.primaryBucket !== report.bucket) {
+        throw new Error(
+          `Observation ${observation.id} does not belong to bucket ${report.bucket}`,
+        );
+      }
+
+      const fact = report.facts[index];
+      if (!fact || fact.id !== observation.sourceFactId) {
+        throw new Error(
+          `Missing matching fact for observation ${observation.id}`,
+        );
+      }
 
       if (primaryBucketForCategory(fact.category) !== report.bucket) {
         throw new Error(
@@ -34,16 +59,17 @@ export function reportsToLegacyFacts(
         );
       }
 
-      const observation = observationByFactId.get(fact.id);
-      if (!observation) {
-        throw new Error(`Missing routed observation for fact: ${fact.id}`);
-      }
-
       reconstructed.push({
         sourceIndex: observation.sourceIndex,
         fact: cloneFact(fact),
       });
-    }
+    });
+  }
+
+  if (seenObservationIds.size !== observations.length) {
+    throw new Error(
+      `Reconstructed observation count ${seenObservationIds.size} does not match expected ${observations.length}`,
+    );
   }
 
   if (reconstructed.length !== expectedFacts.length) {
@@ -52,13 +78,16 @@ export function reportsToLegacyFacts(
     );
   }
 
-  for (const fact of expectedFacts) {
-    if (!seen.has(fact.id)) {
-      throw new Error(`Legacy fact was absent from all bucket reports: ${fact.id}`);
-    }
-  }
+  const ordered = reconstructed.sort(
+    (left, right) => left.sourceIndex - right.sourceIndex,
+  );
 
-  return reconstructed
-    .sort((left, right) => left.sourceIndex - right.sourceIndex)
-    .map(({ fact }) => fact);
+  ordered.forEach(({ fact, sourceIndex }, index) => {
+    const expected = expectedFacts[index];
+    if (sourceIndex !== index || !expected || fact.id !== expected.id) {
+      throw new Error(`Legacy fact order mismatch at source index ${index}`);
+    }
+  });
+
+  return ordered.map(({ fact }) => fact);
 }
