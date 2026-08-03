@@ -153,7 +153,7 @@ function SummaryCard({
 }) {
   return (
     <article className="rounded-[18px] border border-white/[0.07] bg-[#070707] p-5 text-center">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-300">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{label}</p>
       <p className={`mt-2 text-2xl font-semibold capitalize ${status ? statusTone(status) : "text-white"}`}>
         {value}
       </p>
