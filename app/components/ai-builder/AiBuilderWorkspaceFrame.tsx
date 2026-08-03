@@ -148,9 +148,9 @@ export default function AiBuilderWorkspaceFrame({
               role="dialog"
               aria-modal="true"
               aria-label="AI Builder workspace navigation"
-              className="flex h-full w-[min(240px,88vw)] flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]"
+              className="flex h-[100dvh] w-[min(240px,88vw)] flex-col overflow-hidden border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]"
             >
-              <div className="mb-5 flex items-center justify-end">
+              <div className="mb-5 flex shrink-0 items-center justify-end">
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(false)}
@@ -160,11 +160,13 @@ export default function AiBuilderWorkspaceFrame({
                   ×
                 </button>
               </div>
-              <div className="mb-5 flex min-h-[84px] items-center justify-center border-b border-white/[0.08] pb-5">
+              <div className="mb-5 flex min-h-[84px] shrink-0 items-center justify-center border-b border-white/[0.08] pb-5">
                 <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-16 w-full max-w-[184px] object-contain" />
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto">{renderNavigation(visibleItems)}</div>
-              <div className="mt-4 border-t border-white/[0.08] pt-4">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-ms-overflow-style:none] [scrollbar-width:none] touch-pan-y [&::-webkit-scrollbar]:hidden">
+                {renderNavigation(visibleItems)}
+              </div>
+              <div className="mt-4 shrink-0 border-t border-white/[0.08] pt-4">
                 <SignOutButton redirectUrl="/ai-builder">
                   <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
                 </SignOutButton>
