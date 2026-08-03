@@ -9,6 +9,7 @@ type NavigationItem = {
   value: string;
   label: string;
   active?: boolean;
+  mobileOnly?: boolean;
   onSelect: () => void;
 };
 
@@ -33,6 +34,7 @@ export default function AiBuilderWorkspaceFrame({
 }: Props) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const visibleItems = items.filter((item) => item.value !== "overview");
+  const desktopItems = visibleItems.filter((item) => !item.mobileOnly);
 
   useEffect(() => {
     if (!mobileMenuOpen) return;
@@ -58,7 +60,7 @@ export default function AiBuilderWorkspaceFrame({
     window.location.assign("/ai-builder?new=1");
   };
 
-  const navigation = (
+  const renderNavigation = (navigationItems: NavigationItem[]) => (
     <>
       <button
         type="button"
@@ -73,7 +75,7 @@ export default function AiBuilderWorkspaceFrame({
       </button>
       <p className="mt-4 px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
       <nav className="mt-3 space-y-0.5" aria-label="AI Builder workspace">
-        {visibleItems.map((item) => (
+        {navigationItems.map((item) => (
           <button
             key={item.value}
             type="button"
@@ -100,7 +102,7 @@ export default function AiBuilderWorkspaceFrame({
           <div className="mb-5 flex min-h-[92px] items-center justify-center border-b border-white/[0.08] pb-5">
             <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-20 w-full max-w-[188px] object-contain" />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">{navigation}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto pr-1">{renderNavigation(desktopItems)}</div>
           <div className="mt-4 border-t border-white/[0.08] pt-4">
             <SignOutButton redirectUrl="/ai-builder">
               <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
@@ -130,7 +132,7 @@ export default function AiBuilderWorkspaceFrame({
               <aside role="dialog" aria-modal="true" aria-label="AI Builder workspace navigation" className="flex h-full w-[min(240px,88vw)] flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]">
                 <div className="mb-5 flex items-center justify-end"><button type="button" onClick={() => setMobileMenuOpen(false)} aria-label="Close workspace menu" className="grid h-10 w-10 place-items-center rounded-lg border border-white/[0.08] text-2xl text-slate-400 transition hover:text-white">×</button></div>
                 <div className="mb-5 flex min-h-[84px] items-center justify-center border-b border-white/[0.08] pb-5"><img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-16 w-full max-w-[184px] object-contain" /></div>
-                <div className="min-h-0 flex-1 overflow-y-auto">{navigation}</div>
+                <div className="min-h-0 flex-1 overflow-y-auto">{renderNavigation(visibleItems)}</div>
                 <div className="mt-4 border-t border-white/[0.08] pt-4"><SignOutButton redirectUrl="/ai-builder"><button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button></SignOutButton></div>
               </aside>
             </div>
