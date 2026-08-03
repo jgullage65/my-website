@@ -98,7 +98,7 @@ const approveActionClassName =
   "cta-raised min-w-0 w-full rounded-lg border border-amber-300/20 bg-black px-3 py-2.5 text-xs font-bold text-white transition hover:border-amber-300/40 hover:bg-[#0a0a0a] disabled:cursor-not-allowed disabled:opacity-40";
 
 const panelClassName =
-  "overflow-hidden rounded-[14px] border border-white/[0.055] bg-[#080808]/90 shadow-[0_14px_36px_rgba(0,0,0,0.2)] transition hover:border-white/[0.1] hover:bg-[#0d0d0d]/95";
+  "overflow-hidden rounded-[14px] border border-white/[0.12] bg-[#080808]/90 shadow-[0_14px_36px_rgba(0,0,0,0.2)] transition hover:border-white/[0.16] hover:bg-[#0d0d0d]/95";
 
 function CollapsibleReviewText({
   children,
@@ -352,7 +352,7 @@ export default function AiBuilderReview({
   ];
 
   return (
-    <div className={embedded ? "relative w-full space-y-5" : "relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]"}>
+    <div className={embedded ? "relative -mx-3 w-[calc(100%+1.5rem)] space-y-5" : "relative w-full space-y-6 bg-[#000000] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6 min-[1200px]:mx-auto min-[1200px]:max-w-[92rem] min-[1200px]:rounded-[30px] min-[1200px]:border min-[1200px]:border-white/[0.09] min-[1200px]:px-10 min-[1200px]:shadow-[0_18px_60px_rgba(0,0,0,0.2)]"}>
       {confirmDialogNode}
       {!embedded ? <AiBuilderAuthCta /> : null}
 
@@ -383,7 +383,7 @@ export default function AiBuilderReview({
                     onClick={() => setFilter(item.filter)}
                     className={`${filterButtonClassName} ${
                       filter === item.filter
-                        ? "border-white/[0.14] bg-[#141414] text-white shadow-[0_8px_22px_rgba(0,0,0,0.2)]"
+                        ? "border-amber-300/45 bg-[#070707] text-white shadow-[0_8px_22px_rgba(0,0,0,0.2)]"
                         : ""
                     }`}
                     aria-pressed={filter === item.filter}
@@ -441,7 +441,7 @@ export default function AiBuilderReview({
                   onClick={() => setFilter(item.filter)}
                   className={`${filterButtonClassName} ${
                     filter === item.filter
-                      ? "border-white/[0.14] bg-[#141414] text-white shadow-[0_8px_22px_rgba(0,0,0,0.2)]"
+                      ? "border-amber-300/45 bg-[#070707] text-white shadow-[0_8px_22px_rgba(0,0,0,0.2)]"
                       : ""
                   }`}
                   aria-pressed={filter === item.filter}
@@ -792,7 +792,7 @@ export default function AiBuilderReview({
         ) : null}
 
         {!grouped.length && !visibleFaqEntries.length ? (
-          <section className="rounded-[16px] border border-white/[0.055] bg-[#080808]/90 p-8 text-center shadow-[0_14px_36px_rgba(0,0,0,0.2)]">
+          <section className="rounded-[16px] border border-white/[0.12] bg-[#080808]/90 p-8 text-center shadow-[0_14px_36px_rgba(0,0,0,0.2)]">
             <p className="text-sm text-slate-400">No items match this filter.</p>
           </section>
         ) : null}
@@ -803,7 +803,7 @@ export default function AiBuilderReview({
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="min-w-0 rounded-xl border border-white/[0.05] bg-[#050505] px-3 py-4 text-center shadow-[0_10px_24px_rgba(0,0,0,0.16)] sm:px-4">
+    <div className="min-w-0 rounded-xl border border-white/[0.12] bg-[#050505] px-3 py-4 text-center shadow-[0_10px_24px_rgba(0,0,0,0.16)] sm:px-4">
       <p className="text-2xl font-semibold text-white">{value}</p>
       <p className="mt-2 whitespace-nowrap text-[0.68rem] font-black uppercase tracking-[0.12em] text-amber-300">
         {label}
@@ -826,7 +826,7 @@ function SectionDivider({ label }: { label: string }) {
 
 function ItemActions({ children }: { children: ReactNode }) {
   return (
-    <div className="flex flex-nowrap items-center gap-2 border-t border-white/[0.065] bg-black/10 px-4 py-3 [&>*]:min-w-0 [&>*]:flex-1">
+    <div className="flex flex-nowrap items-center gap-2 border-t border-white/[0.12] bg-black/10 px-4 py-3 [&>*]:min-w-0 [&>*]:flex-1">
       {children}
     </div>
   );
