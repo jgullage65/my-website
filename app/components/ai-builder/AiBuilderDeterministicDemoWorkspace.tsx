@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
+import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { BuilderState } from "./AiBuilderClient";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
+import AiBuilderProgress from "./AiBuilderProgress";
 import AiBuilderWorkspaceFrame from "./AiBuilderWorkspaceFrame";
 import AiBuilderWorkspaceView, { type AiBuilderWorkspaceViewName } from "./AiBuilderWorkspaceView";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
 import { buildDeterministicBusinessBrain } from "@/app/lib/ai-engine/deterministic";
+import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 
 type Props = {
   session: AiBuilderSession;
@@ -17,13 +20,13 @@ type Props = {
   onClose: () => void;
 };
 
-type DemoTab = "builder" | "dashboard" | "insights" | "overview" | "review" | "sources" | "settings" | "chat";
+type DemoTab = "builder" | "dashboard" | "insights" | "review" | "sources" | "settings" | "chat";
+type BuildStage = "idle" | "building" | "ready";
 
 const ITEMS: ReadonlyArray<readonly [DemoTab, string]> = [
   ["builder", "AI Builder"],
   ["dashboard", "Dashboard"],
   ["insights", "Project Insights"],
-  ["overview", "Overview"],
   ["review", "Business Knowledge"],
   ["sources", "Sources"],
   ["settings", "Settings"],
@@ -97,20 +100,85 @@ function updatePreviewSession(session: AiBuilderSession, command: ReviewCommandR
 }
 
 function businessLabel(builder: BuilderState): string {
-  return builder.businessName.trim() || "Your Business";
+  return builder.businessName.trim() || "New Project";
 }
 
-export default function AiBuilderDeterministicDemoWorkspace({ session, diagnostics = null, onClose }: Props) {
+export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<DemoTab>("builder");
   const [builderValue, setBuilderValue] = useState<BuilderState>(EMPTY_BUILDER);
   const [previewSession, setPreviewSession] = useState(session);
+  const [buildStage, setBuildStage] = useState<BuildStage>("idle");
+  const [buildPercent, setBuildPercent] = useState(0);
+  const [welcomeShown, setWelcomeShown] = useState(false);
+  const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
   const knowledge = useMemo(() => buildKnowledgePack(previewSession), [previewSession]);
   const currentBusiness = businessLabel(builderValue);
+  const projectReady = buildStage === "ready";
 
-  const buildTemporaryBrain = () => {
+  const websiteKnowledge = useMemo<PersistedWebsiteKnowledge | null>(() => {
+    const website = builderValue.websiteKnowledge;
+    if (!website) return null;
+    return {
+      schema_version: 2,
+      document_version: 1,
+      current_crawl_attempt_id: website.crawlAttemptId ?? null,
+      imported_at: website.importedAt,
+      requested_url: website.requestedUrl,
+      resolved_url: website.resolvedUrl,
+      pages: website.pages,
+      warnings: website.warnings,
+      knowledge: website.knowledge ?? {
+        facts: [],
+        coverage: {} as PersistedWebsiteKnowledge["knowledge"]["coverage"],
+        unresolvedQuestions: [],
+      },
+      source_documents: website.sourceDocuments,
+      source_blocks: website.sourceBlocks,
+    };
+  }, [builderValue.websiteKnowledge]);
+
+  useEffect(() => {
+    if (welcomeShown) return;
+    setWelcomeShown(true);
+    void showConfirm({
+      title: "Create a project first",
+      message: "Run your business through AI Builder to create a temporary project. The information you enter will power the Dashboard, Project Insights, Business Knowledge, Sources, and Assistant throughout this demo.",
+      confirmLabel: "Start building",
+      cancelLabel: "Explore workspace",
+    }).then(() => setActiveTab("builder"));
+  }, [showConfirm, welcomeShown]);
+
+  const requireProject = async () => {
+    await showConfirm({
+      title: "Create a project first",
+      message: "Complete AI Builder so this workspace can use your business information.",
+      confirmLabel: "Go to AI Builder",
+      cancelLabel: "Cancel",
+    });
+    setActiveTab("builder");
+  };
+
+  const selectTab = (nextTab: DemoTab) => {
+    if (!projectReady && nextTab !== "builder" && nextTab !== "settings") {
+      void requireProject();
+      return;
+    }
+    setActiveTab(nextTab);
+  };
+
+  const buildTemporaryBrain = async () => {
+    if (buildStage === "building") return;
+    setBuildStage("building");
+    setBuildPercent(8);
+
+    for (const percent of [18, 31, 46, 61, 74, 86, 94]) {
+      await new Promise((resolve) => window.setTimeout(resolve, 260));
+      setBuildPercent(percent);
+    }
+
     const website = builderValue.websiteKnowledge;
     const result = buildDeterministicBusinessBrain({
-      sessionId: previewSession.id,
+      sessionId: `demo_${crypto.randomUUID()}`,
       pages: website?.pages,
       sourceDocuments: website?.sourceDocuments,
       sourceBlocks: website?.sourceBlocks,
@@ -125,59 +193,39 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, diagnosti
         tone: builderValue.tone,
       },
     });
+
     if (result.session) setPreviewSession(result.session);
+    setBuildPercent(100);
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+    setBuildStage("ready");
     setActiveTab("review");
   };
 
-  const activeView: AiBuilderWorkspaceViewName =
-    activeTab === "builder"
-      ? "builder"
-      : activeTab === "dashboard"
-        ? "dashboard"
-        : activeTab === "insights"
-          ? "insights"
-          : activeTab === "review"
-            ? "review"
-            : activeTab === "chat"
-              ? "chat"
-              : "dashboard";
+  const activeView: AiBuilderWorkspaceViewName = activeTab;
+  const title = ITEMS.find(([value]) => value === activeTab)?.[1] ?? "AI Builder";
 
-  const title = ITEMS.find(([value]) => value === activeTab)?.[1] ?? "Demo Workspace";
-
-  const mainContent = activeTab === "sources" ? (
-    <section className="grid gap-4 sm:grid-cols-2">
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Website source</p><h2 className="mt-3 text-lg font-semibold text-white">{builderValue.websiteKnowledge ? "Imported website pages" : "Add your website"}</h2><p className="mt-2 text-sm leading-6 text-slate-400">{builderValue.websiteKnowledge ? `Review the website content collected for ${currentBusiness}.` : "Use the AI Builder to import your website and bring your own business into the demo."}</p></article>
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Owner knowledge</p><h2 className="mt-3 text-lg font-semibold text-white">Your business expertise</h2><p className="mt-2 text-sm leading-6 text-slate-400">The details you enter in the builder stay separate from website content so you can clearly review both.</p></article>
-    </section>
-  ) : activeTab === "settings" ? (
-    <section className="grid gap-4 sm:grid-cols-2">
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-sm font-semibold text-white">Assistant tone</p><p className="mt-2 text-sm text-slate-400">{builderValue.tone || "Professional"}</p></article>
-      <article className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5"><p className="text-sm font-semibold text-white">Demo experience</p><p className="mt-2 text-sm text-slate-400">Explore the workspace for {currentBusiness}, review the Business Brain, and test the assistant. Your changes reset when you close the demo.</p></article>
-    </section>
-  ) : activeTab === "overview" ? (
-    <section className="grid gap-4 sm:grid-cols-3">
-      {[
-        ["Business details", builderValue.businessName.trim() && builderValue.industry.trim() ? "Ready" : "Add details"],
-        ["Website knowledge", builderValue.websiteKnowledge ? "Imported" : "Not added"],
-        ["Assistant readiness", builderValue.businessName.trim() ? "In progress" : "Start building"],
-      ].map(([label, value]) => (
-        <article key={label} className="rounded-2xl border border-white/[0.08] bg-[#050505] p-5 text-center"><p className="text-2xl font-semibold text-white">{value}</p><p className="mt-2 text-sm text-slate-400">{label}</p></article>
-      ))}
-    </section>
+  const mainContent = buildStage === "building" ? (
+    <AiBuilderProgress
+      builder={builderValue}
+      session={null}
+      complete={false}
+      percent={buildPercent}
+      onReview={() => undefined}
+    />
   ) : (
     <AiBuilderWorkspaceView
-      mode="preview"
+      mode={activeTab === "chat" ? "live" : "preview"}
       activeView={activeView}
       session={previewSession}
       builder={builderValue}
-      diagnostics={diagnostics}
+      websiteKnowledge={websiteKnowledge}
+      diagnostics={null}
       knowledge={knowledge}
       projectId={previewSession.id}
-      previewMode
       embeddedReview
-      dashboardShowcase
+      settingsReadOnly
       onBuilderChange={setBuilderValue}
-      onBuild={buildTemporaryBrain}
+      onBuild={() => void buildTemporaryBrain()}
       onReviewCommand={async (command) => setPreviewSession((current) => updatePreviewSession(current, command))}
       onBack={() => setActiveTab("dashboard")}
       onLaunchChat={() => setActiveTab("chat")}
@@ -185,25 +233,29 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, diagnosti
     />
   );
 
-  const rightRail = (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b border-white/[0.08] px-5 py-4 text-center"><p className="text-sm font-semibold text-white">{currentBusiness} Assistant</p><p className="mt-1 text-xs text-slate-500">Try it out. Your demo resets when you close it.</p></div>
-      <div className="min-h-0 flex-1">
-        <AiBuilderWorkspaceView
-          mode="preview"
-          activeView="chat"
-          session={previewSession}
-          builder={builderValue}
-          knowledge={knowledge}
-          projectId={previewSession.id}
-          onBack={() => setActiveTab("dashboard")}
-        />
+  const rightRail = projectReady ? (
+    <AiBuilderWorkspaceView
+      mode="live"
+      activeView="chat"
+      session={previewSession}
+      builder={builderValue}
+      websiteKnowledge={websiteKnowledge}
+      knowledge={knowledge}
+      projectId={previewSession.id}
+      onBack={() => setActiveTab("dashboard")}
+    />
+  ) : (
+    <div className="flex h-full items-center justify-center px-7 text-center">
+      <div>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300">Assistant</p>
+        <p className="mt-3 text-sm leading-6 text-slate-400">Create your project to test an assistant trained on your business.</p>
       </div>
     </div>
   );
 
   return (
     <div className="fixed inset-0 z-[220] bg-black">
+      {confirmDialogNode}
       <button type="button" onClick={onClose} aria-label="Close demo" className="fixed right-4 top-4 z-[240] inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111]">×</button>
       <AiBuilderWorkspaceFrame
         title={`${title} · ${currentBusiness}`}
@@ -213,7 +265,8 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, diagnosti
           value,
           label,
           active: activeTab === value,
-          onSelect: () => setActiveTab(value),
+          mobileOnly: value === "chat",
+          onSelect: () => selectTab(value),
         }))}
         rightRail={rightRail}
       >
