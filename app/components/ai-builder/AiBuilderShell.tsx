@@ -172,6 +172,82 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             width: 100%;
             padding-right: clamp(0.55rem, 0.9vw, 0.75rem) !important;
           }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div {
+            grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.3fr) auto !important;
+            align-items: center;
+            gap: clamp(0.55rem, 1.2vw, 0.9rem) !important;
+            padding: clamp(0.7rem, 1.3vw, 0.95rem) clamp(0.75rem, 1.5vw, 1.15rem) !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div
+            p[class~="lg:hidden"] {
+            display: none !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div
+            a {
+            margin-top: 0 !important;
+            font-size: clamp(0.68rem, 1.15vw, 0.82rem) !important;
+            line-height: clamp(0.95rem, 1.6vw, 1.2rem) !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div
+            p[class*="text-xs"] {
+            margin-top: 0.2rem !important;
+            font-size: clamp(0.56rem, 0.9vw, 0.68rem) !important;
+            line-height: clamp(0.82rem, 1.35vw, 1rem) !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div
+            > div:last-child {
+            flex-wrap: nowrap !important;
+            justify-content: flex-end !important;
+            gap: clamp(0.35rem, 0.8vw, 0.55rem) !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div
+            > div:last-child
+            button:first-child {
+            padding: clamp(0.4rem, 0.8vw, 0.55rem) clamp(0.55rem, 1vw, 0.8rem) !important;
+            font-size: clamp(0.58rem, 0.95vw, 0.7rem) !important;
+            white-space: nowrap;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            + div[class~="divide-y"]
+            > div
+            > div:last-child
+            button:last-child {
+            width: clamp(1.9rem, 3.4vw, 2.25rem) !important;
+            height: clamp(1.9rem, 3.4vw, 2.25rem) !important;
+          }
         }
 
         @media (min-width: 1024px) {
@@ -215,6 +291,30 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             > p:nth-child(3) {
             margin-top: 0.5rem !important;
             font-size: 0.75rem !important;
+            line-height: 1.25rem !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"] {
+            grid-template-columns: minmax(0, 1fr) 160px 160px 160px !important;
+            gap: 0.75rem !important;
+            padding: 1rem !important;
+            align-items: center;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            > input,
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            > select {
+            grid-column: auto !important;
+            width: 100%;
+            padding: 0.625rem 0.75rem !important;
+            font-size: 0.875rem !important;
             line-height: 1.25rem !important;
           }
         }
