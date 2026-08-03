@@ -8,7 +8,7 @@ import AiBuilderShell from "./AiBuilderShell";
 import AiBuilderLanding from "./AiBuilderLanding";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 
-type Project = {
+export type AiBuilderProjectPreview = {
   id: string;
   businessName: string;
   website: string | null;
@@ -22,7 +22,14 @@ type Project = {
   model?: string | null;
 };
 
+type Project = AiBuilderProjectPreview;
 type ProjectView = "active" | "archived";
+
+type Props = {
+  embedded?: boolean;
+  onClose?: () => void;
+  showcaseProjects?: AiBuilderProjectPreview[];
+};
 
 function date(value: string) {
   const parsed = new Date(value);
@@ -48,11 +55,12 @@ async function readJson(response: Response) {
   return response.json();
 }
 
-export default function AiBuilderProjects({ embedded = false, onClose }: { embedded?: boolean; onClose?: () => void } = {}) {
+export default function AiBuilderProjects({ embedded = false, onClose, showcaseProjects }: Props = {}) {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  const showcase = Array.isArray(showcaseProjects);
+  const [projects, setProjects] = useState<Project[]>(showcaseProjects ?? []);
+  const [loading, setLoading] = useState(!showcase);
   const [error, setError] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -91,6 +99,12 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
   }
 
   useEffect(() => {
+    if (showcase) {
+      setProjects(showcaseProjects ?? []);
+      setError(null);
+      setLoading(false);
+      return;
+    }
     if (!isLoaded) return;
     if (!isSignedIn) {
       setProjects([]);
@@ -122,9 +136,10 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
     return () => {
       cancelled = true;
     };
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, router, showcase, showcaseProjects]);
 
   async function rename(project: Project) {
+    if (showcase) return;
     const businessName = window.prompt("Rename project", project.businessName)?.trim();
     if (!businessName || businessName === project.businessName) return;
     setBusy(project.id);
@@ -148,6 +163,7 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
   }
 
   async function archive(project: Project) {
+    if (showcase) return;
     const confirmed = await showConfirm({
       title: `Archive ${project.businessName}?`,
       message: "This removes the project from your active projects without deleting its saved knowledge or chat history.",
@@ -173,6 +189,7 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
   }
 
   async function restore(project: Project) {
+    if (showcase) return;
     setBusy(project.id);
     setError(null);
     try {
@@ -194,19 +211,26 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
     }
   }
 
-  if (isLoaded && !isSignedIn) return <AiBuilderShell><AiBuilderLanding /></AiBuilderShell>;
+  if (!showcase && isLoaded && !isSignedIn) return <AiBuilderShell><AiBuilderLanding /></AiBuilderShell>;
+
+  const presentationClassName = showcase
+    ? "h-full w-full overflow-hidden bg-black"
+    : "contents min-[1200px]:fixed min-[1200px]:inset-0 min-[1200px]:z-[100] min-[1200px]:flex min-[1200px]:items-center min-[1200px]:justify-center min-[1200px]:bg-black/75 min-[1200px]:p-8 min-[1200px]:backdrop-blur-md";
+  const sectionClassName = showcase
+    ? "relative h-full w-full overflow-y-auto bg-[#030303] px-6 py-6"
+    : "relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:flex min-[1200px]:max-h-[90dvh] min-[1200px]:max-w-[1100px] min-[1200px]:flex-col min-[1200px]:overflow-y-auto min-[1200px]:rounded-[24px] min-[1200px]:border min-[1200px]:border-white/[0.1] min-[1200px]:bg-[#030303] min-[1200px]:px-10 min-[1200px]:py-6 min-[1200px]:shadow-[0_32px_110px_rgba(0,0,0,0.72)]";
 
   return (
-    <ProjectsFrame embedded={embedded}>
-      {confirmDialogNode}
-      <div role="presentation" className="contents min-[1200px]:fixed min-[1200px]:inset-0 min-[1200px]:z-[100] min-[1200px]:flex min-[1200px]:items-center min-[1200px]:justify-center min-[1200px]:bg-black/75 min-[1200px]:p-8 min-[1200px]:backdrop-blur-md">
-        <section role="dialog" aria-modal="true" aria-label="AI Builder projects" className="relative w-full bg-black px-4 py-7 sm:px-6 sm:py-9 min-[1200px]:flex min-[1200px]:max-h-[90dvh] min-[1200px]:max-w-[1100px] min-[1200px]:flex-col min-[1200px]:overflow-y-auto min-[1200px]:rounded-[24px] min-[1200px]:border min-[1200px]:border-white/[0.1] min-[1200px]:bg-[#030303] min-[1200px]:px-10 min-[1200px]:py-6 min-[1200px]:shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
-          {onClose ? <button type="button" onClick={onClose} className="absolute right-6 top-4 z-10 hidden rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white min-[1200px]:inline-flex">Done</button> : null}
+    <ProjectsFrame embedded={embedded || showcase}>
+      {showcase ? null : confirmDialogNode}
+      <div role="presentation" className={presentationClassName}>
+        <section role={showcase ? undefined : "dialog"} aria-modal={showcase ? undefined : true} aria-label="AI Builder projects" className={sectionClassName}>
+          {onClose && !showcase ? <button type="button" onClick={onClose} className="absolute right-6 top-4 z-10 hidden rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white min-[1200px]:inline-flex">Done</button> : null}
 
           {error ? <div className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div> : null}
           {loading ? <div className="rounded-2xl border border-white/[.08] bg-[#050505] p-12 text-center text-slate-400">Loading your projects…</div> : null}
 
-          {isSignedIn && !loading && projects.length ? (
+          {(showcase || isSignedIn) && !loading && projects.length ? (
             <div>
               <div className="flex justify-center border-b border-white/[.08] pb-3">
                 <div className="flex items-center gap-2 rounded-xl border border-white/[.08] bg-[#050505] p-1.5">
@@ -215,7 +239,7 @@ export default function AiBuilderProjects({ embedded = false, onClose }: { embed
                 </div>
               </div>
 
-              <ProjectGrid projects={visibleProjects} archived={view === "archived"} menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} />
+              <ProjectGrid projects={visibleProjects} archived={view === "archived"} menu={menu} busy={busy} setMenu={setMenu} onRename={rename} onArchive={archive} onRestore={restore} showcase={showcase} />
             </div>
           ) : null}
         </section>
@@ -232,7 +256,7 @@ function ViewButton({ active, label, count, onClick }: { active: boolean; label:
   return <button type="button" onClick={onClick} className={`inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition ${active ? "bg-white/[.08] text-white" : "text-slate-500 hover:text-slate-200"}`}>{label}<span className={active ? "text-[var(--gold)]" : "text-slate-600"}>{count}</span></button>;
 }
 
-function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArchive, onRestore }: { projects: Project[]; archived: boolean; menu: string | null; busy: string | null; setMenu: (id: string | null) => void; onRename: (project: Project) => void; onArchive: (project: Project) => void; onRestore: (project: Project) => void }) {
+function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArchive, onRestore, showcase }: { projects: Project[]; archived: boolean; menu: string | null; busy: string | null; setMenu: (id: string | null) => void; onRename: (project: Project) => void; onArchive: (project: Project) => void; onRestore: (project: Project) => void; showcase: boolean }) {
   if (!projects.length) return <div className="mt-5 rounded-xl border border-white/[.08] bg-[#050505] px-6 py-10 text-center"><p className="text-sm text-slate-400">No {archived ? "archived" : "active"} projects.</p></div>;
 
   return <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-2">{projects.map((project) => (
@@ -242,7 +266,7 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
         <p className="mt-1 truncate text-xs text-slate-500">{domain(project.website)}</p>
         <div className="absolute right-0 top-0">
           <div className="relative shrink-0">
-            <button type="button" aria-label={`Actions for ${project.businessName}`} aria-haspopup="menu" aria-expanded={menu === project.id} onClick={() => setMenu(menu === project.id ? null : project.id)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black text-base text-slate-300 transition hover:border-amber-300/30 hover:text-white">•••</button>
+            <button type="button" disabled={showcase} aria-label={`Actions for ${project.businessName}`} aria-haspopup="menu" aria-expanded={menu === project.id} onClick={() => setMenu(menu === project.id ? null : project.id)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black text-base text-slate-300 transition hover:border-amber-300/30 hover:text-white disabled:cursor-default">•••</button>
             {menu === project.id ? <div role="menu" className="absolute right-0 top-10 z-20 min-w-[150px] rounded-xl border border-[rgba(212,175,55,.2)] bg-[#050505] p-1.5 shadow-2xl">
               {!archived ? <><button role="menuitem" disabled={busy === project.id} onClick={() => onRename(project)} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:bg-white/[0.04] hover:text-[var(--gold)]">Rename</button><button role="menuitem" disabled={busy === project.id} onClick={() => onArchive(project)} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-300 hover:bg-red-500/10">Archive</button></> : <button role="menuitem" disabled={busy === project.id} onClick={() => onRestore(project)} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-amber-300 hover:bg-white/[0.04]">Restore</button>}
             </div> : null}
@@ -255,7 +279,7 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
           <p className="text-[9px] font-black uppercase tracking-[.12em] text-[var(--gold)]">Knowledge model</p>
           <p className="mt-1 truncate text-[11px] font-semibold text-white" title={project.model || "Not available"}>{project.model || "Not available"}</p>
         </div>
-        {!archived ? <Link href={`/ai-builder?projectId=${encodeURIComponent(project.id)}&tab=dashboard`} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30">Open project</Link> : <button type="button" disabled={busy === project.id} onClick={() => onRestore(project)} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30 disabled:opacity-50">Restore</button>}
+        {!archived ? (showcase ? <span className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white">Open project</span> : <Link href={`/ai-builder?projectId=${encodeURIComponent(project.id)}&tab=dashboard`} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30">Open project</Link>) : <button type="button" disabled={busy === project.id || showcase} onClick={() => onRestore(project)} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30 disabled:opacity-50">Restore</button>}
         <div className="min-w-0 justify-self-start text-center">
           <p className="text-[9px] font-black uppercase tracking-[.12em] text-[var(--gold)]">Created</p>
           <p className="mt-1 truncate text-[11px] font-semibold text-white" title={date(project.createdAt)}>{date(project.createdAt)}</p>
