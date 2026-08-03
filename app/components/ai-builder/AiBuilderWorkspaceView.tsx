@@ -11,6 +11,7 @@ import AiBuilderKnowledgeInspector from "./AiBuilderKnowledgeInspector";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderProjects, { type AiBuilderProjectPreview } from "./AiBuilderProjects";
 import AiBuilderReview from "./AiBuilderReview";
+import AiBuilderSettings from "./AiBuilderSettings";
 import AiBuilderSources from "./AiBuilderSources";
 import {
   AiBuilderWorkspaceProvider,
@@ -26,6 +27,7 @@ export type AiBuilderWorkspaceViewName =
   | "review"
   | "insights"
   | "sources"
+  | "settings"
   | "chat";
 
 type ChatThread = Parameters<typeof AiBuilderDemoChat>[0]["chatThread"];
@@ -52,6 +54,7 @@ export type AiBuilderWorkspaceViewProps = {
   embeddedReview?: boolean;
   dashboardShowcase?: boolean;
   previewMode?: boolean;
+  settingsReadOnly?: boolean;
   showLaunchChat?: boolean;
   onBuilderChange?: (builder: BuilderState) => void;
   onBuild?: () => void;
@@ -69,6 +72,7 @@ function workspaceTabForView(view: AiBuilderWorkspaceViewName): AiBuilderWorkspa
   if (view === "insights") return "insights";
   if (view === "review") return "knowledge";
   if (view === "sources") return "sources";
+  if (view === "settings") return "settings";
   return "overview";
 }
 
@@ -118,6 +122,12 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
     content = <AiBuilderProjectInsights />;
   } else if (props.activeView === "sources") {
     content = <AiBuilderSources />;
+  } else if (props.activeView === "settings") {
+    content = (
+      <div className={props.settingsReadOnly ? "pointer-events-none select-none" : undefined}>
+        <AiBuilderSettings />
+      </div>
+    );
   } else if (props.knowledge) {
     content = (
       <div className={inert}>
