@@ -155,7 +155,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
       title: "Create your first project",
       message: "Build your first AI project to access the rest of the workspace.",
       cancelLabel: "Cancel",
-      confirmLabel: "Go to AI Builder",
+      confirmLabel: "Go to Brain Builder",
     });
 
     if (!goToBuilder) return;
