@@ -492,6 +492,8 @@ export default function AiBuilderProjectWorkspace({
       activeTab={workspaceTab}
       overviewOpen={overviewOpen}
       knowledgeOpen={knowledgeOpen}
+      pendingReviewItems={pendingReviewItems}
+      submitReviewCommand={submitReviewCommand}
       setActiveTab={selectWorkspaceTab}
       openOverview={() => {
         setKnowledgeOpen(false);
