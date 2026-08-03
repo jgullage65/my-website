@@ -1,5 +1,6 @@
 "use client";
 
+import { aiBuilderCornerCtaClassName } from "./AiBuilderAuthCta";
 import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
 
 export default function AiBuilderAssistantShowcase({ models }: { models: AiBuilderModelChoice[] }) {
@@ -60,7 +61,9 @@ export default function AiBuilderAssistantShowcase({ models }: { models: AiBuild
         <div className="flex-none border-t border-white/[0.08] p-5">
           <div className="flex items-end gap-2 rounded-2xl border border-white/[0.09] bg-[#080808] p-2 shadow-[0_12px_32px_rgba(0,0,0,.22)]">
             <div className="min-h-[50px] flex-1 px-3 py-3 text-sm text-white">How should I position this for agencies?</div>
-            <button type="button" className="min-h-[50px] rounded-xl border border-blue-400/40 bg-blue-600 px-5 text-sm font-black text-white shadow-[0_8px_22px_rgba(37,99,235,.28)]">Send</button>
+            <button type="button" className={`${aiBuilderCornerCtaClassName} min-h-[50px] px-5 text-sm`}>
+              Send
+            </button>
           </div>
         </div>
       </div>
