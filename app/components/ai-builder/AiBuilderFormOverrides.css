@@ -147,6 +147,13 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
   transition-duration: 0.01ms !important;
 }
 
+@media (min-width: 641px) {
+  .ai-builder-form article > div.relative > span.absolute.right-0.top-0 {
+    top: -0.5rem !important;
+    right: -0.5rem !important;
+  }
+}
+
 @media (min-width: 1200px) {
   .ai-builder-form > div > div.relative {
     padding-top: 0 !important;
