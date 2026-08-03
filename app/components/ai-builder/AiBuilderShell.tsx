@@ -66,6 +66,23 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
           }
         }
 
+        @media (max-width: 1199.99px) {
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article:first-child
+            > p:nth-child(2),
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article:nth-child(4)
+            > p:nth-child(2) {
+            font-size: 0.625rem !important;
+            line-height: 0.875rem !important;
+            letter-spacing: 0 !important;
+          }
+        }
+
         @media (max-width: 639px) {
           body[data-ai-builder-workspace="true"]
             .ai-builder-shell__content
