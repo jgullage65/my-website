@@ -131,12 +131,7 @@ export default function AiBuilderWorkspaceFrame({
             <h1 className="truncate text-sm font-semibold text-slate-100 xl:text-xl">{title}</h1>
           </header>
 
-          <div className="min-h-0 flex-1 bg-[#020202] px-4 py-5 sm:px-6 sm:py-6 xl:overflow-hidden xl:p-0">
-            <div className="h-full xl:hidden">{children}</div>
-            <div className="hidden h-full xl:block">
-              <AiBuilderDesktopScrollArea>{children}</AiBuilderDesktopScrollArea>
-            </div>
-          </div>
+          <AiBuilderDesktopScrollArea>{children}</AiBuilderDesktopScrollArea>
         </main>
 
         {rightRail ? <aside className="hidden min-h-0 flex-col border-l border-white/[0.08] bg-black xl:flex">{rightRail}</aside> : null}
