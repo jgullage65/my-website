@@ -124,6 +124,14 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
 
           body[data-ai-builder-workspace="true"]
             .ai-builder-shell__content
+            div[class~="relative"][class*="bg-[#000000]"]
+            > button[class~="absolute"][class~="right-4"][class~="top-4"] {
+            top: 3.25rem !important;
+            right: 1.5rem !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
             div[class~="mt-12"][class~="space-y-6"]
             > div:first-child
             > section {
