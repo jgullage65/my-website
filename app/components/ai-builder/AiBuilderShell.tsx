@@ -210,6 +210,47 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             + p {
             padding-top: 2rem;
           }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="space-y-5"][class~="pb-2"]:has(> section[class~="sm:grid-cols-4"])
+            > div[class~="grid"][class~="gap-5"] {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            align-items: start;
+            gap: 1rem !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="space-y-5"][class~="pb-2"]:has(> section[class~="sm:grid-cols-4"])
+            > div[class~="grid"][class~="gap-5"]
+            > div:first-child {
+            grid-column: auto !important;
+            min-width: 0;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="space-y-5"][class~="pb-2"]:has(> section[class~="sm:grid-cols-4"])
+            > div[class~="grid"][class~="gap-5"]
+            > div:nth-child(2),
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="space-y-5"][class~="pb-2"]:has(> section[class~="sm:grid-cols-4"])
+            > div[class~="grid"][class~="gap-5"]
+            > div:nth-child(3) {
+            display: contents;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="space-y-5"][class~="pb-2"]:has(> section[class~="sm:grid-cols-4"])
+            > div[class~="grid"][class~="gap-5"]
+            section {
+            min-width: 0;
+            height: 100%;
+          }
         }
 
         @media (max-width: 639px) {
