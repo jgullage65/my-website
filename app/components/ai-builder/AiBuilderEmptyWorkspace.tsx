@@ -183,7 +183,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
 
   return (
     <AiBuilderWorkspaceFrame
-      title="AI Builder"
+      title="Brain Builder"
       builderActive
       onBuilderSelect={() => {
         document.querySelector<HTMLElement>(".ai-builder-form")?.scrollIntoView({
