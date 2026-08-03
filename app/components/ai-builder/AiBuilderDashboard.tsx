@@ -213,7 +213,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
             : "Core validation complete";
 
   const readinessCard = (
-    <section className="h-full rounded-xl border border-white/[.12] bg-[#050505] p-5 text-center">
+    <section className="self-start rounded-xl border border-white/[.12] bg-[#050505] p-5 text-center">
       <p className="text-xs font-bold uppercase tracking-[.18em] text-slate-500">
         Project readiness
       </p>
