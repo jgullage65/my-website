@@ -83,11 +83,9 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
       <div className={`${inert} h-full overflow-hidden`}>
         <AiBuilderForm
           value={props.builder}
-          projectId={demo || preview ? null : props.projectId}
-          onChange={demo || preview ? noop : props.onBuilderChange ?? noop}
-          onBuild={demo || preview ? noop : props.onBuild ?? noop}
-          demoMode={demo && !preview}
-          previewMode={preview}
+          projectId={props.projectId}
+          onChange={props.onBuilderChange ?? noop}
+          onBuild={props.onBuild ?? noop}
         />
       </div>
     );
