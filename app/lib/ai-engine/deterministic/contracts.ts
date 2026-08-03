@@ -129,6 +129,22 @@ export type BusinessConcept = {
     health: ConceptHealth;
     importance: ConceptImportance;
 };
+export type ConceptRelationshipType = "includes" | "belongs_to" | "integrates_with" | "applies_to" | "serves" | "supports" | "contact_for" | "available_in";
+export type ConceptRelationshipReasonCode = "explicit_inclusion" | "explicit_plan_membership" | "explicit_integration" | "explicit_policy_scope" | "explicit_customer_segment" | "explicit_support_purpose" | "explicit_service_area" | "owner_supported" | "website_supported" | "multi_source_support" | "affected_by_conflict";
+export type ConceptRelationship = {
+    id: string;
+    type: ConceptRelationshipType;
+    sourceConceptId: string;
+    targetConceptId: string;
+    sourceTopicIdentity: string;
+    targetTopicIdentity: string;
+    supportingFactIds: string[];
+    supportingEvidence: NormalizedEvidence[];
+    confidence: WebsiteKnowledgeFact["confidence"];
+    confidenceScore: number;
+    explicit: true;
+    reasonCodes: ConceptRelationshipReasonCode[];
+};
 export type MissingInformationSignal = {
     id: string;
     topic: string;
@@ -138,6 +154,7 @@ export type MissingInformationSignal = {
 export type DeterministicEngineResult = {
     facts: DeterministicFact[];
     concepts: BusinessConcept[];
+    relationships: ConceptRelationship[];
     categories: WebsiteKnowledgeFact["category"][];
     duplicateGroups: DuplicateGroup[];
     conflicts: MaterialConflict[];
