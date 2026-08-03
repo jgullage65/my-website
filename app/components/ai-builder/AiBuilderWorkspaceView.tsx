@@ -69,7 +69,7 @@ function workspaceTabForView(view: AiBuilderWorkspaceViewName): AiBuilderWorkspa
 
 export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProps) {
   const demo = props.mode === "demo";
-  const preview = props.mode === "preview";
+  const preview = props.mode === "preview" || props.previewMode === true;
   const inert = demo ? "pointer-events-none" : "";
   const pendingReviewItems = props.pendingReviewItems ?? new Set<string>();
   const submitReviewCommand = demo ? noopAsync : props.onReviewCommand ?? noopAsync;
@@ -86,7 +86,8 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
           projectId={demo || preview ? null : props.projectId}
           onChange={demo || preview ? noop : props.onBuilderChange ?? noop}
           onBuild={demo || preview ? noop : props.onBuild ?? noop}
-          demoMode={demo || preview}
+          demoMode={demo && !preview}
+          previewMode={preview}
         />
       </div>
     );
