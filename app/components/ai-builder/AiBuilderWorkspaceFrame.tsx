@@ -71,7 +71,7 @@ export default function AiBuilderWorkspaceFrame({
             : "text-white hover:bg-white/[0.035] hover:text-amber-200"
         }`}
       >
-        AI Builder
+        Brain Builder
       </button>
       <p className="mt-4 px-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-white">Workspace</p>
       <nav className="mt-3 space-y-0.5" aria-label="AI Builder workspace">
