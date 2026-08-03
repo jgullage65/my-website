@@ -148,15 +148,15 @@ export default function AiBuilderSources() {
   const hasMoreWarnings = visibleWarnings.length < warnings.length;
 
   return (
-    <div className="min-w-0 space-y-5 pb-2">
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="min-w-0 max-w-full space-y-5 overflow-hidden pb-2">
+      <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Summary label="Connected website" value={host(websiteKnowledge?.resolved_url)} detail={websiteKnowledge?.resolved_url ? "Active website source" : "No website connected"} />
         <Summary label="Pages imported" value={String(pages.length)} detail={`${retainedDocuments} retained source record${retainedDocuments === 1 ? "" : "s"}`} />
         <Summary label="Source blocks" value={String(blocks.length)} detail="Evidence-ready content blocks" />
         <Summary label="Last import" value={formatDate(websiteKnowledge?.imported_at)} detail={`${warnings.length} warning${warnings.length === 1 ? "" : "s"}`} compact />
       </section>
 
-      <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505]">
+      <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-white/[.12] bg-[#050505]">
         <div className="border-b border-white/[.12] px-5 py-4 text-center">
           <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">Website sources</p>
           <p className="mt-2 text-sm text-slate-400">Pages currently connected to this project</p>
@@ -164,24 +164,24 @@ export default function AiBuilderSources() {
 
         {pages.length ? (
           <>
-            <div className="grid gap-3 border-b border-white/[.12] bg-black/30 p-4 md:grid-cols-[minmax(0,1fr)_160px_160px_160px]">
+            <div className="grid min-w-0 gap-3 border-b border-white/[.12] bg-black/30 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]">
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Search pages or URLs"
-                className="min-w-0 rounded-lg border border-white/[.12] bg-black px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-white/25"
+                className="min-w-0 rounded-lg border border-white/[.12] bg-black px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-white/25 sm:col-span-2 xl:col-span-1"
               />
-              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="rounded-lg border border-white/[.12] bg-black px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-white/25">
+              <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-w-0 rounded-lg border border-white/[.12] bg-black px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-white/25">
                 <option value="all">All statuses</option>
                 <option value="retained">Retained</option>
                 <option value="skipped">Skipped</option>
                 <option value="failed">Failed</option>
               </select>
-              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="rounded-lg border border-white/[.12] bg-black px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-white/25">
+              <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="min-w-0 rounded-lg border border-white/[.12] bg-black px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-white/25">
                 <option value="all">All source types</option>
                 {sourceTypes.map((type) => <option key={type} value={type}>{humanize(type)}</option>)}
               </select>
-              <select value={sort} onChange={(event) => setSort(event.target.value as PageSort)} className="rounded-lg border border-white/[.12] bg-black px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-white/25">
+              <select value={sort} onChange={(event) => setSort(event.target.value as PageSort)} className="min-w-0 rounded-lg border border-white/[.12] bg-black px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-white/25 sm:col-span-2 xl:col-span-1">
                 <option value="title">Sort by title</option>
                 <option value="newest">Newest fetched</option>
                 <option value="type">Source type</option>
@@ -190,57 +190,58 @@ export default function AiBuilderSources() {
             </div>
 
             {filteredRows.length ? (
-              <div className="min-w-0 overflow-x-auto">
-                <div className="min-w-[860px]">
-                  <div className="grid grid-cols-[minmax(0,1.45fr)_minmax(0,2fr)_minmax(105px,.65fr)_minmax(150px,.85fr)_56px] border-b border-white/[.12] bg-black/60 px-5 py-3 text-center text-[.68rem] font-semibold uppercase tracking-[.1em] text-slate-500">
-                    <span>Page</span><span>Source URL</span><span>Type</span><span>Knowledge</span><span />
-                  </div>
-                  <div className="divide-y divide-white/[.12]">
-                    {visiblePageRows.map(({ page, document, sourceType, knowledgeCount }, index) => {
-                      const sourceId = page.sourceDocumentId ?? `${page.url}-${index}`;
-                      const expanded = expandedSourceId === sourceId;
-                      return (
-                        <div key={sourceId}>
-                          <div className="grid grid-cols-[minmax(0,1.45fr)_minmax(0,2fr)_minmax(105px,.65fr)_minmax(150px,.85fr)_56px] items-center px-5 py-4">
-                            <div className="min-w-0 pr-4 text-left">
-                              <a href={page.url} target="_blank" rel="noreferrer" className="group inline-flex max-w-full items-center gap-1.5 text-sm font-semibold text-white hover:text-slate-200" title={`Open ${page.title || page.url}`}>
-                                <span className="truncate">{page.title || "Untitled page"}</span><span aria-hidden="true" className="shrink-0 text-slate-500 transition group-hover:text-white">↗</span>
-                              </a>
-                              <p className="mt-1 truncate text-xs text-slate-500" title={path(page.url)}>{path(page.url)}</p>
-                            </div>
-                            <div className="min-w-0 px-4 text-left">
-                              <a href={page.url} target="_blank" rel="noreferrer" className="block truncate text-sm text-slate-300 hover:text-white" title={page.url}>{page.url}</a>
-                              <p className="mt-1 truncate text-xs text-slate-500">{document ? `Fetched ${formatDate(document.fetchedAt)}` : host(page.url)}</p>
-                            </div>
-                            <div className="text-center"><span className="inline-flex rounded-lg border border-white/[.12] bg-black px-2.5 py-1 text-xs font-semibold text-slate-300">{humanize(sourceType)}</span></div>
-                            <div className="text-center">
-                              <button type="button" onClick={() => setActiveTab("knowledge")} className="cta-raised rounded-lg border border-amber-300/20 bg-black px-3.5 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">
-                                {knowledgeCount ? `View knowledge (${knowledgeCount})` : "View knowledge"}
-                              </button>
-                            </div>
-                            <div className="text-right">
-                              <button type="button" onClick={() => setExpandedSourceId(expanded ? null : sourceId)} aria-expanded={expanded} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/[.12] bg-black text-sm text-slate-400 transition hover:border-white/25 hover:text-white">{expanded ? "−" : "+"}</button>
-                            </div>
-                          </div>
-                          {expanded ? (
-                            <div className="border-t border-white/[.12] bg-black/30 px-5 py-4">
-                              <div className="grid gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
-                                <Detail label="Canonical URL" value={document?.canonicalUrl ?? page.url} />
-                                <Detail label="Discovery method" value={humanize(document?.discoveryMethod)} />
-                                <Detail label="Content type" value={document?.contentType ?? humanize(page.pageType)} />
-                                <Detail label="Fetched" value={formatDate(document?.fetchedAt)} />
-                                <Detail label="Language" value={document?.language ?? "Not recorded"} />
-                                <Detail label="Redirects" value={String(document?.redirectChain.length ?? 0)} />
-                                <Detail label="Source truncated" value={document?.sourceTruncated ? "Yes" : "No"} />
-                                <Detail label="Extraction truncated" value={document?.extractionTruncated ? "Yes" : "No"} />
-                              </div>
-                            </div>
-                          ) : null}
+              <div className="divide-y divide-white/[.12]">
+                {visiblePageRows.map(({ page, document, sourceType, knowledgeCount }, index) => {
+                  const sourceId = page.sourceDocumentId ?? `${page.url}-${index}`;
+                  const expanded = expandedSourceId === sourceId;
+                  return (
+                    <div key={sourceId} className="min-w-0">
+                      <div className="grid min-w-0 gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1.5fr)_auto_auto] lg:items-center">
+                        <div className="min-w-0">
+                          <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Page</p>
+                          <a href={page.url} target="_blank" rel="noreferrer" className="group mt-1 inline-flex max-w-full items-center gap-1.5 text-sm font-semibold text-white hover:text-slate-200 lg:mt-0" title={`Open ${page.title || page.url}`}>
+                            <span className="min-w-0 break-words">{page.title || "Untitled page"}</span>
+                            <span aria-hidden="true" className="shrink-0 text-slate-500 transition group-hover:text-white">↗</span>
+                          </a>
+                          <p className="mt-1 break-all text-xs leading-5 text-slate-500">{path(page.url)}</p>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
+
+                        <div className="min-w-0">
+                          <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Source URL</p>
+                          <a href={page.url} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm leading-5 text-slate-300 hover:text-white lg:mt-0">{page.url}</a>
+                          <p className="mt-1 break-words text-xs leading-5 text-slate-500">{document ? `Fetched ${formatDate(document.fetchedAt)}` : host(page.url)}</p>
+                        </div>
+
+                        <div className="min-w-0 lg:text-center">
+                          <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Type</p>
+                          <span className="mt-1 inline-flex max-w-full rounded-lg border border-white/[.12] bg-black px-2.5 py-1 text-xs font-semibold text-slate-300 lg:mt-0">{humanize(sourceType)}</span>
+                        </div>
+
+                        <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+                          <button type="button" onClick={() => setActiveTab("knowledge")} className="cta-raised rounded-lg border border-amber-300/20 bg-black px-3.5 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">
+                            {knowledgeCount ? `View knowledge (${knowledgeCount})` : "View knowledge"}
+                          </button>
+                          <button type="button" onClick={() => setExpandedSourceId(expanded ? null : sourceId)} aria-expanded={expanded} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[.12] bg-black text-sm text-slate-400 transition hover:border-white/25 hover:text-white">{expanded ? "−" : "+"}</button>
+                        </div>
+                      </div>
+
+                      {expanded ? (
+                        <div className="border-t border-white/[.12] bg-black/30 px-5 py-4">
+                          <div className="grid min-w-0 gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <Detail label="Canonical URL" value={document?.canonicalUrl ?? page.url} />
+                            <Detail label="Discovery method" value={humanize(document?.discoveryMethod)} />
+                            <Detail label="Content type" value={document?.contentType ?? humanize(page.pageType)} />
+                            <Detail label="Fetched" value={formatDate(document?.fetchedAt)} />
+                            <Detail label="Language" value={document?.language ?? "Not recorded"} />
+                            <Detail label="Redirects" value={String(document?.redirectChain.length ?? 0)} />
+                            <Detail label="Source truncated" value={document?.sourceTruncated ? "Yes" : "No"} />
+                            <Detail label="Extraction truncated" value={document?.extractionTruncated ? "Yes" : "No"} />
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
             ) : <Empty text="No website sources match the current search and filters." />}
 
@@ -260,7 +261,7 @@ export default function AiBuilderSources() {
       <div className="grid min-w-0 gap-5 lg:grid-cols-2">
         <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505] p-5">
           <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Crawl details</p>
-          <dl className="mt-4 grid grid-cols-2 overflow-hidden rounded-lg border border-white/[.12]">
+          <dl className="mt-4 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-white/[.12]">
             <Metric label="Status" value={humanize(String(latestCrawl?.status ?? "not available"))} />
             <Metric label="Duration" value={duration(latestCrawl?.duration_ms)} />
             <Metric label="Discovered" value={String(latestCrawl?.pages_discovered ?? pages.length)} />
@@ -274,22 +275,42 @@ export default function AiBuilderSources() {
           <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Import warnings</p>
           {warnings.length ? (
             <>
-              <div className="mt-4 overflow-hidden rounded-lg border border-white/[.12]"><div className="divide-y divide-white/[.12]">
-                {visibleWarnings.map((warning, index) => <div key={`${warning}-${index}`} className="grid grid-cols-[2.25rem_1fr] items-start px-4 py-3.5"><span className="text-center text-xs font-bold text-amber-300">{index + 1}</span><p className="min-w-0 break-words text-sm leading-6 text-slate-300">{warning}</p></div>)}
-              </div></div>
-              {warnings.length > INITIAL_WARNING_ROWS ? <div className="mt-4 flex justify-center gap-2"><button type="button" disabled={!hasMoreWarnings} onClick={() => setShowAllWarnings(true)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show more</button><button type="button" disabled={!showAllWarnings} onClick={() => setShowAllWarnings(false)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show less</button></div> : null}
+              <div className="mt-4 overflow-hidden rounded-lg border border-white/[.12]">
+                <div className="divide-y divide-white/[.12]">
+                  {visibleWarnings.map((warning, index) => (
+                    <div key={`${warning}-${index}`} className="grid min-w-0 grid-cols-[2.25rem_minmax(0,1fr)] items-start px-4 py-3.5">
+                      <span className="text-center text-xs font-bold text-amber-300">{index + 1}</span>
+                      <p className="min-w-0 break-words text-sm leading-6 text-slate-300">{warning}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {warnings.length > INITIAL_WARNING_ROWS ? (
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
+                  <button type="button" disabled={!hasMoreWarnings} onClick={() => setShowAllWarnings(true)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show more</button>
+                  <button type="button" disabled={!showAllWarnings} onClick={() => setShowAllWarnings(false)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show less</button>
+                </div>
+              ) : null}
             </>
           ) : <Empty text="No import warnings were recorded for this website source." compact />}
         </section>
       </div>
 
-      <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505]">
-        <div className="border-b border-white/[.12] px-5 py-4 text-center"><p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">Crawl history</p></div>
+      <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-white/[.12] bg-[#050505]">
+        <div className="border-b border-white/[.12] px-5 py-4 text-center">
+          <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">Crawl history</p>
+        </div>
         {crawls.length ? (
-          <div className="overflow-x-auto"><div className="min-w-[680px]">
-            <div className="grid grid-cols-[1.4fr_.8fr_.7fr_.7fr] border-b border-white/[.12] bg-black/60 px-5 py-3 text-center text-[.68rem] font-semibold uppercase tracking-[.1em] text-slate-500"><span>Started</span><span>Duration</span><span>Pages</span><span>Status</span></div>
-            <div className="divide-y divide-white/[.12]">{crawls.slice(0, CRAWL_HISTORY_ROWS).map((crawl, index) => <div key={`${String(crawl.started_at)}-${index}`} className="grid grid-cols-[1.4fr_.8fr_.7fr_.7fr] items-center px-5 py-3.5 text-center"><span className="text-sm text-slate-300">{formatDate(crawl.started_at)}</span><span className="text-sm font-semibold text-white">{duration(crawl.duration_ms)}</span><span className="text-sm font-semibold text-white">{String(crawl.pages_processed ?? 0)}</span><span className="text-xs font-bold capitalize text-slate-300">{humanize(String(crawl.status ?? "unknown"))}</span></div>)}</div>
-          </div></div>
+          <div className="divide-y divide-white/[.12]">
+            {crawls.slice(0, CRAWL_HISTORY_ROWS).map((crawl, index) => (
+              <div key={`${String(crawl.started_at)}-${index}`} className="grid min-w-0 gap-4 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-center lg:text-center">
+                <HistoryValue label="Started" value={formatDate(crawl.started_at)} />
+                <HistoryValue label="Duration" value={duration(crawl.duration_ms)} strong />
+                <HistoryValue label="Pages" value={String(crawl.pages_processed ?? 0)} strong />
+                <HistoryValue label="Status" value={humanize(String(crawl.status ?? "unknown"))} />
+              </div>
+            ))}
+          </div>
         ) : <Empty text="No crawl attempts have been recorded yet." compact />}
       </section>
     </div>
@@ -297,17 +318,42 @@ export default function AiBuilderSources() {
 }
 
 function Summary({ label, value, detail, compact = false }: { label: string; value: string; detail: string; compact?: boolean }) {
-  return <article className="min-w-0 rounded-[18px] border border-white/[.12] bg-[#070707] p-5 text-center"><p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">{label}</p><p className={`mt-2 truncate font-semibold text-white ${compact ? "text-base" : "text-2xl"}`} title={value}>{value}</p><p className="mt-2 truncate text-xs leading-5 text-slate-500" title={detail}>{detail}</p></article>;
+  return (
+    <article className="min-w-0 overflow-hidden rounded-[18px] border border-white/[.12] bg-[#070707] p-5 text-center">
+      <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">{label}</p>
+      <p className={`mt-2 break-words font-semibold text-white ${compact ? "text-base" : "text-2xl"}`} title={value}>{value}</p>
+      <p className="mt-2 break-words text-xs leading-5 text-slate-500" title={detail}>{detail}</p>
+    </article>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0 border-b border-r border-white/[.12] bg-black/40 px-3.5 py-3 text-center even:border-r-0"><dt className="text-xs font-semibold text-slate-500">{label}</dt><dd className="mt-1 truncate text-sm font-semibold text-white" title={value}>{value}</dd></div>;
+  return (
+    <div className="min-w-0 border-b border-r border-white/[.12] bg-black/40 px-3.5 py-3 text-center even:border-r-0">
+      <dt className="text-xs font-semibold text-slate-500">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-semibold text-white" title={value}>{value}</dd>
+    </div>
+  );
 }
 
 function Detail({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0"><p className="text-[.68rem] font-bold uppercase tracking-[.1em] text-slate-500">{label}</p><p className="mt-1 break-words text-sm leading-5 text-slate-300">{value}</p></div>;
+  return (
+    <div className="min-w-0 overflow-hidden">
+      <p className="text-[.68rem] font-bold uppercase tracking-[.1em] text-slate-500">{label}</p>
+      <p className="mt-1 break-all text-sm leading-5 text-slate-300">{value}</p>
+    </div>
+  );
+}
+
+function HistoryValue({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500">{label}</p>
+      <p className={`mt-1 break-words text-sm ${strong ? "font-semibold text-white" : "text-slate-300"}`}>{value}</p>
+    </div>
+  );
 }
 
 function Empty({ text, compact = false }: { text: string; compact?: boolean }) {
-  return <div className={`${compact ? "mt-4 min-h-[170px]" : "min-h-[280px]"} flex items-center justify-center px-5 text-center text-sm leading-6 text-slate-600`}>{text}</div>;
+  return <div className={`${compact ? "mt-4 min-h-[170px]" : "min-h-[280px]"} flex min-w-0 items-center justify-center px-5 text-center text-sm leading-6 text-slate-600`}>{text}</div>;
 }
