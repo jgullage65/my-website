@@ -4,15 +4,21 @@ import { listAvailableModels } from "@/app/lib/ai-engine/models/registry";
 import { aiBuilderCornerCtaClassName } from "./AiBuilderAuthCta";
 import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
 
+const SHOWCASE_MODEL_IDS = ["gpt-5-5", "claude-sonnet", "gemini-2-5-pro", "grok"] as const;
+
 export default function AiBuilderAssistantShowcase({ models: _models }: { models: AiBuilderModelChoice[] }) {
-  const showcaseModels: AiBuilderModelChoice[] = listAvailableModels("test-assistant").map((model) => ({
-    id: model.id,
-    provider: model.provider,
-    displayName: model.displayName,
-    recommended: model.recommended,
-    highUsage: model.highUsage,
-  }));
-  const selectedModel = showcaseModels.find((model) => model.recommended)?.id ?? showcaseModels[0]?.id ?? "";
+  const availableModels = listAvailableModels("test-assistant");
+  const showcaseModels: AiBuilderModelChoice[] = SHOWCASE_MODEL_IDS
+    .map((modelId) => availableModels.find((model) => model.id === modelId))
+    .filter((model): model is NonNullable<typeof model> => Boolean(model))
+    .map((model) => ({
+      id: model.id,
+      provider: model.provider,
+      displayName: model.displayName,
+      recommended: model.recommended,
+      highUsage: model.highUsage,
+    }));
+  const selectedModel = showcaseModels[0]?.id ?? "";
 
   return (
     <section className="grid h-full min-h-0 grid-cols-2 overflow-hidden rounded-[20px] border border-white/[0.09] bg-black">
@@ -24,7 +30,7 @@ export default function AiBuilderAssistantShowcase({ models: _models }: { models
             disabled={false}
             defaultOpen
             onChange={() => undefined}
-            className="w-full [&_[role=listbox]]:max-h-[330px]"
+            className="w-full [&_[role=listbox]]:max-h-none"
           />
         </div>
       </div>
