@@ -88,6 +88,78 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
           }
         }
 
+        @media (min-width: 640px) and (max-width: 1199.99px) {
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"] {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+            column-gap: 1rem;
+            row-gap: 1.25rem;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > * {
+            margin-top: 0 !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > div:first-child {
+            grid-column: 1;
+            grid-row: 1;
+            min-width: 0;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > section[class~="min-w-0"][class~="space-y-5"] {
+            display: contents;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > section[class~="min-w-0"][class~="space-y-5"]
+            > * {
+            margin-top: 0 !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > section[class~="min-w-0"][class~="space-y-5"]
+            > div:first-child {
+            grid-column: 1 / -1;
+            grid-row: 2;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > section[class~="min-w-0"][class~="space-y-5"]
+            > div[class~="grid"][class~="gap-4"] {
+            display: contents;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > section[class~="min-w-0"][class~="space-y-5"]
+            > div[class~="grid"][class~="gap-4"]
+            > article:first-child {
+            grid-column: 2;
+            grid-row: 1;
+            min-width: 0;
+            height: 100%;
+          }
+        }
+
         @media (max-width: 639px) {
           body[data-ai-builder-workspace="true"]
             .ai-builder-shell__content
