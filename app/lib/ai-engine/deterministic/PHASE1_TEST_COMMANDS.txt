@@ -1,3 +1,0 @@
-node --experimental-transform-types --experimental-loader ./test/node-alias-loader.mjs --test app/lib/ai-engine/deterministic/*.test.ts app/lib/ai-engine/deterministic/routing/*.test.ts app/lib/ai-engine/deterministic/specialists/*.test.ts app/lib/ai-engine/deterministic/legacy/*.test.ts
-npm run typecheck
-git diff --check main...HEAD
