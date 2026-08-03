@@ -102,7 +102,11 @@ export default function AiBuilderSourceKnowledgeReview({ sourceUrl }: Props) {
     if (!draft?.title.trim() || !draft.content.trim()) return;
     await submit(entry, {
       kind: "correct",
-      correction: { title: draft.title.trim(), content: draft.content.trim() },
+      correction: {
+        itemKind: "context_entry",
+        title: draft.title.trim(),
+        content: draft.content.trim(),
+      },
     });
     setEditingId(null);
   };
