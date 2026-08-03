@@ -455,7 +455,6 @@ export default function AiBuilderDemoChat({
           {!previewMode ? (
             <div className="mx-auto mb-3 flex max-w-3xl flex-wrap items-center justify-between gap-3">
               <ModelSelectControl models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} className="hidden xl:flex" />
-              <button type="button" onClick={() => void showPurchaseInterestModal("cta")} disabled={purchaseInterestSubmitted || purchaseInterestSubmitting} className="cta-raised rounded-xl border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#111111] disabled:cursor-not-allowed disabled:border-emerald-300/20 disabled:bg-emerald-300/[0.07] disabled:text-emerald-200 disabled:opacity-80 disabled:hover:translate-y-0">{purchaseInterestSubmitted ? "Purchase Request Sent ✓" : purchaseInterestSubmitting ? "Sending Purchase Request..." : "Buy This AI Assistant"}</button>
               <span className="text-xs font-semibold text-slate-500">{messageLimitReached ? "20 of 20 messages used" : `${remainingMessages} of 20 messages remaining`}</span>
             </div>
           ) : null}
