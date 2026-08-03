@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { AiBuilderSession } from "@/app/lib/ai-engine/contracts";
+import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import AiBuilderKnowledgeInspector from "./AiBuilderKnowledgeInspector";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
@@ -41,6 +42,8 @@ type AiBuilderWorkspaceContextValue = {
   activeTab: AiBuilderWorkspaceTab;
   overviewOpen: boolean;
   knowledgeOpen: boolean;
+  pendingReviewItems: ReadonlySet<string>;
+  submitReviewCommand: (command: ReviewCommandRequest) => Promise<void>;
   setActiveTab: (tab: AiBuilderWorkspaceTab) => void;
   openOverview: () => void;
   closeOverview: () => void;
@@ -66,6 +69,8 @@ export function AiBuilderWorkspaceProvider({
   activeTab,
   overviewOpen,
   knowledgeOpen,
+  pendingReviewItems,
+  submitReviewCommand,
   setActiveTab,
   openOverview,
   closeOverview,
@@ -84,6 +89,8 @@ export function AiBuilderWorkspaceProvider({
       activeTab,
       overviewOpen,
       knowledgeOpen,
+      pendingReviewItems,
+      submitReviewCommand,
       setActiveTab,
       openOverview,
       closeOverview,
@@ -101,11 +108,13 @@ export function AiBuilderWorkspaceProvider({
       openKnowledge,
       openOverview,
       overviewOpen,
+      pendingReviewItems,
       project,
       projectId,
       renameProject,
       session,
       setActiveTab,
+      submitReviewCommand,
       websiteKnowledge,
     ],
   );
