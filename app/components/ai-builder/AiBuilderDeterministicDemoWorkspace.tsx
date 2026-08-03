@@ -24,7 +24,7 @@ type DemoTab = "builder" | "dashboard" | "insights" | "review" | "sources" | "se
 type BuildStage = "idle" | "building" | "ready";
 
 const ITEMS: ReadonlyArray<readonly [DemoTab, string]> = [
-  ["builder", "AI Builder"],
+  ["builder", "Brain Builder"],
   ["dashboard", "Dashboard"],
   ["insights", "Project Insights"],
   ["review", "Business Knowledge"],
@@ -162,7 +162,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
         completed_at: completedAt,
         knowledge_count: previewSession.contextEntries.length,
         faq_count: previewSession.faqEntries.length,
-        model: "AI Builder demo",
+        model: "Brain Builder demo",
         input_tokens: null,
         output_tokens: null,
         total_tokens: null,
@@ -177,7 +177,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
     setWelcomeShown(true);
     void showConfirm({
       title: "Create a project first",
-      message: "Run your business through AI Builder to create a temporary project. The information you enter will power the Dashboard, Project Insights, Business Knowledge, Sources, and Assistant throughout this demo.",
+      message: "Run your business through Brain Builder to create a temporary project. The information you enter will power the Dashboard, Project Insights, Business Knowledge, Sources, and Assistant throughout this demo.",
       confirmLabel: "Start building",
       cancelLabel: "Explore workspace",
     }).then(() => setActiveTab("builder"));
@@ -186,8 +186,8 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
   const requireProject = async () => {
     await showConfirm({
       title: "Create a project first",
-      message: "Complete AI Builder so this workspace can use your business information.",
-      confirmLabel: "Go to AI Builder",
+      message: "Complete Brain Builder so this workspace can use your business information.",
+      confirmLabel: "Go to Brain Builder",
       cancelLabel: "Cancel",
     });
     setActiveTab("builder");
@@ -237,7 +237,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
   };
 
   const activeView: AiBuilderWorkspaceViewName = activeTab;
-  const title = ITEMS.find(([value]) => value === activeTab)?.[1] ?? "AI Builder";
+  const title = ITEMS.find(([value]) => value === activeTab)?.[1] ?? "Brain Builder";
 
   const mainContent = buildStage === "building" ? (
     <AiBuilderProgress
