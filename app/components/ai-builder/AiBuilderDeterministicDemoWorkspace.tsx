@@ -137,6 +137,41 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
     };
   }, [builderValue.websiteKnowledge]);
 
+  const demoDiagnostics = useMemo<ProjectDiagnostics>(() => {
+    if (!projectReady) return { crawls: [], generations: [] };
+    const completedAt = previewSession.updatedAt ?? new Date().toISOString();
+    const pageCount = websiteKnowledge?.pages.length ?? 0;
+    return {
+      crawls: websiteKnowledge
+        ? [{
+            attempt_number: 1,
+            status: "completed",
+            started_at: websiteKnowledge.imported_at,
+            completed_at: completedAt,
+            pages_discovered: pageCount,
+            pages_processed: pageCount,
+            pages_skipped: 0,
+            pages_failed: 0,
+            duration_ms: 1800,
+          }]
+        : [],
+      generations: [{
+        attempt_number: 1,
+        status: "completed",
+        started_at: completedAt,
+        completed_at: completedAt,
+        knowledge_count: previewSession.contextEntries.length,
+        faq_count: previewSession.faqEntries.length,
+        model: "AI Builder demo",
+        input_tokens: null,
+        output_tokens: null,
+        total_tokens: null,
+        retry_count: 0,
+        duration_ms: 2400,
+      }],
+    };
+  }, [previewSession, projectReady, websiteKnowledge]);
+
   useEffect(() => {
     if (welcomeShown) return;
     setWelcomeShown(true);
@@ -219,7 +254,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
       session={previewSession}
       builder={builderValue}
       websiteKnowledge={websiteKnowledge}
-      diagnostics={null}
+      diagnostics={demoDiagnostics}
       knowledge={knowledge}
       projectId={previewSession.id}
       embeddedReview
@@ -240,6 +275,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
       session={previewSession}
       builder={builderValue}
       websiteKnowledge={websiteKnowledge}
+      diagnostics={demoDiagnostics}
       knowledge={knowledge}
       projectId={previewSession.id}
       onBack={() => setActiveTab("dashboard")}
