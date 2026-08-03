@@ -6,17 +6,24 @@ import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/we
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
-import AiBuilderForm from "./AiBuilderForm";
+import AiBuilderEmptyWorkspace from "./AiBuilderEmptyWorkspace";
 import AiBuilderKnowledgeInspector from "./AiBuilderKnowledgeInspector";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderReview from "./AiBuilderReview";
+import AiBuilderSources from "./AiBuilderSources";
 import {
   AiBuilderWorkspaceProvider,
   type AiBuilderWorkspaceTab,
 } from "./AiBuilderWorkspaceContext";
 import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
 
-export type AiBuilderWorkspaceViewName = "dashboard" | "builder" | "review" | "insights" | "chat";
+export type AiBuilderWorkspaceViewName =
+  | "dashboard"
+  | "builder"
+  | "review"
+  | "insights"
+  | "sources"
+  | "chat";
 
 type ChatThread = Parameters<typeof AiBuilderDemoChat>[0]["chatThread"];
 
@@ -56,6 +63,7 @@ function workspaceTabForView(view: AiBuilderWorkspaceViewName): AiBuilderWorkspa
   if (view === "dashboard") return "dashboard";
   if (view === "insights") return "insights";
   if (view === "review") return "knowledge";
+  if (view === "sources") return "sources";
   return "overview";
 }
 
@@ -71,17 +79,12 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   if (props.activeView === "dashboard") {
     content = <AiBuilderDashboard showcase={props.dashboardShowcase} />;
   } else if (props.activeView === "builder") {
-    const previewClassName = props.previewMode
-      ? "h-full overflow-hidden [&>div]:pb-0 [&>div]:px-0 [&>div>div]:rounded-none [&>div>div]:border-0 [&>div>div]:shadow-none"
-      : "";
     content = (
-      <div className={`${inert} ${previewClassName}`}>
-        <AiBuilderForm
-          value={props.builder}
-          projectId={demo || preview ? null : props.projectId}
-          onChange={demo ? noop : props.onBuilderChange ?? noop}
-          onBuild={demo ? noop : props.onBuild ?? noop}
-          demoMode={demo || preview}
+      <div className={inert}>
+        <AiBuilderEmptyWorkspace
+          builder={props.builder}
+          onChange={demo || preview ? noop : props.onBuilderChange ?? noop}
+          onBuild={demo || preview ? noop : props.onBuild ?? noop}
         />
       </div>
     );
@@ -101,6 +104,8 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
     );
   } else if (props.activeView === "insights") {
     content = <AiBuilderProjectInsights />;
+  } else if (props.activeView === "sources") {
+    content = <AiBuilderSources />;
   } else if (props.knowledge) {
     content = (
       <div className={inert}>
