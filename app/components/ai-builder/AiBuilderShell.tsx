@@ -182,9 +182,18 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             div[class~="mt-12"][class~="space-y-6"]
             > div:first-child
             > section
+            article {
+            overflow: visible !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > div:first-child
+            > section
             article
             span[class~="absolute"][class~="right-0"][class~="top-0"] {
-            transform: translateY(-0.9rem);
+            transform: translateY(-0.55rem);
           }
         }
 
