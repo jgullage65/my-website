@@ -134,6 +134,44 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             font-size: clamp(0.52rem, 0.95vw, 0.68rem) !important;
             line-height: clamp(0.8rem, 1.4vw, 1rem) !important;
           }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"] {
+            grid-template-columns: minmax(0, 1fr) max-content max-content max-content !important;
+            gap: clamp(0.35rem, 0.8vw, 0.65rem) !important;
+            padding: clamp(0.6rem, 1.2vw, 0.9rem) !important;
+            align-items: center;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            > input,
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            > select {
+            grid-column: auto !important;
+            width: auto;
+            min-width: 0;
+            padding-top: clamp(0.45rem, 0.8vw, 0.6rem) !important;
+            padding-bottom: clamp(0.45rem, 0.8vw, 0.6rem) !important;
+            padding-left: clamp(0.55rem, 0.9vw, 0.75rem) !important;
+            padding-right: clamp(1.5rem, 2.2vw, 2rem) !important;
+            font-size: clamp(0.62rem, 1.1vw, 0.78rem) !important;
+            line-height: 1rem !important;
+            white-space: nowrap;
+            text-overflow: clip;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class*="xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]"]
+            > input {
+            width: 100%;
+            padding-right: clamp(0.55rem, 0.9vw, 0.75rem) !important;
+          }
         }
 
         @media (min-width: 1024px) {
