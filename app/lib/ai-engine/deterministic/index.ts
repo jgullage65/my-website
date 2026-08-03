@@ -18,6 +18,7 @@ export { normalizeSources } from "./normalization";
 export { assembleSession } from "./sessionAssembly";
 export { canonicalTopicKey } from "./topics";
 export { assembleBusinessConcepts, conceptDisplayName } from "./concepts";
+export { assessConceptImportance } from "./conceptImportance";
 export function buildDeterministicBusinessBrain(input: DeterministicEngineInput): DeterministicEngineResult {
     const started = performance.now();
     const normalizedBlocks = normalizeSources(input);
