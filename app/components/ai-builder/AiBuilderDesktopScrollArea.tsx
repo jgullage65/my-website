@@ -135,11 +135,11 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
   };
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-hidden bg-[#020202]">
+    <div className="relative min-h-0 flex-1 overflow-visible bg-[#020202] xl:overflow-hidden">
       <div
         ref={scrollRef}
         tabIndex={0}
-        className="h-full overflow-y-auto overscroll-contain bg-[#020202] px-4 pb-8 pt-5 outline-none sm:px-6 sm:pt-6 xl:px-5 xl:pt-6 xl:pr-8 min-[1400px]:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-auto overflow-visible bg-[#020202] px-4 pb-8 pt-5 outline-none sm:px-6 sm:pt-6 xl:h-full xl:overflow-y-auto xl:overscroll-contain xl:px-5 xl:pt-6 xl:pr-8 min-[1400px]:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {children}
       </div>
