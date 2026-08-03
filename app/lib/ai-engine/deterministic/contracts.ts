@@ -101,6 +101,17 @@ export type ConceptHealth = {
     reasons: string[];
     missingSignals: string[];
 };
+export type ConceptImportanceLevel = "critical" | "high" | "medium" | "low";
+export type ConceptImportanceRisk = "severe" | "high" | "moderate" | "low";
+export type ConceptImportance = {
+    level: ConceptImportanceLevel;
+    score: number;
+    reasons: string[];
+    businessCriticality: ConceptImportanceLevel;
+    assistantCriticality: ConceptImportanceLevel;
+    customerImpact: ConceptImportanceLevel;
+    riskIfWrong: ConceptImportanceRisk;
+};
 export type BusinessConcept = {
     id: string;
     canonicalTopicIdentity: string;
@@ -116,6 +127,7 @@ export type BusinessConcept = {
     ownerKnowledgeContributes: boolean;
     websiteKnowledgeContributes: boolean;
     health: ConceptHealth;
+    importance: ConceptImportance;
 };
 export type MissingInformationSignal = {
     id: string;

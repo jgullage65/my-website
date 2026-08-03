@@ -3,6 +3,7 @@ import type {
   BusinessConcept, ConceptHealth, DeterministicFact, MaterialConflict, NormalizedEvidence,
 } from "./contracts";
 import { confidenceLevel } from "./confidence";
+import { assessConceptImportance } from "./conceptImportance";
 import { keyText, stableId, uniqueBy } from "./util";
 
 const CONCEPT_CATEGORIES = new Set<WebsiteKnowledgeFact["category"]>([
@@ -153,6 +154,9 @@ export function assembleBusinessConcepts(
       supportingFacts.reduce((total, fact) => total + fact.confidenceScore, 0) / supportingFacts.length,
     );
     const conceptConflicts = conflicts.filter(conflict => conflict.topicKey === canonicalTopicIdentity);
+    const health = assessHealth(
+      supportingFacts[0]!.category, supportingFacts, supportingEvidence, confidenceScore, conceptConflicts,
+    );
     return {
       id: stableId("business_concept", canonicalTopicIdentity),
       canonicalTopicIdentity,
@@ -167,8 +171,9 @@ export function assembleBusinessConcepts(
       lastSeenSource: supportingEvidence[supportingEvidence.length - 1] ?? null,
       ownerKnowledgeContributes: supportingEvidence.some(evidence => evidence.provenance === "owner"),
       websiteKnowledgeContributes: supportingEvidence.some(evidence => evidence.provenance === "website"),
-      health: assessHealth(
-        supportingFacts[0]!.category, supportingFacts, supportingEvidence, confidenceScore, conceptConflicts,
+      health,
+      importance: assessConceptImportance(
+        supportingFacts[0]!.category, canonicalTopicIdentity, supportingFacts, health, conceptConflicts,
       ),
     };
   }).sort((a, b) => a.canonicalTopicIdentity.localeCompare(b.canonicalTopicIdentity));
