@@ -10,6 +10,7 @@ import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import type { AiBuilderProjectPreview } from "./AiBuilderProjects";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import AiBuilderWorkspaceView from "./AiBuilderWorkspaceView";
+import AiBuilderAssistantShowcase from "./AiBuilderAssistantShowcase";
 import AiBuilderDeterministicDemoWorkspace from "./AiBuilderDeterministicDemoWorkspace";
 
 export const AI_BUILDER_SHOWCASE_SLIDES = [
@@ -19,6 +20,7 @@ export const AI_BUILDER_SHOWCASE_SLIDES = [
   { id: "insights", label: "Project Insights" },
   { id: "review", label: "Business Knowledge" },
   { id: "sources", label: "Sources" },
+  { id: "assistant", label: "Assistant" },
 ] as const;
 
 export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]["id"];
@@ -127,9 +129,7 @@ const showcaseWebsiteKnowledge = {
       sourceDocumentId: "landing-source-privacy",
     },
   ],
-  warnings: [
-    "Duplicate page content was skipped during extraction.",
-  ],
+  warnings: ["Duplicate page content was skipped during extraction."],
   knowledge: {
     facts: [],
     coverage: {},
@@ -225,6 +225,7 @@ export type AiBuilderSurfaceShowcaseProps = {
 export default function AiBuilderSurfaceShowcase({
   session,
   builder,
+  models,
   diagnostics = null,
   initialSlide = "builder",
   autoAdvance = false,
@@ -343,7 +344,7 @@ export default function AiBuilderSurfaceShowcase({
         embeddedReview
       />
     );
-  } else {
+  } else if (activeSlide === "sources") {
     showcaseSurface = (
       <AiBuilderWorkspaceView
         mode="demo"
@@ -354,6 +355,8 @@ export default function AiBuilderSurfaceShowcase({
         diagnostics={diagnostics}
       />
     );
+  } else {
+    showcaseSurface = <AiBuilderAssistantShowcase models={models} />;
   }
 
   return (
