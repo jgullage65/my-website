@@ -1,36 +1,63 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { listAvailableModels } from "@/app/lib/ai-engine/models/registry";
 import { aiBuilderCornerCtaClassName } from "./AiBuilderAuthCta";
 import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
 
-const SHOWCASE_MODEL_IDS = ["gpt-5-5", "claude-sonnet", "gemini-2-5-pro", "grok"] as const;
+type ModelsPayload = {
+  ok?: boolean;
+  models?: AiBuilderModelChoice[];
+  defaultModelId?: string;
+};
+
+const registryModels: AiBuilderModelChoice[] = listAvailableModels("test-assistant").map((model) => ({
+  id: model.id,
+  provider: model.provider,
+  displayName: model.displayName,
+  recommended: model.recommended,
+  highUsage: model.highUsage,
+}));
 
 export default function AiBuilderAssistantShowcase({ models: _models }: { models: AiBuilderModelChoice[] }) {
-  const availableModels = listAvailableModels("test-assistant");
-  const showcaseModels: AiBuilderModelChoice[] = SHOWCASE_MODEL_IDS
-    .map((modelId) => availableModels.find((model) => model.id === modelId))
-    .filter((model): model is NonNullable<typeof model> => Boolean(model))
-    .map((model) => ({
-      id: model.id,
-      provider: model.provider,
-      displayName: model.displayName,
-      recommended: model.recommended,
-      highUsage: model.highUsage,
-    }));
-  const selectedModel = showcaseModels[0]?.id ?? "";
+  const [modelChoices, setModelChoices] = useState<AiBuilderModelChoice[]>(registryModels);
+  const [selectedModel, setSelectedModel] = useState(
+    registryModels.find((model) => model.recommended)?.id ?? registryModels[0]?.id ?? "",
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetch("/api/ai-builder/models?purpose=test-assistant")
+      .then((response) => response.json() as Promise<ModelsPayload>)
+      .then((payload) => {
+        if (cancelled || !payload.ok || !payload.models?.length) return;
+        setModelChoices(payload.models);
+        setSelectedModel(
+          payload.defaultModelId ||
+            payload.models.find((model) => model.recommended)?.id ||
+            payload.models[0]?.id ||
+            "",
+        );
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <section className="grid h-full min-h-0 grid-cols-2 overflow-hidden rounded-[20px] border border-white/[0.09] bg-black">
       <div className="relative flex min-h-0 items-start justify-center overflow-hidden border-r border-white/[0.09] bg-[#030303] px-7 pb-4 pt-5">
         <div className="pointer-events-none relative z-20 flex w-full max-w-[430px] items-start justify-center">
           <AiBuilderModelSelect
-            models={showcaseModels}
+            models={modelChoices}
             value={selectedModel}
             disabled={false}
             defaultOpen
             onChange={() => undefined}
-            className="w-full [&_[role=listbox]]:max-h-none"
+            className="w-full"
           />
         </div>
       </div>
