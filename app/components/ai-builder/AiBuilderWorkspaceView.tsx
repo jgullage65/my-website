@@ -16,6 +16,7 @@ import {
   type AiBuilderWorkspaceTab,
 } from "./AiBuilderWorkspaceContext";
 import type { BuilderState, ReviewCommandPending } from "./AiBuilderClient";
+import "./AiBuilderFormOverrides.css";
 
 export type AiBuilderWorkspaceViewName =
   | "dashboard"
@@ -80,7 +81,7 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
     content = <AiBuilderDashboard showcase={props.dashboardShowcase} />;
   } else if (props.activeView === "builder") {
     content = (
-      <div className={`${inert} h-full overflow-hidden`}>
+      <div className={`${inert} ai-builder-form w-full`}>
         <AiBuilderForm
           value={props.builder}
           projectId={props.projectId}
