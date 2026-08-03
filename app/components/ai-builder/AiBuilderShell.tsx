@@ -110,8 +110,25 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             .ai-builder-shell__content
             div[class~="mt-12"][class~="space-y-6"]
             > div:first-child {
-            grid-column: 1;
+            display: contents;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > div:first-child
+            > header {
+            grid-column: 1 / -1;
             grid-row: 1;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            div[class~="mt-12"][class~="space-y-6"]
+            > div:first-child
+            > section {
+            grid-column: 1;
+            grid-row: 2;
             min-width: 0;
           }
 
@@ -136,7 +153,7 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             > section[class~="min-w-0"][class~="space-y-5"]
             > div:first-child {
             grid-column: 1 / -1;
-            grid-row: 2;
+            grid-row: 3;
           }
 
           body[data-ai-builder-workspace="true"]
@@ -154,20 +171,20 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             > div[class~="grid"][class~="gap-4"]
             > article:first-child {
             grid-column: 2;
-            grid-row: 1;
+            grid-row: 2;
             min-width: 0;
             height: auto;
-            align-self: start;
-            margin-top: 3.25rem !important;
+            align-self: stretch;
           }
 
           body[data-ai-builder-workspace="true"]
             .ai-builder-shell__content
             div[class~="mt-12"][class~="space-y-6"]
             > div:first-child
+            > section
             article
             span[class~="absolute"][class~="right-0"][class~="top-0"] {
-            transform: translateY(-0.65rem);
+            transform: translateY(-0.9rem);
           }
         }
 
