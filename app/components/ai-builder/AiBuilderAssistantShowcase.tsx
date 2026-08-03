@@ -1,18 +1,18 @@
 "use client";
 
+import { listAvailableModels } from "@/app/lib/ai-engine/models/registry";
 import { aiBuilderCornerCtaClassName } from "./AiBuilderAuthCta";
 import AiBuilderModelSelect, { type AiBuilderModelChoice } from "./AiBuilderModelSelect";
 
-export default function AiBuilderAssistantShowcase({ models }: { models: AiBuilderModelChoice[] }) {
-  const showcaseModels = models.length
-    ? models
-    : [
-        { id: "gpt-5.5", displayName: "GPT-5.5", provider: "openai", recommended: true, highUsage: false },
-        { id: "claude-sonnet", displayName: "Claude Sonnet", provider: "anthropic", recommended: false, highUsage: false },
-        { id: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro", provider: "google", recommended: false, highUsage: false },
-        { id: "grok-4", displayName: "Grok 4", provider: "xai", recommended: false, highUsage: true },
-      ];
-  const selectedModel = showcaseModels[0]?.id ?? "";
+export default function AiBuilderAssistantShowcase({ models: _models }: { models: AiBuilderModelChoice[] }) {
+  const showcaseModels: AiBuilderModelChoice[] = listAvailableModels("test-assistant").map((model) => ({
+    id: model.id,
+    provider: model.provider,
+    displayName: model.displayName,
+    recommended: model.recommended,
+    highUsage: model.highUsage,
+  }));
+  const selectedModel = showcaseModels.find((model) => model.recommended)?.id ?? showcaseModels[0]?.id ?? "";
 
   return (
     <section className="grid h-full min-h-0 grid-cols-2 overflow-hidden rounded-[20px] border border-white/[0.09] bg-black">
