@@ -29,7 +29,6 @@ const plans = [
     description: "Build, review, and manage Business Brains for multiple websites.",
     features: [
       "Build Business Brains for multiple websites",
-      "Import website knowledge",
       "Review, approve, edit, and organize knowledge",
       "Export or download any Business Brain as a PDF",
     ],
