@@ -354,7 +354,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
                     key={`${item.label}-${item.at}-${index}`}
                     className="grid gap-1 py-3 sm:grid-cols-[9rem_1fr_auto] sm:items-center sm:gap-3"
                   >
-                    <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-amber-200">
+                    <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-white">
                       {item.label}
                     </p>
                     <p className="truncate text-sm text-slate-300">{item.detail}</p>
@@ -375,7 +375,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
 function Summary({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <article className="rounded-[18px] border border-white/[.07] bg-[#070707] p-5 text-center">
-      <p className="text-xs font-bold uppercase tracking-[.16em] text-amber-300">{label}</p>
+      <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">{label}</p>
       <p className="mt-2 truncate text-2xl font-semibold text-white" title={value}>
         {value}
       </p>
