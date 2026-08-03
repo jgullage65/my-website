@@ -66,6 +66,54 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
           }
         }
 
+        @media (max-width: 639px) {
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="sm:grid-cols-2"][class~="xl:grid-cols-4"] {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.625rem;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article {
+            min-width: 0;
+            border-radius: 14px;
+            padding: 0.75rem;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article
+            > p:first-child {
+            font-size: 0.6rem;
+            line-height: 0.85rem;
+            letter-spacing: 0.1em;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article
+            > p:nth-child(2) {
+            margin-top: 0.35rem;
+            font-size: 1.25rem;
+            line-height: 1.5rem;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article
+            > p:nth-child(3) {
+            margin-top: 0.35rem;
+            font-size: 0.68rem;
+            line-height: 1rem;
+          }
+        }
+
         @media (min-width: 1280px) {
           body[data-ai-builder-workspace="true"] .ai-builder-shell {
             height: 100dvh;
