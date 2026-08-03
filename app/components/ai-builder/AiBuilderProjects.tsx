@@ -31,13 +31,6 @@ type Props = {
   showcaseProjects?: AiBuilderProjectPreview[];
 };
 
-function date(value: string) {
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime())
-    ? "Not available"
-    : new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(parsed);
-}
-
 function domain(value: string | null) {
   if (!value) return "No website added";
   try {
@@ -260,29 +253,27 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
   if (!projects.length) return <div className="mt-5 rounded-xl border border-white/[.08] bg-[#050505] px-6 py-10 text-center"><p className="text-sm text-slate-400">No {archived ? "archived" : "active"} projects.</p></div>;
 
   return <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-2">{projects.map((project) => (
-    <article key={project.id} className="relative rounded-xl border border-white/[.09] bg-[#070707] px-4 py-3 transition hover:border-amber-300/25">
-      <div className="relative min-w-0 px-10 text-center">
-        <h3 className="truncate text-base font-black text-white">{project.businessName}</h3>
-        <p className="mt-1 truncate text-xs text-slate-500">{domain(project.website)}</p>
-        <div className="absolute right-0 top-0">
-          <div className="relative shrink-0">
-            <button type="button" disabled={showcase} aria-label={`Actions for ${project.businessName}`} aria-haspopup="menu" aria-expanded={menu === project.id} onClick={() => setMenu(menu === project.id ? null : project.id)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black text-base text-slate-300 transition hover:border-amber-300/30 hover:text-white disabled:cursor-default">•••</button>
-            {menu === project.id ? <div role="menu" className="absolute right-0 top-10 z-20 min-w-[150px] rounded-xl border border-[rgba(212,175,55,.2)] bg-[#050505] p-1.5 shadow-2xl">
-              {!archived ? <><button role="menuitem" disabled={busy === project.id} onClick={() => onRename(project)} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:bg-white/[0.04] hover:text-[var(--gold)]">Rename</button><button role="menuitem" disabled={busy === project.id} onClick={() => onArchive(project)} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-300 hover:bg-red-500/10">Archive</button></> : <button role="menuitem" disabled={busy === project.id} onClick={() => onRestore(project)} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-amber-300 hover:bg-white/[0.04]">Restore</button>}
-            </div> : null}
-          </div>
+    <article key={project.id} className="relative rounded-xl border border-white/[.09] bg-[#070707] px-4 py-4 transition hover:border-amber-300/25">
+      <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] items-start gap-3 sm:grid-cols-[auto_minmax(0,1fr)_minmax(118px,.68fr)_auto] sm:items-center sm:gap-4">
+        <div className="relative self-start sm:self-center">
+          <button type="button" disabled={showcase} aria-label={`Actions for ${project.businessName}`} aria-haspopup="menu" aria-expanded={menu === project.id} onClick={() => setMenu(menu === project.id ? null : project.id)} className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/10 bg-black text-base text-slate-300 transition hover:border-amber-300/30 hover:text-white disabled:cursor-default">•••</button>
+          {menu === project.id ? <div role="menu" className="absolute left-0 top-10 z-20 min-w-[150px] rounded-xl border border-[rgba(212,175,55,.2)] bg-[#050505] p-1.5 shadow-2xl">
+            {!archived ? <><button role="menuitem" disabled={busy === project.id} onClick={() => onRename(project)} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-slate-200 hover:bg-white/[0.04] hover:text-[var(--gold)]">Rename</button><button role="menuitem" disabled={busy === project.id} onClick={() => onArchive(project)} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-red-300 hover:bg-red-500/10">Archive</button></> : <button role="menuitem" disabled={busy === project.id} onClick={() => onRestore(project)} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-amber-300 hover:bg-white/[0.04]">Restore</button>}
+          </div> : null}
         </div>
-      </div>
 
-      <div className="mt-3 grid grid-cols-[minmax(112px,1fr)_auto_minmax(112px,1fr)] items-center gap-6 border-t border-white/[.07] pt-2">
-        <div className="min-w-0 justify-self-end text-center">
+        <div className="min-w-0 text-left">
+          <h3 className="truncate text-base font-black text-white">{project.businessName}</h3>
+          <p className="mt-1 truncate text-xs text-slate-500">{domain(project.website)}</p>
+        </div>
+
+        <div className="col-span-2 min-w-0 border-t border-white/[.07] pt-3 text-left sm:col-span-1 sm:border-t-0 sm:pt-0 sm:text-center">
           <p className="text-[9px] font-black uppercase tracking-[.12em] text-[var(--gold)]">Knowledge model</p>
           <p className="mt-1 truncate text-[11px] font-semibold text-white" title={project.model || "Not available"}>{project.model || "Not available"}</p>
         </div>
-        {!archived ? (showcase ? <span className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white">Open project</span> : <Link href={`/ai-builder?projectId=${encodeURIComponent(project.id)}&tab=dashboard`} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30">Open project</Link>) : <button type="button" disabled={busy === project.id || showcase} onClick={() => onRestore(project)} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30 disabled:opacity-50">Restore</button>}
-        <div className="min-w-0 justify-self-start text-center">
-          <p className="text-[9px] font-black uppercase tracking-[.12em] text-[var(--gold)]">Created</p>
-          <p className="mt-1 truncate text-[11px] font-semibold text-white" title={date(project.createdAt)}>{date(project.createdAt)}</p>
+
+        <div className="col-span-2 flex justify-end sm:col-span-1">
+          {!archived ? (showcase ? <span className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white">Open project</span> : <Link href={`/ai-builder?projectId=${encodeURIComponent(project.id)}&tab=dashboard`} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30">Open project</Link>) : <button type="button" disabled={busy === project.id || showcase} onClick={() => onRestore(project)} className="inline-flex items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white transition hover:border-amber-300/30 disabled:opacity-50">Restore</button>}
         </div>
       </div>
     </article>
