@@ -581,6 +581,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           activeTab={workspaceTab}
           overviewOpen={overviewOpen}
           knowledgeOpen={workspaceTab === "knowledge"}
+          pendingReviewItems={pendingReviewItems}
+          submitReviewCommand={submitReviewCommand}
           setActiveTab={selectAiBuilderWorkspaceTab}
           openOverview={() => setOverviewOpen(true)}
           closeOverview={() => setOverviewOpen(false)}
@@ -659,6 +661,8 @@ export default function AiBuilderClient({ initialProjectId = null }: Props) {
           activeTab={workspaceTab}
           overviewOpen={overviewOpen}
           knowledgeOpen={workspaceTab === "knowledge"}
+          pendingReviewItems={pendingReviewItems}
+          submitReviewCommand={submitReviewCommand}
           setActiveTab={selectAiBuilderWorkspaceTab}
           openOverview={() => setOverviewOpen(true)}
           closeOverview={() => setOverviewOpen(false)}
