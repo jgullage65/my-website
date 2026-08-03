@@ -120,11 +120,11 @@ test("canonicalizes supported aliases while keeping different concepts separate"
     { path: "/integrations", type: "integrations", heading: "Google Apps", bodies: [{ text: "The platform integrates with Google Apps." }] },
     { path: "/connectors", type: "integrations", heading: "Google Workspace", bodies: [{ text: "Connects with Google Workspace." }] },
   ]));
-  assert.equal(result.facts.filter(fact => fact.topicKey === "certification:soc2").length, 2,
+  assert.equal(result.facts.filter(fact => fact.topicKey === "security_compliance:soc2").length, 2,
     JSON.stringify(result.facts.map(fact => [fact.category, fact.topicKey, fact.value])));
-  assert.ok(result.facts.some(fact => fact.topicKey === "certification:hipaa"));
+  assert.ok(result.facts.some(fact => fact.topicKey === "security_compliance:hipaa"));
   assert.equal(result.facts.filter(fact => fact.topicKey === "integration:google_workspace").length, 2);
-  assert.notEqual("certification:soc2", "certification:hipaa");
+  assert.notEqual("security_compliance:soc2", "security_compliance:hipaa");
 });
 
 test("keeps topic identity stable across different service page structures", () => {
@@ -198,9 +198,10 @@ test("canonical identity preserves fact fields and evidence deterministically", 
   const second = buildDeterministicBusinessBrain(input).facts.find(fact => fact.category === "security_compliance");
   assert.ok(first && second);
   assert.equal(first.id, second.id);
-  assert.equal(first.value, "Our platform is SOC II compliant and customer data is encrypted.");
+  assert.equal(first.value, "SOC II");
   assert.equal(first.category, "security_compliance");
   assert.equal(first.provenance, "website");
+  assert.equal(first.evidence[0]?.excerpt, "Our platform is SOC II compliant and customer data is encrypted.");
   assert.equal(first.confidence, second.confidence);
   assert.deepEqual(first.evidence, second.evidence);
 });

@@ -49,7 +49,9 @@ export function normalizeSources(input: DeterministicEngineInput): NormalizedSou
         if (!page.text)
             continue;
         const url = canonicalUrl(page.url);
-        if (candidates.some((item) => item.evidence.url === url))
+        // Headings and filtered chrome establish structure, but are not usable body
+        // content and therefore must not suppress the page-text safety net.
+        if (candidates.some((item) => item.evidence.url === url && item.type !== "heading" && !CHROME.test(item.text)))
             continue;
         const text = cleanText(page.text);
         const pageType = classifyPage(page);
@@ -79,6 +81,8 @@ export function normalizeSources(input: DeterministicEngineInput): NormalizedSou
         occurrences.set(identity, urls);
     }
     const retained = candidates.filter((item) => {
+        if (CHROME.test(item.text))
+            return false;
         const repeated = (occurrences.get(keyText(item.text))?.size ?? 0) > 1;
         if (!repeated)
             return true;
@@ -86,14 +90,22 @@ export function normalizeSources(input: DeterministicEngineInput): NormalizedSou
             .test(item.text)) {
             return true;
         }
-        if (CHROME.test(item.text))
-            return false;
         return !/\b(?:newsletter|cookie preferences|accessibility menu|follow us on|terms of website use)\b/i
             .test(item.text);
     });
-    return retained.map((item, index) => ({
-        ...item,
-        previousBlockId: retained[index - 1]?.id,
-        nextBlockId: retained[index + 1]?.id,
-    }));
+    const previousByDocument = new Map<string | undefined, string>();
+    const previousIds = retained.map(item => {
+        const documentId = item.evidence.sourceDocumentId;
+        const previous = previousByDocument.get(documentId);
+        previousByDocument.set(documentId, item.id);
+        return previous;
+    });
+    const nextByDocument = new Map<string | undefined, string>();
+    const nextIds = new Array<string | undefined>(retained.length);
+    for (let index = retained.length - 1; index >= 0; index -= 1) {
+        const item = retained[index];
+        nextIds[index] = nextByDocument.get(item.evidence.sourceDocumentId);
+        nextByDocument.set(item.evidence.sourceDocumentId, item.id);
+    }
+    return retained.map((item, index) => ({ ...item, previousBlockId: previousIds[index], nextBlockId: nextIds[index] }));
 }
