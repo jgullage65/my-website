@@ -7,12 +7,14 @@ import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/we
 import type { BuilderState } from "./AiBuilderClient";
 import type { AiBuilderModelChoice } from "./AiBuilderModelSelect";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
+import type { AiBuilderProjectPreview } from "./AiBuilderProjects";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
 import AiBuilderWorkspaceView from "./AiBuilderWorkspaceView";
 import AiBuilderDeterministicDemoWorkspace from "./AiBuilderDeterministicDemoWorkspace";
 
 export const AI_BUILDER_SHOWCASE_SLIDES = [
   { id: "builder", label: "AI Builder" },
+  { id: "projects", label: "Projects" },
   { id: "dashboard", label: "Dashboard" },
   { id: "insights", label: "Project Insights" },
   { id: "review", label: "Business Knowledge" },
@@ -24,6 +26,61 @@ export type AiBuilderShowcaseSlide = (typeof AI_BUILDER_SHOWCASE_SLIDES)[number]
 const SHOWCASE_VIEWPORT_CLASS = "h-[clamp(430px,calc(100dvh-360px),620px)]";
 const heroButtonClass =
   "cta-raised inline-flex min-h-12 items-center justify-center rounded-xl border border-amber-300/20 bg-[#080808] px-5 py-3 text-sm font-black text-white shadow-[0_10px_24px_rgba(0,0,0,.28),inset_0_1px_0_rgba(255,255,255,.05)] transition duration-300 hover:-translate-y-0.5 hover:border-amber-300/35 hover:bg-[#111111]";
+
+const showcaseProjects: AiBuilderProjectPreview[] = [
+  {
+    id: "arkena-studio",
+    businessName: "Arkena Studio",
+    website: "https://arkena.studio",
+    industry: "AI products and automation",
+    status: "ready",
+    messageCount: 18,
+    createdAt: "2026-07-18T21:50:00.000Z",
+    updatedAt: "2026-08-02T18:20:00.000Z",
+    archivedAt: null,
+    stateRevision: 12,
+    model: "GPT-5.5",
+  },
+  {
+    id: "leadforge",
+    businessName: "LeadForge",
+    website: "https://leadforge.ai",
+    industry: "Sales intelligence",
+    status: "ready",
+    messageCount: 31,
+    createdAt: "2026-06-14T15:24:00.000Z",
+    updatedAt: "2026-08-01T12:10:00.000Z",
+    archivedAt: null,
+    stateRevision: 27,
+    model: "Claude Sonnet",
+  },
+  {
+    id: "northstar-advisory",
+    businessName: "Northstar Advisory",
+    website: "https://northstaradvisory.co",
+    industry: "Business consulting",
+    status: "ready",
+    messageCount: 12,
+    createdAt: "2026-07-03T17:05:00.000Z",
+    updatedAt: "2026-07-29T09:45:00.000Z",
+    archivedAt: null,
+    stateRevision: 8,
+    model: "Gemini 2.5 Pro",
+  },
+  {
+    id: "atlas-home-services",
+    businessName: "Atlas Home Services",
+    website: "https://atlashomeservices.com",
+    industry: "Home services",
+    status: "ready",
+    messageCount: 9,
+    createdAt: "2026-07-11T13:30:00.000Z",
+    updatedAt: "2026-07-27T16:18:00.000Z",
+    archivedAt: null,
+    stateRevision: 6,
+    model: "GPT-5 mini",
+  },
+];
 
 const showcaseWebsiteKnowledge = {
   schema_version: 2,
@@ -237,6 +294,18 @@ export default function AiBuilderSurfaceShowcase({
         websiteKnowledge={showcaseWebsiteKnowledge}
         diagnostics={diagnostics}
         previewMode
+      />
+    );
+  } else if (activeSlide === "projects") {
+    showcaseSurface = (
+      <AiBuilderWorkspaceView
+        mode="demo"
+        activeView="projects"
+        session={session}
+        builder={builder}
+        websiteKnowledge={showcaseWebsiteKnowledge}
+        diagnostics={diagnostics}
+        showcaseProjects={showcaseProjects}
       />
     );
   } else if (activeSlide === "dashboard") {
