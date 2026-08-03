@@ -9,6 +9,7 @@ import AiBuilderDemoChat from "./AiBuilderDemoChat";
 import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderKnowledgeInspector from "./AiBuilderKnowledgeInspector";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
+import AiBuilderProjects, { type AiBuilderProjectPreview } from "./AiBuilderProjects";
 import AiBuilderReview from "./AiBuilderReview";
 import AiBuilderSources from "./AiBuilderSources";
 import {
@@ -21,6 +22,7 @@ import "./AiBuilderFormOverrides.css";
 export type AiBuilderWorkspaceViewName =
   | "dashboard"
   | "builder"
+  | "projects"
   | "review"
   | "insights"
   | "sources"
@@ -45,6 +47,7 @@ export type AiBuilderWorkspaceViewProps = {
   knowledge?: KnowledgePack | null;
   chatThread?: ChatThread;
   projectId?: string | null;
+  showcaseProjects?: AiBuilderProjectPreview[];
   pendingReviewItems?: ReviewCommandPending;
   embeddedReview?: boolean;
   dashboardShowcase?: boolean;
@@ -61,6 +64,7 @@ const noop = () => undefined;
 const noopAsync = async () => undefined;
 
 function workspaceTabForView(view: AiBuilderWorkspaceViewName): AiBuilderWorkspaceTab {
+  if (view === "projects") return "projects";
   if (view === "dashboard") return "dashboard";
   if (view === "insights") return "insights";
   if (view === "review") return "knowledge";
@@ -88,6 +92,12 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
           onChange={props.onBuilderChange ?? noop}
           onBuild={props.onBuild ?? noop}
         />
+      </div>
+    );
+  } else if (props.activeView === "projects") {
+    content = (
+      <div className={`${inert} h-full min-h-0 overflow-hidden`}>
+        <AiBuilderProjects embedded showcaseProjects={props.showcaseProjects ?? []} />
       </div>
     );
   } else if (props.activeView === "review") {
