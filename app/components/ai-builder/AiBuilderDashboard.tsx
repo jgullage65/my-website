@@ -238,7 +238,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
 
   return (
     <div className={`space-y-5 pb-2 ${showcase ? "h-full" : ""}`}>
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-4 sm:gap-2.5 min-[1200px]:gap-4">
         <Summary
           label="Project"
           value={project.businessName || "Untitled project"}
@@ -374,12 +374,12 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
 
 function Summary({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <article className="rounded-[18px] border border-white/[.12] bg-[#070707] p-5 text-center">
-      <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">{label}</p>
-      <p className="mt-2 truncate text-2xl font-semibold text-white" title={value}>
+    <article className="rounded-[18px] border border-white/[.12] bg-[#070707] p-5 text-center sm:rounded-[14px] sm:p-3 min-[1200px]:rounded-[18px] min-[1200px]:p-5">
+      <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500 sm:text-[0.58rem] sm:leading-3 sm:tracking-[.1em] min-[1200px]:text-xs min-[1200px]:leading-normal min-[1200px]:tracking-[.16em]">{label}</p>
+      <p className="mt-2 truncate text-2xl font-semibold text-white sm:mt-1.5 sm:text-lg sm:leading-6 min-[1200px]:mt-2 min-[1200px]:text-2xl" title={value}>
         {value}
       </p>
-      <p className="mt-2 text-xs leading-5 text-slate-500" title={detail}>
+      <p className="mt-2 text-xs leading-5 text-slate-500 sm:mt-1.5 sm:text-[0.65rem] sm:leading-4 min-[1200px]:mt-2 min-[1200px]:text-xs min-[1200px]:leading-5" title={detail}>
         {detail}
       </p>
     </article>
