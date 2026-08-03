@@ -152,7 +152,7 @@ function SummaryCard({
   status?: string;
 }) {
   return (
-    <article className="rounded-[18px] border border-white/[0.07] bg-[#070707] p-5 text-center">
+    <article className="rounded-[18px] border border-white/[0.12] bg-[#070707] p-5 text-center">
       <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">{label}</p>
       <p className={`mt-2 text-2xl font-semibold capitalize ${status ? statusTone(status) : "text-white"}`}>
         {value}
@@ -164,7 +164,7 @@ function SummaryCard({
 
 function Panel({ eyebrow, children }: { eyebrow: string; children: React.ReactNode }) {
   return (
-    <section className="flex min-h-[560px] flex-col rounded-xl border border-white/[.08] bg-[#050505] p-5">
+    <section className="flex min-h-[560px] flex-col rounded-xl border border-white/[.12] bg-[#050505] p-5">
       <p className="text-center text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
         {eyebrow}
       </p>
@@ -175,7 +175,7 @@ function Panel({ eyebrow, children }: { eyebrow: string; children: React.ReactNo
 
 function HistorySection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mt-4 border-t border-white/[.08] pt-4">
+    <div className="mt-4 border-t border-white/[.12] pt-4">
       <p className="mb-4 text-center text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
         {title}
       </p>
@@ -188,13 +188,13 @@ function Grid({ items }: { items: Array<[string, unknown]> }) {
   const quietValueLabels = new Set(["Last import", "Last attempt", "Model"]);
 
   return (
-    <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-white/[.07]">
+    <dl className="grid grid-cols-2 overflow-hidden rounded-lg border border-white/[.12]">
       {items.map(([label, value]) => {
         const quiet = quietValueLabels.has(label);
         return (
           <div
             key={label}
-            className="border-b border-r border-white/[.07] bg-black/40 px-3.5 py-2.5 text-center even:border-r-0"
+            className="border-b border-r border-white/[.12] bg-black/40 px-3.5 py-2.5 text-center even:border-r-0"
           >
             <dt className="text-xs font-semibold text-slate-500">{label}</dt>
             <dd
@@ -222,20 +222,20 @@ function AttemptTable({
 
   if (!rows.length) {
     return (
-      <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-white/[.07] bg-black/40 px-5 text-center text-sm text-slate-600">
+      <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-white/[.12] bg-black/40 px-5 text-center text-sm text-slate-600">
         No recorded attempts yet
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-white/[.07]">
-      <div className="grid grid-cols-[1.2fr_.8fr_.7fr] border-b border-white/[.07] bg-black/60 px-3 py-2 text-center text-[.68rem] font-medium text-slate-500">
+    <div className="overflow-hidden rounded-lg border border-white/[.12]">
+      <div className="grid grid-cols-[1.2fr_.8fr_.7fr] border-b border-white/[.12] bg-black/60 px-3 py-2 text-center text-[.68rem] font-medium text-slate-500">
         <span>Started</span>
         <span>{kind === "crawl" ? "Pages" : "Model"}</span>
         <span>Status</span>
       </div>
-      <div className="divide-y divide-white/[.07]">
+      <div className="divide-y divide-white/[.12]">
         {rows.map((item, index) => (
           <div
             key={`${kind}-${String(item.started_at ?? index)}`}
@@ -272,7 +272,7 @@ function Status({ value }: { value: unknown }) {
   const normalized = String(value ?? "unknown");
   return (
     <span
-      className={`inline-flex justify-center rounded-lg border border-white/[0.08] bg-black px-2.5 py-1 text-xs font-bold capitalize ${statusTone(normalized)}`}
+      className={`inline-flex justify-center rounded-lg border border-white/[0.12] bg-black px-2.5 py-1 text-xs font-bold capitalize ${statusTone(normalized)}`}
     >
       {humanize(normalized)}
     </span>
