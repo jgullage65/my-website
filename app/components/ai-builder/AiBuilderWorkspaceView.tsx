@@ -107,7 +107,6 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   } else if (props.activeView === "review") {
     content = (
       <div className={inert}>
-        {!demo && !preview ? <AiBuilderKnowledgeInspector /> : null}
         <AiBuilderReview
           onReviewCommand={submitReviewCommand}
           pendingReviewItems={pendingReviewItems}
@@ -116,6 +115,11 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
           showLaunchChat={demo || preview ? false : props.showLaunchChat}
           embedded={props.embeddedReview}
         />
+        {!demo && !preview ? (
+          <div className="mt-4">
+            <AiBuilderKnowledgeInspector />
+          </div>
+        ) : null}
       </div>
     );
   } else if (props.activeView === "insights") {
