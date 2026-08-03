@@ -6,7 +6,7 @@ import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/we
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import AiBuilderDashboard from "./AiBuilderDashboard";
 import AiBuilderDemoChat from "./AiBuilderDemoChat";
-import AiBuilderEmptyWorkspace from "./AiBuilderEmptyWorkspace";
+import AiBuilderForm from "./AiBuilderForm";
 import AiBuilderKnowledgeInspector from "./AiBuilderKnowledgeInspector";
 import AiBuilderProjectInsights, { type ProjectDiagnostics } from "./AiBuilderProjectInsights";
 import AiBuilderReview from "./AiBuilderReview";
@@ -80,11 +80,13 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
     content = <AiBuilderDashboard showcase={props.dashboardShowcase} />;
   } else if (props.activeView === "builder") {
     content = (
-      <div className={inert}>
-        <AiBuilderEmptyWorkspace
-          builder={props.builder}
+      <div className={`${inert} h-full overflow-hidden`}>
+        <AiBuilderForm
+          value={props.builder}
+          projectId={demo || preview ? null : props.projectId}
           onChange={demo || preview ? noop : props.onBuilderChange ?? noop}
           onBuild={demo || preview ? noop : props.onBuild ?? noop}
+          demoMode={demo || preview}
         />
       </div>
     );
