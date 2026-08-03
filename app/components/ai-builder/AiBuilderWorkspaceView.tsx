@@ -63,6 +63,8 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
   const demo = props.mode === "demo";
   const preview = props.mode === "preview";
   const inert = demo ? "pointer-events-none" : "";
+  const pendingReviewItems = props.pendingReviewItems ?? new Set<string>();
+  const submitReviewCommand = demo ? noopAsync : props.onReviewCommand ?? noopAsync;
 
   let content = null;
 
@@ -88,8 +90,8 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
       <div className={inert}>
         {!demo && !preview ? <AiBuilderKnowledgeInspector /> : null}
         <AiBuilderReview
-          onReviewCommand={demo ? noopAsync : props.onReviewCommand ?? noopAsync}
-          pendingReviewItems={props.pendingReviewItems ?? new Set()}
+          onReviewCommand={submitReviewCommand}
+          pendingReviewItems={pendingReviewItems}
           onBack={demo ? noop : props.onBack ?? noop}
           onLaunchChat={demo ? noop : props.onLaunchChat ?? noop}
           showLaunchChat={demo || preview ? false : props.showLaunchChat}
@@ -134,6 +136,8 @@ export default function AiBuilderWorkspaceView(props: AiBuilderWorkspaceViewProp
       activeTab={workspaceTabForView(props.activeView)}
       overviewOpen={false}
       knowledgeOpen={props.activeView === "review"}
+      pendingReviewItems={pendingReviewItems}
+      submitReviewCommand={submitReviewCommand}
       setActiveTab={noop}
       openOverview={noop}
       closeOverview={noop}
