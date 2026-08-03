@@ -14,7 +14,7 @@ export function routeLegacyFactsAsObservations(
     .map((fact, sourceIndex) => {
       const primaryBucket = primaryBucketForCategory(fact.category);
       return {
-        id: stableId("knowledge_observation", fact.id),
+        id: stableId("knowledge_observation", `${fact.id}\0${sourceIndex}`),
         sourceFactId: fact.id,
         sourceIndex,
         text: fact.value,
