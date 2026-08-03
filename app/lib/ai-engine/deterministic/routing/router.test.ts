@@ -45,6 +45,23 @@ test("routes one immutable observation per legacy fact occurrence", () => {
   assert.deepEqual(input, snapshot);
 });
 
+test("keeps distinct observation identities stable across source reordering", () => {
+  const input = [
+    fact("product", "product", "Atlas platform"),
+    fact("pricing", "pricing_plan", "Starter plan costs $29"),
+    fact("trust", "security_compliance", "Data is encrypted"),
+  ];
+
+  const forwardIds = routeLegacyFactsAsObservations(input)
+    .map((item) => item.id)
+    .sort();
+  const reversedIds = routeLegacyFactsAsObservations([...input].reverse())
+    .map((item) => item.id)
+    .sort();
+
+  assert.deepEqual(reversedIds, forwardIds);
+});
+
 test("routes every observation to exactly one primary bucket in Phase 1", () => {
   const observations = routeLegacyFactsAsObservations([
     fact("product", "product", "Atlas platform"),
