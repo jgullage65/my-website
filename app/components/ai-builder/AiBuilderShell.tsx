@@ -88,6 +88,99 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
           }
         }
 
+        @media (min-width: 640px) and (max-width: 1023.99px) {
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"] {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: clamp(0.5rem, 1vw, 0.75rem) !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article {
+            min-width: 0;
+            border-radius: clamp(0.75rem, 1.4vw, 0.95rem);
+            padding: clamp(0.65rem, 1.5vw, 0.95rem) !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article
+            > p:first-child {
+            font-size: clamp(0.5rem, 0.85vw, 0.62rem) !important;
+            line-height: 0.85rem !important;
+            letter-spacing: 0.09em !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article
+            > p:nth-child(2) {
+            margin-top: clamp(0.3rem, 0.7vw, 0.5rem) !important;
+            font-size: clamp(0.72rem, 1.55vw, 1.1rem) !important;
+            line-height: clamp(0.95rem, 2vw, 1.35rem) !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article
+            > p:nth-child(3) {
+            margin-top: clamp(0.3rem, 0.7vw, 0.5rem) !important;
+            font-size: clamp(0.52rem, 0.95vw, 0.68rem) !important;
+            line-height: clamp(0.8rem, 1.4vw, 1rem) !important;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"] {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: 1rem !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article {
+            border-radius: 18px;
+            padding: 1.25rem !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article
+            > p:first-child {
+            font-size: 0.75rem !important;
+            line-height: 1rem !important;
+            letter-spacing: 0.16em !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article
+            > p:nth-child(2) {
+            margin-top: 0.5rem !important;
+          }
+
+          body[data-ai-builder-workspace="true"]
+            .ai-builder-shell__content
+            section[class~="min-w-0"][class~="sm:grid-cols-2"][class~="xl:grid-cols-4"]
+            > article
+            > p:nth-child(3) {
+            margin-top: 0.5rem !important;
+            font-size: 0.75rem !important;
+            line-height: 1.25rem !important;
+          }
+        }
+
         @media (min-width: 640px) and (max-width: 1199.99px) {
           body[data-ai-builder-workspace="true"]
             .ai-builder-shell__content
