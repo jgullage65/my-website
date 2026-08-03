@@ -49,6 +49,87 @@ const path = (value: string | null | undefined) => {
 const humanize = (value: string | null | undefined) =>
   String(value ?? "unknown").replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+const sourceTypeLabel = (value: string | null | undefined) => {
+  const normalized = String(value ?? "").toLowerCase();
+  if (normalized === "rendered_html") return "Processed page";
+  if (normalized === "html") return "Website page";
+  if (normalized === "pdf") return "PDF document";
+  return humanize(value);
+};
+
+const importStatusLabel = (value: unknown) => {
+  const normalized = String(value ?? "").toLowerCase();
+  if (["completed", "success", "succeeded", "retained"].includes(normalized)) return "Imported";
+  if (["partial", "partially_completed"].includes(normalized)) return "Partially imported";
+  if (["failed", "error"].includes(normalized)) return "Could not import";
+  if (["skipped", "cancelled", "canceled"].includes(normalized)) return "Skipped";
+  if (["running", "processing", "extracting"].includes(normalized)) return "Importing";
+  if (["queued", "pending"].includes(normalized)) return "Waiting to import";
+  return normalized ? humanize(normalized) : "Not available";
+};
+
+const plainWarning = (value: string) => {
+  const warning = value.replace(/\s+/g, " ").trim();
+  const lower = warning.toLowerCase();
+
+  if (/json[- ]?ld|structured data|structured metadata|malformed json/.test(lower)) {
+    return "Some hidden website information could not be read. Visible page content was still imported.";
+  }
+  if (/rate limit|too many requests|429/.test(lower)) {
+    return "The website temporarily limited access, so some pages may not have been imported.";
+  }
+  if (/access denied|forbidden|unauthorized|\b401\b|\b403\b/.test(lower)) {
+    return "The website blocked access to part of its content, so some pages could not be imported.";
+  }
+  if (/timed? out|timeout/.test(lower) && /render|browser|javascript/.test(lower)) {
+    return "A page took too long to finish loading, so its dynamic content could not be imported.";
+  }
+  if (/timed? out|timeout/.test(lower)) {
+    return "A page took too long to respond and could not be imported.";
+  }
+  if (/browser|render|javascript|playwright/.test(lower)) {
+    return "Some dynamic page content could not be fully loaded during the import.";
+  }
+  if (/pdf/.test(lower) && /large|limit|truncat|too many pages/.test(lower)) {
+    return "A PDF was too large to import completely, so only part of it was included.";
+  }
+  if (/pdf/.test(lower) && /fail|error|parse|read/.test(lower)) {
+    return "A PDF could not be read and was not included in the imported knowledge.";
+  }
+  if (/response too large|exceeds.*limit|content.*too large|maximum.*size/.test(lower)) {
+    return "A page was too large to import completely, so some content was left out.";
+  }
+  if (/truncat|cut off/.test(lower)) {
+    return "Some content was too large to import completely, so only the most useful portion was included.";
+  }
+  if (/redirect/.test(lower) && /block|fail|unsafe|loop|too many/.test(lower)) {
+    return "A page redirected somewhere the importer could not safely follow.";
+  }
+  if (/unsafe destination|private address|blocked destination/.test(lower)) {
+    return "A page led to a restricted destination and was not opened.";
+  }
+  if (/unsupported content|content type|unsupported protocol/.test(lower)) {
+    return "A file type on the website is not supported and was not imported.";
+  }
+  if (/duplicate|near duplicate|same content|already imported/.test(lower)) {
+    return "Repeated page content was skipped so the same information would not be imported twice.";
+  }
+  if (/sitemap/.test(lower) && /fail|error|invalid|reject/.test(lower)) {
+    return "The website's page directory could not be fully read, but other pages were still discovered normally.";
+  }
+  if (/404|not found/.test(lower)) {
+    return "A linked page could not be found and was not imported.";
+  }
+  if (/fetch|request|network|connection/.test(lower) && /fail|error|closed|reset/.test(lower)) {
+    return "A page could not be reached during the import.";
+  }
+  if (/extract|parse|read/.test(lower) && /fail|error|unable|could not/.test(lower)) {
+    return "A page opened, but its useful content could not be read.";
+  }
+
+  return "Some website content could not be imported completely. The rest of the available content was still processed.";
+};
+
 const timestamp = (value: unknown) => {
   const parsed = value ? new Date(String(value)).getTime() : 0;
   return Number.isNaN(parsed) ? 0 : parsed;
@@ -85,6 +166,10 @@ export default function AiBuilderSources() {
 
   const pages = websiteKnowledge?.pages ?? [];
   const warnings = websiteKnowledge?.warnings ?? [];
+  const customerWarnings = useMemo(
+    () => Array.from(new Set(warnings.map(plainWarning))),
+    [warnings],
+  );
   const documents = websiteKnowledge?.source_documents ?? [];
   const blocks = websiteKnowledge?.source_blocks ?? [];
   const crawls = useMemo(
@@ -133,11 +218,11 @@ export default function AiBuilderSources() {
           ? knowledge.slice(0, 3).map((entry) => sentence(entry.content)).filter(Boolean).join(" ")
           : "No Business Knowledge was generated from this page.";
         const importNotes = [
-          document?.sourceTruncated ? "Some page content was cut off during import." : null,
-          document?.extractionTruncated ? "Some extracted content was cut off during processing." : null,
-          document?.sourceType === "rendered_html" ? "This page required JavaScript rendering." : null,
-          document?.sourceType === "pdf" ? "PDF content was converted successfully." : null,
-          document?.status === "skipped" ? "This page was skipped during import." : null,
+          document?.sourceTruncated ? "This page was too large to import completely, so only the most useful content was included." : null,
+          document?.extractionTruncated ? "Some content was left out because the page contained more information than could be processed at once." : null,
+          document?.sourceType === "rendered_html" ? "This page needed extra processing before its content could be read." : null,
+          document?.sourceType === "pdf" ? "This PDF was successfully converted into readable content." : null,
+          document?.status === "skipped" ? "This page was not included in the imported knowledge." : null,
           document?.status === "failed" ? "This page could not be imported." : null,
         ].filter((note): note is string => Boolean(note));
 
@@ -212,19 +297,19 @@ export default function AiBuilderSources() {
 
   const retainedDocuments = documents.filter((document) => document.status === "retained").length;
   const visiblePageRows = filteredRows.slice(0, visiblePages);
-  const visibleWarnings = showAllWarnings ? warnings : warnings.slice(0, INITIAL_WARNING_ROWS);
+  const visibleWarnings = showAllWarnings ? customerWarnings : customerWarnings.slice(0, INITIAL_WARNING_ROWS);
   const hasMorePages = visiblePageRows.length < filteredRows.length;
   const canShowLessPages = visiblePages > INITIAL_PAGE_ROWS;
-  const hasMoreWarnings = visibleWarnings.length < warnings.length;
+  const hasMoreWarnings = visibleWarnings.length < customerWarnings.length;
 
   return (
     <>
       <div className="min-w-0 max-w-full space-y-5 overflow-hidden pb-2">
         <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Summary label="Connected website" value={host(websiteKnowledge?.resolved_url)} detail={websiteKnowledge?.resolved_url ? "Active website source" : "No website connected"} />
-          <Summary label="Pages imported" value={String(pages.length)} detail={`${retainedDocuments} retained source record${retainedDocuments === 1 ? "" : "s"}`} />
-          <Summary label="Source blocks" value={String(blocks.length)} detail="Evidence-ready content blocks" />
-          <Summary label="Last import" value={formatDate(websiteKnowledge?.imported_at)} detail={`${warnings.length} warning${warnings.length === 1 ? "" : "s"}`} compact />
+          <Summary label="Pages imported" value={String(pages.length)} detail={`${retainedDocuments} imported page${retainedDocuments === 1 ? "" : "s"}`} />
+          <Summary label="Content sections" value={String(blocks.length)} detail="Readable sections found across the website" />
+          <Summary label="Last import" value={formatDate(websiteKnowledge?.imported_at)} detail={`${customerWarnings.length} import note${customerWarnings.length === 1 ? "" : "s"}`} compact />
         </section>
 
         <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-white/[.12] bg-[#050505]">
@@ -238,13 +323,13 @@ export default function AiBuilderSources() {
               <div className="grid min-w-0 gap-3 border-b border-white/[.12] bg-black/30 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]">
                 <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search pages or URLs" className="min-w-0 rounded-lg border border-white/[.12] bg-black px-3.5 py-2.5 text-sm text-white outline-none placeholder:text-slate-600 focus:border-white/25 sm:col-span-2 xl:col-span-1" />
                 <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="min-w-0 rounded-lg border border-white/[.12] bg-black px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-white/25">
-                  <option value="all">All statuses</option><option value="retained">Retained</option><option value="skipped">Skipped</option><option value="failed">Failed</option>
+                  <option value="all">All import results</option><option value="retained">Imported</option><option value="skipped">Skipped</option><option value="failed">Could not import</option>
                 </select>
                 <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="min-w-0 rounded-lg border border-white/[.12] bg-black px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-white/25">
-                  <option value="all">All source types</option>{sourceTypes.map((type) => <option key={type} value={type}>{humanize(type)}</option>)}
+                  <option value="all">All page types</option>{sourceTypes.map((type) => <option key={type} value={type}>{sourceTypeLabel(type)}</option>)}
                 </select>
                 <select value={sort} onChange={(event) => setSort(event.target.value as PageSort)} className="min-w-0 rounded-lg border border-white/[.12] bg-black px-3 py-2.5 text-sm text-slate-300 outline-none focus:border-white/25 sm:col-span-2 xl:col-span-1">
-                  <option value="title">Sort by title</option><option value="newest">Newest fetched</option><option value="type">Source type</option><option value="status">Status</option>
+                  <option value="title">Sort by title</option><option value="newest">Newest imported</option><option value="type">Page type</option><option value="status">Import result</option>
                 </select>
               </div>
 
@@ -262,7 +347,7 @@ export default function AiBuilderSources() {
                       <div className="min-w-0">
                         <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Source URL</p>
                         <a href={page.url} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm leading-5 text-slate-300 hover:text-white lg:mt-0">{page.url}</a>
-                        <p className="mt-1 break-words text-xs leading-5 text-slate-500">{document ? `Fetched ${formatDate(document.fetchedAt)}` : host(page.url)} · {humanize(sourceType)}</p>
+                        <p className="mt-1 break-words text-xs leading-5 text-slate-500">{document ? `Imported ${formatDate(document.fetchedAt)}` : host(page.url)} · {sourceTypeLabel(sourceType)}</p>
                       </div>
                       <div className="flex min-w-0 flex-wrap justify-start gap-2 lg:justify-end">
                         <button type="button" onClick={() => setActiveTab("knowledge")} className="cta-raised rounded-lg border border-amber-300/20 bg-black px-3.5 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">{knowledgeCount ? `View knowledge (${knowledgeCount})` : "View knowledge"}</button>
@@ -289,19 +374,19 @@ export default function AiBuilderSources() {
         <div className="grid min-w-0 gap-5 lg:grid-cols-2 lg:items-start">
           <div className="min-w-0 space-y-5">
             <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505] p-5">
-              <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Crawl details</p>
+              <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Latest import</p>
               <dl className="mt-4 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-white/[.12]">
-                <Metric label="Status" value={humanize(String(latestCrawl?.status ?? "not available"))} /><Metric label="Duration" value={duration(latestCrawl?.duration_ms)} /><Metric label="Discovered" value={String(latestCrawl?.pages_discovered ?? pages.length)} /><Metric label="Processed" value={String(latestCrawl?.pages_processed ?? pages.length)} /><Metric label="Skipped" value={String(latestCrawl?.pages_skipped ?? 0)} /><Metric label="Failed" value={String(latestCrawl?.pages_failed ?? 0)} />
+                <Metric label="Result" value={importStatusLabel(latestCrawl?.status)} /><Metric label="Time taken" value={duration(latestCrawl?.duration_ms)} /><Metric label="Pages found" value={String(latestCrawl?.pages_discovered ?? pages.length)} /><Metric label="Pages imported" value={String(latestCrawl?.pages_processed ?? pages.length)} /><Metric label="Pages skipped" value={String(latestCrawl?.pages_skipped ?? 0)} /><Metric label="Pages missed" value={String(latestCrawl?.pages_failed ?? 0)} />
               </dl>
             </section>
             <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505] p-5">
-              <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Crawl history</p>
-              {crawls.length ? <div className="mt-4 overflow-hidden rounded-lg border border-white/[.12]"><div className="divide-y divide-white/[.12]">{crawls.slice(0, CRAWL_HISTORY_ROWS).map((crawl, index) => <div key={`${String(crawl.started_at)}-${index}`} className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-3 bg-black/40 px-4 py-3.5"><HistoryItem label="Started" value={formatDate(crawl.started_at)} /><HistoryItem label="Status" value={humanize(String(crawl.status ?? "unknown"))} /><HistoryItem label="Duration" value={duration(crawl.duration_ms)} /><HistoryItem label="Pages" value={String(crawl.pages_processed ?? 0)} /></div>)}</div></div> : <Empty text="No crawl attempts have been recorded yet." compact />}
+              <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Import history</p>
+              {crawls.length ? <div className="mt-4 overflow-hidden rounded-lg border border-white/[.12]"><div className="divide-y divide-white/[.12]">{crawls.slice(0, CRAWL_HISTORY_ROWS).map((crawl, index) => <div key={`${String(crawl.started_at)}-${index}`} className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-3 bg-black/40 px-4 py-3.5"><HistoryItem label="Started" value={formatDate(crawl.started_at)} /><HistoryItem label="Result" value={importStatusLabel(crawl.status)} /><HistoryItem label="Time taken" value={duration(crawl.duration_ms)} /><HistoryItem label="Pages imported" value={String(crawl.pages_processed ?? 0)} /></div>)}</div></div> : <Empty text="No website imports have been recorded yet." compact />}
             </section>
           </div>
           <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505] p-5">
-            <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Import warnings</p>
-            {warnings.length ? <><div className="mt-4 overflow-hidden rounded-lg border border-white/[.12]"><div className="divide-y divide-white/[.12]">{visibleWarnings.map((warning, index) => <div key={`${warning}-${index}`} className="grid grid-cols-[2.25rem_1fr] items-start px-4 py-3.5"><span className="text-center text-xs font-bold text-amber-300">{index + 1}</span><p className="min-w-0 break-words text-sm leading-6 text-slate-300">{warning}</p></div>)}</div></div>{warnings.length > INITIAL_WARNING_ROWS ? <div className="mt-4 flex justify-center gap-2"><button type="button" disabled={!hasMoreWarnings} onClick={() => setShowAllWarnings(true)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show more</button><button type="button" disabled={!showAllWarnings} onClick={() => setShowAllWarnings(false)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show less</button></div> : null}</> : <Empty text="No import warnings were recorded for this website source." compact />}
+            <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Import notes</p>
+            {customerWarnings.length ? <><div className="mt-4 overflow-hidden rounded-lg border border-white/[.12]"><div className="divide-y divide-white/[.12]">{visibleWarnings.map((warning, index) => <div key={`${warning}-${index}`} className="grid grid-cols-[2.25rem_1fr] items-start px-4 py-3.5"><span className="text-center text-xs font-bold text-amber-300">{index + 1}</span><p className="min-w-0 break-words text-sm leading-6 text-slate-300">{warning}</p></div>)}</div></div>{customerWarnings.length > INITIAL_WARNING_ROWS ? <div className="mt-4 flex justify-center gap-2"><button type="button" disabled={!hasMoreWarnings} onClick={() => setShowAllWarnings(true)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show more</button><button type="button" disabled={!showAllWarnings} onClick={() => setShowAllWarnings(false)} className="rounded-lg border border-white/[.12] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/25 disabled:opacity-35">Show less</button></div> : null}</> : <Empty text="Everything available was imported without any notable issues." compact />}
           </section>
         </div>
       </div>
@@ -311,7 +396,7 @@ export default function AiBuilderSources() {
           <section role="dialog" aria-modal="true" aria-label="AI source summary" className="max-h-[88vh] w-full max-w-3xl overflow-y-auto rounded-[20px] border border-white/[.1] bg-[#080808] shadow-[0_28px_90px_rgba(0,0,0,.65)]">
             <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-white/[.08] bg-[#080808]/95 px-5 py-4 backdrop-blur">
               <div className="min-w-0">
-                <p className="text-[.66rem] font-semibold uppercase tracking-[.22em] text-slate-500">AI source summary</p>
+                <p className="text-[.66rem] font-semibold uppercase tracking-[.22em] text-slate-500">What the AI learned</p>
                 <h2 className="mt-1 truncate text-base font-semibold text-white">{selectedSource.page.title || "Untitled page"}</h2>
               </div>
               <button type="button" onClick={closeSourceSummary} className="min-h-10 rounded-lg border border-white/[.08] bg-black px-4 py-2 text-xs font-semibold text-white transition hover:border-white/20">Done</button>
@@ -324,13 +409,13 @@ export default function AiBuilderSources() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <ModalMetric label="Knowledge generated" value={selectedSource.knowledgeCount ? `${selectedSource.knowledgeCount} ${selectedSource.knowledgeCount === 1 ? "entry" : "entries"}` : "None"} />
+                <ModalMetric label="Knowledge created" value={selectedSource.knowledgeCount ? `${selectedSource.knowledgeCount} ${selectedSource.knowledgeCount === 1 ? "entry" : "entries"}` : "None"} />
                 <ModalMetric label="Confidence" value={selectedSource.confidence ? humanize(selectedSource.confidence) : "Not available"} />
               </div>
 
               {selectedSource.topics.length ? (
                 <section>
-                  <p className="text-[.68rem] font-bold uppercase tracking-[.14em] text-slate-500">Detected topics</p>
+                  <p className="text-[.68rem] font-bold uppercase tracking-[.14em] text-slate-500">Topics found</p>
                   <div className="mt-3 flex flex-wrap gap-2">{selectedSource.topics.map((topic) => <span key={topic} className="rounded-lg border border-white/[.1] bg-black px-2.5 py-1.5 text-xs font-semibold text-slate-300">{topic}</span>)}</div>
                 </section>
               ) : null}
