@@ -97,6 +97,7 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             align-items: start;
             column-gap: 1rem;
             row-gap: 1.25rem;
+            margin-top: 0 !important;
           }
 
           body[data-ai-builder-workspace="true"]
@@ -120,14 +121,17 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             > header {
             grid-column: 1 / -1;
             grid-row: 1;
+            min-height: 2.5rem;
+            align-items: center;
           }
 
           body[data-ai-builder-workspace="true"]
             .ai-builder-shell__content
             div[class~="relative"][class*="bg-[#000000]"]
             > button[class~="absolute"][class~="right-4"][class~="top-4"] {
-            top: 3.25rem !important;
+            top: 2.5rem !important;
             right: 1.5rem !important;
+            transform: translateY(-50%);
           }
 
           body[data-ai-builder-workspace="true"]
@@ -190,8 +194,10 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             div[class~="mt-12"][class~="space-y-6"]
             > div:first-child
             > section
-            article {
-            overflow: visible !important;
+            article
+            span[class~="absolute"][class~="right-0"][class~="top-0"] {
+            top: 0 !important;
+            transform: none !important;
           }
 
           body[data-ai-builder-workspace="true"]
@@ -200,8 +206,9 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             > div:first-child
             > section
             article
-            span[class~="absolute"][class~="right-0"][class~="top-0"] {
-            transform: translateY(-0.55rem);
+            span[class~="absolute"][class~="right-0"][class~="top-0"]
+            + p {
+            padding-top: 2rem;
           }
         }
 
