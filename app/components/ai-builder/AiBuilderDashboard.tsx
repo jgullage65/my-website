@@ -213,7 +213,7 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
             : "Core validation complete";
 
   const readinessCard = (
-    <section className="self-start rounded-xl border border-white/[.12] bg-[#050505] p-5 text-center">
+    <section className="rounded-xl border border-white/[.12] bg-[#050505] p-5 text-center">
       <p className="text-xs font-bold uppercase tracking-[.18em] text-slate-500">
         Project readiness
       </p>
@@ -261,99 +261,103 @@ export default function AiBuilderDashboard({ showcase = false }: { showcase?: bo
         />
       </section>
 
-      <div className={`grid gap-5 min-[1024px]:grid-cols-2 ${showcase ? "h-full min-[1024px]:items-stretch" : ""}`}>
-        <section className="h-full rounded-xl border border-white/[.12] bg-[#050505] p-5">
-          <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">
-            Action center
-          </p>
-          <div className="mt-2 flex items-center gap-2">
-            <h3 className="text-base font-semibold text-white">Needs attention</h3>
-            <span className="rounded-full border border-white/[.12] bg-black px-2.5 py-1 text-xs font-semibold text-slate-400">
-              {attention.length}
-            </span>
-          </div>
-          {attention.length ? (
-            <div className="mt-3 divide-y divide-white/[.12]">
-              {attention.map((item) => (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => onNavigate(item.action)}
-                  className="group flex w-full items-center justify-between gap-4 py-3.5 text-left"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-white">{item.label}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">{item.detail}</p>
-                  </div>
-                  <span className="text-amber-300 transition group-hover:translate-x-1">→</span>
-                </button>
-              ))}
+      <div className={`grid gap-5 min-[1024px]:grid-cols-2 ${showcase ? "h-full" : ""}`}>
+        <div className="flex min-w-0 flex-col gap-5">
+          <section className="rounded-xl border border-white/[.12] bg-[#050505] p-5">
+            <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">
+              Action center
+            </p>
+            <div className="mt-2 flex items-center gap-2">
+              <h3 className="text-base font-semibold text-white">Needs attention</h3>
+              <span className="rounded-full border border-white/[.12] bg-black px-2.5 py-1 text-xs font-semibold text-slate-400">
+                {attention.length}
+              </span>
             </div>
-          ) : (
-            <Empty text="This project has no outstanding review, source, or testing tasks." />
-          )}
-        </section>
+            {attention.length ? (
+              <div className="mt-3 divide-y divide-white/[.12]">
+                {attention.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => onNavigate(item.action)}
+                    className="group flex w-full items-center justify-between gap-4 py-3.5 text-left"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-white">{item.label}</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-500">{item.detail}</p>
+                    </div>
+                    <span className="text-amber-300 transition group-hover:translate-x-1">→</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <Empty text="This project has no outstanding review, source, or testing tasks." />
+            )}
+          </section>
 
-        {readinessCard}
-
-        <section className="h-full rounded-xl border border-white/[.12] bg-[#050505] p-5 text-center">
-          <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">
-            Knowledge source
-          </p>
-          {Object.keys(sourceCounts).length ? (
-            <dl className="mt-4 divide-y divide-white/[.12] text-left">
-              {Object.entries(sourceCounts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([source, count]) => (
-                  <div key={source} className="flex items-center justify-between py-3.5">
-                    <dt>
-                      <span className="text-sm font-semibold capitalize text-white">
-                        {source.replace(/_/g, " ")}
-                      </span>
-                      {sourceFreshness[source] ? (
-                        <span className="mt-1 block text-xs leading-5 text-slate-500">
-                          {freshness(sourceFreshness[source]!)}
+          <section className="rounded-xl border border-white/[.12] bg-[#050505] p-5 text-center">
+            <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">
+              Knowledge source
+            </p>
+            {Object.keys(sourceCounts).length ? (
+              <dl className="mt-4 divide-y divide-white/[.12] text-left">
+                {Object.entries(sourceCounts)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([source, count]) => (
+                    <div key={source} className="flex items-center justify-between py-3.5">
+                      <dt>
+                        <span className="text-sm font-semibold capitalize text-white">
+                          {source.replace(/_/g, " ")}
                         </span>
-                      ) : null}
-                    </dt>
-                    <dd className="text-sm font-semibold text-white">{count}</dd>
+                        {sourceFreshness[source] ? (
+                          <span className="mt-1 block text-xs leading-5 text-slate-500">
+                            {freshness(sourceFreshness[source]!)}
+                          </span>
+                        ) : null}
+                      </dt>
+                      <dd className="text-sm font-semibold text-white">{count}</dd>
+                    </div>
+                  ))}
+              </dl>
+            ) : (
+              <Empty text="Source composition will appear after knowledge is generated." />
+            )}
+            {websiteKnowledge?.imported_at ? (
+              <p className="mt-3 text-xs text-slate-500">
+                Website · {freshness(websiteKnowledge.imported_at)}
+              </p>
+            ) : null}
+            <Action onClick={() => onNavigate("sources")}>Inspect source material</Action>
+          </section>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-5">
+          {readinessCard}
+
+          <section className={`rounded-xl border border-white/[.12] bg-[#050505] p-5 ${showcase ? "flex flex-col" : ""}`}>
+            <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">
+              Recent project changes
+            </p>
+            {recent.length ? (
+              <div className="mt-4 divide-y divide-white/[.12]">
+                {recent.map((item, index) => (
+                  <div
+                    key={`${item.label}-${item.at}-${index}`}
+                    className="grid gap-1 py-3 sm:grid-cols-[9rem_1fr_auto] sm:items-center sm:gap-3"
+                  >
+                    <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-white">
+                      {item.label}
+                    </p>
+                    <p className="truncate text-sm text-slate-300">{item.detail}</p>
+                    <time className="text-xs text-slate-500">{date(item.at)}</time>
                   </div>
                 ))}
-            </dl>
-          ) : (
-            <Empty text="Source composition will appear after knowledge is generated." />
-          )}
-          {websiteKnowledge?.imported_at ? (
-            <p className="mt-3 text-xs text-slate-500">
-              Website · {freshness(websiteKnowledge.imported_at)}
-            </p>
-          ) : null}
-          <Action onClick={() => onNavigate("sources")}>Inspect source material</Action>
-        </section>
-
-        <section className={`h-full rounded-xl border border-white/[.12] bg-[#050505] p-5 ${showcase ? "flex flex-col" : ""}`}>
-          <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">
-            Recent project changes
-          </p>
-          {recent.length ? (
-            <div className="mt-4 divide-y divide-white/[.12]">
-              {recent.map((item, index) => (
-                <div
-                  key={`${item.label}-${item.at}-${index}`}
-                  className="grid gap-1 py-3 sm:grid-cols-[9rem_1fr_auto] sm:items-center sm:gap-3"
-                >
-                  <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-white">
-                    {item.label}
-                  </p>
-                  <p className="truncate text-sm text-slate-300">{item.detail}</p>
-                  <time className="text-xs text-slate-500">{date(item.at)}</time>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <Empty text="No project changes have been recorded yet." />
-          )}
-        </section>
+              </div>
+            ) : (
+              <Empty text="No project changes have been recorded yet." />
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );
