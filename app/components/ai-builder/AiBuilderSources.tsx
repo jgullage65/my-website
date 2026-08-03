@@ -67,7 +67,6 @@ export default function AiBuilderSources() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sort, setSort] = useState<PageSort>("title");
-  const [expandedSourceId, setExpandedSourceId] = useState<string | null>(null);
 
   const pages = websiteKnowledge?.pages ?? [];
   const warnings = websiteKnowledge?.warnings ?? [];
@@ -96,12 +95,11 @@ export default function AiBuilderSources() {
 
   const sourceRows = useMemo(
     () =>
-      pages.map((page, index) => {
+      pages.map((page) => {
         const document = page.sourceDocumentId ? documentById.get(page.sourceDocumentId) : undefined;
         return {
           page,
           document,
-          index,
           status: document?.status ?? "retained",
           sourceType: document?.sourceType ?? page.pageType,
           knowledgeCount: knowledgeByUrl.get(page.url) ?? 0,
@@ -137,7 +135,6 @@ export default function AiBuilderSources() {
 
   useEffect(() => {
     setVisiblePages(INITIAL_PAGE_ROWS);
-    setExpandedSourceId(null);
   }, [search, sort, statusFilter, typeFilter]);
 
   const retainedDocuments = documents.filter((document) => document.status === "retained").length;
@@ -191,57 +188,32 @@ export default function AiBuilderSources() {
 
             {filteredRows.length ? (
               <div className="divide-y divide-white/[.12]">
-                {visiblePageRows.map(({ page, document, sourceType, knowledgeCount }, index) => {
-                  const sourceId = page.sourceDocumentId ?? `${page.url}-${index}`;
-                  const expanded = expandedSourceId === sourceId;
-                  return (
-                    <div key={sourceId} className="min-w-0">
-                      <div className="grid min-w-0 gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1.5fr)_auto_auto] lg:items-center">
-                        <div className="min-w-0">
-                          <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Page</p>
-                          <a href={page.url} target="_blank" rel="noreferrer" className="group mt-1 inline-flex max-w-full items-center gap-1.5 text-sm font-semibold text-white hover:text-slate-200 lg:mt-0" title={`Open ${page.title || page.url}`}>
-                            <span className="min-w-0 break-words">{page.title || "Untitled page"}</span>
-                            <span aria-hidden="true" className="shrink-0 text-slate-500 transition group-hover:text-white">↗</span>
-                          </a>
-                          <p className="mt-1 break-all text-xs leading-5 text-slate-500">{path(page.url)}</p>
-                        </div>
-
-                        <div className="min-w-0">
-                          <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Source URL</p>
-                          <a href={page.url} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm leading-5 text-slate-300 hover:text-white lg:mt-0">{page.url}</a>
-                          <p className="mt-1 break-words text-xs leading-5 text-slate-500">{document ? `Fetched ${formatDate(document.fetchedAt)}` : host(page.url)}</p>
-                        </div>
-
-                        <div className="min-w-0 lg:text-center">
-                          <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Type</p>
-                          <span className="mt-1 inline-flex max-w-full rounded-lg border border-white/[.12] bg-black px-2.5 py-1 text-xs font-semibold text-slate-300 lg:mt-0">{humanize(sourceType)}</span>
-                        </div>
-
-                        <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
-                          <button type="button" onClick={() => setActiveTab("knowledge")} className="cta-raised rounded-lg border border-amber-300/20 bg-black px-3.5 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">
-                            {knowledgeCount ? `View knowledge (${knowledgeCount})` : "View knowledge"}
-                          </button>
-                          <button type="button" onClick={() => setExpandedSourceId(expanded ? null : sourceId)} aria-expanded={expanded} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/[.12] bg-black text-sm text-slate-400 transition hover:border-white/25 hover:text-white">{expanded ? "−" : "+"}</button>
-                        </div>
-                      </div>
-
-                      {expanded ? (
-                        <div className="border-t border-white/[.12] bg-black/30 px-5 py-4">
-                          <div className="grid min-w-0 gap-x-8 gap-y-4 sm:grid-cols-2 xl:grid-cols-4">
-                            <Detail label="Canonical URL" value={document?.canonicalUrl ?? page.url} />
-                            <Detail label="Discovery method" value={humanize(document?.discoveryMethod)} />
-                            <Detail label="Content type" value={document?.contentType ?? humanize(page.pageType)} />
-                            <Detail label="Fetched" value={formatDate(document?.fetchedAt)} />
-                            <Detail label="Language" value={document?.language ?? "Not recorded"} />
-                            <Detail label="Redirects" value={String(document?.redirectChain.length ?? 0)} />
-                            <Detail label="Source truncated" value={document?.sourceTruncated ? "Yes" : "No"} />
-                            <Detail label="Extraction truncated" value={document?.extractionTruncated ? "Yes" : "No"} />
-                          </div>
-                        </div>
-                      ) : null}
+                {visiblePageRows.map(({ page, document, sourceType, knowledgeCount }) => (
+                  <div key={page.sourceDocumentId ?? page.url} className="grid min-w-0 gap-4 px-5 py-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1.5fr)_auto] lg:items-center">
+                    <div className="min-w-0">
+                      <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Page</p>
+                      <a href={page.url} target="_blank" rel="noreferrer" className="group mt-1 inline-flex max-w-full items-center gap-1.5 text-sm font-semibold text-white hover:text-slate-200 lg:mt-0" title={`Open ${page.title || page.url}`}>
+                        <span className="min-w-0 break-words">{page.title || "Untitled page"}</span>
+                        <span aria-hidden="true" className="shrink-0 text-slate-500 transition group-hover:text-white">↗</span>
+                      </a>
+                      <p className="mt-1 break-all text-xs leading-5 text-slate-500">{path(page.url)}</p>
                     </div>
-                  );
-                })}
+
+                    <div className="min-w-0">
+                      <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500 lg:hidden">Source URL</p>
+                      <a href={page.url} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm leading-5 text-slate-300 hover:text-white lg:mt-0">{page.url}</a>
+                      <p className="mt-1 break-words text-xs leading-5 text-slate-500">
+                        {document ? `Fetched ${formatDate(document.fetchedAt)}` : host(page.url)} · {humanize(sourceType)}
+                      </p>
+                    </div>
+
+                    <div className="flex min-w-0 justify-start lg:justify-end">
+                      <button type="button" onClick={() => setActiveTab("knowledge")} className="cta-raised rounded-lg border border-amber-300/20 bg-black px-3.5 py-2 text-xs font-semibold text-white transition hover:border-amber-300/40">
+                        {knowledgeCount ? `View knowledge (${knowledgeCount})` : "View knowledge"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : <Empty text="No website sources match the current search and filters." />}
 
@@ -258,18 +230,38 @@ export default function AiBuilderSources() {
         ) : <Empty text="No website source pages are connected to this project." />}
       </section>
 
-      <div className="grid min-w-0 gap-5 lg:grid-cols-2">
-        <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505] p-5">
-          <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Crawl details</p>
-          <dl className="mt-4 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-white/[.12]">
-            <Metric label="Status" value={humanize(String(latestCrawl?.status ?? "not available"))} />
-            <Metric label="Duration" value={duration(latestCrawl?.duration_ms)} />
-            <Metric label="Discovered" value={String(latestCrawl?.pages_discovered ?? pages.length)} />
-            <Metric label="Processed" value={String(latestCrawl?.pages_processed ?? pages.length)} />
-            <Metric label="Skipped" value={String(latestCrawl?.pages_skipped ?? 0)} />
-            <Metric label="Failed" value={String(latestCrawl?.pages_failed ?? 0)} />
-          </dl>
-        </section>
+      <div className="grid min-w-0 gap-5 lg:grid-cols-2 lg:items-start">
+        <div className="min-w-0 space-y-5">
+          <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505] p-5">
+            <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Crawl details</p>
+            <dl className="mt-4 grid min-w-0 grid-cols-2 overflow-hidden rounded-lg border border-white/[.12]">
+              <Metric label="Status" value={humanize(String(latestCrawl?.status ?? "not available"))} />
+              <Metric label="Duration" value={duration(latestCrawl?.duration_ms)} />
+              <Metric label="Discovered" value={String(latestCrawl?.pages_discovered ?? pages.length)} />
+              <Metric label="Processed" value={String(latestCrawl?.pages_processed ?? pages.length)} />
+              <Metric label="Skipped" value={String(latestCrawl?.pages_skipped ?? 0)} />
+              <Metric label="Failed" value={String(latestCrawl?.pages_failed ?? 0)} />
+            </dl>
+          </section>
+
+          <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505] p-5">
+            <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Crawl history</p>
+            {crawls.length ? (
+              <div className="mt-4 overflow-hidden rounded-lg border border-white/[.12]">
+                <div className="divide-y divide-white/[.12]">
+                  {crawls.slice(0, CRAWL_HISTORY_ROWS).map((crawl, index) => (
+                    <div key={`${String(crawl.started_at)}-${index}`} className="grid min-w-0 grid-cols-2 gap-x-4 gap-y-3 bg-black/40 px-4 py-3.5">
+                      <HistoryItem label="Started" value={formatDate(crawl.started_at)} />
+                      <HistoryItem label="Status" value={humanize(String(crawl.status ?? "unknown"))} />
+                      <HistoryItem label="Duration" value={duration(crawl.duration_ms)} />
+                      <HistoryItem label="Pages" value={String(crawl.pages_processed ?? 0)} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : <Empty text="No crawl attempts have been recorded yet." compact />}
+          </section>
+        </div>
 
         <section className="min-w-0 overflow-hidden rounded-xl border border-white/[.12] bg-[#050505] p-5">
           <p className="text-center text-xs font-bold uppercase tracking-[.16em] text-slate-500">Import warnings</p>
@@ -295,63 +287,20 @@ export default function AiBuilderSources() {
           ) : <Empty text="No import warnings were recorded for this website source." compact />}
         </section>
       </div>
-
-      <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-white/[.12] bg-[#050505]">
-        <div className="border-b border-white/[.12] px-5 py-4 text-center">
-          <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">Crawl history</p>
-        </div>
-        {crawls.length ? (
-          <div className="divide-y divide-white/[.12]">
-            {crawls.slice(0, CRAWL_HISTORY_ROWS).map((crawl, index) => (
-              <div key={`${String(crawl.started_at)}-${index}`} className="grid min-w-0 gap-4 px-5 py-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-center lg:text-center">
-                <HistoryValue label="Started" value={formatDate(crawl.started_at)} />
-                <HistoryValue label="Duration" value={duration(crawl.duration_ms)} strong />
-                <HistoryValue label="Pages" value={String(crawl.pages_processed ?? 0)} strong />
-                <HistoryValue label="Status" value={humanize(String(crawl.status ?? "unknown"))} />
-              </div>
-            ))}
-          </div>
-        ) : <Empty text="No crawl attempts have been recorded yet." compact />}
-      </section>
     </div>
   );
 }
 
 function Summary({ label, value, detail, compact = false }: { label: string; value: string; detail: string; compact?: boolean }) {
-  return (
-    <article className="min-w-0 overflow-hidden rounded-[18px] border border-white/[.12] bg-[#070707] p-5 text-center">
-      <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">{label}</p>
-      <p className={`mt-2 break-words font-semibold text-white ${compact ? "text-base" : "text-2xl"}`} title={value}>{value}</p>
-      <p className="mt-2 break-words text-xs leading-5 text-slate-500" title={detail}>{detail}</p>
-    </article>
-  );
+  return <article className="min-w-0 rounded-[18px] border border-white/[.12] bg-[#070707] p-5 text-center"><p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">{label}</p><p className={`mt-2 break-words font-semibold text-white ${compact ? "text-base" : "text-2xl"}`} title={value}>{value}</p><p className="mt-2 break-words text-xs leading-5 text-slate-500" title={detail}>{detail}</p></article>;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 border-b border-r border-white/[.12] bg-black/40 px-3.5 py-3 text-center even:border-r-0">
-      <dt className="text-xs font-semibold text-slate-500">{label}</dt>
-      <dd className="mt-1 break-words text-sm font-semibold text-white" title={value}>{value}</dd>
-    </div>
-  );
+  return <div className="min-w-0 border-b border-r border-white/[.12] bg-black/40 px-3.5 py-3 text-center even:border-r-0"><dt className="text-xs font-semibold text-slate-500">{label}</dt><dd className="mt-1 break-words text-sm font-semibold text-white" title={value}>{value}</dd></div>;
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 overflow-hidden">
-      <p className="text-[.68rem] font-bold uppercase tracking-[.1em] text-slate-500">{label}</p>
-      <p className="mt-1 break-all text-sm leading-5 text-slate-300">{value}</p>
-    </div>
-  );
-}
-
-function HistoryValue({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500">{label}</p>
-      <p className={`mt-1 break-words text-sm ${strong ? "font-semibold text-white" : "text-slate-300"}`}>{value}</p>
-    </div>
-  );
+function HistoryItem({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0 text-center"><p className="text-[.65rem] font-bold uppercase tracking-[.1em] text-slate-500">{label}</p><p className="mt-1 break-words text-sm font-semibold text-white">{value}</p></div>;
 }
 
 function Empty({ text, compact = false }: { text: string; compact?: boolean }) {
