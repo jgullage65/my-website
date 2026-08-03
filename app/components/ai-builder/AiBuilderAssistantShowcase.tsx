@@ -15,16 +15,8 @@ export default function AiBuilderAssistantShowcase({ models }: { models: AiBuild
 
   return (
     <section className="grid h-full min-h-0 grid-cols-2 overflow-hidden rounded-[20px] border border-white/[0.09] bg-black">
-      <div className="relative flex min-h-0 flex-col border-r border-white/[0.09] bg-[#030303] px-7 py-7">
-        <div className="mx-auto w-full max-w-[430px] text-center">
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-slate-500">Choose how your assistant thinks</p>
-          <h2 className="mt-2 text-2xl font-black text-white">Select your AI model</h2>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-400">
-            Match the model to the work. Switch between speed, depth, and reasoning whenever the conversation calls for it.
-          </p>
-        </div>
-
-        <div className="pointer-events-none relative z-20 mt-7 flex flex-1 items-start justify-center">
+      <div className="relative flex min-h-0 items-center justify-center border-r border-white/[0.09] bg-[#030303] px-7 py-7">
+        <div className="pointer-events-none relative z-20 flex w-full max-w-[430px] items-center justify-center">
           <AiBuilderModelSelect
             models={showcaseModels}
             value={selectedModel}
@@ -37,12 +29,11 @@ export default function AiBuilderAssistantShowcase({ models }: { models: AiBuild
       </div>
 
       <div className="flex min-h-0 flex-col bg-[#000000]">
-        <header className="flex min-h-[76px] flex-none items-center justify-between border-b border-white/[0.08] px-6">
+        <header className="flex min-h-[76px] flex-none items-center justify-center border-b border-white/[0.08] px-6 text-center">
           <div>
             <p className="text-[0.62rem] font-bold uppercase tracking-[0.22em] text-amber-300">Business assistant</p>
             <h2 className="mt-1 text-base font-black text-white">Arkena Studio</h2>
           </div>
-          <span className="rounded-full border border-emerald-300/15 bg-emerald-400/[0.06] px-3 py-1.5 text-[0.62rem] font-bold uppercase tracking-[0.14em] text-emerald-200">Knowledge ready</span>
         </header>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-hidden px-6 py-5">
