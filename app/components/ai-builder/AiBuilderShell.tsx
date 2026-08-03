@@ -110,25 +110,8 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             .ai-builder-shell__content
             div[class~="mt-12"][class~="space-y-6"]
             > div:first-child {
-            display: contents;
-          }
-
-          body[data-ai-builder-workspace="true"]
-            .ai-builder-shell__content
-            div[class~="mt-12"][class~="space-y-6"]
-            > div:first-child
-            > header {
-            grid-column: 1 / -1;
-            grid-row: 1;
-          }
-
-          body[data-ai-builder-workspace="true"]
-            .ai-builder-shell__content
-            div[class~="mt-12"][class~="space-y-6"]
-            > div:first-child
-            > section {
             grid-column: 1;
-            grid-row: 2;
+            grid-row: 1;
             min-width: 0;
           }
 
@@ -153,7 +136,7 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             > section[class~="min-w-0"][class~="space-y-5"]
             > div:first-child {
             grid-column: 1 / -1;
-            grid-row: 3;
+            grid-row: 2;
           }
 
           body[data-ai-builder-workspace="true"]
@@ -171,17 +154,17 @@ export default function AiBuilderShell({ children }: { children: ReactNode }) {
             > div[class~="grid"][class~="gap-4"]
             > article:first-child {
             grid-column: 2;
-            grid-row: 2;
+            grid-row: 1;
             min-width: 0;
             height: auto;
-            align-self: stretch;
+            align-self: start;
+            margin-top: 3.25rem !important;
           }
 
           body[data-ai-builder-workspace="true"]
             .ai-builder-shell__content
             div[class~="mt-12"][class~="space-y-6"]
             > div:first-child
-            > section
             article
             span[class~="absolute"][class~="right-0"][class~="top-0"] {
             transform: translateY(-0.65rem);
