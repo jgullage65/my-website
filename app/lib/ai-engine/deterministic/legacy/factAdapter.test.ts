@@ -61,3 +61,16 @@ test("throws when a fact is placed in the wrong bucket", () => {
     /does not belong to bucket/,
   );
 });
+
+test("throws when any legacy fact field is mutated", () => {
+  const facts = [fact("offer", "product", "Atlas platform")];
+  const observations = routeLegacyFactsAsObservations(facts);
+  const reports = runCompatibilitySpecialists(observations, facts);
+  const offerReport = reports.find((report) => report.facts.length)!;
+  offerReport.facts[0]!.value = "Changed value";
+
+  assert.throws(
+    () => reportsToLegacyFacts(reports, observations, facts),
+    /Legacy fact parity mismatch/,
+  );
+});
