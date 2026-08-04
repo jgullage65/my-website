@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import type { DeterministicFact } from "../contracts";
 import { primaryBucketForCategory } from "../routing/buckets";
 import type { KnowledgeObservation } from "../routing/contracts";
@@ -9,6 +8,13 @@ function cloneFact(fact: DeterministicFact): DeterministicFact {
     ...fact,
     evidence: fact.evidence.map((evidence) => ({ ...evidence })),
   };
+}
+
+function factsMatch(
+  left: DeterministicFact,
+  right: DeterministicFact,
+): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 export function reportsToLegacyFacts(
@@ -67,9 +73,7 @@ export function reportsToLegacyFacts(
         );
       }
 
-      try {
-        assert.deepStrictEqual(fact, expected);
-      } catch {
+      if (!factsMatch(fact, expected)) {
         throw new Error(
           `Legacy fact parity mismatch at source index ${observation.sourceIndex}`,
         );
