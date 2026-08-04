@@ -49,6 +49,12 @@ async function readBoundedJson(request: Request): Promise<{ website?: unknown }>
   return JSON.parse(new TextDecoder().decode(body)) as { website?: unknown };
 }
 
+function categorySet(
+  ...categories: DeterministicFact["category"][]
+): ReadonlySet<DeterministicFact["category"]> {
+  return new Set(categories);
+}
+
 function distinctFactValues(
   facts: readonly DeterministicFact[],
   categories: ReadonlySet<DeterministicFact["category"]>,
@@ -70,7 +76,7 @@ function distinctFactValues(
 }
 
 function deterministicIndustry(facts: readonly DeterministicFact[]): string {
-  const direct = distinctFactValues(facts, new Set(["industry_served"]), 3);
+  const direct = distinctFactValues(facts, categorySet("industry_served"), 3);
   if (direct) return direct;
 
   const company = facts
@@ -162,17 +168,17 @@ export async function POST(request: Request) {
 
     const productsServices = distinctFactValues(
       brain.facts,
-      new Set(["product", "service", "feature_capability", "pricing_plan", "primary_use_case"]),
+      categorySet("product", "service", "feature_capability", "pricing_plan", "primary_use_case"),
       12,
     );
     const idealCustomers = distinctFactValues(
       brain.facts,
-      new Set(["customer_segment", "industry_served", "location_service_area"]),
+      categorySet("customer_segment", "industry_served", "location_service_area"),
       8,
     );
     const additionalKnowledge = distinctFactValues(
       brain.facts,
-      new Set([
+      categorySet(
         "company_overview",
         "mission_value_proposition",
         "competitive_differentiator",
@@ -188,7 +194,7 @@ export async function POST(request: Request) {
         "partnership",
         "additional_business_knowledge",
         "faq",
-      ]),
+      ),
       16,
     );
 
