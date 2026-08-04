@@ -55,10 +55,11 @@ function distinctFactValues(
   facts: readonly WebsiteKnowledgeFact[],
   categories: ReadonlySet<WebsiteKnowledgeFact["category"]>,
   limit: number,
+  predicate?: (fact: WebsiteKnowledgeFact) => boolean,
 ): string {
   const seen = new Set<string>();
   return facts
-    .filter((fact) => categories.has(fact.category))
+    .filter((fact) => categories.has(fact.category) && (!predicate || predicate(fact)))
     .map((fact) => fact.value.trim())
     .filter((value) => {
       const key = value.toLocaleLowerCase();
@@ -76,30 +77,21 @@ function hydrateDemoBuilderFromWebsite(previous: BuilderState, next: BuilderStat
 
   const facts = website.knowledge?.facts ?? [];
   const currentKnowledge = next.userKnowledge as ExtendedDemoKnowledge;
-  const brandVoice = distinctFactValues(facts, new Set<WebsiteKnowledgeFact["category"]>(["brand_voice_terminology"]), 6);
+  const brandVoice = distinctFactValues(
+    facts,
+    new Set<WebsiteKnowledgeFact["category"]>(["brand_voice_terminology"]),
+    4,
+  );
   const policiesOperations = distinctFactValues(
     facts,
-    new Set<WebsiteKnowledgeFact["category"]>([
-      "policy",
-      "process",
-      "guarantee",
-      "support_onboarding",
-      "location_service_area",
-      "contact_information",
-      "security_compliance",
-    ]),
-    12,
+    new Set<WebsiteKnowledgeFact["category"]>(["policy", "process", "guarantee", "support_onboarding"]),
+    6,
   );
   const successStories = distinctFactValues(
     facts,
-    new Set<WebsiteKnowledgeFact["category"]>([
-      "competitive_differentiator",
-      "differentiator",
-      "primary_use_case",
-      "partnership",
-      "certification",
-    ]),
-    10,
+    new Set<WebsiteKnowledgeFact["category"]>(["additional_business_knowledge"]),
+    4,
+    (fact) => /\b(case study|testimonial|customer result|success stor|resulted in|increased|reduced|grew|saved)\b/i.test(`${fact.title} ${fact.value}`),
   );
 
   return {
@@ -111,7 +103,7 @@ function hydrateDemoBuilderFromWebsite(previous: BuilderState, next: BuilderStat
       ...currentKnowledge,
       productsServices: website.productsServices.trim() || currentKnowledge.productsServices,
       idealCustomers: website.idealCustomers.trim() || currentKnowledge.idealCustomers,
-      additionalKnowledge: website.additionalKnowledge.trim() || currentKnowledge.additionalKnowledge,
+      additionalKnowledge: currentKnowledge.additionalKnowledge,
       businessPoliciesOperations: policiesOperations || currentKnowledge.businessPoliciesOperations || "",
       successStoriesCaseStudies: successStories || currentKnowledge.successStoriesCaseStudies || "",
     } as ExtendedDemoKnowledge,
