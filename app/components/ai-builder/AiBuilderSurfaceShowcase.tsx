@@ -137,6 +137,10 @@ export default function AiBuilderSurfaceShowcase({ session, builder, models, dia
   else if (activeSlide === "sources") showcaseSurface = <AiBuilderWorkspaceView mode="demo" activeView="sources" session={session} builder={builder} websiteKnowledge={showcaseWebsiteKnowledge} diagnostics={diagnostics} />;
   else showcaseSurface = <AiBuilderAssistantShowcase models={models} />;
 
+  const containedShowcaseSurface = activeSlide === "review" ? (
+    <div className="mx-auto w-[94%]">{showcaseSurface}</div>
+  ) : showcaseSurface;
+
   return (
     <div className={className}>
       {confirmDialogNode}
@@ -144,9 +148,9 @@ export default function AiBuilderSurfaceShowcase({ session, builder, models, dia
       <div className="overflow-hidden rounded-[24px] border border-amber-300/30 bg-black p-3 shadow-[0_28px_90px_rgba(0,0,0,.58)] sm:p-4">
         <div className={`${SHOWCASE_VIEWPORT_CLASS} overflow-hidden`}>
           <div className="relative h-full lg:hidden">
-            <div className="pointer-events-none absolute left-1/2 top-0 w-[900px] origin-top -translate-x-1/2 scale-[0.36] sm:scale-[0.72]">{showcaseSurface}</div>
+            <div className="pointer-events-none absolute left-1/2 top-0 w-[900px] origin-top -translate-x-1/2 scale-[0.36] sm:scale-[0.72]">{containedShowcaseSurface}</div>
           </div>
-          <div className="hidden h-full lg:block">{showcaseSurface}</div>
+          <div className="hidden h-full lg:block">{containedShowcaseSurface}</div>
         </div>
       </div>
 
