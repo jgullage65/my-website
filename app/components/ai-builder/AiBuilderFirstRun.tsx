@@ -18,7 +18,7 @@ export default function AiBuilderFirstRun() {
 
       navigating = true;
       window.location.assign(
-        `/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=overview`,
+        `/brain-builder/overview/${encodeURIComponent(projectId)}`,
       );
     }) as History["replaceState"];
 

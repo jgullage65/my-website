@@ -110,7 +110,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
 
     if (rememberedProjectId) {
       setExistingProjectId(rememberedProjectId);
-      router.prefetch(`/ai-builder?projectId=${encodeURIComponent(rememberedProjectId)}&tab=dashboard`);
+      router.prefetch(`/brain-builder/dashboard/${encodeURIComponent(rememberedProjectId)}`);
       void warmAiBuilderProjectResponse(rememberedProjectId);
     }
 
@@ -138,7 +138,7 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
         if (cancelled) return;
         setExistingProjectId(projectId);
         if (projectId) {
-          router.prefetch(`/ai-builder?projectId=${encodeURIComponent(projectId)}&tab=dashboard`);
+          router.prefetch(`/brain-builder/dashboard/${encodeURIComponent(projectId)}`);
           void warmAiBuilderProjectResponse(projectId);
         }
       })
@@ -172,12 +172,20 @@ export default function AiBuilderEmptyWorkspace({ builder, error = null, onChang
       return;
     }
 
-    const tab = value === "knowledge" ? "dashboard" : value;
-    const review = value === "knowledge" ? "&review=1" : "";
-    router.push(
-      `/ai-builder?projectId=${encodeURIComponent(existingProjectId)}&tab=${encodeURIComponent(tab)}${review}`,
-      { scroll: false },
-    );
+    const buildId = encodeURIComponent(existingProjectId);
+    if (value === "projects") {
+      router.push("/brain-builder/projects", { scroll: false });
+      return;
+    }
+
+    if (value === "knowledge") {
+      router.push(`/brain-builder/review/${buildId}`, { scroll: false });
+      return;
+    }
+
+    router.push(`/brain-builder/${encodeURIComponent(value)}/${buildId}`, {
+      scroll: false,
+    });
   }
 
   return (
