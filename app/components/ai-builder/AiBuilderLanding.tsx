@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { SignIn } from "@clerk/nextjs";
-import { useState } from "react";
+import { SignIn, useAuth } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
 import {
   aiBuilderDemoBuilder,
@@ -89,9 +89,14 @@ function BillingToggle({ billingPeriod, onChange }: { billingPeriod: BillingPeri
 }
 
 export default function AiBuilderLanding() {
+  const { isSignedIn } = useAuth();
   const [signInOpen, setSignInOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+
+  useEffect(() => {
+    if (isSignedIn) setSignInOpen(false);
+  }, [isSignedIn]);
 
   return (
     <>
@@ -199,19 +204,18 @@ export default function AiBuilderLanding() {
         </div>
       ) : null}
 
-      {signInOpen ? (
-        <div className="fixed inset-0 z-[9999] overflow-y-auto overscroll-contain bg-black text-white [scrollbar-width:none] [&::-webkit-scrollbar]:hidden min-[641px]:flex min-[641px]:items-center min-[641px]:justify-center min-[641px]:bg-black/85 min-[641px]:px-4 min-[641px]:py-8 min-[641px]:backdrop-blur-md" role="dialog" aria-modal="true" aria-label="Sign in">
-          <button type="button" className="fixed inset-0 hidden cursor-default min-[641px]:block" aria-label="Close sign in" onClick={() => setSignInOpen(false)} />
-          <div className="relative z-10 min-h-dvh w-full bg-black px-4 pb-8 pt-16 min-[641px]:min-h-0 min-[641px]:max-w-md min-[641px]:bg-transparent min-[641px]:p-0">
-            <button type="button" onClick={() => setSignInOpen(false)} className="fixed right-4 top-4 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111] min-[641px]:absolute min-[641px]:right-3 min-[641px]:top-3 min-[641px]:h-9 min-[641px]:w-9 min-[641px]:border-amber-300/20 min-[641px]:text-lg min-[641px]:text-amber-300" aria-label="Close sign in">×</button>
+      {signInOpen && !isSignedIn ? (
+        <div className="pointer-events-none fixed inset-0 z-[9999] flex items-center justify-center px-4 py-8" role="dialog" aria-modal="true" aria-label="Sign in">
+          <div className="pointer-events-auto relative w-full max-w-md">
+            <button type="button" onClick={() => setSignInOpen(false)} className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-300/20 bg-[#090909] text-lg text-amber-300 transition hover:border-amber-300/40 hover:bg-[#111111]" aria-label="Close sign in">×</button>
             <SignIn
               routing="hash"
-              forceRedirectUrl="/ai-builder"
+              fallbackRedirectUrl="/brain-builder"
               appearance={{
                 elements: {
                   rootBox: "w-full",
                   cardBox: "w-full shadow-none",
-                  card: "w-full rounded-none border-0 bg-black shadow-none min-[641px]:rounded-[24px] min-[641px]:border min-[641px]:border-amber-300/20 min-[641px]:shadow-[0_26px_70px_rgba(0,0,0,.5)]",
+                  card: "w-full rounded-[24px] border border-amber-300/20 bg-black shadow-[0_26px_70px_rgba(0,0,0,.5)]",
                 },
               }}
             />
