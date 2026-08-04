@@ -50,7 +50,13 @@ test("reconstructs the exact legacy fact array and always returns eight reports"
   assert.deepEqual(input, snapshot);
 
   result.diagnostics.observations[0]!.evidence[0]!.excerpt = "mutated";
-  result.diagnostics.reports[0]!.facts[0]?.evidence.splice(0);
+  const nonEmptyReport = result.diagnostics.reports.find(
+    (report) => report.facts.length > 0,
+  );
+  assert.ok(nonEmptyReport);
+  nonEmptyReport.facts[0]!.evidence[0]!.excerpt = "mutated report";
+  nonEmptyReport.facts[0]!.value = "mutated value";
+
   assert.deepEqual(input, snapshot);
   assert.deepEqual(result.extracted, snapshot);
 });
