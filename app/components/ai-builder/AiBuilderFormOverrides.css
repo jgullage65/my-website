@@ -336,7 +336,16 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: 640px) {
+  .ai-builder-shell__content
+    div.space-y-5.pb-2:not([data-project-id])
+    > section.grid.gap-4[class~="min-[1200px]:gap-4"],
+  .ai-builder-shell__content
+    div[data-project-id].space-y-5.pb-2
+    > section.grid.gap-4[class~="min-[1024px]:gap-4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
   .ai-builder-form select {
     text-align: center;
     text-align-last: center;
