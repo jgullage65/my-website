@@ -61,7 +61,6 @@ function DisabledAssistantPreview() {
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#000000] text-white">
       <header className="flex min-h-[76px] flex-none flex-col items-center justify-center gap-1.5 border-b border-white/[0.08] px-5 py-2 text-center">
-        <p className="text-[0.65rem] font-bold uppercase tracking-[0.24em] text-amber-300">Live assistant test</p>
         <AiBuilderModelSelect
           models={modelChoices}
           value={modelId}
