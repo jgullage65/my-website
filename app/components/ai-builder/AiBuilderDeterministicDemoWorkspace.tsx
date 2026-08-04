@@ -278,7 +278,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
   );
 
   return (
-    <div className="fixed inset-0 z-[220] bg-black">
+    <div className="fixed inset-0 z-[220] bg-[#020202]">
       {confirmDialogNode}
       <button type="button" onClick={onClose} aria-label="Close demo" className="fixed right-4 top-4 z-[240] inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.1] bg-[#090909] text-xl text-white transition hover:border-amber-300/40 hover:bg-[#111111]">×</button>
       <AiBuilderWorkspaceFrame
