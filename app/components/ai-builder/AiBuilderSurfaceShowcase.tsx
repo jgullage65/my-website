@@ -128,12 +128,21 @@ export default function AiBuilderSurfaceShowcase({ session, builder, models, dia
     if (confirmed) setDemoOpen(true);
   };
 
+  const reviewShowcaseSession: AiBuilderSession = {
+    ...session,
+    contextCounts: {
+      ...session.contextCounts,
+      approved: Math.max(0, session.contextCounts.total - session.contextCounts.archived - 3),
+      proposed: 3,
+    },
+  };
+
   let showcaseSurface = null;
   if (activeSlide === "builder") showcaseSurface = <AiBuilderWorkspaceView mode="demo" activeView="builder" session={session} builder={builder} websiteKnowledge={showcaseWebsiteKnowledge} diagnostics={diagnostics} previewMode />;
   else if (activeSlide === "projects") showcaseSurface = <AiBuilderWorkspaceView mode="demo" activeView="projects" session={session} builder={builder} websiteKnowledge={showcaseWebsiteKnowledge} diagnostics={diagnostics} showcaseProjects={showcaseProjects} />;
   else if (activeSlide === "dashboard") showcaseSurface = <AiBuilderWorkspaceView mode="demo" activeView="dashboard" session={session} builder={builder} websiteKnowledge={showcaseWebsiteKnowledge} diagnostics={diagnostics} dashboardShowcase />;
   else if (activeSlide === "insights") showcaseSurface = <AiBuilderWorkspaceView mode="demo" activeView="insights" session={session} builder={builder} websiteKnowledge={showcaseWebsiteKnowledge} diagnostics={diagnostics} />;
-  else if (activeSlide === "review") showcaseSurface = <AiBuilderWorkspaceView mode="demo" activeView="review" session={session} builder={builder} websiteKnowledge={showcaseWebsiteKnowledge} diagnostics={diagnostics} embeddedReview />;
+  else if (activeSlide === "review") showcaseSurface = <AiBuilderWorkspaceView mode="demo" activeView="review" session={reviewShowcaseSession} builder={builder} websiteKnowledge={showcaseWebsiteKnowledge} diagnostics={diagnostics} embeddedReview />;
   else if (activeSlide === "sources") showcaseSurface = <AiBuilderWorkspaceView mode="demo" activeView="sources" session={session} builder={builder} websiteKnowledge={showcaseWebsiteKnowledge} diagnostics={diagnostics} />;
   else showcaseSurface = <AiBuilderAssistantShowcase models={models} />;
 
