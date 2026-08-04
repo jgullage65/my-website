@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 const PUBLIC_ARKENA_ROUTES = new Set([
   "/",
   "/ai-builder",
+  "/contact",
 ]);
 
 function isProtectedRoute(pathname: string): boolean {
