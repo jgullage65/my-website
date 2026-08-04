@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./scrollbar.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
