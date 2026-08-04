@@ -245,6 +245,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
       diagnostics={demoDiagnostics}
       knowledge={knowledge}
       projectId={previewSession.id}
+      previewMode
       embeddedReview
       settingsReadOnly
       onBuilderChange={setBuilderValue}
