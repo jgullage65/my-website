@@ -11,7 +11,7 @@ const siteDescription =
 const clerkAppearance = {
   layout: {
     logoImageUrl: "/image/Arkenalogo.png",
-    logoLinkUrl: "/ai-builder",
+    logoLinkUrl: "/brain-builder",
     socialButtonsVariant: "blockButton" as const,
   },
   variables: {
