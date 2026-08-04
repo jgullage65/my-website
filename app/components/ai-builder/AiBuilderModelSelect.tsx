@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCanonicalConfirm } from "@/app/components/ui/CanonicalConfirmDialog";
+import { MODEL_REGISTRY } from "@/app/lib/ai-engine/models/registry";
 
 export type AiBuilderModelChoice = {
   id: string;
@@ -31,10 +32,24 @@ const demoModel: AiBuilderModelChoice = {
   highUsage: false,
 };
 
+const demoModels: AiBuilderModelChoice[] = MODEL_REGISTRY
+  .filter(
+    (model) =>
+      model.enabled &&
+      Boolean(model.gatewayModelId) &&
+      model.selectablePurposes.includes("test-assistant"),
+  )
+  .map((model) => ({
+    id: model.id,
+    provider: model.provider,
+    displayName: model.displayName,
+    recommended: model.recommended,
+    highUsage: model.highUsage,
+  }));
+
 export default function AiBuilderModelSelect({models,value,disabled,onChange,className="",defaultOpen=false}:{models:AiBuilderModelChoice[];value:string;disabled:boolean;onChange:(modelId:string)=>void;className?:string;defaultOpen?:boolean}) {
   const [open, setOpen] = useState(defaultOpen);
   const [interactiveDemo, setInteractiveDemo] = useState(false);
-  const [demoModels, setDemoModels] = useState<AiBuilderModelChoice[]>([]);
   const rootRef = useRef<HTMLDivElement>(null);
   const effectiveModels = interactiveDemo ? [demoModel, ...demoModels] : models;
   const effectiveValue = interactiveDemo ? demoModel.id : value;
@@ -43,23 +58,7 @@ export default function AiBuilderModelSelect({models,value,disabled,onChange,cla
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
 
   useEffect(() => {
-    const isInteractiveDemo = Boolean(rootRef.current?.closest('[class*="z-[220]"]'));
-    setInteractiveDemo(isInteractiveDemo);
-    if (!isInteractiveDemo) return;
-
-    let cancelled = false;
-    void fetch("/api/ai-builder/models?purpose=test-assistant")
-      .then((response) => response.json())
-      .then((payload) => {
-        if (!cancelled && payload.ok && Array.isArray(payload.models)) {
-          setDemoModels(payload.models);
-        }
-      })
-      .catch(() => undefined);
-
-    return () => {
-      cancelled = true;
-    };
+    setInteractiveDemo(Boolean(rootRef.current?.closest('[class*="z-[220]"]')));
   }, []);
 
   useEffect(() => {
