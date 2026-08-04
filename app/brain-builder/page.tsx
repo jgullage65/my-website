@@ -3,10 +3,9 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import AiBuilderFirstRun from "@/app/components/ai-builder/AiBuilderFirstRun";
 import AiBuilderLanding from "@/app/components/ai-builder/AiBuilderLanding";
-import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 import AiBuilderShell from "@/app/components/ai-builder/AiBuilderShell";
-import RememberAiBuilderProject from "@/app/components/ai-builder/RememberAiBuilderProject";
 import { listAiBuilderProjects } from "@/app/lib/db/ai-builder-repository";
+import { toPublicBuildId } from "@/app/lib/brain-builder-public-id";
 
 const LAST_PROJECT_COOKIE = "ai_builder_last_project";
 
@@ -37,5 +36,5 @@ export default async function Page() {
   })[0];
   const project = rememberedProject ?? fallbackProject;
 
-  redirect(`/brain-builder/dashboard/${encodeURIComponent(project.id)}`);
+  redirect(`/brain-builder/dashboard/${encodeURIComponent(toPublicBuildId(project.id))}`);
 }
