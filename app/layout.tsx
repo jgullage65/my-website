@@ -3,6 +3,7 @@ import "./scrollbar.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
+import BrainBuilderUrlCanonicalizer from "@/app/components/BrainBuilderUrlCanonicalizer";
 
 const siteName = "Arkena Studio";
 const siteDescription =
@@ -153,6 +154,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <ClerkProvider appearance={clerkAppearance}>
+          <BrainBuilderUrlCanonicalizer />
           <main className="site-page-shell min-h-dvh xl:h-dvh xl:min-h-0 xl:overflow-hidden">
             {children}
           </main>
