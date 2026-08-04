@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
-import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
+import type { PersistedWebsiteKnowledge, WebsiteKnowledgeFact } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
 import type { BuilderState } from "./AiBuilderClient";
 import type { ProjectDiagnostics } from "./AiBuilderProjectInsights";
@@ -22,6 +22,10 @@ type Props = {
 
 type DemoTab = "builder" | "dashboard" | "insights" | "review" | "sources" | "settings" | "chat";
 type BuildStage = "idle" | "building" | "ready";
+type ExtendedDemoKnowledge = BuilderState["userKnowledge"] & {
+  businessPoliciesOperations?: string;
+  successStoriesCaseStudies?: string;
+};
 
 const ITEMS: ReadonlyArray<readonly [DemoTab, string]> = [
   ["builder", "Brain Builder"],
@@ -46,6 +50,73 @@ const EMPTY_BUILDER: BuilderState = {
   websiteKnowledge: null,
   crawlAttemptIds: [],
 };
+
+function distinctFactValues(
+  facts: readonly WebsiteKnowledgeFact[],
+  categories: ReadonlySet<WebsiteKnowledgeFact["category"]>,
+  limit: number,
+): string {
+  const seen = new Set<string>();
+  return facts
+    .filter((fact) => categories.has(fact.category))
+    .map((fact) => fact.value.trim())
+    .filter((value) => {
+      const key = value.toLocaleLowerCase();
+      if (!value || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit)
+    .join("\n\n");
+}
+
+function hydrateDemoBuilderFromWebsite(previous: BuilderState, next: BuilderState): BuilderState {
+  const website = next.websiteKnowledge;
+  if (!website || website === previous.websiteKnowledge) return next;
+
+  const facts = website.knowledge?.facts ?? [];
+  const currentKnowledge = next.userKnowledge as ExtendedDemoKnowledge;
+  const brandVoice = distinctFactValues(facts, new Set<WebsiteKnowledgeFact["category"]>(["brand_voice_terminology"]), 6);
+  const policiesOperations = distinctFactValues(
+    facts,
+    new Set<WebsiteKnowledgeFact["category"]>([
+      "policy",
+      "process",
+      "guarantee",
+      "support_onboarding",
+      "location_service_area",
+      "contact_information",
+      "security_compliance",
+    ]),
+    12,
+  );
+  const successStories = distinctFactValues(
+    facts,
+    new Set<WebsiteKnowledgeFact["category"]>([
+      "competitive_differentiator",
+      "differentiator",
+      "primary_use_case",
+      "partnership",
+      "certification",
+    ]),
+    10,
+  );
+
+  return {
+    ...next,
+    businessName: website.businessName.trim() || next.businessName,
+    industry: website.industry.trim() || next.industry,
+    tone: brandVoice || next.tone,
+    userKnowledge: {
+      ...currentKnowledge,
+      productsServices: website.productsServices.trim() || currentKnowledge.productsServices,
+      idealCustomers: website.idealCustomers.trim() || currentKnowledge.idealCustomers,
+      additionalKnowledge: website.additionalKnowledge.trim() || currentKnowledge.additionalKnowledge,
+      businessPoliciesOperations: policiesOperations || currentKnowledge.businessPoliciesOperations || "",
+      successStoriesCaseStudies: successStories || currentKnowledge.successStoriesCaseStudies || "",
+    } as ExtendedDemoKnowledge,
+  };
+}
 
 function updatePreviewSession(session: AiBuilderSession, command: ReviewCommandRequest): AiBuilderSession {
   const now = new Date().toISOString();
@@ -189,6 +260,10 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
     setActiveTab(nextTab);
   };
 
+  const handleBuilderChange = (next: BuilderState) => {
+    setBuilderValue((current) => hydrateDemoBuilderFromWebsite(current, next));
+  };
+
   const buildTemporaryBrain = async () => {
     if (buildStage === "building") return;
     setBuildStage("building");
@@ -248,7 +323,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
       previewMode
       embeddedReview
       settingsReadOnly
-      onBuilderChange={setBuilderValue}
+      onBuilderChange={handleBuilderChange}
       onBuild={() => void buildTemporaryBrain()}
       onReviewCommand={async (command) => setPreviewSession((current) => updatePreviewSession(current, command))}
       onBack={() => setActiveTab("dashboard")}
