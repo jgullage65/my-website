@@ -55,11 +55,10 @@ function distinctFactValues(
   facts: readonly WebsiteKnowledgeFact[],
   categories: ReadonlySet<WebsiteKnowledgeFact["category"]>,
   limit: number,
-  predicate?: (fact: WebsiteKnowledgeFact) => boolean,
 ): string {
   const seen = new Set<string>();
   return facts
-    .filter((fact) => categories.has(fact.category) && (!predicate || predicate(fact)))
+    .filter((fact) => categories.has(fact.category))
     .map((fact) => fact.value.trim())
     .filter((value) => {
       const key = value.toLocaleLowerCase();
@@ -77,21 +76,21 @@ function hydrateDemoBuilderFromWebsite(previous: BuilderState, next: BuilderStat
 
   const facts = website.knowledge?.facts ?? [];
   const currentKnowledge = next.userKnowledge as ExtendedDemoKnowledge;
-  const brandVoice = distinctFactValues(
-    facts,
-    new Set<WebsiteKnowledgeFact["category"]>(["brand_voice_terminology"]),
-    4,
-  );
+  const brandVoice = distinctFactValues(facts, new Set<WebsiteKnowledgeFact["category"]>(["brand_voice_terminology"]), 6);
   const policiesOperations = distinctFactValues(
     facts,
-    new Set<WebsiteKnowledgeFact["category"]>(["policy", "process", "guarantee", "support_onboarding"]),
-    6,
+    new Set<WebsiteKnowledgeFact["category"]>([
+      "policy",
+      "process",
+      "guarantee",
+      "support_onboarding",
+    ]),
+    8,
   );
   const successStories = distinctFactValues(
     facts,
     new Set<WebsiteKnowledgeFact["category"]>(["additional_business_knowledge"]),
-    4,
-    (fact) => /\b(case study|testimonial|customer result|success stor|resulted in|increased|reduced|grew|saved)\b/i.test(`${fact.title} ${fact.value}`),
+    6,
   );
 
   return {
@@ -224,7 +223,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
         completed_at: completedAt,
         knowledge_count: previewSession.contextEntries.length,
         faq_count: previewSession.faqEntries.length,
-        model: "Brain Builder demo",
+        model: "Brain Builder Demo",
         input_tokens: null,
         output_tokens: null,
         total_tokens: null,
@@ -254,6 +253,21 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
 
   const handleBuilderChange = (next: BuilderState) => {
     setBuilderValue((current) => hydrateDemoBuilderFromWebsite(current, next));
+  };
+
+  const handleWorkspaceClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+    const button = (event.target as HTMLElement).closest("button");
+    if (!button || activeTab !== "dashboard") return;
+    const text = button.textContent?.toLowerCase() ?? "";
+    if (text.includes("waiting for review") || text.includes("unresolved conflict") || text.includes("information gap")) {
+      setActiveTab("review");
+      return;
+    }
+    if (text.includes("website import warning") || text.includes("no website source") || text.includes("inspect source material")) {
+      setActiveTab("sources");
+      return;
+    }
+    if (text.includes("assistant has not been tested")) setActiveTab("chat");
   };
 
   const buildTemporaryBrain = async () => {
@@ -346,7 +360,7 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
   );
 
   return (
-    <div className="fixed inset-0 z-[220] bg-[#020202]">
+    <div className="fixed inset-0 z-[220] bg-[#020202]" onClickCapture={handleWorkspaceClickCapture}>
       <style jsx global>{`
         html body[data-ai-builder-workspace="true"],
         html body[data-ai-builder-workspace="true"] .site-page-shell,
@@ -357,6 +371,20 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
 
         html body[data-ai-builder-workspace="true"] .ai-builder-shell__content > div > aside:last-of-type {
           background: #020202 !important;
+        }
+
+        @media (min-width: 1200px) {
+          html body[data-ai-builder-workspace="true"] .ai-builder-shell__content > div > aside:last-of-type header {
+            min-height: 108px !important;
+            padding-top: 20px !important;
+            padding-bottom: 20px !important;
+          }
+
+          html body[data-ai-builder-workspace="true"] .ai-builder-shell__content > div > aside:last-of-type .ai-builder-chat-scrollbar {
+            padding-top: 32px !important;
+            padding-left: 22px !important;
+            padding-right: 22px !important;
+          }
         }
       `}</style>
       {confirmDialogNode}
