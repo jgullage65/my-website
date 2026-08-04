@@ -236,8 +236,35 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
       if (previewMode) {
         const payload = await response.json() as WebsiteImportPayload;
         if (!payload.ok || !payload.import) throw new Error("public_demo_import_unavailable");
-        const imported=payload.import; const websiteKnowledge:WebsiteKnowledge={businessName:imported.businessName?.trim()||"",industry:imported.industry?.trim()||"",website:imported.website?.trim()||website,requestedUrl:imported.requestedUrl?.trim()||website,resolvedUrl:imported.resolvedUrl?.trim()||website,productsServices:imported.productsServices?.trim()||"",idealCustomers:imported.idealCustomers?.trim()||"",additionalKnowledge:imported.additionalKnowledge?.trim()||"",knowledge:payload.knowledge,pages:payload.pages??[],warnings:payload.warnings??[],importedAt:new Date().toISOString(),crawlAttemptId:payload.crawlAttemptId,sourceDocuments:payload.sourceDocuments??[],sourceBlocks:payload.sourceBlocks??[]};
-        onChange({...value,businessName:value.businessName.trim()?value.businessName:websiteKnowledge.businessName,industry:value.industry,website:websiteKnowledge.website,websiteKnowledge,crawlAttemptIds:[]});setCrawlPages(websiteKnowledge.pages.length);setImportProgress(100);setImportStage("complete");
+        const imported = payload.import;
+        const websiteKnowledge: WebsiteKnowledge = {
+          businessName: imported.businessName?.trim() || "",
+          industry: imported.industry?.trim() || "",
+          website: imported.website?.trim() || website,
+          requestedUrl: imported.requestedUrl?.trim() || website,
+          resolvedUrl: imported.resolvedUrl?.trim() || website,
+          productsServices: imported.productsServices?.trim() || "",
+          idealCustomers: imported.idealCustomers?.trim() || "",
+          additionalKnowledge: imported.additionalKnowledge?.trim() || "",
+          knowledge: payload.knowledge,
+          pages: payload.pages ?? [],
+          warnings: payload.warnings ?? [],
+          importedAt: new Date().toISOString(),
+          crawlAttemptId: payload.crawlAttemptId,
+          sourceDocuments: payload.sourceDocuments ?? [],
+          sourceBlocks: payload.sourceBlocks ?? [],
+        };
+        onChange({
+          ...value,
+          businessName: value.businessName.trim() ? value.businessName : websiteKnowledge.businessName,
+          industry: value.industry,
+          website: websiteKnowledge.website,
+          websiteKnowledge,
+          crawlAttemptIds: [],
+        });
+        setCrawlPages(websiteKnowledge.pages.length);
+        setImportProgress(100);
+        setImportStage("complete");
         const continueBuilding = await showConfirm({
           title: "Your website is ready",
           message: `We brought ${websiteKnowledge.pages.length} public page${websiteKnowledge.pages.length === 1 ? "" : "s"} into your temporary Business Brain. You can review everything before deciding what to keep.`,
@@ -336,9 +363,7 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
           cancelLabel: "Continue without it",
           confirmLabel: "Try again",
         });
-        if (retry) {
-          window.setTimeout(() => void importWebsite(), 0);
-        }
+        if (retry) window.setTimeout(() => void importWebsite(), 0);
       } else {
         setImportError(error instanceof Error ? error.message : "The website could not be imported.");
       }
@@ -347,33 +372,44 @@ export default function AiBuilderForm({ value, projectId, onChange, onBuild, dem
     }
   };
 
-  const valid = Boolean(
-    value.businessName.trim() &&
-      value.industry.trim() &&
-      (value.userKnowledge.productsServices.trim() || value.websiteKnowledge?.productsServices.trim()) &&
-      (value.userKnowledge.idealCustomers.trim() || value.websiteKnowledge?.idealCustomers.trim()),
-  );
-
   const extendedKnowledge = value.userKnowledge as ExtendedUserKnowledge;
   const businessPoliciesOperations = extendedKnowledge.businessPoliciesOperations ?? "";
   const successStoriesCaseStudies = extendedKnowledge.successStoriesCaseStudies ?? "";
+  const websiteFactCount = value.websiteKnowledge?.knowledge?.facts?.length ?? 0;
+  const hasWebsiteKnowledge = Boolean(value.websiteKnowledge && (websiteFactCount > 0 || value.websiteKnowledge.pages.length > 0));
+  const hasOwnerKnowledge = Boolean(
+    value.industry.trim() ||
+      value.userKnowledge.productsServices.trim() ||
+      value.userKnowledge.idealCustomers.trim() ||
+      value.userKnowledge.additionalKnowledge.trim() ||
+      (value.tone.trim() && value.tone !== "Professional") ||
+      businessPoliciesOperations.trim() ||
+      successStoriesCaseStudies.trim(),
+  );
+  const valid = Boolean(value.businessName.trim() && (hasWebsiteKnowledge || hasOwnerKnowledge));
 
   async function reviewAndBuild() {
+    const included: string[] = [];
+    if (value.businessName.trim()) included.push("Business profile");
+    if (value.industry.trim()) included.push("Industry");
+    if (value.userKnowledge.productsServices.trim()) included.push("Products & Services");
+    if (value.userKnowledge.idealCustomers.trim()) included.push("Ideal Customers");
+    if (value.tone.trim() && value.tone !== "Professional") included.push("Brand Voice");
+    if (businessPoliciesOperations.trim()) included.push("Business Policies & Operations");
+    if (successStoriesCaseStudies.trim()) included.push("Success Stories & Case Studies");
+    if (value.userKnowledge.additionalKnowledge.trim()) included.push("Additional Business Knowledge");
+
     const lines = [
-      "Website knowledge",
       value.websiteKnowledge
-        ? `✓ ${value.websiteKnowledge.pages.length} page${value.websiteKnowledge.pages.length === 1 ? "" : "s"} imported`
-        : "○ Not provided",
+        ? `Website source ready · ${value.websiteKnowledge.pages.length} page${value.websiteKnowledge.pages.length === 1 ? "" : "s"} imported`
+        : "No website source connected",
+      included.length ? "" : null,
+      included.length ? "Owner knowledge included" : null,
+      ...included.map((label) => `✓ ${label}`),
       "",
-      "Manual knowledge",
-      `${value.businessName.trim() && value.industry.trim() ? "✓" : "○"} Business profile`,
-      `${value.userKnowledge.productsServices.trim() ? "✓" : "○"} Products & Services`,
-      `${value.userKnowledge.idealCustomers.trim() ? "✓" : "○"} Ideal Customers`,
-      `${value.tone.trim() && value.tone !== "Professional" ? "✓" : "○"} Brand Voice`,
-      `${businessPoliciesOperations.trim() ? "✓" : "○"} Business Policies & Operations`,
-      `${successStoriesCaseStudies.trim() ? "✓" : "○"} Success Stories & Case Studies`,
-      `${value.userKnowledge.additionalKnowledge.trim() ? "✓" : "○"} Additional Business Knowledge`,
-    ];
+      "Any section you leave empty can be added or refined later.",
+    ].filter((line): line is string => line !== null);
+
     const confirmed = await showConfirm({
       title: "Build Your AI",
       message: lines.join("\n"),
