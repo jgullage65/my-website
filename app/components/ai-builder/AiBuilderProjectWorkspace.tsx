@@ -99,7 +99,10 @@ export default function AiBuilderProjectWorkspace({
   reviewOpen = false,
   initialTab = "dashboard",
 }: Props) {
-  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(initialTab === "overview" ? "dashboard" : initialTab);
+  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>(
+    initialTab === "overview" || initialTab === "projects" ? "dashboard" : initialTab,
+  );
+  const [projectsOpen, setProjectsOpen] = useState(initialTab === "projects");
   const [overviewOpen, setOverviewOpen] = useState(initialTab === "overview");
   const [knowledgeOpen, setKnowledgeOpen] = useState(reviewOpen);
   const [builder, setBuilder] = useState<BuilderState>(EMPTY_BUILDER);
@@ -172,6 +175,23 @@ export default function AiBuilderProjectWorkspace({
     window.addEventListener("keydown", close);
     return () => window.removeEventListener("keydown", close);
   }, [overviewOpen]);
+
+  const closeProjects = useCallback(() => {
+    setProjectsOpen(false);
+    const url = new URL(window.location.href);
+    url.searchParams.set("projectId", projectId);
+    url.searchParams.set("tab", workspaceTab);
+    window.history.replaceState(null, "", url.toString());
+  }, [projectId, workspaceTab]);
+
+  useEffect(() => {
+    if (!projectsOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") closeProjects();
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [closeProjects, projectsOpen]);
 
   const closeReview = useCallback(() => {
     setKnowledgeOpen(false);
@@ -318,7 +338,18 @@ export default function AiBuilderProjectWorkspace({
     }));
   }, [builder.businessName, projectId, projectStateRevision]);
 
+  const openProjects = useCallback(() => {
+    setOverviewOpen(false);
+    setKnowledgeOpen(false);
+    setProjectsOpen(true);
+    const url = new URL(window.location.href);
+    url.searchParams.set("projectId", projectId);
+    url.searchParams.set("tab", "projects");
+    window.history.replaceState(null, "", url.toString());
+  }, [projectId]);
+
   const openReview = useCallback(() => {
+    setProjectsOpen(false);
     setOverviewOpen(false);
     setKnowledgeOpen(true);
     const url = new URL(window.location.href);
@@ -328,16 +359,23 @@ export default function AiBuilderProjectWorkspace({
   }, [projectId, workspaceTab]);
 
   const selectWorkspaceTab = useCallback((nextTab: WorkspaceTab) => {
+    if (nextTab === "projects") {
+      openProjects();
+      return;
+    }
+
     if (nextTab === "knowledge") {
       openReview();
       return;
     }
 
     if (nextTab === "overview" && window.matchMedia("(min-width: 640px)").matches) {
+      setProjectsOpen(false);
       setOverviewOpen(true);
       return;
     }
 
+    setProjectsOpen(false);
     setKnowledgeOpen(false);
     setOverviewOpen(false);
     setWorkspaceTab(nextTab);
@@ -345,7 +383,7 @@ export default function AiBuilderProjectWorkspace({
     url.searchParams.set("projectId", projectId);
     url.searchParams.set("tab", nextTab);
     window.history.replaceState(null, "", url.toString());
-  }, [openReview, projectId]);
+  }, [openProjects, openReview, projectId]);
 
   const reviewSaveStatus = pendingReviewItems.size > 0 ? "saving" : saveStatus;
   const websiteKnowledge = builder.websiteKnowledge
@@ -394,15 +432,13 @@ export default function AiBuilderProjectWorkspace({
     );
   }
 
-  const projectsPage = (
+  const projectsContent = (
     <div className="[&>div]:!static [&>div]:!block [&>div]:!bg-transparent [&>div]:!p-0 [&>div>section]:!max-h-none [&>div>section]:!max-w-none [&>div>section]:!overflow-visible [&>div>section]:!rounded-none [&>div>section]:!border-0 [&>div>section]:!bg-transparent [&>div>section]:!px-0 [&>div>section]:!py-0 [&>div>section]:!shadow-none">
       <AiBuilderProjects embedded />
     </div>
   );
 
-  const workspaceContent = workspaceTab === "projects" ? (
-    projectsPage
-  ) : workspaceTab === "dashboard" ? (
+  const workspaceContent = workspaceTab === "dashboard" ? (
     <AiBuilderDashboard />
   ) : workspaceTab === "insights" ? (
     <AiBuilderProjectInsights />
@@ -455,7 +491,16 @@ export default function AiBuilderProjectWorkspace({
 
   const overlays = (
     <>
-      {overviewOpen && !knowledgeOpen ? (
+      {projectsOpen ? (
+        <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
+          <section role="dialog" aria-modal="true" aria-label="Projects" className="flex max-h-[90dvh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
+            <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-24 py-4 text-center"><h2 className="text-base font-semibold text-white">Projects</h2><button type="button" onClick={closeProjects} className="absolute right-6 top-1/2 -translate-y-1/2 rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Done</button></div>
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{projectsContent}</div>
+          </section>
+        </div>
+      ) : null}
+
+      {overviewOpen && !knowledgeOpen && !projectsOpen ? (
         <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
           <section role="dialog" aria-modal="true" aria-label="Project overview" className="flex max-h-[90dvh] w-full max-w-[820px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
             <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-20 py-4 text-center"><h2 className="text-base font-semibold text-white">Overview</h2><button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-5 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] text-xl leading-none text-slate-300 transition hover:bg-white/[0.05] hover:text-white">×</button></div>
@@ -473,13 +518,15 @@ export default function AiBuilderProjectWorkspace({
         </div>
       ) : null}
 
-      {overviewOpen && !knowledgeOpen ? <section role="dialog" aria-modal="true" aria-label="Project overview" className="fixed inset-0 z-[100] hidden min-h-dvh flex-col bg-[#030303] sm:flex xl:hidden"><div className="relative flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] px-16 text-center"><h2 className="text-sm font-semibold text-white">Overview</h2><button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-2xl leading-none text-slate-300">×</button></div><div className="min-h-0 flex-1 overflow-y-auto px-6 py-6"><div className="mx-auto w-full max-w-[700px]">{overviewContent}</div></div></section> : null}
+      {overviewOpen && !knowledgeOpen && !projectsOpen ? <section role="dialog" aria-modal="true" aria-label="Project overview" className="fixed inset-0 z-[100] hidden min-h-dvh flex-col bg-[#030303] sm:flex xl:hidden"><div className="relative flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] px-16 text-center"><h2 className="text-sm font-semibold text-white">Overview</h2><button type="button" onClick={() => setOverviewOpen(false)} aria-label="Close overview" className="absolute right-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.1] bg-[#080808] text-2xl leading-none text-slate-300">×</button></div><div className="min-h-0 flex-1 overflow-y-auto px-6 py-6"><div className="mx-auto w-full max-w-[700px]">{overviewContent}</div></div></section> : null}
     </>
   );
 
-  const title = knowledgeOpen
-    ? "Business Knowledge"
-    : WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1] ?? "Workspace";
+  const title = projectsOpen
+    ? "Projects"
+    : knowledgeOpen
+      ? "Business Knowledge"
+      : WORKSPACE_ITEMS.find(([value]) => value === workspaceTab)?.[1] ?? "Workspace";
 
   return (
     <AiBuilderWorkspaceProvider
@@ -496,6 +543,7 @@ export default function AiBuilderProjectWorkspace({
       submitReviewCommand={submitReviewCommand}
       setActiveTab={selectWorkspaceTab}
       openOverview={() => {
+        setProjectsOpen(false);
         setKnowledgeOpen(false);
         setOverviewOpen(true);
       }}
@@ -511,17 +559,21 @@ export default function AiBuilderProjectWorkspace({
           value,
           label,
           active:
-            value === "knowledge"
-              ? knowledgeOpen
-              : value === "overview"
-                ? overviewOpen
-                : workspaceTab === value && !overviewOpen && !knowledgeOpen,
+            value === "projects"
+              ? projectsOpen
+              : value === "knowledge"
+                ? knowledgeOpen
+                : value === "overview"
+                  ? overviewOpen
+                  : workspaceTab === value && !projectsOpen && !overviewOpen && !knowledgeOpen,
           onSelect: () => selectWorkspaceTab(value),
         }))}
         rightRail={rightRail}
         overlays={overlays}
       >
-        {knowledgeOpen ? (
+        {projectsOpen ? (
+          <div className="xl:hidden">{projectsContent}</div>
+        ) : knowledgeOpen ? (
           <div className="xl:hidden">
             {reviewStatus}
             {businessKnowledge}
