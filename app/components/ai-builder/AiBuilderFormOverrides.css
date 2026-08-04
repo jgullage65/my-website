@@ -356,3 +356,36 @@ html[data-ai-builder-reduced-motion="true"] .ai-builder-shell__content *::after 
     text-align-last: center;
   }
 }
+
+/* Business Knowledge review polish */
+.ai-builder-shell__content section:has(button[aria-pressed]) div.rounded-xl.border.border-white\/\[0\.12\].bg-\[\#050505\] {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-builder-shell__content section:has(button[aria-pressed]) div.rounded-xl.border.border-white\/\[0\.12\].bg-\[\#050505\] > p:first-child {
+  order: 2;
+  margin-top: 0.5rem;
+}
+
+.ai-builder-shell__content section:has(button[aria-pressed]) div.rounded-xl.border.border-white\/\[0\.12\].bg-\[\#050505\] > p:last-child {
+  order: 1;
+  margin-top: 0;
+  color: #64748b !important;
+}
+
+.ai-builder-shell__content button[aria-pressed="true"] {
+  border-color: rgba(252, 211, 77, 0.45) !important;
+  background-color: #070707 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+
+.ai-builder-shell__content button[aria-pressed="true"]:hover {
+  border-color: rgba(252, 211, 77, 0.55) !important;
+  background-color: #070707 !important;
+}
+
+.ai-builder-shell__content section.space-y-7 > p.text-amber-300 {
+  display: none !important;
+}
