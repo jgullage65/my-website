@@ -1,3 +1,4 @@
+import assert from "node:assert/strict";
 import type { DeterministicFact } from "../contracts";
 import { primaryBucketForCategory } from "../routing/buckets";
 import type { KnowledgeObservation } from "../routing/contracts";
@@ -56,6 +57,21 @@ export function reportsToLegacyFacts(
       if (primaryBucketForCategory(fact.category) !== report.bucket) {
         throw new Error(
           `Fact ${fact.id} does not belong to bucket ${report.bucket}`,
+        );
+      }
+
+      const expected = expectedFacts[observation.sourceIndex];
+      if (!expected) {
+        throw new Error(
+          `Missing expected legacy fact at source index ${observation.sourceIndex}`,
+        );
+      }
+
+      try {
+        assert.deepStrictEqual(fact, expected);
+      } catch {
+        throw new Error(
+          `Legacy fact parity mismatch at source index ${observation.sourceIndex}`,
         );
       }
 
