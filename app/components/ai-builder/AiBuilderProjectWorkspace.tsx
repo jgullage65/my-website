@@ -492,8 +492,8 @@ export default function AiBuilderProjectWorkspace({
   const overlays = (
     <>
       {projectsOpen ? (
-        <div className="fixed inset-0 z-[100] hidden items-center justify-center bg-black/75 p-8 backdrop-blur-md xl:flex" role="presentation">
-          <section role="dialog" aria-modal="true" aria-label="Projects" className="flex max-h-[90dvh] w-full max-w-[1100px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
+        <div className="fixed inset-0 z-[100] hidden items-start justify-center bg-black/75 px-8 pb-8 pt-3 backdrop-blur-md xl:flex" role="presentation">
+          <section role="dialog" aria-modal="true" aria-label="Projects" className="flex max-h-[calc(100dvh-24px)] w-full max-w-[1100px] flex-col overflow-hidden rounded-[24px] border border-white/[0.1] bg-[#030303] shadow-[0_32px_110px_rgba(0,0,0,0.72)]">
             <div className="relative flex flex-none items-center justify-center border-b border-white/[0.08] px-24 py-4 text-center"><h2 className="text-base font-semibold text-white">Projects</h2><button type="button" onClick={closeProjects} className="absolute right-6 top-1/2 -translate-y-1/2 rounded-lg border border-white/[0.1] px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.05] hover:text-white">Done</button></div>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{projectsContent}</div>
           </section>
