@@ -1,33 +1,11 @@
 "use client";
 
 import { SignedOut, SignInButton } from "@clerk/nextjs";
-import { useEffect } from "react";
 
 export const aiBuilderCornerCtaClassName =
   "cta-raised inline-flex min-h-[34px] items-center justify-center rounded-lg border border-amber-300/15 bg-[#080808] px-4 py-2 text-xs font-black text-white shadow-[0_10px_24px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)] transition hover:-translate-y-0.5 hover:border-amber-300/30 hover:bg-[#111111]";
 
 export default function AiBuilderAuthCta() {
-  useEffect(() => {
-    const businessNameInput = document.querySelector<HTMLInputElement>(
-      '.ai-builder-form input[placeholder="JG Creative Studio"]',
-    );
-    const industryInput = document.querySelector<HTMLInputElement>(
-      '.ai-builder-form input[placeholder="Web design and AI automation agency"]',
-    );
-
-    if (businessNameInput) {
-      businessNameInput.placeholder = "Arkena Studio";
-      const label = businessNameInput.closest("label")?.querySelector("span");
-      if (label) label.textContent = "Business name";
-    }
-
-    if (industryInput) {
-      industryInput.placeholder = "AI automation studio";
-      const label = industryInput.closest("label")?.querySelector("span");
-      if (label) label.textContent = "Industry";
-    }
-  }, []);
-
   return (
     <>
       <style>{`

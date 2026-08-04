@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 const PUBLIC_ARKENA_ROUTES = new Set([
   "/",
   "/ai-builder",
-  "/contact",
 ]);
 
 function isProtectedRoute(pathname: string): boolean {
@@ -23,8 +22,13 @@ export default clerkMiddleware(async (auth, request) => {
   const pathname = request.nextUrl.pathname;
   const publicDemoApi = pathname === "/api/ai-builder/public-demo/crawl";
   const cronSecret = process.env.CRON_SECRET?.trim();
-  const internalCrawlWorker = (pathname === "/api/ai-builder/crawl" || pathname === "/api/ai-builder/crawl/jobs/process")
-    && Boolean(cronSecret && request.headers.get("authorization") === `Bearer ${cronSecret}`);
+  const internalCrawlWorker =
+    (pathname === "/api/ai-builder/crawl" ||
+      pathname === "/api/ai-builder/crawl/jobs/process") &&
+    Boolean(
+      cronSecret &&
+        request.headers.get("authorization") === `Bearer ${cronSecret}`,
+    );
 
   if (internalCrawlWorker) return;
 
