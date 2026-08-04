@@ -55,16 +55,44 @@ export const CATEGORY_PRIMARY_BUCKET = {
   other: "proof_positioning",
 } as const satisfies Record<KnowledgeCategory, KnowledgeBucket>;
 
+const CATEGORY_SET = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
+const BUCKET_SET = new Set<string>(KNOWLEDGE_BUCKETS);
+
 export function primaryBucketForCategory(
   category: KnowledgeCategory,
 ): KnowledgeBucket {
-  return CATEGORY_PRIMARY_BUCKET[category];
+  const bucket = CATEGORY_PRIMARY_BUCKET[category];
+  if (!bucket) {
+    throw new Error(`Unknown knowledge category: ${String(category)}`);
+  }
+  return bucket;
 }
 
 export function assertExhaustiveCategoryOwnership(): void {
+  const mappedCategories = Object.keys(CATEGORY_PRIMARY_BUCKET);
+
   for (const category of WEBSITE_KNOWLEDGE_CATEGORIES) {
-    if (!CATEGORY_PRIMARY_BUCKET[category]) {
+    if (!Object.prototype.hasOwnProperty.call(CATEGORY_PRIMARY_BUCKET, category)) {
       throw new Error(`Missing primary bucket owner for category: ${category}`);
     }
+  }
+
+  for (const category of mappedCategories) {
+    if (!CATEGORY_SET.has(category)) {
+      throw new Error(`Unexpected mapped knowledge category: ${category}`);
+    }
+
+    const bucket = CATEGORY_PRIMARY_BUCKET[category as KnowledgeCategory];
+    if (!BUCKET_SET.has(bucket)) {
+      throw new Error(
+        `Invalid primary bucket ${bucket} for category: ${category}`,
+      );
+    }
+  }
+
+  if (mappedCategories.length !== WEBSITE_KNOWLEDGE_CATEGORIES.length) {
+    throw new Error(
+      `Knowledge category ownership count ${mappedCategories.length} does not match expected ${WEBSITE_KNOWLEDGE_CATEGORIES.length}`,
+    );
   }
 }
