@@ -16,7 +16,12 @@ export default function AiBuilderAuthCta() {
       `}</style>
       <div className="absolute right-4 top-4 z-10 flex justify-end sm:right-6 lg:right-8">
         <SignedOut>
-          <SignInButton mode="modal" forceRedirectUrl="/brain-builder">
+          <SignInButton
+            mode="modal"
+            fallbackRedirectUrl="/brain-builder"
+            signUpFallbackRedirectUrl="/brain-builder"
+            oauthFlow="popup"
+          >
             <button type="button" className={aiBuilderCornerCtaClassName}>
               Sign In
             </button>
