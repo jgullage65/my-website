@@ -112,11 +112,11 @@ export default function AiBuilderLanding() {
 
               <div className="mt-8 grid gap-7 border-t border-white/[0.07] pt-6">
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Model freedom</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-white">Model freedom</p>
                   <p className="mt-3 text-base leading-7 text-slate-400">Build your Business Brain with the model you choose today. Switch the model that answers tomorrow without rebuilding your business knowledge.</p>
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-amber-300">Review and approval</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-white">Review and approval</p>
                   <p className="mt-3 text-base leading-7 text-slate-400">Nothing becomes Business Memory until you approve it. Edit what isn’t right, remove what doesn’t belong, and trust what you keep.</p>
                 </div>
               </div>
@@ -124,7 +124,7 @@ export default function AiBuilderLanding() {
             <AiBuilderSurfaceShowcase session={aiBuilderDemoSession} builder={aiBuilderDemoBuilder} models={aiBuilderDemoModels} diagnostics={aiBuilderDemoDiagnostics} autoAdvance className="min-w-0" />
           </section>
 
-          <section className="mt-6 grid w-full gap-4 border-t border-white/[0.07] pt-6 sm:grid-cols-2 xl:mt-auto xl:grid-cols-4">
+          <section className="mt-6 grid w-full gap-4 border-t border-white/[0.07] pt-6 min-[641px]:grid-cols-2 xl:mt-auto xl:grid-cols-4">
             {[
               ["Choose the model", "Use GPT, Claude, Gemini, or Grok without rebuilding the business context."],
               ["Import the website", "Bring in public pages while keeping owner expertise separate and in control."],
