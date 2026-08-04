@@ -30,6 +30,11 @@
   padding-right: 0 !important;
 }
 
+.ai-builder-form > div > div.relative > div > div:first-child > section p.text-amber-300,
+.ai-builder-form > div > div.relative > div > section:nth-child(2) > div:first-child > p.text-amber-300 {
+  color: #ffffff !important;
+}
+
 .ai-builder-form > div > section > div:nth-of-type(2) > article > div:first-child {
   position: relative;
   width: 100%;
