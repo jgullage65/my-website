@@ -56,6 +56,29 @@ test("always invokes all eight compatibility specialists in canonical order", ()
   }
 });
 
+test("keeps report observation identity ordering stable across reversed input", () => {
+  const facts = [
+    fact("offer-b", "product"),
+    fact("offer-a", "service"),
+    fact("commercial", "pricing_plan"),
+  ];
+
+  const forward = runCompatibilitySpecialists(
+    routeLegacyFactsAsObservations(facts),
+    facts,
+  );
+  const reversedFacts = [...facts].reverse();
+  const reversed = runCompatibilitySpecialists(
+    routeLegacyFactsAsObservations(reversedFacts),
+    reversedFacts,
+  );
+
+  assert.deepEqual(
+    forward.map((report) => report.observations.map((item) => item.id)),
+    reversed.map((report) => report.observations.map((item) => item.id)),
+  );
+});
+
 test("returns complete empty reports for buckets without owned facts", () => {
   const facts = [fact("offer", "service")];
   const reports = runCompatibilitySpecialists(
