@@ -130,18 +130,17 @@ export const metadata: Metadata = {
   },
   description: siteDescription,
   themeColor: "#000000",
+  manifest: "/site.webmanifest",
   icons: {
     icon: [
-      {
-        url: "/apple-touch-icon.png?v=20260721",
-        sizes: "180x180",
-        type: "image/png",
-      },
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
-    shortcut: "/apple-touch-icon.png?v=20260721",
+    shortcut: "/favicon.ico",
     apple: [
       {
-        url: "/apple-touch-icon.png?v=20260721",
+        url: "/apple-touch-icon.png",
         sizes: "180x180",
         type: "image/png",
       },
