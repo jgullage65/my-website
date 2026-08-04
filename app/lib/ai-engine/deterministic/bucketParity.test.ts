@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildDeterministicBusinessBrain } from "./index";
-import { buildLegacyDeterministicBusinessBrain } from "./legacyPipeline";
+import { buildLegacyDeterministicBusinessBrain } from "./test/legacyPipeline";
 
 function comparable<T extends { executionTimeMs: number; bucketShadow?: unknown }>(
   value: T,
