@@ -1,5 +1,6 @@
 import AiBuilderProjectWorkspace from "@/app/components/ai-builder/AiBuilderProjectWorkspace";
 import RememberAiBuilderProject from "@/app/components/ai-builder/RememberAiBuilderProject";
+import { toInternalProjectId } from "@/app/lib/brain-builder-public-id";
 
 type PageProps = {
   params: {
@@ -8,12 +9,12 @@ type PageProps = {
 };
 
 export default function Page({ params }: PageProps) {
-  const buildId = decodeURIComponent(params.buildId);
+  const projectId = toInternalProjectId(decodeURIComponent(params.buildId));
 
   return (
     <>
-      <RememberAiBuilderProject projectId={buildId} />
-      <AiBuilderProjectWorkspace projectId={buildId} initialTab="insights" />
+      <RememberAiBuilderProject projectId={projectId} />
+      <AiBuilderProjectWorkspace projectId={projectId} initialTab="insights" />
     </>
   );
 }
