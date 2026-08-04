@@ -255,7 +255,7 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
 
   return <div className="mt-4 grid gap-2.5 sm:mt-5 sm:gap-3 md:grid-cols-2 xl:grid-cols-2">{projects.map((project) => (
     <article key={project.id} className="relative rounded-xl border border-white/[.09] bg-[#070707] px-2.5 py-3 transition hover:border-amber-300/25 sm:px-4 sm:py-4">
-      <div className="grid min-w-0 grid-cols-[1.75rem_minmax(0,1fr)_minmax(4.5rem,.7fr)_auto] items-center gap-2 sm:grid-cols-[auto_minmax(0,1fr)_minmax(118px,.68fr)_auto] sm:gap-4">
+      <div className="relative grid min-w-0 grid-cols-[1.75rem_minmax(0,1fr)_auto] items-center gap-2 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:gap-4">
         <div className="relative self-center">
           <button type="button" disabled={showcase} aria-label={`Actions for ${project.businessName}`} aria-haspopup="menu" aria-expanded={menu === project.id} onClick={() => setMenu(menu === project.id ? null : project.id)} className="flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-black text-xs text-slate-300 transition hover:border-amber-300/30 hover:text-white disabled:cursor-default sm:h-8 sm:w-8 sm:rounded-lg sm:text-base">•••</button>
           {menu === project.id ? <div role="menu" className="absolute left-0 top-9 z-20 min-w-[132px] rounded-xl border border-[rgba(212,175,55,.2)] bg-[#050505] p-1 shadow-2xl sm:top-10 sm:min-w-[150px] sm:p-1.5">
@@ -268,7 +268,7 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
           <p className="mt-0.5 truncate text-[9px] leading-3 text-slate-500 sm:mt-1 sm:text-xs sm:leading-normal">{domain(project.website)}</p>
         </div>
 
-        <div className="min-w-0 justify-self-center text-center">
+        <div className="absolute left-1/2 top-1/2 w-[4.5rem] -translate-x-1/2 -translate-y-1/2 text-center sm:w-[118px]">
           <p className="w-full truncate text-center text-[7px] font-black uppercase tracking-[.08em] text-slate-500 sm:text-[9px] sm:tracking-[.12em]">Knowledge model</p>
           <p className="mt-0.5 truncate text-[8px] font-semibold leading-3 text-white sm:mt-1 sm:text-[11px] sm:leading-normal" title={project.model || "Not available"}>{project.model || "Not available"}</p>
         </div>
