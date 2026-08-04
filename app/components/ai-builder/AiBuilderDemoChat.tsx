@@ -418,7 +418,7 @@ export default function AiBuilderDemoChat({
   return (
     <div ref={modalRootRef} className="fixed inset-0 z-[80] flex min-h-0 flex-col overflow-hidden bg-[#000000] xl:static xl:z-auto xl:h-full xl:bg-transparent">
       <header className="relative flex min-h-[76px] flex-none flex-col items-center justify-center gap-1.5 border-b border-white/[0.08] bg-black px-5 py-2 pr-14 sm:px-8 sm:pr-16">
-        <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.24em] text-amber-300">{previewMode ? "Business Brain preview" : "Live assistant test"}</p>
+        {previewMode ? <p className="text-center text-[0.65rem] font-bold uppercase tracking-[0.24em] text-amber-300">Business Brain preview</p> : null}
         {!previewMode ? <AiBuilderModelSelect models={modelChoices} value={modelId} disabled={sending} onChange={next=>void selectModel(next)} /> : <p className="text-xs text-slate-500">Deterministic preview. No AI reasoning or persistence.</p>}
         <button type="button" onClick={onBack} aria-label="Close live assistant test" className="absolute right-5 top-1/2 -translate-y-1/2 text-3xl font-light leading-none text-slate-300 transition hover:text-white xl:hidden">×</button>
       </header>
