@@ -3,7 +3,6 @@ import "./scrollbar.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
-import BrainBuilderUrlCanonicalizer from "@/app/components/BrainBuilderUrlCanonicalizer";
 
 const siteName = "Arkena Studio";
 const siteDescription =
@@ -26,7 +25,7 @@ const clerkAppearance = {
     colorInputForeground: "#ebf0ff",
     colorBorder: "rgba(212, 175, 55, 0.22)",
     colorRing: "#f59e0b",
-    colorModalBackdrop: "rgba(2, 6, 17, 0.86)",
+    colorModalBackdrop: "transparent",
     colorShadow: "#000000",
     borderRadius: "0.75rem",
     fontFamily:
@@ -36,10 +35,12 @@ const clerkAppearance = {
   },
   elements: {
     modalBackdrop: {
-      backdropFilter: "blur(10px)",
+      background: "transparent",
+      backdropFilter: "none",
     },
     modalContent: {
       borderRadius: "24px",
+      margin: "auto",
     },
     card: {
       background: "#000000",
@@ -114,6 +115,14 @@ const clerkAppearance = {
   },
 };
 
+const clerkLocalization = {
+  signIn: {
+    start: {
+      title: "Sign in to Arkena Studio",
+    },
+  },
+} as any;
+
 export const metadata: Metadata = {
   title: {
     default: siteName,
@@ -153,8 +162,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <ClerkProvider appearance={clerkAppearance}>
-          <BrainBuilderUrlCanonicalizer />
+        <ClerkProvider appearance={clerkAppearance} localization={clerkLocalization}>
           <main className="site-page-shell min-h-dvh xl:h-dvh xl:min-h-0 xl:overflow-hidden">
             {children}
           </main>
