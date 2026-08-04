@@ -150,7 +150,7 @@ export default function AiBuilderSurfaceShowcase({ session, builder, models, dia
         </div>
       </div>
 
-      <nav aria-label="AI Builder showcase pages" className="mt-3 flex w-full gap-1 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#050505]/80 p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav aria-label="AI Builder showcase pages" className="mt-3 hidden w-full gap-1 rounded-xl border border-white/[0.06] bg-[#050505]/80 p-1.5 lg:flex">
         {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => {
           const active = activeSlide === slide.id;
           return (
