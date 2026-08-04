@@ -29,7 +29,7 @@ export function buildCompatibilityBucketReport(
   const ownedObservations = observations
     .filter((observation) => observation.primaryBucket === bucket)
     .map(cloneObservation)
-    .sort((left, right) => left.sourceIndex - right.sourceIndex);
+    .sort((left, right) => left.id.localeCompare(right.id));
 
   const facts = ownedObservations.map((observation) => {
     const fact = legacyFacts[observation.sourceIndex];
