@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { buildKnowledgePack } from "@/app/lib/ai-engine/knowledge";
 import type { PersistedWebsiteKnowledge } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 import type { ReviewCommandRequest } from "@/app/lib/ai-engine/business-memory/review-commands";
@@ -109,7 +109,6 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
   const [previewSession, setPreviewSession] = useState(session);
   const [buildStage, setBuildStage] = useState<BuildStage>("idle");
   const [buildPercent, setBuildPercent] = useState(0);
-  const [welcomeShown, setWelcomeShown] = useState(false);
   const { showConfirm, confirmDialogNode } = useCanonicalConfirm();
   const knowledge = useMemo(() => buildKnowledgePack(previewSession), [previewSession]);
   const currentBusiness = businessLabel(builderValue);
@@ -171,17 +170,6 @@ export default function AiBuilderDeterministicDemoWorkspace({ session, onClose }
       }],
     };
   }, [previewSession, projectReady, websiteKnowledge]);
-
-  useEffect(() => {
-    if (welcomeShown) return;
-    setWelcomeShown(true);
-    void showConfirm({
-      title: "Create a project first",
-      message: "Run your business through Brain Builder to create a temporary project. The information you enter will power the Dashboard, Project Insights, Business Knowledge, Sources, and Assistant throughout this demo.",
-      confirmLabel: "Start building",
-      cancelLabel: "Explore workspace",
-    }).then(() => setActiveTab("builder"));
-  }, [showConfirm, welcomeShown]);
 
   const requireProject = async () => {
     await showConfirm({
