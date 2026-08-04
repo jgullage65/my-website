@@ -57,7 +57,7 @@ export default function AiBuilderWorkspaceFrame({
     }
 
     setMobileMenuOpen(false);
-    window.location.assign("/ai-builder?new=1");
+    window.location.assign("/brain-builder/new");
   };
 
   const renderNavigation = (navigationItems: NavigationItem[]) => (
@@ -110,7 +110,7 @@ export default function AiBuilderWorkspaceFrame({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">{renderNavigation(desktopItems)}</div>
           <div className="mt-4 border-t border-white/[0.08] pt-4">
-            <SignOutButton redirectUrl="/ai-builder">
+            <SignOutButton redirectUrl="/brain-builder">
               <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
             </SignOutButton>
           </div>
@@ -167,7 +167,7 @@ export default function AiBuilderWorkspaceFrame({
                 {renderNavigation(visibleItems)}
               </div>
               <div className="mt-4 shrink-0 border-t border-white/[0.08] pt-4">
-                <SignOutButton redirectUrl="/ai-builder">
+                <SignOutButton redirectUrl="/brain-builder">
                   <button type="button" className="w-full rounded-lg px-3 py-2.5 text-left text-[0.82rem] font-semibold text-white transition hover:bg-white/[0.035] hover:text-amber-200">Sign out</button>
                 </SignOutButton>
               </div>
