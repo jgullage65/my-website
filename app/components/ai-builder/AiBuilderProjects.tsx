@@ -268,7 +268,7 @@ function ProjectGrid({ projects, archived, menu, busy, setMenu, onRename, onArch
           <p className="mt-0.5 truncate text-[9px] leading-3 text-slate-500 sm:mt-1 sm:text-xs sm:leading-normal">{domain(project.website)}</p>
         </div>
 
-        <div className="absolute left-1/2 top-1/2 w-[4.5rem] -translate-x-1/2 -translate-y-1/2 text-center sm:w-[118px]">
+        <div className="absolute left-[52%] top-1/2 w-[4.5rem] -translate-x-1/2 -translate-y-1/2 text-center sm:w-[118px]">
           <p className="w-full truncate text-center text-[7px] font-black uppercase tracking-[.08em] text-slate-500 sm:text-[9px] sm:tracking-[.12em]">Knowledge model</p>
           <p className="mt-0.5 truncate text-[8px] font-semibold leading-3 text-white sm:mt-1 sm:text-[11px] sm:leading-normal" title={project.model || "Not available"}>{project.model || "Not available"}</p>
         </div>
