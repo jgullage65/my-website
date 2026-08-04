@@ -251,7 +251,6 @@ export default function AiBuilderSources() {
         <section className="min-w-0 max-w-full overflow-hidden rounded-xl border border-white/[.12] bg-[#050505]">
           <div className="border-b border-white/[.12] px-5 py-4 text-center">
             <p className="text-xs font-bold uppercase tracking-[.16em] text-slate-500">Website sources</p>
-            <p className="mt-2 text-sm text-slate-400">Pages currently connected to this project</p>
           </div>
           {pages.length ? (
             <>
