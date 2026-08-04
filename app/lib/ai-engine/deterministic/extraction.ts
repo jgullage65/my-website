@@ -2,6 +2,7 @@ import type { WebsiteKnowledgeFact } from "../knowledge/websiteKnowledge";
 import type { DeterministicEngineInput, DeterministicFact, NormalizedEvidence, NormalizedSourceBlock } from "./contracts";
 import { cleanText, keyText, stableId } from "./util";
 import { canonicalTopicKey } from "./topics";
+
 type Category = WebsiteKnowledgeFact["category"];
 type Rule = {
     category: Category;
@@ -11,7 +12,34 @@ type Rule = {
     topic: (text: string) => string;
     title: string;
 };
+
 const money = /(?:[$£€]\s?\d|\d+(?:\.\d+)?\s?(?:usd|gbp|eur)|\b(?:free|pricing|per month|monthly|annual(?:ly)?|plan)\b)/i;
+const GENERIC_TITLES = new Set([
+    "Pricing and plan",
+    "Contact method",
+    "Policy",
+    "Location or service area",
+    "Integration",
+    "Security and compliance",
+    "Certification",
+    "Onboarding and support",
+    "Partnership",
+    "Customer segment",
+    "Industry served",
+    "Use case",
+    "AI and automation capability",
+    "Technical capability",
+    "Product",
+    "Service",
+    "Feature or capability",
+    "Mission and value proposition",
+    "Competitive differentiator",
+    "Company overview",
+    "Brand terminology",
+    "Case study",
+    "Testimonial",
+]);
+
 const RULES: Rule[] = [
     {
         category: "pricing_plan",
@@ -119,7 +147,7 @@ const RULES: Rule[] = [
         pages: ["products"],
         evidence: /\b(?:product|platform|software|app|application|suite|tool)\b/i,
         heading: /./,
-        topic: (t) => t.slice(0, 55),
+        topic: t => t.slice(0, 55),
         title: "Product"
     },
     {
@@ -155,7 +183,7 @@ const RULES: Rule[] = [
         category: "company_overview",
         pages: ["about"],
         evidence: /\b(?:we are|founded|our company|our team|specializes? in|is a[n]? )\b/i,
-        topic: t => "company",
+        topic: () => "company",
         title: "Company overview"
     },
     {
@@ -181,6 +209,7 @@ const RULES: Rule[] = [
         title: "Testimonial"
     },
 ];
+
 const RULE_PRIORITY: Partial<Record<Category, number>> = {
     pricing_plan: 100,
     policy: 95,
@@ -194,11 +223,31 @@ const RULE_PRIORITY: Partial<Record<Category, number>> = {
 };
 const PRIORITIZED_RULES = [...RULES].sort((left, right) =>
     (RULE_PRIORITY[right.category] ?? 70) - (RULE_PRIORITY[left.category] ?? 70));
+
 function sentences(text: string): string[] {
     return text.split(/(?<=[.!])\s+|\n+/)
         .map(cleanText)
         .filter((x) => x.length >= 12 && x.length <= 1200);
 }
+
+function meaningfulTitle(fallback: string, topic: string, structuralContext: string): string {
+    if (!GENERIC_TITLES.has(fallback)) return fallback;
+
+    const heading = cleanText(structuralContext)
+        .replace(/\s+/g, " ")
+        .replace(/[|•·]+/g, " ")
+        .trim();
+    const genericHeading = /^(?:features?|capabilities?|features?\s*(?:and|&)\s*capabilities?|overview|details?|learn more|more)$/i;
+    if (heading.length >= 3 && heading.length <= 90 && !genericHeading.test(heading)) return heading;
+
+    const cleanedTopic = cleanText(topic).replace(/^[-–—•\s]+/, "").replace(/[.!?:;,]+$/g, "").trim();
+    if (cleanedTopic.length >= 3 && cleanedTopic.length <= 72 && cleanedTopic.toLowerCase() !== "company") {
+        return cleanedTopic.charAt(0).toUpperCase() + cleanedTopic.slice(1);
+    }
+
+    return fallback;
+}
+
 function makeFact(category: Category, title: string, value: string, topic: string, evidence: NormalizedEvidence, explicit = true, evidenceExcerpt = value): DeterministicFact {
     const topicKey = canonicalTopicKey({ category, value, suggestedTopic: topic, heading: evidence.heading, pageType: evidence.pageType });
     return {
@@ -225,9 +274,11 @@ function uniqueExpansions(values: string[]): Expansion[] {
     return values.map(trimmedEntity).filter(value => {
         const key = keyText(value);
         if (!key || seen.has(key)) return false;
-        seen.add(key); return true;
+        seen.add(key);
+        return true;
     }).map(value => ({ value, topic: value }));
 }
+
 /** Expand only grammar that explicitly identifies the list's semantic type. */
 function expand(rule: Rule, text: string): Expansion[] | undefined {
     if (rule.category === "security_compliance") {
@@ -268,12 +319,12 @@ function expand(rule: Rule, text: string): Expansion[] | undefined {
     }
     return undefined;
 }
+
 export function extractWebsiteFacts(blocks: readonly NormalizedSourceBlock[]): DeterministicFact[] {
     const facts: DeterministicFact[] = [];
     const byId = new Map(blocks.map((block) => [block.id, block]));
     for (const block of blocks) {
-        if (block.type === "heading" || block.type === "faq_question")
-            continue;
+        if (block.type === "heading" || block.type === "faq_question") continue;
         const previous = block.previousBlockId ? byId.get(block.previousBlockId) : undefined;
         const structuralContext = `${block.heading ?? ""} ${previous?.type === "heading" ? previous.text : ""}`;
         for (const text of sentences(block.text)) {
@@ -285,9 +336,28 @@ export function extractWebsiteFacts(blocks: readonly NormalizedSourceBlock[]): D
                 const categoryConsistent = rule.category !== "certification" || !standardClaim;
                 if (pageMatch && headingMatch && categoryConsistent && rule.evidence.test(text) && !matchedCategories.has(rule.category)) {
                     const expansions = expand(rule, text);
-                    if (expansions?.length) for (const item of expansions)
-                        facts.push(makeFact(rule.category, rule.title, item.value, item.topic, block.evidence, true, text));
-                    else facts.push(makeFact(rule.category, rule.title, text, rule.topic(text), block.evidence));
+                    if (expansions?.length) {
+                        for (const item of expansions) {
+                            facts.push(makeFact(
+                                rule.category,
+                                meaningfulTitle(rule.title, item.topic, structuralContext),
+                                item.value,
+                                item.topic,
+                                block.evidence,
+                                true,
+                                text,
+                            ));
+                        }
+                    } else {
+                        const topic = rule.topic(text);
+                        facts.push(makeFact(
+                            rule.category,
+                            meaningfulTitle(rule.title, topic, structuralContext),
+                            text,
+                            topic,
+                            block.evidence,
+                        ));
+                    }
                     matchedCategories.add(rule.category);
                 }
             }
@@ -295,9 +365,11 @@ export function extractWebsiteFacts(blocks: readonly NormalizedSourceBlock[]): D
     }
     return facts;
 }
+
 function ownerParts(value: string): string[] {
     return value.split(/\n+|;|(?<=[.!?])\s+/).map(cleanText).filter((x) => x.length > 2);
 }
+
 export function extractOwnerFacts(input: DeterministicEngineInput): DeterministicFact[] {
     const owner = input.owner ?? {};
     const evidence = (excerpt: string, heading: string): NormalizedEvidence => ({
@@ -310,17 +382,14 @@ export function extractOwnerFacts(input: DeterministicEngineInput): Deterministi
         structured: true
     });
     const facts: DeterministicFact[] = [];
-    if (cleanText(owner.businessName))
+    if (cleanText(owner.businessName)) {
         facts.push(makeFact("business_identity", "Business name", cleanText(owner.businessName), "business name", evidence(cleanText(owner.businessName), "Business profile")));
+    }
     if (cleanText(owner.industry)) {
         const industry = cleanText(owner.industry);
         facts.push(makeFact("industry_served", "Industry", industry, industry, evidence(industry, "Industry")));
     }
-    const fields: Array<[
-        keyof typeof owner,
-        Category,
-        string
-    ]> = [
+    const fields: Array<[keyof typeof owner, Category, string]> = [
         ["productsServices", "additional_business_knowledge", "Products and services"],
         ["idealCustomers", "customer_segment", "Ideal customers"],
         ["policiesOperations", "policy", "Policies and operations"],
@@ -328,26 +397,18 @@ export function extractOwnerFacts(input: DeterministicEngineInput): Deterministi
         ["additionalKnowledge", "additional_business_knowledge", "Additional owner knowledge"],
         ["tone", "brand_voice_terminology", "Brand voice"]
     ];
-    for (const [field, category, title] of fields)
+    for (const [field, category, title] of fields) {
         for (const part of ownerParts(cleanText(owner[field]))) {
             let resolved = category;
-            if (money.test(part))
-                resolved = "pricing_plan";
-            else if (/\b(refund|cancel|privacy|policy|warranty|guarantee)\b/i.test(part))
-                resolved = "policy";
-            else if (/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(part))
-                resolved = "contact_information";
-            else if (/\b(testimonial|case study|resulted in|increased|reduced)\b/i.test(part))
-                resolved = "additional_business_knowledge";
+            if (money.test(part)) resolved = "pricing_plan";
+            else if (/\b(refund|cancel|privacy|policy|warranty|guarantee)\b/i.test(part)) resolved = "policy";
+            else if (/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(part)) resolved = "contact_information";
+            else if (/\b(testimonial|case study|resulted in|increased|reduced)\b/i.test(part)) resolved = "additional_business_knowledge";
             else if (field === "productsServices" &&
-                /\b(product|platform|software|app|application|tool|suite|license|subscription)\b/i
-                    .test(part) &&
-                /\b(service|consulting|implementation|training|managed|we (?:provide|deliver|offer)|done-for-you)\b/i
-                    .test(part)) {
+                /\b(product|platform|software|app|application|tool|suite|license|subscription)\b/i.test(part) &&
+                /\b(service|consulting|implementation|training|managed|we (?:provide|deliver|offer)|done-for-you)\b/i.test(part)) {
                 const product = trimmedEntity(part.match(/\b([A-Z][A-Za-z0-9-]*(?:\s+[A-Za-z0-9-]+){0,3}\s+(?:software|platform|product|app|application|tool|suite))\b/)?.[1] ?? "");
                 const service = trimmedEntity(part.match(/\b([A-Za-z][A-Za-z -]{0,35}?(?:implementation services?|consulting services?|managed services?|training services?))\b/i)?.[1] ?? "");
-                // Mixed output requires two independently named concepts; generic
-                // co-mentions retain the historical single-category behavior.
                 if (product && service) {
                     const ownerEvidence = evidence(part, title);
                     facts.push(makeFact("product", title, product, product, ownerEvidence, true, part));
@@ -355,14 +416,15 @@ export function extractOwnerFacts(input: DeterministicEngineInput): Deterministi
                     continue;
                 }
                 resolved = "product";
-            }
-            else if (field === "productsServices" &&
-                /\b(product|platform|software|app|application|tool|suite|license|subscription)\b/i.test(part))
+            } else if (field === "productsServices" &&
+                /\b(product|platform|software|app|application|tool|suite|license|subscription)\b/i.test(part)) {
                 resolved = "product";
-            else if (field === "productsServices" &&
-                /\b(service|consulting|implementation|training|managed|we (?:provide|deliver|offer)|done-for-you)\b/i.test(part))
+            } else if (field === "productsServices" &&
+                /\b(service|consulting|implementation|training|managed|we (?:provide|deliver|offer)|done-for-you)\b/i.test(part)) {
                 resolved = "service";
+            }
             facts.push(makeFact(resolved, title, part, part.slice(0, 55), evidence(part, title)));
         }
+    }
     return facts;
 }
