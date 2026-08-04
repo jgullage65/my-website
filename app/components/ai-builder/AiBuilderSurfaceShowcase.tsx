@@ -14,11 +14,11 @@ import AiBuilderAssistantShowcase from "./AiBuilderAssistantShowcase";
 import AiBuilderDeterministicDemoWorkspace from "./AiBuilderDeterministicDemoWorkspace";
 
 export const AI_BUILDER_SHOWCASE_SLIDES = [
-  { id: "builder", label: "AI Builder" },
+  { id: "builder", label: "Brain Builder" },
   { id: "projects", label: "Projects" },
   { id: "dashboard", label: "Dashboard" },
-  { id: "insights", label: "Project Insights" },
-  { id: "review", label: "Business Knowledge" },
+  { id: "insights", label: "Insights" },
+  { id: "review", label: "Knowledge" },
   { id: "sources", label: "Sources" },
   { id: "assistant", label: "Assistant" },
 ] as const;
@@ -149,6 +149,28 @@ export default function AiBuilderSurfaceShowcase({ session, builder, models, dia
           <div className="hidden h-full lg:block">{showcaseSurface}</div>
         </div>
       </div>
+
+      <nav aria-label="AI Builder showcase pages" className="mt-3 flex w-full gap-1 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#050505]/80 p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {AI_BUILDER_SHOWCASE_SLIDES.map((slide) => {
+          const active = activeSlide === slide.id;
+          return (
+            <button
+              key={slide.id}
+              type="button"
+              onClick={() => setActiveSlide(slide.id)}
+              aria-pressed={active}
+              className={`min-h-8 flex-1 whitespace-nowrap rounded-lg border px-2.5 py-1 text-[0.68rem] font-semibold tracking-[0.01em] transition ${
+                active
+                  ? "border-amber-300/35 bg-transparent text-white"
+                  : "border-transparent bg-transparent text-slate-500 hover:text-slate-300"
+              }`}
+            >
+              {slide.label}
+            </button>
+          );
+        })}
+      </nav>
+
       {demoOpen ? <AiBuilderDeterministicDemoWorkspace session={session} builder={builder} diagnostics={diagnostics} onClose={() => setDemoOpen(false)} /> : null}
     </div>
   );
