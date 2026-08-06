@@ -88,6 +88,17 @@ export default clerkMiddleware(async (auth, request) => {
 
   if (internalCrawlWorker) return;
 
+  if (pathname === "/") {
+    const { userId } = await auth();
+
+    if (userId) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/brain-builder";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (pathname.startsWith("/api/")) {
     if (isProtectedRoute(pathname) && !publicDemoApi) await auth.protect();
     return;
