@@ -162,7 +162,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en">
       <body>
         <ClerkProvider appearance={clerkAppearance} localization={clerkLocalization}>
-          <main className="site-page-shell min-h-dvh xl:h-dvh xl:min-h-0 xl:overflow-hidden">
+          <main className="site-page-shell min-h-dvh">
             {children}
           </main>
         </ClerkProvider>
