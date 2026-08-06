@@ -1,6 +1,7 @@
 import type { AiBuilderSession } from "../contracts";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "../crawler/websiteSourceRecords";
 import type { WebsiteKnowledgeCoverage, WebsiteKnowledgeFact, WebsiteKnowledgePage } from "../knowledge/websiteKnowledge";
+import type { BucketShadowDiagnostics } from "./integration/contracts";
 export type KnowledgeProvenance = "owner" | "website";
 export type DeterministicSourceType = "owner" | "html" | "rendered_html" | "pdf" | "structured_data";
 export type ClassifiedPageType = "home" | "about" | "products" | "services" | "pricing" | "faq" | "policies" | "contact" | "locations" | "industries" | "use_cases" | "case_studies" | "testimonials" | "integrations" | "security" | "compliance" | "technical" | "onboarding" | "support" | "partnerships" | "certifications" | "other";
@@ -27,6 +28,7 @@ export type DeterministicEngineInput = {
     owner?: OwnerKnowledge;
     now?: string;
     sessionId?: string;
+    shadowBuckets?: boolean;
 };
 export type NormalizedEvidence = {
     url: string;
@@ -167,6 +169,7 @@ export type DeterministicEngineResult = {
         coverage: WebsiteKnowledgeCoverage;
         unresolvedQuestions: string[];
     };
+    bucketShadow?: BucketShadowDiagnostics;
     session?: AiBuilderSession;
     executionTimeMs: number;
 };

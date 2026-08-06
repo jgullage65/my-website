@@ -12,6 +12,7 @@ import { stableId } from "./util";
 import { canonicalTopicKey } from "./topics";
 import { assembleBusinessConcepts } from "./concepts";
 import { assembleConceptRelationships } from "./relationships";
+import { buildBucketShadowArchitecture } from "./shadowArchitecture";
 export * from "./contracts";
 export { canonicalUrl } from "./util";
 export { classifyPage } from "./classification";
@@ -24,7 +25,9 @@ export { assembleConceptRelationships } from "./relationships";
 export function buildDeterministicBusinessBrain(input: DeterministicEngineInput): DeterministicEngineResult {
     const started = performance.now();
     const normalizedBlocks = normalizeSources(input);
-    const extracted = [...extractOwnerFacts(input), ...extractWebsiteFacts(normalizedBlocks)];
+    const legacyExtracted = [...extractOwnerFacts(input), ...extractWebsiteFacts(normalizedBlocks)];
+    const bucketShadow = buildBucketShadowArchitecture(legacyExtracted);
+    const extracted = bucketShadow.extracted;
     const deduplicated = deduplicateFacts(extracted);
     let conflicts = detectConflicts(deduplicated.facts);
     const facts = scoreConfidence(deduplicated.facts, conflicts);
@@ -66,6 +69,7 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
         faqs,
         normalizedBlocks,
         websiteKnowledge: assembleWebsiteKnowledge(allFacts, coverage, unresolved),
+        ...(input.shadowBuckets ? { bucketShadow: bucketShadow.diagnostics } : {}),
         executionTimeMs: performance.now() - started
     };
     return {

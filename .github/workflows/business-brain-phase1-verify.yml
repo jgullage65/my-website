@@ -1,0 +1,69 @@
+name: Business Brain Phase 1 Verify
+
+on:
+  push:
+    branches:
+      - feature/business-brain-phase-1
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "app/lib/ai-engine/deterministic/**"
+      - ".github/workflows/business-brain-phase1-verify.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deterministic-tests:
+    name: Deterministic tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run deterministic tests
+        run: >-
+          node --experimental-transform-types
+          --experimental-loader ./test/node-alias-loader.mjs
+          --test
+          app/lib/ai-engine/deterministic/*.test.ts
+          app/lib/ai-engine/deterministic/routing/*.test.ts
+          app/lib/ai-engine/deterministic/specialists/*.test.ts
+          app/lib/ai-engine/deterministic/legacy/*.test.ts
+
+  typecheck:
+    name: Production typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run typecheck
+        run: npm run typecheck
+
+  diff-check:
+    name: Diff check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check whitespace
+        run: git diff --check origin/main...HEAD
