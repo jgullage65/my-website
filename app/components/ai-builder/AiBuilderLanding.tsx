@@ -100,7 +100,7 @@ export default function AiBuilderLanding() {
 
   return (
     <>
-      <div className="h-[calc(100dvh-56px)] min-h-0 overflow-y-auto overscroll-y-contain bg-black text-white [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:h-full">
+      <div className="min-h-dvh bg-black text-white">
         <main className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 lg:px-8 xl:px-10">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,.018)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.018)_1px,transparent_1px)] bg-[size:48px_48px] [mask-image:linear-gradient(to_bottom,black,transparent_64%)]" />
 
@@ -210,6 +210,7 @@ export default function AiBuilderLanding() {
             <button type="button" onClick={() => setSignInOpen(false)} className="absolute right-3 top-3 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-300/20 bg-[#090909] text-lg text-amber-300 transition hover:border-amber-300/40 hover:bg-[#111111]" aria-label="Close sign in">×</button>
             <SignIn
               routing="hash"
+              forceRedirectUrl="/brain-builder"
               fallbackRedirectUrl="/brain-builder"
               appearance={{
                 elements: {
