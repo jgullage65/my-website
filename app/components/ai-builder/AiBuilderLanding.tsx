@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { SignIn, useAuth } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import AiBuilderSurfaceShowcase from "./AiBuilderSurfaceShowcase";
@@ -89,7 +90,8 @@ function BillingToggle({ billingPeriod, onChange }: { billingPeriod: BillingPeri
 }
 
 export default function AiBuilderLanding() {
-  const { isSignedIn } = useAuth();
+  const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuth();
   const [signInOpen, setSignInOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
@@ -97,6 +99,17 @@ export default function AiBuilderLanding() {
   useEffect(() => {
     if (isSignedIn) setSignInOpen(false);
   }, [isSignedIn]);
+
+  const handleSignIn = () => {
+    if (!isLoaded) return;
+
+    if (isSignedIn) {
+      router.push("/brain-builder");
+      return;
+    }
+
+    setSignInOpen(true);
+  };
 
   return (
     <>
@@ -112,7 +125,7 @@ export default function AiBuilderLanding() {
               <p className="mt-5 text-base leading-7 text-slate-400">Choose the model that builds your Business Brain, review every insight before it becomes trusted knowledge, and use that approved Business Brain with GPT, Claude, Gemini, Grok, and future models.</p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <button type="button" className={primaryButton} onClick={() => setPlansOpen(true)}>Plans</button>
-                <button type="button" className={primaryButton} onClick={() => setSignInOpen(true)}>Sign In</button>
+                <button type="button" className={primaryButton} onClick={handleSignIn}>Sign In</button>
               </div>
 
               <div className="mt-8 grid gap-7 border-t border-white/[0.07] pt-6">
@@ -153,7 +166,7 @@ export default function AiBuilderLanding() {
               <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-400 sm:text-base">Choose how you want to move forward. We’ll wire each path into the right experience next.</p>
               <div className="mt-6 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <button type="button" className={primaryButton} onClick={() => setPlansOpen(true)}>Plans</button>
-                <button type="button" className={primaryButton} onClick={() => setSignInOpen(true)}>Sign In</button>
+                <button type="button" className={primaryButton} onClick={handleSignIn}>Sign In</button>
                 <Link href="/contact" className={primaryButton}>Contact</Link>
               </div>
             </div>
@@ -195,7 +208,7 @@ export default function AiBuilderLanding() {
                       ))}
                     </div>
 
-                    <button type="button" onClick={() => { setPlansOpen(false); setSignInOpen(true); }} className={`${primaryButton} mt-6 w-full`}>Choose {plan.name}</button>
+                    <button type="button" onClick={() => { setPlansOpen(false); handleSignIn(); }} className={`${primaryButton} mt-6 w-full`}>Choose {plan.name}</button>
                   </article>
                 );
               })}
