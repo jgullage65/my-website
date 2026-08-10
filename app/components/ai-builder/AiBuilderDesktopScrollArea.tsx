@@ -135,11 +135,11 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
   };
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-visible bg-[#020202] xl:overflow-hidden">
+    <div className="relative min-h-0 flex-1 overflow-visible bg-[#12304D] xl:overflow-hidden">
       <div
         ref={scrollRef}
         tabIndex={0}
-        className="h-auto overflow-visible bg-[#020202] px-4 pb-8 pt-5 outline-none sm:px-6 sm:pt-6 xl:h-full xl:overflow-y-auto xl:overscroll-contain xl:px-5 xl:pt-6 xl:pr-8 min-[1400px]:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="h-auto overflow-visible bg-[#12304D] px-4 pb-8 pt-5 outline-none sm:px-6 sm:pt-6 xl:h-full xl:overflow-y-auto xl:overscroll-contain xl:px-5 xl:pt-6 xl:pr-8 min-[1400px]:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {children}
       </div>
@@ -147,7 +147,7 @@ export default function AiBuilderDesktopScrollArea({ children }: Props) {
       {metrics.scrollable ? (
         <div
           ref={trackRef}
-          className="absolute bottom-4 right-2 top-4 hidden w-1.5 cursor-pointer rounded-full bg-white/[0.025] xl:block"
+          className="absolute bottom-4 right-2 top-4 hidden w-1.5 cursor-pointer rounded-full bg-white/[0.05] xl:block"
           onPointerDown={(event) => {
             if (event.target === event.currentTarget) scrollFromPointer(event.clientY);
           }}
