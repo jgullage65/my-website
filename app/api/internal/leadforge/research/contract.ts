@@ -44,6 +44,10 @@ export function toLeadForgeEvent(event: ResearchEvent, externalReference?: strin
       },
       knowledge: event.knowledge,
     },
+    sources: {
+      documents: event.sourceDocuments,
+      blocks: event.sourceBlocks,
+    },
     crawl: {
       attemptId: event.crawlAttemptId,
       pages: event.pages,
