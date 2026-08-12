@@ -98,13 +98,13 @@ export default function AiBuilderWorkspaceFrame({
   return (
     <AiBuilderShell>
       <div
-        className={`relative grid min-h-[70vh] w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:h-full xl:min-h-0 ${
+        className={`relative grid min-h-[70vh] w-full overflow-hidden border-y border-white/[0.08] bg-[#090C11] xl:h-full xl:min-h-0 ${
           rightRail
             ? "grid-cols-1 xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]"
             : "grid-cols-1 xl:grid-cols-[208px_minmax(0,1fr)] min-[1500px]:grid-cols-[220px_minmax(0,1fr)]"
         }`}
       >
-        <aside className="hidden min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5 xl:flex">
+        <aside className="hidden min-h-0 flex-col border-r border-white/[0.08] bg-[#090C11] px-4 py-5 xl:flex">
           <div className="mb-5 flex min-h-[92px] items-center justify-center border-b border-white/[0.08] pb-5">
             <img src="/image/Arkenalogo.png" alt="Arkena Studio" className="h-auto max-h-20 w-full max-w-[188px] object-contain" />
           </div>
@@ -116,15 +116,15 @@ export default function AiBuilderWorkspaceFrame({
           </div>
         </aside>
 
-        <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
-          <header className="sticky top-0 z-40 flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] bg-[#020202] px-16 text-center xl:static xl:min-h-[76px] xl:px-6 xl:py-3">
+        <main className="flex min-h-0 min-w-0 flex-col bg-[#090C11]">
+          <header className="sticky top-0 z-40 flex min-h-[68px] flex-none items-center justify-center border-b border-white/[0.08] bg-[#090C11] px-16 text-center xl:static xl:min-h-[76px] xl:px-6 xl:py-3">
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}
               aria-label="Open workspace menu"
               aria-haspopup="dialog"
               aria-expanded={mobileMenuOpen}
-              className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.08] bg-[#050505] text-lg text-slate-200 xl:hidden"
+              className="absolute left-4 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-lg border border-white/[0.08] bg-[#090C11] text-lg text-slate-200 xl:hidden"
             >
               ☰
             </button>
@@ -134,7 +134,7 @@ export default function AiBuilderWorkspaceFrame({
           <AiBuilderDesktopScrollArea>{children}</AiBuilderDesktopScrollArea>
         </main>
 
-        {rightRail ? <aside className="hidden min-h-0 flex-col border-l border-white/[0.08] bg-black xl:flex">{rightRail}</aside> : null}
+        {rightRail ? <aside className="hidden min-h-0 flex-col border-l border-white/[0.08] bg-[#090C11] xl:flex">{rightRail}</aside> : null}
 
         {mobileMenuOpen ? (
           <div
@@ -148,14 +148,14 @@ export default function AiBuilderWorkspaceFrame({
               role="dialog"
               aria-modal="true"
               aria-label="AI Builder workspace navigation"
-              className="flex h-[100dvh] w-[min(240px,88vw)] flex-col overflow-hidden border-r border-white/[0.08] bg-[#050505] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]"
+              className="flex h-[100dvh] w-[min(240px,88vw)] flex-col overflow-hidden border-r border-white/[0.08] bg-[#090C11] px-4 py-5 shadow-[20px_0_60px_rgba(0,0,0,.45)]"
             >
               <div className="mb-5 flex shrink-0 items-center justify-end">
                 <button
                   type="button"
                   onClick={() => setMobileMenuOpen(false)}
                   aria-label="Close workspace menu"
-                  className="grid h-10 w-10 place-items-center rounded-lg border border-white/[0.08] bg-[#050505] text-2xl text-slate-400 transition hover:text-white"
+                  className="grid h-10 w-10 place-items-center rounded-lg border border-white/[0.08] bg-[#090C11] text-2xl text-slate-400 transition hover:text-white"
                 >
                   ×
                 </button>
