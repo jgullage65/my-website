@@ -17,6 +17,7 @@ const rows: readonly RegistryRow[] = [
   ["gpt-5","openai","GPT-5","perplexity","openai/gpt-5","openai","gpt-5",false,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
   ["gpt-5-5","openai","GPT-5.5","perplexity","openai/gpt-5.5",null,null,true,false,true,["crawl","test-assistant"],["crawl","test-assistant"]],
   ["gpt-5-5-pro","openai","GPT-5.5 Pro","openai","gpt-5.5-pro",null,null,false,true,true,["crawl","test-assistant"],["crawl","test-assistant"]],
+  ["leadforge-gpt-5-5","openai","LeadForge GPT-5.5","openai","gpt-5.5",null,null,false,true,true,["crawl"],[]],
   ["claude-haiku","anthropic","Claude Haiku","perplexity","anthropic/claude-haiku-4-5",null,null,false,false,true,["test-assistant"],["crawl","test-assistant"]],
   ["claude-sonnet","anthropic","Claude Sonnet","perplexity","anthropic/claude-sonnet-4-6",null,null,true,false,true,["test-assistant"],["crawl","test-assistant"]],
   ["claude-opus","anthropic","Claude Opus","perplexity","anthropic/claude-opus-4-6",null,null,false,true,true,["test-assistant"],["crawl","test-assistant"]],
