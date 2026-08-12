@@ -6,6 +6,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 800;
 
+const LEADFORGE_RESEARCH_MODEL_ID = "leadforge-gpt-5-5";
+
 function authorized(request: Request): boolean {
   const secret = process.env.LEADFORGE_RESEARCH_API_SECRET?.trim();
   const authorization = request.headers.get("authorization");
@@ -62,6 +64,9 @@ function transformEventStream(source: ReadableStream<Uint8Array>, externalRefere
 
 export async function POST(request: Request) {
   if (!authorized(request)) return jsonError(401, "unauthorized", "A valid LeadForge internal bearer token is required.");
+  if (!process.env.LEADFORGE_OPENAI_API_KEY?.trim()) {
+    return jsonError(503, "leadforge_model_gateway_not_configured", "LeadForge research AI is not configured yet.");
+  }
 
   let body: LeadForgeResearchRequest;
   try { body = await request.json() as LeadForgeResearchRequest; }
@@ -75,7 +80,7 @@ export async function POST(request: Request) {
   const coreRequest = new Request(request.url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ website: body.website, modelId: body.modelId }),
+    body: JSON.stringify({ website: body.website, modelId: LEADFORGE_RESEARCH_MODEL_ID }),
     signal: request.signal,
   });
   const coreResponse = await runBusinessWebsiteResearchRequest(coreRequest, { internalWorker: true });
