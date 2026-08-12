@@ -3,19 +3,36 @@
 @tailwind utilities;
 
 :root {
-  --navy: #071a2f;
-  --navy-0: #060a1e;
-  --navy-1: #090e28;
-  --navy-2: #0e163e;
-  --navy-3: #111b48;
+  --navy: #090c11;
+  --navy-0: #090c11;
+  --navy-1: #090c11;
+  --navy-2: #090c11;
+  --navy-3: #090c11;
   --gold: #d4af37;
   --amber: #f59e0b;
   --text: #ebf0ff;
   --muted: #a0aac8;
-  --border: rgba(212, 175, 55, 0.22);
-  --lf-brand-navy-shell: #070c1e;
-  --lf-brand-navy-shell-mid: #0b1128;
-  --lf-brand-navy-shell-end: #090e21;
+  --border: rgba(255, 255, 255, 0.12);
+
+  /* LeadForge System visual authority */
+  --lf-canonical-near-black: #090c11;
+  --lf-card-surface: #090c11;
+  --lf-card-hover: #070a0f;
+  --lf-card-border: rgba(255, 255, 255, 0.12);
+  --lf-card-border-hover: rgba(255, 255, 255, 0.15);
+  --lf-card-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.72);
+  --lf-card-shadow-hover:
+    0 10px 22px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.76);
+  --lf-card-radius: 12px;
+
+  --lf-brand-navy-shell: #080808;
+  --lf-brand-navy-shell-mid: #0d0d0d;
+  --lf-brand-navy-shell-end: #0a0a0a;
   --lf-shell-gradient: linear-gradient(
     145deg,
     var(--lf-brand-navy-shell),
@@ -26,7 +43,7 @@
 
 * {
   box-sizing: border-box;
-  scrollbar-color: var(--gold) var(--navy-0);
+  scrollbar-color: var(--gold) var(--lf-canonical-near-black);
   scrollbar-width: thin;
 }
 
@@ -36,11 +53,11 @@
 }
 
 *::-webkit-scrollbar-track {
-  background: var(--navy-0);
+  background: var(--lf-canonical-near-black);
 }
 
 *::-webkit-scrollbar-thumb {
-  border: 2px solid var(--navy-0);
+  border: 2px solid var(--lf-canonical-near-black);
   border-radius: 999px;
   background: var(--gold);
 }
@@ -51,13 +68,13 @@
 
 html {
   scroll-behavior: smooth;
-  background: #000000;
+  background: var(--lf-canonical-near-black);
 }
 
 body {
   margin: 0;
   color: var(--text);
-  background: #000000;
+  background: var(--lf-canonical-near-black);
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   min-height: 100vh;
 }
@@ -76,12 +93,45 @@ a {
   outline-offset: 2px;
 }
 
+/* Canonical LeadForge System cards. Existing layouts can opt in with this class. */
+.lf-canonical-card-surface {
+  box-sizing: border-box;
+  border: 1px solid var(--lf-card-border) !important;
+  border-radius: var(--lf-card-radius) !important;
+  background: var(--lf-card-surface) !important;
+  background-color: var(--lf-card-surface) !important;
+  box-shadow: var(--lf-card-shadow) !important;
+}
+
+.lf-canonical-card-surface--interactive:hover {
+  border-color: var(--lf-card-border-hover) !important;
+  background: var(--lf-card-hover) !important;
+  background-color: var(--lf-card-hover) !important;
+  box-shadow: var(--lf-card-shadow-hover) !important;
+  transform: none !important;
+}
+
+/* Normalize the site's common dark utility surfaces to the LeadForge System color. */
+:where(
+  [class*="bg-black"],
+  [class*="bg-[#000000]"],
+  [class*="bg-[#020202]"],
+  [class*="bg-[#050505]"],
+  [class*="bg-[#060606]"],
+  [class*="bg-[#070707]"],
+  [class*="bg-[#080808]"],
+  [class*="bg-[#090909]"],
+  [class*="bg-[#0a0a0a]"]
+) {
+  background-color: var(--lf-canonical-near-black);
+}
+
 a[href][class*="border-amber-300/15"],
 button[class*="border-amber-300/15"]:not(:disabled) {
-  border-width: 0.5px;
-  border-color: rgba(212, 175, 55, 0.18);
-  background-color: #000000;
-  box-shadow: none;
+  border-width: 1px;
+  border-color: var(--lf-card-border);
+  background-color: var(--lf-card-surface);
+  box-shadow: var(--lf-card-shadow);
 }
 
 a[href][class*="border-amber-300/15"]:not([role]):not([aria-label]),
@@ -91,9 +141,9 @@ button.cta-raised:not(:disabled),
 span.cta-raised,
 div.cta-raised {
   border-width: 1px;
-  border-color: rgba(245, 158, 11, 0.2);
-  background-color: #000000;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(212, 175, 55, 0.72);
+  border-color: var(--lf-card-border);
+  background-color: var(--lf-card-surface);
+  box-shadow: var(--lf-card-shadow);
 }
 
 a[href][class*="border-amber-300/15"]:hover,
@@ -102,8 +152,8 @@ a[href][class*="border-amber-300/15"]:active,
 button[class*="border-amber-300/15"]:not(:disabled):hover,
 button[class*="border-amber-300/15"]:not(:disabled):focus,
 button[class*="border-amber-300/15"]:not(:disabled):active {
-  border-color: #d4af37;
-  background-color: #0a0a0a;
+  border-color: var(--lf-card-border-hover);
+  background-color: var(--lf-card-hover);
 }
 
 a[href][class*="border-amber-300/15"]:hover,
@@ -115,35 +165,37 @@ a[href][class*="border-amber-300/15"]:not([role]):not([aria-label]):hover,
 button[class*="border-amber-300/15"]:not(:disabled):not([role]):not([aria-label]):hover,
 a[href].cta-raised:hover,
 button.cta-raised:not(:disabled):hover {
-  border-color: rgba(245, 158, 11, 0.2);
-  background-color: #0a0a0a;
+  border-color: var(--lf-card-border-hover);
+  background-color: var(--lf-card-hover);
   color: var(--gold);
+  box-shadow: var(--lf-card-shadow-hover);
 }
 
 button[role="tab"][aria-selected="true"] {
-  border-width: 0.5px;
-  border-color: rgba(212, 175, 55, 0.28);
-  background-color: #000000;
-  box-shadow: none;
+  border-width: 1px;
+  border-color: var(--lf-card-border);
+  background-color: var(--lf-card-surface);
+  box-shadow: var(--lf-card-shadow);
 }
 
 button[role="tab"].cta-raised:not(:disabled) {
   border-width: 1px;
-  border-color: rgba(245, 158, 11, 0.2);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(212, 175, 55, 0.72);
+  border-color: var(--lf-card-border);
+  box-shadow: var(--lf-card-shadow);
 }
 
 button[role="tab"].cta-raised:not(:disabled):hover {
-  border-color: rgba(245, 158, 11, 0.2);
+  border-color: var(--lf-card-border-hover);
   color: var(--gold);
+  box-shadow: var(--lf-card-shadow-hover);
 }
 
 :where(button, a[href])[class*="border-red-"] {
-  background-color: #000000;
+  background-color: var(--lf-card-surface);
 }
 
 :where(button, a[href])[class*="border-red-"]:hover {
-  background-color: #0a0a0a;
+  background-color: var(--lf-card-hover);
 }
 
 button,
@@ -174,15 +226,18 @@ select {
 
 .cl-formFieldInput {
   color: var(--text) !important;
-  background-color: #020202 !important;
-  border-color: rgba(212, 175, 55, 0.22) !important;
-  box-shadow: none !important;
+  background-color: var(--lf-card-surface) !important;
+  border-color: var(--lf-card-border) !important;
+  box-shadow: var(--lf-card-shadow) !important;
   color-scheme: dark;
 }
 
 .cl-formFieldInput:focus {
-  border-color: rgba(245, 158, 11, 0.55) !important;
-  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.22) !important;
+  border-color: rgba(245, 158, 11, 0.48) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 0 1px rgba(245, 158, 11, 0.14),
+    0 0 0 2px rgba(245, 158, 11, 0.08) !important;
 }
 
 .cl-formFieldInput:-webkit-autofill,
@@ -190,7 +245,7 @@ select {
 .cl-formFieldInput:-webkit-autofill:focus {
   -webkit-text-fill-color: var(--text) !important;
   caret-color: var(--text);
-  box-shadow: 0 0 0 1000px #020202 inset !important;
+  box-shadow: 0 0 0 1000px var(--lf-card-surface) inset !important;
   transition: background-color 9999s ease-out 0s;
 }
 
