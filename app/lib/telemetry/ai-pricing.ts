@@ -15,6 +15,7 @@ type ModelPricing = { inputUsdPerMillionTokens: number; outputUsdPerMillionToken
 // Standard API list prices. Environment overrides make pricing updates deploy-time configuration.
 export const AI_MODEL_PRICING_USD_PER_MILLION: Readonly<Record<string, ModelPricing>> = {
   "gpt-5-mini": { inputUsdPerMillionTokens: 0.25, outputUsdPerMillionTokens: 2 },
+  "leadforge-gpt-5-5": { inputUsdPerMillionTokens: 5, outputUsdPerMillionTokens: 30 },
 };
 
 function configuredRate(name: string): number | undefined {
