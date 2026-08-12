@@ -9,8 +9,8 @@ import { aiBuilderCornerCtaClassName } from "./AiBuilderAuthCta";
 export default function AiBuilderProjectsWorkspace() {
   return (
     <AiBuilderShell>
-      <div className="relative hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#020202] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
-        <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#050505] px-4 py-5">
+      <div className="relative hidden h-full min-h-0 w-full overflow-hidden border-y border-white/[0.08] bg-[#090C11] xl:grid xl:grid-cols-[208px_minmax(0,1fr)_400px] min-[1500px]:grid-cols-[220px_minmax(0,1fr)_420px]">
+        <aside className="flex min-h-0 flex-col border-r border-white/[0.08] bg-[#090C11] px-4 py-5">
           <div className="mb-5 border-b border-white/[0.08] px-3 pb-5 text-center">
             <p className="truncate text-sm font-semibold text-white">Brain Builder</p>
           </div>
@@ -30,7 +30,7 @@ export default function AiBuilderProjectsWorkspace() {
           </div>
         </aside>
 
-        <main className="flex min-h-0 min-w-0 flex-col bg-[#020202]">
+        <main className="flex min-h-0 min-w-0 flex-col bg-[#090C11]">
           <header className="flex min-h-[76px] flex-none items-center justify-center border-b border-white/[0.08] px-6 py-3 text-center">
             <h1 className="truncate text-xl font-semibold text-slate-100">Projects</h1>
           </header>
@@ -41,7 +41,7 @@ export default function AiBuilderProjectsWorkspace() {
           </div>
         </main>
 
-        <aside className="flex min-h-0 flex-col border-l border-white/[0.08] bg-black">
+        <aside className="flex min-h-0 flex-col border-l border-white/[0.08] bg-[#090C11]">
           <div className="flex h-full min-h-0 items-center justify-center px-8 text-center">
             <div>
               <p className="text-sm font-semibold text-white">Manage your Business Brains</p>
@@ -52,12 +52,12 @@ export default function AiBuilderProjectsWorkspace() {
       </div>
 
       <div className="xl:hidden">
-        <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-black/95 px-4 text-center backdrop-blur">
+        <header className="sticky top-0 z-40 flex min-h-[68px] items-center justify-center border-b border-white/[0.08] bg-[#090C11]/95 px-4 text-center backdrop-blur">
           <h1 className="text-sm font-semibold text-white">Projects</h1>
         </header>
-        <nav className="flex items-center justify-center gap-3 border-b border-white/[0.08] bg-[#050505] px-4 py-4">
+        <nav className="flex items-center justify-center gap-3 border-b border-white/[0.08] bg-[#090C11] px-4 py-4">
           <Link href="/brain-builder/new" className={aiBuilderCornerCtaClassName}>Brain Builder</Link>
-          <Link href="/brain-builder/projects" className={`${aiBuilderCornerCtaClassName} border-amber-300/35 bg-[#111111] text-amber-200`}>Projects</Link>
+          <Link href="/brain-builder/projects" className={`${aiBuilderCornerCtaClassName} border-white/[0.12] bg-[#090C11] text-amber-200`}>Projects</Link>
         </nav>
         <main className="px-4 py-5 sm:px-6 sm:py-6 [&>div]:!static [&>div]:!block [&>div]:!bg-transparent [&>div]:!p-0 [&>div>section]:!max-h-none [&>div>section]:!max-w-none [&>div>section]:!overflow-visible [&>div>section]:!rounded-none [&>div>section]:!border-0 [&>div>section]:!bg-transparent [&>div>section]:!px-0 [&>div>section]:!py-0 [&>div>section]:!shadow-none">
           <AiBuilderProjects embedded />
