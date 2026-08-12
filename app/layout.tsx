@@ -8,6 +8,12 @@ const siteName = "Arkena Studio";
 const siteDescription =
   "Build and manage an AI assistant trained on your business.";
 
+const SYSTEM_SURFACE = "#090C11";
+const SYSTEM_HOVER = "#070A0F";
+const SYSTEM_BORDER = "rgba(255, 255, 255, 0.12)";
+const SYSTEM_CARD_SHADOW =
+  "0 8px 18px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -1px 0 rgba(0, 0, 0, 0.72)";
+
 const clerkAppearance = {
   layout: {
     logoImageUrl: "/image/Arkenalogo.png",
@@ -17,13 +23,13 @@ const clerkAppearance = {
   variables: {
     colorPrimary: "#d4af37",
     colorPrimaryForeground: "#000000",
-    colorBackground: "#000000",
+    colorBackground: SYSTEM_SURFACE,
     colorForeground: "#ebf0ff",
-    colorMuted: "#050505",
+    colorMuted: SYSTEM_SURFACE,
     colorMutedForeground: "#a0aac8",
-    colorInput: "#020202",
+    colorInput: SYSTEM_SURFACE,
     colorInputForeground: "#ebf0ff",
-    colorBorder: "rgba(212, 175, 55, 0.22)",
+    colorBorder: SYSTEM_BORDER,
     colorRing: "#f59e0b",
     colorModalBackdrop: "transparent",
     colorShadow: "#000000",
@@ -39,15 +45,14 @@ const clerkAppearance = {
       backdropFilter: "none",
     },
     modalContent: {
-      borderRadius: "24px",
+      borderRadius: "12px",
       margin: "auto",
     },
     card: {
-      background: "#000000",
-      border: "1px solid rgba(245, 158, 11, 0.22)",
-      borderRadius: "24px",
-      boxShadow:
-        "0 26px 70px rgba(0, 0, 0, 0.48), 0 0 50px rgba(245, 158, 11, 0.07)",
+      background: SYSTEM_SURFACE,
+      border: `1px solid ${SYSTEM_BORDER}`,
+      borderRadius: "12px",
+      boxShadow: SYSTEM_CARD_SHADOW,
     },
     logoImage: {
       height: "auto",
@@ -63,17 +68,17 @@ const clerkAppearance = {
       color: "#a0aac8",
     },
     socialButtonsBlockButton: {
-      background: "#050505",
-      border: "1px solid rgba(245, 158, 11, 0.18)",
+      background: SYSTEM_SURFACE,
+      border: `1px solid ${SYSTEM_BORDER}`,
       color: "#ffffff",
-      boxShadow: "inset 0 1px 0 rgba(255, 255, 255, 0.05)",
+      boxShadow: SYSTEM_CARD_SHADOW,
       fontWeight: "700",
     },
     socialButtonsBlockButtonText: {
       color: "#ffffff",
     },
     dividerLine: {
-      background: "rgba(212, 175, 55, 0.18)",
+      background: SYSTEM_BORDER,
     },
     dividerText: {
       color: "#a0aac8",
@@ -83,17 +88,16 @@ const clerkAppearance = {
       fontWeight: "700",
     },
     formFieldInput: {
-      background: "#020202",
-      border: "1px solid rgba(212, 175, 55, 0.22)",
+      background: SYSTEM_SURFACE,
+      border: `1px solid ${SYSTEM_BORDER}`,
       color: "#ebf0ff",
-      boxShadow: "none",
+      boxShadow: SYSTEM_CARD_SHADOW,
     },
     formButtonPrimary: {
-      background: "#050505",
-      border: "1px solid rgba(245, 158, 11, 0.28)",
+      background: SYSTEM_SURFACE,
+      border: `1px solid ${SYSTEM_BORDER}`,
       color: "#ffffff",
-      boxShadow:
-        "0 14px 34px rgba(245, 158, 11, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+      boxShadow: SYSTEM_CARD_SHADOW,
       fontWeight: "800",
     },
     footerActionLink: {
@@ -101,16 +105,20 @@ const clerkAppearance = {
       fontWeight: "700",
     },
     identityPreview: {
-      background: "#050505",
-      border: "1px solid rgba(212, 175, 55, 0.18)",
+      background: SYSTEM_SURFACE,
+      border: `1px solid ${SYSTEM_BORDER}`,
+      boxShadow: SYSTEM_CARD_SHADOW,
     },
     identityPreviewText: {
       color: "#ebf0ff",
     },
     modalCloseButton: {
       color: "#d4af37",
-      border: "1px solid rgba(245, 158, 11, 0.22)",
-      background: "#000000",
+      border: `1px solid ${SYSTEM_BORDER}`,
+      background: SYSTEM_SURFACE,
+    },
+    formButtonPrimary__hover: {
+      background: SYSTEM_HOVER,
     },
   },
 };
@@ -129,7 +137,7 @@ export const metadata: Metadata = {
     template: `%s | ${siteName}`,
   },
   description: siteDescription,
-  themeColor: "#000000",
+  themeColor: SYSTEM_SURFACE,
   manifest: "/site.webmanifest",
   icons: {
     icon: [
