@@ -24,10 +24,22 @@ function classifyOpenAiError(error: unknown): ModelExecutionError {
   return new ModelExecutionError(category, providerMessage);
 }
 
+function resolveOpenAiApiKey(input: AdapterInput): string | undefined {
+  if (input.model.id === "leadforge-gpt-5-5") {
+    return process.env.LEADFORGE_OPENAI_API_KEY?.trim();
+  }
+  return process.env.OPENAI_API_KEY?.trim();
+}
+
 export async function runOpenAI(input: AdapterInput) {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = resolveOpenAiApiKey(input);
   if (!apiKey) {
-    throw new ModelExecutionError("configuration", "model_gateway_not_configured");
+    throw new ModelExecutionError(
+      "configuration",
+      input.model.id === "leadforge-gpt-5-5"
+        ? "leadforge_model_gateway_not_configured"
+        : "model_gateway_not_configured",
+    );
   }
 
   const model = input.model.gatewayModelId;
