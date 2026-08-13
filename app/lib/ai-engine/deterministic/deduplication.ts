@@ -19,7 +19,7 @@ const CONCEPT_AGGREGATE_CATEGORIES = new Set<DeterministicFact["category"]>([
 
 function isCustomerProof(fact: DeterministicFact) {
     if (fact.category !== "additional_business_knowledge") return false;
-    return /\b(?:testimonial|review|recommend|customer service|patient|client|customer|life-changing|worked wonders|helped me|made a big difference|stars?)\b/i.test(
+    return /\b(?:testimonial|review|recommend|customer service|client|customer|user|case study|success story|results?|outcome|rating|stars?)\b/i.test(
         `${fact.title} ${fact.value}`,
     );
 }
@@ -39,8 +39,7 @@ function evidenceQuality(fact: DeterministicFact) {
     let score = 0;
     if (fact.provenance === "owner") score += 100;
     if (fact.evidence.some(item => item.structured)) score += 20;
-    if (text.length >= 30 && text.length <= 360) score += 12;
-    if (/\b(?:special|offer|price|licensed|certified|serves?|specializes?|experience|results?|review|testimonial)\b/i.test(text)) score += 6;
+    if (/\b(?:special|offer|price|licensed|certified|serves?|specializes?|experience|results?|review|testimonial|case study|award|proprietary)\b/i.test(text)) score += 6;
     if (/\b(?:privacy policy|terms of use|cookie|personal information|advertiser|do not track|\bdnt\b)\b/i.test(text)) score -= 25;
     return score;
 }
@@ -53,7 +52,7 @@ function canonicalCustomerProof(values: DeterministicFact[]): DeterministicFact 
         id: stableId("det_fact", `additional_business_knowledge:customer_proof\0${values.map(value => value.id).sort().join("\0")}`),
         topicKey: "additional_business_knowledge:customer_proof",
         title: "Customer proof",
-        value: "The website contains customer or patient testimonials and reviews supporting the business's service quality and outcomes.",
+        value: "The website contains customer, client, or user proof supporting the business's quality, results, or outcomes.",
         evidence: uniqueBy(
             values.flatMap(value => value.evidence),
             item => `${item.sourceBlockId ?? ""}\0${item.url}\0${keyText(item.excerpt)}`,
