@@ -95,14 +95,14 @@ function addCommercialPageFacts(facts: DeterministicFact[], blocks: readonly Nor
     if (!firstBodyByUrl.has(block.evidence.url)) firstBodyByUrl.set(block.evidence.url, block);
   }
 
-  for (const block of firstBodyByUrl.values()) {
-    if (!pageLooksCommercial(block)) continue;
+  Array.from(firstBodyByUrl.values()).forEach((block) => {
+    if (!pageLooksCommercial(block)) return;
     const title = titleCandidate(block);
-    if (!title) continue;
+    if (!title) return;
     const category = categoryForTitle(title, block);
     const alreadyRepresented = facts.some((fact) => fact.category === category && fact.evidence.some((evidence) => evidence.url === block.evidence.url));
     if (!alreadyRepresented) additions.push(makeTitleFact(block, category, title));
-  }
+  });
   return additions;
 }
 
