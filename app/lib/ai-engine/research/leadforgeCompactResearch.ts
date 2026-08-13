@@ -264,7 +264,9 @@ function meaningfullyDuplicatesExisting(candidate: WebsiteKnowledgeFact, existin
     const existingWords = comparableWords(existingText);
     if (!candidateWords.size || !existingWords.size) return false;
     let overlap = 0;
-    for (const word of candidateWords) if (existingWords.has(word)) overlap += 1;
+    candidateWords.forEach((word) => {
+      if (existingWords.has(word)) overlap += 1;
+    });
     return overlap / Math.min(candidateWords.size, existingWords.size) >= 0.72;
   });
 }
@@ -325,7 +327,7 @@ function normalizeSemanticFacts(
 
 function deterministicSummary(facts: WebsiteKnowledgeFact[], categories: WebsiteKnowledgeFact["category"][], maximum = 4) {
   return facts
-    .filter((fact) => categories.includes(fact.category) && !looksLikeChrome(fact.value))
+    .filter((fact) => categories.includes(fact.category))
     .slice(0, maximum)
     .map((fact) => fact.value)
     .join(" ");
@@ -366,7 +368,6 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
         });
         const deterministicMs = performance.now() - deterministicStarted;
         const cleanFacts = cleanDeterministicFacts(deterministic);
-        const discardedDeterministicFacts = deterministic.websiteKnowledge.facts.length - cleanFacts.length;
         send({ type: "progress", percent: 82 });
 
         const { pack, serialized } = buildSemanticPack(deterministic, cleanFacts, crawl);
@@ -378,12 +379,12 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
           availableSourceCharacters,
           semanticInputCharacters: serialized.length,
           evidenceCharacters,
-          deterministicFactCount: deterministic.websiteKnowledge.facts.length,
+          deterministicFactCount: deterministic.facts.length,
           cleanDeterministicFacts: cleanFacts.length,
-          discardedDeterministicFacts,
+          discardedDeterministicFacts: deterministic.facts.length - cleanFacts.length,
+          deterministicFactsSent: pack.existingFacts.length,
           evidenceFragmentsSent: pack.evidenceCandidates.length,
           representedPages: new Set(pack.evidenceCandidates.map((item) => item.url)).size,
-          missingCategories: pack.missingCategories.length,
           reductionRatio: availableSourceCharacters > 0 ? serialized.length / availableSourceCharacters : 0,
         });
 
@@ -422,8 +423,7 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
           totalTokens: response.usage.totalTokens,
         };
         const cost = estimateAiTokenCost(model, usage);
-        const deterministicBusinessName = cleanFacts.find((fact) => fact.category === "business_identity")?.value ?? "";
-        const businessName = resolveCrawledBusinessName(normalizeText(semantic.businessName) || deterministicBusinessName, crawl);
+        const businessName = resolveCrawledBusinessName(normalizeText(semantic.businessName), crawl);
         const industry = normalizeText(semantic.industry) || deterministicSummary(facts, ["industry_served", "company_overview"], 2);
         const productsServices = deterministicSummary(facts, ["product", "service", "primary_use_case"], 5);
         const idealCustomers = deterministicSummary(facts, ["customer_segment", "industry_served"], 4);
@@ -439,8 +439,9 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
         console.info("LEADFORGE_COMPACT_SEMANTIC_RESULT", {
           crawlAttemptId: crawl.crawlAttempt.id,
           model: response.modelId,
-          deterministicFacts: deterministic.websiteKnowledge.facts.length,
+          deterministicFacts: deterministic.facts.length,
           cleanDeterministicFacts: cleanFacts.length,
+          discardedDeterministicFacts: deterministic.facts.length - cleanFacts.length,
           semanticFactsAdded: semanticFacts.length,
           finalFacts: facts.length,
           inputTokens: usage.inputTokens,
@@ -486,11 +487,8 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
               availableSourceCharacters,
               inputCharacters: serialized.length,
               evidenceCharacters,
-              deterministicFacts: deterministic.websiteKnowledge.facts.length,
               cleanDeterministicFacts: cleanFacts.length,
-              discardedDeterministicFacts,
               semanticFactsAdded: semanticFacts.length,
-              representedPages: new Set(pack.evidenceCandidates.map((item) => item.url)).size,
             },
           },
         });
