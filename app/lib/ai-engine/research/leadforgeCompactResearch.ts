@@ -11,7 +11,6 @@ function normalizeText(value: unknown): string {
 const chromeExact = /^(?:skip to (?:main )?content|home|about|about us|services|products|blog|contact|contact us|menu|close menu|back to top|privacy policy|terms of use|all rights reserved|learn more|read more)$/i;
 const navWords = /\b(?:home|about|blog|services|products|contact|privacy policy|terms of use)\b/gi;
 const legalTrackingText = /\b(?:privacy policy|terms of use|personal information|personally identifiable|ip address|cookies?|pixels?|advertisers?|advertising partners?|third[- ]party sites?|third[- ]party service|services usage|data collection|data retention|opt[- ]out|deletion request|browser information|device information|tracking technolog|do not track|\bdnt\b|consumer privacy|share your information|online actions|data on our behalf)\b/i;
-const instructionalOrThirdPartyText = /\b(?:other party(?:'s)?|third party(?:'s)?|exchange information|consult (?:an|a) (?:attorney|lawyer|advisor)|report the incident|document the scene|take photos|call the authorities)\b/i;
 const legalPageTypes = new Set(["policies", "security", "compliance"]);
 const commercialCategories = new Set<WebsiteKnowledgeFact["category"]>([
   "company_overview",
@@ -94,7 +93,7 @@ function factHasBusinessSubject(category: WebsiteKnowledgeFact["category"], valu
 
 function isCommercialContamination(fact: WebsiteKnowledgeFact, value: string) {
   if (!commercialCategories.has(fact.category)) return false;
-  if (legalTrackingText.test(value) || instructionalOrThirdPartyText.test(value)) return true;
+  if (legalTrackingText.test(value)) return true;
   const pageTypes = factPageTypes(fact);
   if (pageTypes.length && pageTypes.every((pageType) => legalPageTypes.has(pageType))) return true;
   return !factHasBusinessSubject(fact.category, value);
@@ -110,7 +109,7 @@ function fragments(value: string) {
 
 function fragmentScore(category: WebsiteKnowledgeFact["category"], value: string) {
   if (!factHasBusinessSubject(category, value)) return Number.NEGATIVE_INFINITY;
-  if (legalTrackingText.test(value) || instructionalOrThirdPartyText.test(value) || looksLikeChrome(value)) return Number.NEGATIVE_INFINITY;
+  if (legalTrackingText.test(value) || looksLikeChrome(value)) return Number.NEGATIVE_INFINITY;
 
   let score = 0;
   if (category === "pricing_plan" && /(?:[$£€]\s?\d|\b(?:special|offer|promotion|pricing|price|discount|free|trial|plan|package|subscription|membership)\b)/i.test(value)) score += 24;
