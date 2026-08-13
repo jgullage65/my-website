@@ -13,6 +13,25 @@ function normalizeText(value: unknown): string {
 
 const chromeExact = /^(?:skip to (?:main )?content|home|about|about us|services|products|blog|contact|contact us|book now|new patients|menu|close menu|back to top|privacy policy|terms of use|all rights reserved|learn more|read more)$/i;
 const navWords = /\b(?:home|about|provider|blog|services|products|contact|book now|new patients|privacy policy|terms of use)\b/gi;
+const legalTrackingText = /\b(?:privacy policy|terms of use|personal information|personally identifiable|ip address|general location|cookies?|pixels?|advertisers?|advertising|third[- ]party sites?|third[- ]party service|services usage|data collection|data retention|opt[- ]out|deletion request|marketing purposes?|browser information|device information|tracking technolog|ccpa|consumer privacy|share your information)\b/i;
+const legalPageTypes = new Set(["policies", "security", "compliance"]);
+const commercialCategories = new Set<WebsiteKnowledgeFact["category"]>([
+  "pricing_plan",
+  "product",
+  "service",
+  "feature_capability",
+  "customer_segment",
+  "industry_served",
+  "primary_use_case",
+  "location_service_area",
+  "competitive_differentiator",
+  "mission_value_proposition",
+  "certification",
+  "support_onboarding",
+  "brand_voice_terminology",
+  "additional_business_knowledge",
+  "faq",
+]);
 
 function looksLikeChrome(value: unknown): boolean {
   const text = normalizeText(value);
@@ -26,16 +45,129 @@ function looksLikeChrome(value: unknown): boolean {
   return false;
 }
 
-function cleanDeterministicFacts(result: DeterministicEngineResult): WebsiteKnowledgeFact[] {
-  const seen = new Set<string>();
-  return result.websiteKnowledge.facts.filter((fact) => {
-    if (looksLikeChrome(fact.title) || looksLikeChrome(fact.value)) return false;
-    if (fact.value.length > 900 && (fact.value.match(navWords)?.length ?? 0) >= 3) return false;
-    const key = `${fact.category}\u0000${normalizeText(fact.title).toLowerCase()}\u0000${normalizeText(fact.value).toLowerCase()}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
+function factPageTypes(fact: WebsiteKnowledgeFact): string[] {
+  const evidence = Array.isArray(fact.evidence) ? fact.evidence : [];
+  return evidence
+    .map((item) => normalizeText((item as { pageType?: unknown }).pageType).toLowerCase())
+    .filter(Boolean);
+}
+
+function isCommercialContamination(fact: WebsiteKnowledgeFact, value: string) {
+  if (!commercialCategories.has(fact.category)) return false;
+  if (legalTrackingText.test(value)) return true;
+  const pageTypes = factPageTypes(fact);
+  if (pageTypes.length && pageTypes.every((pageType) => legalPageTypes.has(pageType))) return true;
+  return false;
+}
+
+function fragments(value: string) {
+  return value
+    .split(/\b(?:TESTIMONIALS|Privacy Policy|Terms of Use|All Rights Reserved|LEAVE A REVIEW|BOOK NOW|Read More Reviews)\b/gi)
+    .flatMap((part) => part.split(/(?<=[.!?])\s+/))
+    .map(normalizeText)
+    .filter((part) => part.length >= 12);
+}
+
+function fragmentScore(category: WebsiteKnowledgeFact["category"], value: string) {
+  let score = 0;
+  if (category === "pricing_plan" && /(?:[$£€]\s?\d|\b(?:special|offer|promotion|pricing|price|discount|free)\b)/i.test(value)) score += 20;
+  if (category === "service" && /\b(?:service|offer|provide|specializ|therapy|treatment|care|consulting|implementation|chiropractic|decompression)\b/i.test(value)) score += 20;
+  if (category === "primary_use_case" && /\b(?:pain|injur|sciatica|numbness|tingling|whiplash|disc|stenosis|use case|helps?|treat)\b/i.test(value)) score += 20;
+  if (category === "location_service_area" && /\b(?:located|based|serve|serving|available in|surrounding|area|office|address)\b/i.test(value)) score += 20;
+  if (category === "certification" && /\b(?:licensed|license|certified|degree|accredited|board[- ]certified)\b/i.test(value)) score += 20;
+  if (category === "support_onboarding" && /\b(?:new patient|day\s*[12]|first visit|evaluation|consultation|x-?ray|review findings|roadmap|treatment plan)\b/i.test(value)) score += 20;
+  if (category === "faq" && /\b(?:faq|insurance|ppo|hsa|fsa|candidate|how long|safe|first visit|prior surgery)\b/i.test(value)) score += 20;
+  if (category === "additional_business_knowledge" && /\b(?:review|testimonial|recommend|customer service|life-changing|worked wonders|helped me)\b/i.test(value)) score += 20;
+  if (category === "competitive_differentiator" && /\b(?:unique|over a decade|experience|advanced|proven|above and beyond|best results)\b/i.test(value)) score += 20;
+  if (category === "mission_value_proposition" && /\b(?:mission|core values|philosophy|approach|repair|recover|remodel)\b/i.test(value)) score += 20;
+  if (category === "customer_segment" && /\b(?:patients?|customers?|clients?|people with|serving)\b/i.test(value)) score += 20;
+  if (legalTrackingText.test(value)) score -= 100;
+  if (looksLikeChrome(value)) score -= 100;
+  if (value.length <= 320) score += 6;
+  else if (value.length <= 500) score += 2;
+  else score -= 8;
+  return score;
+}
+
+function compactCommercialValue(fact: WebsiteKnowledgeFact): string | null {
+  const original = normalizeText(fact.value);
+  if (!commercialCategories.has(fact.category)) return original;
+  if (isCommercialContamination(fact, original)) return null;
+
+  const candidates = fragments(original)
+    .filter((part) => !legalTrackingText.test(part) && !looksLikeChrome(part))
+    .map((part) => ({ part, score: fragmentScore(fact.category, part) }))
+    .sort((a, b) => b.score - a.score || a.part.length - b.part.length);
+
+  const best = candidates[0];
+  if (!best || best.score < 10) return null;
+  if (best.part.length > 520) return null;
+  return best.part;
+}
+
+function cleanFactTitle(fact: WebsiteKnowledgeFact, value: string) {
+  const title = normalizeText(fact.title);
+  if (title && title.length <= 72 && !looksLikeChrome(title) && !title.endsWith(" hi")) return title;
+
+  if (fact.category === "pricing_plan") return /new patient/i.test(value) ? "New patient offer" : "Pricing or offer";
+  if (fact.category === "service") return "Service";
+  if (fact.category === "primary_use_case") return "Primary use case";
+  if (fact.category === "location_service_area") return "Service area";
+  if (fact.category === "certification") return "Credential";
+  if (fact.category === "support_onboarding") return "Customer process";
+  if (fact.category === "faq") return "FAQ";
+  if (fact.category === "additional_business_knowledge") return "Customer proof";
+  if (fact.category === "competitive_differentiator") return "Differentiator";
+  if (fact.category === "mission_value_proposition") return "Positioning";
+  if (fact.category === "customer_segment") return "Customer segment";
+  return title || fact.category.replace(/_/g, " ");
+}
+
+function comparableWords(value: string) {
+  return new Set(
+    normalizeText(value)
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length >= 4),
+  );
+}
+
+function substantiallySame(left: WebsiteKnowledgeFact, right: WebsiteKnowledgeFact) {
+  if (left.category !== right.category) return false;
+  const leftText = normalizeText(left.value).toLowerCase();
+  const rightText = normalizeText(right.value).toLowerCase();
+  if (leftText === rightText || leftText.includes(rightText) || rightText.includes(leftText)) return true;
+  const leftWords = comparableWords(leftText);
+  const rightWords = comparableWords(rightText);
+  if (!leftWords.size || !rightWords.size) return false;
+  let overlap = 0;
+  leftWords.forEach((word) => {
+    if (rightWords.has(word)) overlap += 1;
   });
+  return overlap / Math.min(leftWords.size, rightWords.size) >= 0.86;
+}
+
+function cleanDeterministicFacts(result: DeterministicEngineResult): WebsiteKnowledgeFact[] {
+  const cleaned: WebsiteKnowledgeFact[] = [];
+
+  for (const fact of result.websiteKnowledge.facts) {
+    if (looksLikeChrome(fact.title) || looksLikeChrome(fact.value)) continue;
+    if (fact.value.length > 900 && (fact.value.match(navWords)?.length ?? 0) >= 3) continue;
+
+    const value = compactCommercialValue(fact);
+    if (!value) continue;
+
+    const normalized: WebsiteKnowledgeFact = {
+      ...fact,
+      title: cleanFactTitle(fact, value),
+      value,
+    };
+
+    if (cleaned.some((existing) => substantiallySame(existing, normalized))) continue;
+    cleaned.push(normalized);
+  }
+
+  return cleaned;
 }
 
 function deterministicSummary(
@@ -147,6 +279,11 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
           5,
         );
 
+        const categoryCounts = facts.reduce<Record<string, number>>((counts, fact) => {
+          counts[fact.category] = (counts[fact.category] ?? 0) + 1;
+          return counts;
+        }, {});
+
         const timings = {
           ...crawl.diagnostics.timings,
           deterministicKnowledgeMs: deterministicMs,
@@ -164,6 +301,7 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
           deterministicFacts: deterministic.facts.length,
           cleanDeterministicFacts: facts.length,
           discardedDeterministicFacts: deterministic.facts.length - facts.length,
+          categoryCounts,
           aiCalls: 0,
           inputTokens: 0,
           outputTokens: 0,
