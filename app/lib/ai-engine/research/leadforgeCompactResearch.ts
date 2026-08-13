@@ -8,10 +8,10 @@ function normalizeText(value: unknown): string {
   return String(value ?? "").replace(/\u0000/g, "").replace(/\s+/g, " ").trim();
 }
 
-const chromeExact = /^(?:skip to (?:main )?content|home|about|about us|services|products|blog|contact|contact us|book now|new patients|menu|close menu|back to top|privacy policy|terms of use|all rights reserved|learn more|read more)$/i;
-const navWords = /\b(?:home|about|provider|blog|services|products|contact|book now|new patients|privacy policy|terms of use)\b/gi;
-const legalTrackingText = /\b(?:privacy policy|terms of use|personal information|personally identifiable|ip address|general location|cookies?|pixels?|advertisers?|advertising|third[- ]party sites?|third[- ]party service|services usage|data collection|data retention|opt[- ]out|deletion request|marketing purposes?|browser information|device information|tracking technolog|do not track|\bdnt\b|consumer privacy|ccpa|share your information|online actions|user experience|data on our behalf)\b/i;
-const instructionalAdvice = /\b(?:other party(?:'s)?|insurance card|report (?:the )?(?:incident|accident)|call (?:the )?police|consult an attorney|protect (?:your|their) rights|exchange information|identify the other party|seek (?:medical )?care|document the scene|take photos)\b/i;
+const chromeExact = /^(?:skip to (?:main )?content|home|about|about us|services|products|blog|contact|contact us|menu|close menu|back to top|privacy policy|terms of use|all rights reserved|learn more|read more)$/i;
+const navWords = /\b(?:home|about|blog|services|products|contact|privacy policy|terms of use)\b/gi;
+const legalTrackingText = /\b(?:privacy policy|terms of use|personal information|personally identifiable|ip address|cookies?|pixels?|advertisers?|advertising partners?|third[- ]party sites?|third[- ]party service|services usage|data collection|data retention|opt[- ]out|deletion request|browser information|device information|tracking technolog|do not track|\bdnt\b|consumer privacy|share your information|online actions|data on our behalf)\b/i;
+const instructionalOrThirdPartyText = /\b(?:other party(?:'s)?|third party(?:'s)?|exchange information|consult (?:an|a) (?:attorney|lawyer|advisor)|report the incident|document the scene|take photos|call the authorities)\b/i;
 const legalPageTypes = new Set(["policies", "security", "compliance"]);
 const commercialCategories = new Set<WebsiteKnowledgeFact["category"]>([
   "company_overview",
@@ -39,9 +39,7 @@ function looksLikeChrome(value: unknown): boolean {
   if (/^\d*\s*skip to (?:main )?content\b/i.test(text)) return true;
   if (/\b(?:cookie settings|privacy preferences|accept all cookies|accessibility menu)\b/i.test(text)) return true;
   const navMatches = text.match(navWords)?.length ?? 0;
-  if (navMatches >= 6 && text.length > 160) return true;
-  if (text.length > 500 && navMatches >= 4 && /\b(?:folder:|book now|leave a review|all rights reserved)\b/i.test(text)) return true;
-  return false;
+  return navMatches >= 6 && /\b(?:privacy policy|terms of use|all rights reserved)\b/i.test(text);
 }
 
 function factPageTypes(fact: WebsiteKnowledgeFact): string[] {
@@ -53,50 +51,50 @@ function factPageTypes(fact: WebsiteKnowledgeFact): string[] {
 
 function factHasBusinessSubject(category: WebsiteKnowledgeFact["category"], value: string): boolean {
   if (category === "pricing_plan") {
-    return /(?:[$£€]\s?\d|\bfree\b)/i.test(value) && /\b(?:special|offer|promotion|price|pricing|discount|consultation|visit|session|plan|package)\b/i.test(value);
+    return /(?:[$£€]\s?\d|\bfree\b)/i.test(value) && /\b(?:special|offer|promotion|price|pricing|discount|trial|plan|package|tier|subscription|membership|rate|fee)\b/i.test(value);
   }
   if (category === "service") {
-    return /\b(?:practice|clinic|company|agency|we|our|provider|offers?|provides?|specializes?|therapy|treatment|care|consulting|implementation|chiropractic|spinal decompression|auto accident injury)\b/i.test(value);
+    return /\b(?:we|our|business|company|agency|firm|studio|team|provider|offers?|provides?|delivers?|specializes?|consulting|implementation|management|design|development|marketing|support|maintenance|training|professional services?)\b/i.test(value);
   }
   if (category === "primary_use_case") {
-    return /\b(?:pain|injur|sciatica|numbness|tingling|whiplash|disc|stenosis|condition|patient|client|customer|treat|relief|use case)\b/i.test(value);
+    return /\b(?:helps?|used (?:to|for)|designed to|built to|enables?|solves?|supports?|improves?|reduces?|increases?|manages?|automates?|creates?|tracks?|connects?|analyzes?|monitors?)\b/i.test(value);
   }
   if (category === "location_service_area") {
-    return /\b(?:located in|based in|serves?|serving|available in|office in|practice in|clinic in|surrounding area|surrounding areas|service area|nationwide|worldwide)\b/i.test(value);
+    return /\b(?:located in|based in|serves?|serving|available in|available throughout|office in|service area|surrounding area|region|nationwide|worldwide)\b/i.test(value);
   }
   if (category === "certification") {
-    return /\b(?:licensed|license|certified|certification|degree|accredited|accreditation|board[- ]certified)\b/i.test(value);
+    return /\b(?:licensed|license|certified|certification|credential|accredited|accreditation|registered|award(?:ed)?)\b/i.test(value);
   }
   if (category === "support_onboarding") {
-    return /\b(?:new patient|new client|first visit|day\s*[12]|evaluation|consultation|x-?ray|review(?: of)? findings|roadmap|treatment plan|onboarding|implementation|training)\b/i.test(value);
+    return /\b(?:onboarding|implementation|training|getting started|first meeting|initial assessment|consultation|discovery call|kickoff|setup|installation|follow[- ]up|review|roadmap|support process)\b/i.test(value);
   }
   if (category === "faq") {
-    return /\b(?:faq|insurance|ppo|hsa|fsa|candidate|how long|safe|first visit|first day|prior surgery|what conditions|do you accept|can i|who is)\b/i.test(value);
+    return /\b(?:faq|frequently asked|how long|how much|who is|can i|can we|do you|what happens|what is included|how does|when should|what should|is .* available)\b/i.test(value);
   }
   if (category === "additional_business_knowledge") {
-    return /\b(?:review|testimonial|recommend|customer service|patient|client|customer|life-changing|worked wonders|helped me|results?)\b/i.test(value);
+    return /\b(?:review|testimonial|recommend|customer service|client|customer|user|case study|results?|success|outcome|rating|stars?)\b/i.test(value);
   }
   if (category === "competitive_differentiator") {
-    return /\b(?:unique|over a decade|experience|advanced|proven|above and beyond|best results|award|specializ)\b/i.test(value);
+    return /\b(?:unique|experience|advanced|proven|above and beyond|best results|award|specializ|proprietary|exclusive|only|faster|better|leading)\b/i.test(value);
   }
   if (category === "mission_value_proposition") {
-    return /\b(?:mission|core values|philosophy|approach|repair|recover|remodel|we believe|we exist)\b/i.test(value);
+    return /\b(?:mission|core values|philosophy|approach|we believe|we exist|our purpose|our goal|our vision|value proposition)\b/i.test(value);
   }
   if (category === "customer_segment") {
-    return /\b(?:patients?|customers?|clients?|businesses?|teams?|people with|serving)\b/i.test(value);
+    return /\b(?:customers?|clients?|users?|businesses?|companies|organizations?|teams?|professionals?|people who|serving|built for|designed for)\b/i.test(value);
   }
   if (category === "company_overview") {
-    return /\b(?:practice|clinic|company|agency|studio|business|provider|we are|our company|our team|specializes?)\b/i.test(value);
+    return /\b(?:company|agency|firm|studio|business|organization|provider|we are|our company|our team|specializes?|founded|established)\b/i.test(value);
   }
   if (category === "brand_voice_terminology") {
-    return /\b(?:core values|healing journey|recovery roadmap|our approach|our method|our framework|we call|known as)\b/i.test(value);
+    return /\b(?:core values|our approach|our method|our framework|we call|known as|referred to as|signature process|named framework|proprietary method)\b/i.test(value);
   }
   return true;
 }
 
 function isCommercialContamination(fact: WebsiteKnowledgeFact, value: string) {
   if (!commercialCategories.has(fact.category)) return false;
-  if (legalTrackingText.test(value) || instructionalAdvice.test(value)) return true;
+  if (legalTrackingText.test(value) || instructionalOrThirdPartyText.test(value)) return true;
   const pageTypes = factPageTypes(fact);
   if (pageTypes.length && pageTypes.every((pageType) => legalPageTypes.has(pageType))) return true;
   return !factHasBusinessSubject(fact.category, value);
@@ -104,64 +102,58 @@ function isCommercialContamination(fact: WebsiteKnowledgeFact, value: string) {
 
 function fragments(value: string) {
   return value
-    .split(/\b(?:TESTIMONIALS|Privacy Policy|Terms of Use|All Rights Reserved|LEAVE A REVIEW|BOOK NOW|Read More Reviews)\b/gi)
+    .split(/\b(?:TESTIMONIALS|REVIEWS|Privacy Policy|Terms of Use|All Rights Reserved|LEAVE A REVIEW|READ MORE REVIEWS)\b/gi)
     .flatMap((part) => part.split(/(?<=[.!?])\s+/))
     .map(normalizeText)
-    .filter((part) => part.length >= 12);
+    .filter(Boolean);
 }
 
 function fragmentScore(category: WebsiteKnowledgeFact["category"], value: string) {
+  if (!factHasBusinessSubject(category, value)) return Number.NEGATIVE_INFINITY;
+  if (legalTrackingText.test(value) || instructionalOrThirdPartyText.test(value) || looksLikeChrome(value)) return Number.NEGATIVE_INFINITY;
+
   let score = 0;
-  if (!factHasBusinessSubject(category, value)) return -100;
-  if (category === "pricing_plan" && /(?:[$£€]\s?\d|\b(?:special|offer|promotion|pricing|price|discount|free)\b)/i.test(value)) score += 24;
-  if (category === "service" && /\b(?:offer|provide|specializ|therapy|treatment|care|consulting|implementation|chiropractic|decompression)\b/i.test(value)) score += 22;
-  if (category === "primary_use_case" && /\b(?:pain|injur|sciatica|numbness|tingling|whiplash|disc|stenosis|helps?|treat|relief)\b/i.test(value)) score += 22;
-  if (category === "location_service_area" && /\b(?:located in|based in|serve|serving|available in|surrounding|service area|practice in|clinic in)\b/i.test(value)) score += 24;
-  if (category === "certification" && /\b(?:licensed|license|certified|degree|accredited|board[- ]certified)\b/i.test(value)) score += 24;
-  if (category === "support_onboarding" && /\b(?:new patient|day\s*[12]|first visit|evaluation|consultation|x-?ray|review findings|roadmap|treatment plan)\b/i.test(value)) score += 22;
-  if (category === "faq" && /\b(?:faq|insurance|ppo|hsa|fsa|candidate|how long|safe|first visit|prior surgery)\b/i.test(value)) score += 22;
-  if (category === "additional_business_knowledge" && /\b(?:review|testimonial|recommend|customer service|life-changing|worked wonders|helped me|results?)\b/i.test(value)) score += 22;
-  if (category === "competitive_differentiator" && /\b(?:unique|over a decade|experience|advanced|proven|above and beyond|best results)\b/i.test(value)) score += 22;
-  if (category === "mission_value_proposition" && /\b(?:mission|core values|philosophy|approach|repair|recover|remodel)\b/i.test(value)) score += 20;
-  if (category === "customer_segment" && /\b(?:patients?|customers?|clients?|people with|serving)\b/i.test(value)) score += 18;
-  if (category === "company_overview" && /\b(?:practice|clinic|company|agency|studio|business|provider|specializes?)\b/i.test(value)) score += 18;
-  if (legalTrackingText.test(value) || instructionalAdvice.test(value)) score -= 100;
-  if (looksLikeChrome(value)) score -= 100;
-  if (value.length <= 260) score += 8;
-  else if (value.length <= 420) score += 3;
-  else score -= 10;
+  if (category === "pricing_plan" && /(?:[$£€]\s?\d|\b(?:special|offer|promotion|pricing|price|discount|free|trial|plan|package|subscription|membership)\b)/i.test(value)) score += 24;
+  if (category === "service" && /\b(?:offer|provide|deliver|specializ|consulting|implementation|management|design|development|marketing|support|maintenance|training|professional service)\b/i.test(value)) score += 22;
+  if (category === "primary_use_case" && /\b(?:helps?|used (?:to|for)|designed to|built to|enables?|solves?|supports?|improves?|reduces?|increases?|manages?|automates?|creates?|tracks?|connects?|analyzes?|monitors?)\b/i.test(value)) score += 22;
+  if (category === "location_service_area" && /\b(?:located in|based in|serve|serving|available in|available throughout|service area|region|nationwide|worldwide)\b/i.test(value)) score += 24;
+  if (category === "certification" && /\b(?:licensed|license|certified|certification|credential|accredited|registered|award)\b/i.test(value)) score += 24;
+  if (category === "support_onboarding" && /\b(?:onboarding|implementation|training|getting started|first meeting|initial assessment|consultation|discovery call|kickoff|setup|installation|follow[- ]up|roadmap)\b/i.test(value)) score += 22;
+  if (category === "faq" && /\b(?:faq|frequently asked|how long|how much|who is|can i|can we|do you|what happens|what is included|how does|when should|what should)\b/i.test(value)) score += 22;
+  if (category === "additional_business_knowledge" && /\b(?:review|testimonial|recommend|customer service|case study|results?|success|outcome|rating|stars?)\b/i.test(value)) score += 22;
+  if (category === "competitive_differentiator" && /\b(?:unique|experience|advanced|proven|above and beyond|best results|award|specializ|proprietary|exclusive|only|leading)\b/i.test(value)) score += 22;
+  if (category === "mission_value_proposition" && /\b(?:mission|core values|philosophy|approach|we believe|we exist|our purpose|our goal|our vision)\b/i.test(value)) score += 20;
+  if (category === "customer_segment" && /\b(?:customers?|clients?|users?|businesses?|companies|organizations?|teams?|professionals?|serving|built for|designed for)\b/i.test(value)) score += 18;
+  if (category === "company_overview" && /\b(?:company|agency|firm|studio|business|organization|provider|we are|our company|our team|founded|established)\b/i.test(value)) score += 18;
   return score;
 }
 
 function compactCommercialValue(fact: WebsiteKnowledgeFact): string | null {
   const original = normalizeText(fact.value);
   if (!commercialCategories.has(fact.category)) return original;
+  if (isCommercialContamination(fact, original)) return null;
 
   const candidates = fragments(original)
-    .filter((part) => !legalTrackingText.test(part) && !instructionalAdvice.test(part) && !looksLikeChrome(part))
     .map((part) => ({ part, score: fragmentScore(fact.category, part) }))
-    .filter((candidate) => candidate.score >= 10)
-    .sort((a, b) => b.score - a.score || a.part.length - b.part.length);
+    .filter((candidate) => Number.isFinite(candidate.score))
+    .sort((a, b) => b.score - a.score);
 
-  const best = candidates[0];
-  if (!best) return null;
-  if (best.part.length > 420) return null;
-  return best.part;
+  return candidates[0]?.part ?? null;
 }
 
-function cleanFactTitle(fact: WebsiteKnowledgeFact, value: string) {
+function cleanFactTitle(fact: WebsiteKnowledgeFact) {
   const title = normalizeText(fact.title);
   const weakTitle = /^(?:company|service|services|faq|pricing|pricing or offer|customer segment|primary use case|location or service area|process or onboarding|competitive differentiator|customer proof)$/i;
-  if (title && title.length <= 72 && !looksLikeChrome(title) && !title.endsWith(" hi") && !weakTitle.test(title)) return title;
+  if (title && !looksLikeChrome(title) && !weakTitle.test(title)) return title;
 
   if (fact.category === "company_overview") return "Business overview";
-  if (fact.category === "pricing_plan") return /new patient/i.test(value) ? "New patient offer" : "Pricing or offer";
-  if (fact.category === "service") return /spinal decompression/i.test(value) ? "Spinal decompression" : /auto accident/i.test(value) ? "Auto accident injury care" : "Service";
+  if (fact.category === "pricing_plan") return "Pricing or offer";
+  if (fact.category === "service") return "Service";
   if (fact.category === "primary_use_case") return "Primary use case";
   if (fact.category === "location_service_area") return "Service area";
-  if (fact.category === "certification") return "Credential";
+  if (fact.category === "certification") return "Credential or certification";
   if (fact.category === "support_onboarding") return "Customer process";
-  if (fact.category === "faq") return /insurance|ppo|hsa|fsa/i.test(value) ? "Insurance and payment FAQ" : "FAQ";
+  if (fact.category === "faq") return "FAQ";
   if (fact.category === "additional_business_knowledge") return "Customer proof";
   if (fact.category === "competitive_differentiator") return "Differentiator";
   if (fact.category === "mission_value_proposition") return "Positioning";
@@ -182,11 +174,17 @@ function sameCommercialConcept(left: WebsiteKnowledgeFact, right: WebsiteKnowled
   if (left.category === "pricing_plan") {
     const leftMoney = moneyMarkers(left.value);
     const rightMoney = moneyMarkers(right.value);
-    if (leftMoney.some((amount) => rightMoney.includes(amount)) && /new patient|special|promotion|offer/i.test(left.value) && /new patient|special|promotion|offer/i.test(right.value)) return true;
+    if (
+      leftMoney.some((amount) => rightMoney.includes(amount)) &&
+      /special|promotion|offer|plan|package|subscription|membership|trial/i.test(left.value) &&
+      /special|promotion|offer|plan|package|subscription|membership|trial/i.test(right.value)
+    ) return true;
   }
+
   const leftText = normalizeText(left.value).toLowerCase();
   const rightText = normalizeText(right.value).toLowerCase();
   if (leftText === rightText || leftText.includes(rightText) || rightText.includes(leftText)) return true;
+
   const leftWords = comparableWords(leftText);
   const rightWords = comparableWords(rightText);
   if (!leftWords.size || !rightWords.size) return false;
@@ -201,7 +199,6 @@ function cleanDeterministicFacts(result: DeterministicEngineResult): WebsiteKnow
   const cleaned: WebsiteKnowledgeFact[] = [];
   for (const fact of result.websiteKnowledge.facts) {
     if (looksLikeChrome(fact.title) || looksLikeChrome(fact.value)) continue;
-    if (fact.value.length > 900 && (fact.value.match(navWords)?.length ?? 0) >= 3) continue;
     if (isCommercialContamination(fact, normalizeText(fact.value))) continue;
 
     const value = compactCommercialValue(fact);
@@ -209,7 +206,7 @@ function cleanDeterministicFacts(result: DeterministicEngineResult): WebsiteKnow
 
     const normalized: WebsiteKnowledgeFact = {
       ...fact,
-      title: cleanFactTitle(fact, value),
+      title: cleanFactTitle(fact),
       value,
     };
 
@@ -219,8 +216,14 @@ function cleanDeterministicFacts(result: DeterministicEngineResult): WebsiteKnow
   return cleaned;
 }
 
-function deterministicSummary(facts: WebsiteKnowledgeFact[], categories: WebsiteKnowledgeFact["category"][], maximum = 4) {
-  return facts.filter((fact) => categories.includes(fact.category)).slice(0, maximum).map((fact) => fact.value).join(" ");
+function deterministicSummary(
+  facts: WebsiteKnowledgeFact[],
+  categories: WebsiteKnowledgeFact["category"][],
+) {
+  return facts
+    .filter((fact) => categories.includes(fact.category))
+    .map((fact) => fact.value)
+    .join(" ");
 }
 
 export async function runLeadForgeCompactResearchRequest(request: Request) {
@@ -228,12 +231,18 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
   try {
     body = await request.json() as { website?: unknown };
   } catch {
-    return Response.json({ ok: false, error: { code: "invalid_json", message: "The request body must be valid JSON." } }, { status: 400 });
+    return Response.json(
+      { ok: false, error: { code: "invalid_json", message: "The request body must be valid JSON." } },
+      { status: 400 },
+    );
   }
 
   const website = normalizeText(body.website);
   if (!website) {
-    return Response.json({ ok: false, error: { code: "website_required", message: "A website is required." } }, { status: 400 });
+    return Response.json(
+      { ok: false, error: { code: "website_required", message: "A website is required." } },
+      { status: 400 },
+    );
   }
 
   const encoder = new TextEncoder();
@@ -267,10 +276,10 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
           unresolvedQuestions: deterministic.websiteKnowledge.unresolvedQuestions,
         };
         const businessName = resolveCrawledBusinessName(undefined, crawl);
-        const industry = deterministicSummary(facts, ["industry_served", "company_overview"], 2);
-        const productsServices = deterministicSummary(facts, ["product", "service", "primary_use_case"], 5);
-        const idealCustomers = deterministicSummary(facts, ["customer_segment", "industry_served"], 4);
-        const additionalKnowledge = deterministicSummary(facts, ["competitive_differentiator", "pricing_plan", "location_service_area", "certification", "faq"], 5);
+        const industry = deterministicSummary(facts, ["industry_served", "company_overview"]);
+        const productsServices = deterministicSummary(facts, ["product", "service", "primary_use_case"]);
+        const idealCustomers = deterministicSummary(facts, ["customer_segment", "industry_served"]);
+        const additionalKnowledge = deterministicSummary(facts, ["competitive_differentiator", "pricing_plan", "location_service_area", "certification", "faq"]);
         const categoryCounts = facts.reduce<Record<string, number>>((counts, fact) => {
           counts[fact.category] = (counts[fact.category] ?? 0) + 1;
           return counts;
@@ -313,7 +322,12 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
             additionalKnowledge,
           },
           knowledge,
-          pages: crawl.pages.map((page) => ({ url: page.url, title: page.title, pageType: page.pageType, sourceDocumentId: page.sourceDocumentId })),
+          pages: crawl.pages.map((page) => ({
+            url: page.url,
+            title: page.title,
+            pageType: page.pageType,
+            sourceDocumentId: page.sourceDocumentId,
+          })),
           warnings: crawl.warnings,
           sourceDocuments: crawl.sourceDocuments,
           sourceBlocks: crawl.sourceBlocks,
@@ -340,7 +354,10 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
           website,
           message: error instanceof Error ? error.message : String(error),
         });
-        send({ type: "error", error: { code: "website_import_failed", message: "Website research could not be completed." } });
+        send({
+          type: "error",
+          error: { code: "website_import_failed", message: "Website research could not be completed." },
+        });
         controller.close();
       }
     },
