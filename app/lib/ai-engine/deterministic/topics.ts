@@ -30,14 +30,6 @@ const ALIASES: readonly Alias[] = [
   { namespace: "integration", identity: "google_workspace", categories: ["integration"], pattern: /\bgoogle\s+(?:workspace|apps)\b/i },
   { namespace: "service", identity: "google_ads", categories: ["service"], pattern: /\bgoogle\s+ads?\b/i },
   { namespace: "service", identity: "seo", categories: ["service"], pattern: /\bseo\b|\bsearch engine optimi[sz]ation\b/i },
-  { namespace: "service", identity: "spinal_decompression", categories: ["service"], pattern: /\b(?:non[- ]surgical\s+)?spinal decompression(?: therapy)?\b/i },
-  { namespace: "service", identity: "auto_accident_injury_care", categories: ["service"], pattern: /\b(?:auto(?:mobile)?|car) accident injur(?:y|ies)(?: chiropractic)? care\b|\bauto accident injury\b/i },
-  { namespace: "primary_use_case", identity: "neck_pain", categories: ["primary_use_case"], pattern: /\bneck pain\b/i },
-  { namespace: "primary_use_case", identity: "back_pain", categories: ["primary_use_case"], pattern: /\b(?:low(?:er)? )?back pain\b/i },
-  { namespace: "primary_use_case", identity: "sciatica", categories: ["primary_use_case"], pattern: /\bsciatica\b/i },
-  { namespace: "primary_use_case", identity: "whiplash", categories: ["primary_use_case"], pattern: /\bwhiplash\b/i },
-  { namespace: "primary_use_case", identity: "spinal_stenosis", categories: ["primary_use_case"], pattern: /\bspinal stenosis\b/i },
-  { namespace: "primary_use_case", identity: "disc_related_conditions", categories: ["primary_use_case"], pattern: /\b(?:bulging|herniated|disc[- ]related)\s+disc|\bdisc[- ]related (?:condition|injur)/i },
 ];
 
 const NAMESPACE: Partial<Record<Category, string>> = {
@@ -84,25 +76,25 @@ function match(value: string, pattern: RegExp): string | undefined {
 
 function explicitValueName(category: Category, value: string): string | undefined {
   if (category === "pricing_plan") {
-    if (/\bnew patient (?:special|offer|promotion)\b/i.test(value)) return "new patient special";
-    return match(value, /\b((?:(?:our|choose|select|try|use)\s+(?:the\s+)?|the\s+)?[a-z0-9][a-z0-9 '&.-]{0,35}?)\s+(?:plan|package|tier)\b/i);
+    return match(value, /\b([a-z0-9][a-z0-9 '&.-]*?)\s+(?:special|offer|promotion|plan|package|tier|subscription)\b/i)
+      ?? match(value, /\b(?:special|offer|promotion|plan|package|tier|subscription)\s+(?:for\s+)?([a-z0-9][a-z0-9 '&.-]*?)(?:[.,]|$)/i);
   }
   if (category === "product")
-    return match(value, /\b(?:our\s+)?([a-z0-9][a-z0-9 '&.-]{0,40}?)\s+(?:product|platform|software|app|application|suite|tool)\b/i);
+    return match(value, /\b(?:our\s+)?([a-z0-9][a-z0-9 '&.-]*?)\s+(?:product|platform|software|app|application|suite|tool)\b/i);
   if (category === "service") {
-    if (/^(?:implementation|consulting|training|management|design|optimization|cleaning|strategy)$/i.test(cleanText(value)))
+    if (/^(?:implementation|consulting|training|management|design|optimization|cleaning|strategy|development|marketing|support|maintenance)$/i.test(cleanText(value)))
       return cleanName(value);
-    return match(value, /\b(?:we\s+(?:offer|provide|deliver)|our services? include|(?:our\s+)?(?:practice|clinic|company|agency)\s+specializes? in)\s+([a-z0-9][a-z0-9 '&.-]{1,80}?)(?:\s+(?:services?|consulting|implementation|managed services?))?(?:[.,]|\s+for\b|$)/i)
-      ?? match(value, /^([a-z0-9][a-z0-9 '&.-]{1,80}?(?:consulting|implementation|training|management|design|optimization|cleaning|strategy|therapy|treatment|care))$/i);
+    return match(value, /\b(?:we\s+(?:offer|provide|deliver)|our services? include|(?:our\s+)?(?:business|company|agency|firm|practice|studio|team)\s+specializes? in)\s+(.+?)(?:[.;]|\s+for\b|$)/i)
+      ?? match(value, /^(.+?(?:consulting|implementation|training|management|design|optimization|cleaning|strategy|development|marketing|support|maintenance|service|services))$/i);
   }
   if (category === "primary_use_case") {
-    return match(value, /\b(?:helps?|treats?|treating|care for|relief from)\s+([a-z0-9][a-z0-9 '&.-]{1,70}?)(?:[.,]|$)/i);
+    return match(value, /\b(?:helps?|used (?:to|for)|designed to|built to|enables?|solves?|supports?)\s+(.+?)(?:[.;]|$)/i);
   }
   if (category === "industry_served")
-    return match(value, /\b(?:solutions? for|serving (?:the\s+)?|industries? (?:we )?serve\s*:?|teams? in)\s+([a-z0-9][a-z0-9 '&.-]{1,45}?)(?:\s+(?:organizations?|companies|businesses|industry|sector))?(?:[.,]|$)/i);
+    return match(value, /\b(?:solutions? for|serving (?:the\s+)?|industries? (?:we )?serve\s*:?|teams? in)\s+(.+?)(?:\s+(?:organizations?|companies|businesses|industry|sector))?(?:[.,]|$)/i);
   if (category === "location_service_area")
-    return match(value, /\b(?:(?:located|based|office(?: is)? located)\s+in|serve|available throughout)\s+([a-z0-9][a-z0-9 .'-]{1,60}?)(?:[.,]|\s+and\b|$)/i)
-      ?? (/^(?:[A-Z][a-z]+(?:[ -][A-Z][a-z]+){0,2})$/.test(cleanText(value)) ? cleanName(value) : undefined);
+    return match(value, /\b(?:(?:located|based|office(?: is)? located)\s+in|serve|serving|available throughout|available in)\s+(.+?)(?:[.,]|\s+and\b|$)/i)
+      ?? (/^(?:[A-Z][a-z]+(?:[ -][A-Z][a-z]+){0,3})$/.test(cleanText(value)) ? cleanName(value) : undefined);
   return undefined;
 }
 
@@ -123,10 +115,10 @@ export function canonicalTopicKey(input: CanonicalTopicInput): string {
     name = /\bsupport\b/i.test(evidence) ? "support" : /\bsales\b/i.test(evidence) ? "sales" :
       evidence.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0] ?? evidence.match(/\+?\d[\d ().-]{7,}\d/)?.[0];
   else if (input.category === "integration")
-    name = match(input.value, /\b(?:with|to|for)\s+([a-z0-9][a-z0-9 .&+-]{1,60}?)(?:[.!]|$)/i);
+    name = match(input.value, /\b(?:with|to|for)\s+(.+?)(?:[.!]|$)/i);
   else if (["product", "service", "industry_served", "location_service_area", "primary_use_case"].includes(input.category)) {
     const itemName = explicitValueName(input.category, input.value);
-    name = itemName && !/^(?:software|product|platform|app|application|suite|tool)$/i.test(itemName)
+    name = itemName && !/^(?:software|product|platform|app|application|suite|tool|service|services)$/i.test(itemName)
       ? itemName : itemHeading(input.heading);
   }
 
