@@ -41,7 +41,7 @@ function shouldDiscard(fact: DeterministicFact) {
   }
 
   if (fact.category === "competitive_differentiator") {
-    const weakConstraint = /^(?:\*?special order only!?|we only offer|cost is based on|available only|limited to)\b/i.test(value);
+    const weakConstraint = /^(?:we only|available only|limited to|cost is based on)\b/i.test(value);
     if (weakConstraint) return true;
   }
 
