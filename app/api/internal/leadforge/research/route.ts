@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import { runBusinessWebsiteResearchRequest } from "@/app/lib/ai-engine/research/businessKnowledgePack";
+import { runLeadForgeCompactResearchRequest } from "@/app/lib/ai-engine/research/leadforgeCompactResearch";
 import { normalizeExternalReference, toLeadForgeEvent, type LeadForgeResearchRequest } from "./contract";
 
 export const runtime = "nodejs";
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     body: JSON.stringify({ website: body.website, modelId: LEADFORGE_RESEARCH_MODEL_ID }),
     signal: request.signal,
   });
-  const coreResponse = await runBusinessWebsiteResearchRequest(coreRequest, { internalWorker: true });
+  const coreResponse = await runLeadForgeCompactResearchRequest(coreRequest);
   if (!coreResponse.ok) {
     let error: unknown = { code: "research_request_failed", message: "Website research could not be started." };
     try {
