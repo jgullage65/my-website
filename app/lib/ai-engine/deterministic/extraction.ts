@@ -31,8 +31,7 @@ const RULES: Rule[] = [
         category: "policy",
         pages: ["policies"],
         evidence: /\b(?:refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information|opt[- ]out|deletion request)\b/i,
-        topic: t => (t.match(/\b(refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information)[\w -]{0,20}/i)?.[0] ??
-            cleanText(t)),
+        topic: t => (t.match(/\b(refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information)[\w -]{0,20}/i)?.[0] ?? cleanText(t)),
         title: "Policy"
     },
     {
@@ -197,6 +196,22 @@ const RULE_PRIORITY: Partial<Record<Category, number>> = {
 };
 const PRIORITIZED_RULES = [...RULES].sort((left, right) =>
     (RULE_PRIORITY[right.category] ?? 70) - (RULE_PRIORITY[left.category] ?? 70));
+const COMMERCIAL_CATEGORIES = new Set<Category>([
+    "pricing_plan",
+    "product",
+    "service",
+    "feature_capability",
+    "customer_segment",
+    "industry_served",
+    "primary_use_case",
+    "location_service_area",
+    "competitive_differentiator",
+    "mission_value_proposition",
+    "certification",
+    "support_onboarding",
+    "brand_voice_terminology",
+    "additional_business_knowledge",
+]);
 function sentences(text: string): string[] {
     return text.split(/(?<=[.!?])\s+|\n+/)
         .map(cleanText)
@@ -204,6 +219,9 @@ function sentences(text: string): string[] {
 }
 function isContractBoilerplate(text: string): boolean {
     return /\b(?:may include|may update|may modify|may improve|may discontinue|does not guarantee|cannot guarantee|limits may vary|covered items may include|service commitments covered items|lost revenue or business opportunities|third-party service failures|subject to change|at any time without notice)\b/i.test(text);
+}
+function isNonBusinessCommercialContext(text: string): boolean {
+    return /\b(?:personal information|personally identifiable|ip address|cookies?|pixels?|advertisers?|advertising partners?|do not track|\bdnt\b|browser information|device information|tracking technolog|data collection|data retention|third[- ]party sites?|services usage|consumer privacy|ccpa|other party(?:'s)?|insurance card|identify the other party|exchange information|consult an attorney|protect your rights)\b/i.test(text);
 }
 function meaningfulTitle(rule: Rule, _topic: string, evidence: NormalizedEvidence): string {
     const heading = cleanText(evidence.heading ?? "");
@@ -290,12 +308,14 @@ export function extractWebsiteFacts(blocks: readonly NormalizedSourceBlock[]): D
         for (const text of sentences(block.text)) {
             if (isContractBoilerplate(text)) continue;
             const matchedCategories = new Set<Category>();
+            const nonBusinessCommercialContext = isNonBusinessCommercialContext(text);
             for (const rule of PRIORITIZED_RULES) {
                 const pageMatch = !rule.pages || rule.pages.includes(block.pageType);
                 const headingMatch = !rule.heading || rule.heading.test(structuralContext);
                 const standardClaim = /\b(?:soc ?(?:2|ii)|hipaa|iso ?27001|gdpr)\b/i.test(text);
                 const categoryConsistent = rule.category !== "certification" || !standardClaim;
-                if (pageMatch && headingMatch && categoryConsistent && rule.evidence.test(text) && !matchedCategories.has(rule.category)) {
+                const businessContextConsistent = !COMMERCIAL_CATEGORIES.has(rule.category) || !nonBusinessCommercialContext;
+                if (pageMatch && headingMatch && categoryConsistent && businessContextConsistent && rule.evidence.test(text) && !matchedCategories.has(rule.category)) {
                     const expansions = expand(rule, text);
                     if (expansions?.length) for (const item of expansions)
                         facts.push(makeFact(rule.category, meaningfulTitle(rule, item.topic, block.evidence), item.value, item.topic, block.evidence, true, text));
