@@ -66,10 +66,10 @@ function brain(pageType: string, heading: string, paragraphs: string[]) {
 }
 
 test("multiple testimonials become one customer-proof fact while retaining all evidence", () => {
-  const result = brain("home", "Patient Reviews", [
-    "I highly recommend this clinic because the treatment helped me tremendously.",
-    "This place goes above and beyond in providing excellent customer service.",
-    "The results have been life-changing and the care worked wonders for me.",
+  const result = brain("home", "Customer Reviews", [
+    "I highly recommend this company because their team delivered exactly what we needed.",
+    "They went above and beyond in providing excellent customer service.",
+    "The results made a meaningful difference for our business and exceeded expectations.",
   ]);
 
   const proof = result.facts.filter(
@@ -93,12 +93,12 @@ test("privacy and tracking prose cannot masquerade as commercial intelligence", 
 });
 
 test("full verified claims are preserved and titles are semantic instead of chopped prose", () => {
-  const claim = "Dr. Kim has been treating and helping patients utilizing his unique approaches for over a decade.";
-  const result = brain("about", "Provider Experience", [claim]);
+  const claim = "The company has served clients with its specialized approach for more than twelve years.";
+  const result = brain("about", "Company Experience", [claim]);
   const fact = result.facts.find(item => item.category === "competitive_differentiator");
 
   assert.ok(fact);
   assert.equal(fact?.value, claim);
-  assert.equal(fact?.title, "Provider Experience");
+  assert.equal(fact?.title, "Company Experience");
   assert.notEqual(fact?.title, claim);
 });
