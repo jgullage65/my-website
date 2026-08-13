@@ -6,8 +6,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 800;
 
-const LEADFORGE_RESEARCH_MODEL_ID = "leadforge-gpt-5-5";
-
 function authorized(request: Request): boolean {
   const secret = process.env.LEADFORGE_RESEARCH_API_SECRET?.trim();
   const authorization = request.headers.get("authorization");
@@ -51,60 +49,108 @@ function transformEventStream(source: ReadableStream<Uint8Array>, externalRefere
           if (value) buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
-          for (const line of lines) if (line.trim()) controller.enqueue(encoder.encode(`${JSON.stringify(toLeadForgeEvent(JSON.parse(line), externalReference))}\n`));
+          for (const line of lines) {
+            if (line.trim()) {
+              controller.enqueue(
+                encoder.encode(`${JSON.stringify(toLeadForgeEvent(JSON.parse(line), externalReference))}\n`),
+              );
+            }
+          }
           if (done) break;
         }
         buffer += decoder.decode();
-        if (buffer.trim()) controller.enqueue(encoder.encode(`${JSON.stringify(toLeadForgeEvent(JSON.parse(buffer), externalReference))}\n`));
+        if (buffer.trim()) {
+          controller.enqueue(
+            encoder.encode(`${JSON.stringify(toLeadForgeEvent(JSON.parse(buffer), externalReference))}\n`),
+          );
+        }
         controller.close();
-      } catch (error) { controller.error(error); }
+      } catch (error) {
+        controller.error(error);
+      }
     },
   });
 }
 
 export async function POST(request: Request) {
-  if (!authorized(request)) return jsonError(401, "unauthorized", "A valid LeadForge internal bearer token is required.");
-  if (!process.env.LEADFORGE_OPENAI_API_KEY?.trim()) {
-    return jsonError(503, "leadforge_model_gateway_not_configured", "LeadForge research AI is not configured yet.");
+  if (!authorized(request)) {
+    return jsonError(401, "unauthorized", "A valid LeadForge internal bearer token is required.");
   }
 
   let body: LeadForgeResearchRequest;
-  try { body = await request.json() as LeadForgeResearchRequest; }
-  catch { return jsonError(400, "invalid_json", "The request body must be valid JSON."); }
-  if (!body || typeof body !== "object" || Array.isArray(body)) return jsonError(400, "invalid_request", "The request body must be a JSON object.");
+  try {
+    body = await request.json() as LeadForgeResearchRequest;
+  } catch {
+    return jsonError(400, "invalid_json", "The request body must be valid JSON.");
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return jsonError(400, "invalid_request", "The request body must be a JSON object.");
+  }
 
   let externalReference: string | undefined;
-  try { externalReference = normalizeExternalReference(body.externalReference); }
-  catch { return jsonError(400, "external_reference_invalid", "externalReference must be a non-empty string of at most 200 characters."); }
+  try {
+    externalReference = normalizeExternalReference(body.externalReference);
+  } catch {
+    return jsonError(
+      400,
+      "external_reference_invalid",
+      "externalReference must be a non-empty string of at most 200 characters.",
+    );
+  }
 
   const coreRequest = new Request(request.url, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ website: body.website, modelId: LEADFORGE_RESEARCH_MODEL_ID }),
+    body: JSON.stringify({ website: body.website }),
     signal: request.signal,
   });
   const coreResponse = await runLeadForgeCompactResearchRequest(coreRequest);
+
   if (!coreResponse.ok) {
-    let error: unknown = { code: "research_request_failed", message: "Website research could not be started." };
+    let error: unknown = {
+      code: "research_request_failed",
+      message: "Website research could not be started.",
+    };
     try {
       const payload = await coreResponse.json() as { error?: unknown };
       if (payload.error) error = payload.error;
-    } catch { /* Keep the stable, non-sensitive fallback. */ }
-    return Response.json({ success: false, status: "failed", externalReference, error }, { status: coreResponse.status });
+    } catch {
+      // Keep the stable, non-sensitive fallback.
+    }
+    return Response.json(
+      { success: false, status: "failed", externalReference, error },
+      { status: coreResponse.status },
+    );
   }
-  if (!coreResponse.body) return jsonError(500, "research_incomplete", "Website research ended without a response stream.");
+
+  if (!coreResponse.body) {
+    return jsonError(500, "research_incomplete", "Website research ended without a response stream.");
+  }
 
   const streaming = new URL(request.url).searchParams.get("stream") === "true";
-  if (streaming) return new Response(transformEventStream(coreResponse.body, externalReference), { headers: { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-cache, no-transform" } });
+  if (streaming) {
+    return new Response(transformEventStream(coreResponse.body, externalReference), {
+      headers: {
+        "content-type": "application/x-ndjson; charset=utf-8",
+        "cache-control": "no-cache, no-transform",
+      },
+    });
+  }
 
   try {
     const events = await readEvents(coreResponse.body);
-    const terminal = [...events].reverse().find((event) => event.type === "result" || event.type === "error");
-    if (!terminal) return jsonError(500, "research_incomplete", "Website research ended without a result.");
+    const terminal = [...events]
+      .reverse()
+      .find((event) => event.type === "result" || event.type === "error");
+    if (!terminal) {
+      return jsonError(500, "research_incomplete", "Website research ended without a result.");
+    }
     const response = toLeadForgeEvent(terminal, externalReference);
     return Response.json(response, { status: terminal.type === "result" ? 200 : 422 });
   } catch (error) {
-    console.error("LEADFORGE_RESEARCH_RESPONSE_FAILED", { message: error instanceof Error ? error.message : String(error) });
+    console.error("LEADFORGE_RESEARCH_RESPONSE_FAILED", {
+      message: error instanceof Error ? error.message : String(error),
+    });
     return jsonError(500, "internal_error", "Website research could not be completed.");
   }
 }
