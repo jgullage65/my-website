@@ -4,11 +4,17 @@ import type { DeterministicFact, NormalizedSourceBlock } from "./contracts";
 import { assignFactsToOwners } from "./specialists";
 import { routeSourceBlocks } from "./routing";
 
-function block(id: string, pageType: NormalizedSourceBlock["pageType"], heading: string, text: string): NormalizedSourceBlock {
+function block(
+  id: string,
+  pageType: NormalizedSourceBlock["pageType"],
+  heading: string,
+  text: string,
+  type: NormalizedSourceBlock["type"] = "paragraph",
+): NormalizedSourceBlock {
   return {
     id,
     text,
-    type: "paragraph",
+    type,
     pageType,
     heading,
     evidence: {
@@ -84,4 +90,15 @@ test("commercial sections authorize commercial facts without granting other owne
 
   assert.equal(owned.length, 1);
   assert.equal(owned[0]?.ownerId, "commercial");
+});
+
+test("catalog-style substrate routes an otherwise unknown category page to Commercial", () => {
+  const routed = routeSourceBlocks([
+    block("item-a", "other", "Seasonal Collection", "Option A $12.00", "list_item"),
+    block("item-b", "other", "Seasonal Collection", "Option B $18.00", "list_item"),
+    block("item-c", "other", "Seasonal Collection", "Option C $24.00", "list_item"),
+  ]);
+
+  assert.equal(routed.every((item) => item.evidenceLane === "commercial"), true);
+  assert.equal(routed.some((item) => item.routingReasons.includes("page_structure_catalog_or_price_bearing")), true);
 });
