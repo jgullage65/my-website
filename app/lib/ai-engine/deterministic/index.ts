@@ -12,6 +12,7 @@ import { stableId } from "./util";
 import { canonicalTopicKey } from "./topics";
 import { assembleBusinessConcepts } from "./concepts";
 import { assembleConceptRelationships } from "./relationships";
+import { improveBusinessRelevance } from "./businessRelevance";
 export * from "./contracts";
 export { canonicalUrl } from "./util";
 export { classifyPage } from "./classification";
@@ -24,7 +25,7 @@ export { assembleConceptRelationships } from "./relationships";
 export function buildDeterministicBusinessBrain(input: DeterministicEngineInput): DeterministicEngineResult {
     const started = performance.now();
     const normalizedBlocks = normalizeSources(input);
-    const extracted = [...extractOwnerFacts(input), ...extractWebsiteFacts(normalizedBlocks)];
+    const extracted = improveBusinessRelevance([...extractOwnerFacts(input), ...extractWebsiteFacts(normalizedBlocks)], normalizedBlocks);
     const deduplicated = deduplicateFacts(extracted);
     let conflicts = detectConflicts(deduplicated.facts);
     const facts = scoreConfidence(deduplicated.facts, conflicts);
