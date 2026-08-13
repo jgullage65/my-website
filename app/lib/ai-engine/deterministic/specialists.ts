@@ -8,9 +8,9 @@ import {
 } from "./ownership";
 
 const OWNER_ALLOWED_LANES: Record<KnowledgeOwnerId, readonly EvidenceLane[]> = {
-  business_identity: ["core_business", "market_customer", "proof", "operations", "technical", "unknown"],
-  commercial: ["core_business", "commercial", "market_customer", "proof", "technical", "unknown"],
-  market_customer: ["core_business", "commercial", "market_customer", "proof", "editorial", "unknown"],
+  business_identity: ["core_business", "market_customer", "operations", "technical", "unknown"],
+  commercial: ["core_business", "commercial", "technical", "unknown"],
+  market_customer: ["core_business", "commercial", "market_customer", "unknown"],
   proof_authority: ["core_business", "commercial", "proof", "market_customer", "unknown"],
   operations_context: ["operations", "legal", "technical", "editorial", "core_business", "unknown"],
 };
