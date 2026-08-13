@@ -61,7 +61,7 @@ test("legal sections cannot authorize commercial service facts", () => {
   assert.equal(owned.some((item) => item.category === "policy" && item.ownerId === "operations_context"), true);
 });
 
-test("editorial sections cannot authorize commercial service facts", () => {
+test("editorial sections cannot authorize commercial or market facts", () => {
   const routed = routeSourceBlocks([
     block("blog", "other", "Five Marketing Tips", "Businesses should use limited-time offers to create urgency."),
   ]);
@@ -71,7 +71,7 @@ test("editorial sections cannot authorize commercial service facts", () => {
   ], routed);
 
   assert.equal(owned.some((item) => item.category === "service"), false);
-  assert.equal(owned.some((item) => item.category === "primary_use_case" && item.ownerId === "market_customer"), true);
+  assert.equal(owned.some((item) => item.category === "primary_use_case"), false);
 });
 
 test("commercial sections authorize commercial facts without granting other owners authority", () => {
