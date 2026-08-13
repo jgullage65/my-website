@@ -1,35 +1,108 @@
 import type { DeterministicFact, DuplicateGroup } from "./contracts";
 import { keyText, stableId, uniqueBy } from "./util";
+
+const CONCEPT_AGGREGATE_CATEGORIES = new Set<DeterministicFact["category"]>([
+    "service",
+    "product",
+    "pricing_plan",
+    "location_service_area",
+    "certification",
+    "integration",
+    "industry_served",
+]);
+
+function isCustomerProof(fact: DeterministicFact) {
+    if (fact.category !== "additional_business_knowledge") return false;
+    return /\b(?:testimonial|review|recommend|customer service|patient|client|customer|life-changing|worked wonders|helped me|made a big difference|stars?)\b/i.test(
+        `${fact.title} ${fact.value}`,
+    );
+}
+
+function groupingKey(fact: DeterministicFact) {
+    if (isCustomerProof(fact)) return "additional_business_knowledge:customer_proof";
+    if (CONCEPT_AGGREGATE_CATEGORIES.has(fact.category)) return fact.topicKey;
+
+    const agreement = keyText(fact.value)
+        .replace(/\b(the|a|an)\b/g, "")
+        .replace(/\s+/g, " ");
+    return `${fact.topicKey}\0${agreement}`;
+}
+
+function evidenceQuality(fact: DeterministicFact) {
+    const text = fact.value.trim();
+    let score = 0;
+    if (fact.provenance === "owner") score += 100;
+    if (fact.evidence.some(item => item.structured)) score += 20;
+    if (text.length >= 30 && text.length <= 360) score += 12;
+    if (/\b(?:special|offer|price|licensed|certified|serves?|specializes?|experience|results?|review|testimonial)\b/i.test(text)) score += 6;
+    if (/\b(?:privacy policy|terms of use|cookie|personal information|advertiser|do not track|\bdnt\b)\b/i.test(text)) score -= 25;
+    return score;
+}
+
+function canonicalCustomerProof(values: DeterministicFact[]): DeterministicFact {
+    const ranked = [...values].sort((a, b) => evidenceQuality(b) - evidenceQuality(a) || a.id.localeCompare(b.id));
+    const first = ranked[0]!;
+    return {
+        ...first,
+        id: stableId("det_fact", `additional_business_knowledge:customer_proof\0${values.map(value => value.id).sort().join("\0")}`),
+        topicKey: "additional_business_knowledge:customer_proof",
+        title: "Customer proof",
+        value: "The website contains customer or patient testimonials and reviews supporting the business's service quality and outcomes.",
+        evidence: uniqueBy(
+            values.flatMap(value => value.evidence),
+            item => `${item.sourceBlockId ?? ""}\0${item.url}\0${keyText(item.excerpt)}`,
+        ),
+    };
+}
+
+function mergeConceptValues(values: DeterministicFact[]): DeterministicFact {
+    if (values.every(isCustomerProof)) return canonicalCustomerProof(values);
+
+    const owner = values.find(value => value.provenance === "owner");
+    const ranked = [...values].sort((a, b) => evidenceQuality(b) - evidenceQuality(a) || a.id.localeCompare(b.id));
+    const first = owner ?? ranked[0]!;
+    return {
+        ...first,
+        evidence: uniqueBy(
+            values.flatMap(value => value.evidence),
+            item => `${item.sourceBlockId ?? ""}\0${item.url}\0${keyText(item.excerpt)}`,
+        ),
+    };
+}
+
 export function deduplicateFacts(input: readonly DeterministicFact[]): {
     facts: DeterministicFact[];
     duplicateGroups: DuplicateGroup[];
 } {
     const groups = new Map<string, DeterministicFact[]>();
     for (const original of input) {
-        const fact: DeterministicFact = { ...original, evidence: original.evidence.map(e => ({ ...e })) };
-        const agreement = keyText(fact.value).replace(/\b(the|a|an)\b/g, "").replace(/\s+/g, " ");
-        const key = `${fact.topicKey}\0${agreement}`;
-        if (!groups.has(key))
-            groups.set(key, []);
+        const fact: DeterministicFact = {
+            ...original,
+            evidence: original.evidence.map(item => ({ ...item })),
+        };
+        const key = groupingKey(fact);
+        if (!groups.has(key)) groups.set(key, []);
         groups.get(key)!.push(fact);
     }
+
     const facts: DeterministicFact[] = [];
     const duplicateGroups: DuplicateGroup[] = [];
+
     for (const values of Array.from(groups.values())) {
-        const owner = values.find(v => v.provenance === "owner");
-        const first = owner ?? values[0]!;
-        const merged = {
-            ...first,
-            evidence: uniqueBy(values.flatMap(v => v.evidence), e => `${e.sourceBlockId ?? ""}\0${e.url}\0${keyText(e.excerpt)}`)
-        };
+        const merged = mergeConceptValues(values);
         facts.push(merged);
-        if (values.length > 1)
+        if (values.length > 1) {
             duplicateGroups.push({
-                id: stableId("duplicate", values.map(v => v.id).sort().join("\0")),
-                topicKey: first.topicKey,
-                factIds: values.map(v => v.id).sort(),
-                mergedFactId: merged.id
+                id: stableId("duplicate", values.map(value => value.id).sort().join("\0")),
+                topicKey: merged.topicKey,
+                factIds: values.map(value => value.id).sort(),
+                mergedFactId: merged.id,
             });
+        }
     }
-    return { facts: facts.sort((a, b) => a.id.localeCompare(b.id)), duplicateGroups };
+
+    return {
+        facts: facts.sort((a, b) => a.id.localeCompare(b.id)),
+        duplicateGroups,
+    };
 }
