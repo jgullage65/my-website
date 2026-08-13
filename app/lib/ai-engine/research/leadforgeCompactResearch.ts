@@ -2,7 +2,7 @@ import { crawlBusinessWebsite, resolveCrawledBusinessName } from "@/app/lib/ai-e
 import { locateWebsiteEvidence } from "@/app/lib/ai-engine/crawler/websiteSourceRecords";
 import { persistWebsiteSourceRecords } from "@/app/lib/ai-engine/crawler/websiteSourceRecordStore";
 import { buildDeterministicBusinessBrain } from "@/app/lib/ai-engine/deterministic";
-import type { DeterministicEngineResult, NormalizedSourceBlock } from "@/app/lib/ai-engine/deterministic/contracts";
+import type { DeterministicEngineResult } from "@/app/lib/ai-engine/deterministic/contracts";
 import { runModel } from "@/app/lib/ai-engine/models/runModel";
 import { estimateAiTokenCost } from "@/app/lib/telemetry/ai-pricing";
 import {
@@ -11,22 +11,18 @@ import {
   type WebsiteKnowledgeFact,
 } from "@/app/lib/ai-engine/knowledge/websiteKnowledge";
 
-const MAX_SEMANTIC_INPUT_CHARACTERS = 24_000;
-const MAX_EVIDENCE_BLOCKS = 18;
-const MAX_BLOCK_EXCERPT_CHARACTERS = 600;
-const MAX_DETERMINISTIC_FACTS = 32;
-const MAX_SEMANTIC_FACTS = 12;
+const MAX_SEMANTIC_FACTS = 14;
+const MAX_EVIDENCE_PER_PAGE = 3;
+const MAX_SELECTED_EVIDENCE = 20;
+const MAX_EVIDENCE_EXCERPT_CHARACTERS = 520;
 
 const semanticSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["businessName", "industry", "productsServices", "idealCustomers", "additionalKnowledge", "facts"],
+  required: ["businessName", "industry", "facts"],
   properties: {
     businessName: { type: "string" },
     industry: { type: "string" },
-    productsServices: { type: "string" },
-    idealCustomers: { type: "string" },
-    additionalKnowledge: { type: "string" },
     facts: {
       type: "array",
       maxItems: MAX_SEMANTIC_FACTS,
@@ -60,18 +56,19 @@ const semanticSchema = {
 } as const;
 
 const semanticInstructions = [
-  "You are the bounded semantic review stage for LeadForge website research.",
-  "A deterministic engine has already extracted, deduplicated, classified, conflict-checked, and confidence-scored the website knowledge.",
-  "Do not re-read or reconstruct the website. You only receive a compact evidence pack.",
-  "Use deterministic facts as the authority for what is already known.",
-  "Add a fact only when the supplied evidence candidates clearly support useful semantic knowledge that the deterministic facts missed or underspecified.",
-  `Return at most ${MAX_SEMANTIC_FACTS} additional facts.`,
-  "Do not duplicate an existing deterministic fact.",
-  "Do not infer facts from general industry knowledge.",
-  "Every added fact must cite one or more supplied sourceBlockId values and use a short exact excerpt from that supplied block.",
-  "The five summary fields are concise summaries of the supplied deterministic facts plus supported semantic additions, not new sources of truth.",
-  "Return an empty string when a summary cannot be supported.",
-  "Return JSON only matching the provided schema.",
+  "You are the semantic gap-review stage for LeadForge website research.",
+  "A deterministic engine has already extracted, classified, deduplicated, conflict-checked, and confidence-scored the website.",
+  "You are not the primary extractor and you are not summarizing the website.",
+  "The input contains compact existing fact identities and a curated set of clean evidence fragments from the crawled pages.",
+  "Add only useful business facts that are clearly supported by the supplied evidence and materially missing or underspecified in the existing facts.",
+  "Prioritize services and products, pricing or offers, customer segments, service areas, differentiators, proof, credentials, FAQs, and other commercially meaningful details.",
+  "Do not repeat, paraphrase, or repackage an existing fact.",
+  "Do not infer from general industry knowledge.",
+  "Do not turn navigation, page chrome, menus, footers, or generic legal boilerplate into facts.",
+  "Every added fact must cite a supplied sourceBlockId and a short exact excerpt from that evidence fragment.",
+  "businessName and industry should be concise identity fields supported by the supplied material.",
+  `Return no more than ${MAX_SEMANTIC_FACTS} additional facts.`,
+  "Return JSON only matching the schema.",
 ].join(" ");
 
 const categorySet = new Set<string>(WEBSITE_KNOWLEDGE_CATEGORIES);
@@ -83,119 +80,204 @@ function normalizeText(value: unknown): string {
     .trim();
 }
 
-function blockPriority(block: NormalizedSourceBlock): number {
+const chromeExact = /^(?:skip to (?:main )?content|home|about|about us|services|products|blog|contact|contact us|book now|new patients|menu|close menu|back to top|privacy policy|terms of use|all rights reserved|learn more|read more)$/i;
+const navWords = /\b(?:home|about|provider|blog|services|products|contact|book now|new patients|privacy policy|terms of use)\b/gi;
+
+function looksLikeChrome(value: unknown): boolean {
+  const text = normalizeText(value);
+  if (!text) return true;
+  if (chromeExact.test(text)) return true;
+  if (/^\d*\s*skip to (?:main )?content\b/i.test(text)) return true;
+  if (/\b(?:cookie settings|privacy preferences|accept all cookies|accessibility menu)\b/i.test(text)) return true;
+  const navMatches = text.match(navWords)?.length ?? 0;
+  if (navMatches >= 6 && text.length > 160) return true;
+  if (text.length > 500 && navMatches >= 4 && /\b(?:folder:|book now|leave a review|all rights reserved)\b/i.test(text)) return true;
+  return false;
+}
+
+function looksLikeUsefulEvidence(text: string): boolean {
+  if (looksLikeChrome(text)) return false;
+  if (text.length < 28) return false;
+  if (/^(?:copyright|privacy policy|terms of use)\b/i.test(text) && text.length < 180) return false;
+  return /[a-z]{3}/i.test(text);
+}
+
+function cleanDeterministicFacts(result: DeterministicEngineResult): WebsiteKnowledgeFact[] {
+  const seen = new Set<string>();
+  return result.websiteKnowledge.facts.filter((fact) => {
+    if (looksLikeChrome(fact.title) || looksLikeChrome(fact.value)) return false;
+    if (fact.value.length > 900 && (fact.value.match(navWords)?.length ?? 0) >= 3) return false;
+    const key = `${fact.category}\u0000${normalizeText(fact.title).toLowerCase()}\u0000${normalizeText(fact.value).toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function compactFactIdentities(facts: WebsiteKnowledgeFact[]) {
+  return facts.map((fact) => ({
+    category: fact.category,
+    title: normalizeText(fact.title).slice(0, 120),
+    value: normalizeText(fact.value).slice(0, 420),
+    confidence: fact.confidence,
+  }));
+}
+
+type EvidenceCandidate = {
+  sourceBlockId: string;
+  pageType: string;
+  url: string;
+  pageTitle: string;
+  excerpt: string;
+  score: number;
+};
+
+function evidenceSignalScore(text: string, pageType: string): number {
   const pageWeights: Record<string, number> = {
     home: 100,
-    services: 95,
-    products: 95,
-    pricing: 94,
-    about: 88,
-    faq: 86,
-    testimonials: 84,
-    case_studies: 84,
-    industries: 82,
-    use_cases: 82,
-    contact: 78,
-    locations: 78,
+    services: 100,
+    products: 100,
+    pricing: 100,
+    about: 92,
+    faq: 90,
+    testimonials: 88,
+    case_studies: 88,
+    industries: 86,
+    use_cases: 86,
+    locations: 82,
+    contact: 76,
     certifications: 76,
-    support: 72,
-    onboarding: 72,
-    security: 70,
-    compliance: 70,
-    policies: 55,
-    other: 40,
+    support: 68,
+    onboarding: 68,
+    security: 62,
+    compliance: 62,
+    policies: 45,
+    other: 50,
   };
-  let score = pageWeights[block.pageType] ?? 50;
-  const text = block.text.toLowerCase();
-  if (/\$|\bprice|pricing|special|offer|discount|free consultation\b/.test(text)) score += 18;
-  if (/\bspecializ|unique|only|experience|award|certif|testimonial|review\b/.test(text)) score += 12;
-  if (/\bserve|customer|patient|client|industry|location|area\b/.test(text)) score += 8;
-  if (/\bfaq|how long|who is|what is|can i|do you\b/.test(text)) score += 6;
-  if (block.type === "heading" || block.type === "faq_question" || block.type === "faq_answer") score += 5;
+  let score = pageWeights[pageType] ?? 50;
+  if (/[$£€]\s?\d|\b(?:price|pricing|special|offer|discount|free consultation|new patient)\b/i.test(text)) score += 24;
+  if (/\b(?:we offer|we provide|specializ|service|treatment|product|solution|capabilit)\b/i.test(text)) score += 20;
+  if (/\b(?:unique|only|proven|experience|award|licensed|certif|testimonial|review|results?)\b/i.test(text)) score += 16;
+  if (/\b(?:serve|serving|customer|patient|client|industry|location|area|fullerton|brea|anaheim)\b/i.test(text)) score += 12;
+  if (/\b(?:faq|how long|who is|what is|can i|do you|insurance|hsa|fsa)\b/i.test(text)) score += 10;
+  if (/\b(?:phone|email|fax|hours|address)\b/i.test(text)) score += 4;
   return score;
 }
 
-function compactDeterministicFacts(result: DeterministicEngineResult) {
-  return [...result.facts]
-    .sort((a, b) => b.confidenceScore - a.confidenceScore || a.title.localeCompare(b.title))
-    .slice(0, MAX_DETERMINISTIC_FACTS)
-    .map((fact) => ({
-      category: fact.category,
-      title: normalizeText(fact.title).slice(0, 140),
-      value: normalizeText(fact.value).slice(0, 700),
-      confidence: fact.confidence,
-      evidence: fact.evidence.slice(0, 2).map((evidence) => ({
-        url: evidence.url,
-        excerpt: normalizeText(evidence.excerpt).slice(0, 300),
-      })),
-    }));
-}
-
-function candidateEvidence(result: DeterministicEngineResult) {
+function pageFragments(page: Awaited<ReturnType<typeof crawlBusinessWebsite>>["pages"][number], sourceBlockId: string): EvidenceCandidate[] {
+  const normalizedPage = String(page.text ?? "").replace(/\r\n/g, "\n");
+  const rawFragments = normalizedPage
+    .split(/\n+|(?<=[.!?])\s+(?=[A-Z0-9])/)
+    .map(normalizeText)
+    .filter(looksLikeUsefulEvidence);
   const seen = new Set<string>();
-  return [...result.normalizedBlocks]
-    .sort((a, b) => blockPriority(b) - blockPriority(a))
-    .flatMap((block) => {
-      if (seen.has(block.id)) return [];
-      const excerpt = normalizeText(block.text).slice(0, MAX_BLOCK_EXCERPT_CHARACTERS);
-      if (excerpt.length < 20) return [];
-      seen.add(block.id);
-      return [{
-        sourceBlockId: block.id,
-        pageType: block.pageType,
-        sourceType: block.evidence.sourceType,
-        url: block.evidence.url,
-        pageTitle: block.evidence.pageTitle ?? "",
-        heading: block.heading ?? block.evidence.heading ?? "",
-        excerpt,
-      }];
-    })
-    .slice(0, MAX_EVIDENCE_BLOCKS);
+  return rawFragments.flatMap((fragment) => {
+    const excerpt = fragment.slice(0, MAX_EVIDENCE_EXCERPT_CHARACTERS).trim();
+    const key = excerpt.toLowerCase();
+    if (!excerpt || seen.has(key)) return [];
+    seen.add(key);
+    return [{
+      sourceBlockId,
+      pageType: page.pageType,
+      url: page.url,
+      pageTitle: page.title,
+      excerpt,
+      score: evidenceSignalScore(excerpt, page.pageType),
+    }];
+  });
 }
 
-function buildSemanticPack(result: DeterministicEngineResult) {
-  const missingCategories = WEBSITE_KNOWLEDGE_CATEGORIES.filter((category) => !result.categories.includes(category));
-  const base = {
-    deterministicFacts: compactDeterministicFacts(result),
-    unresolved: result.missingInformation.slice(0, 12).map((item) => ({ topic: item.topic, reason: item.reason })),
-    conflicts: result.conflicts.slice(0, 8).map((item) => ({ topicKey: item.topicKey, reason: item.reason })),
-    missingCategories,
-    evidenceCandidates: candidateEvidence(result),
-  };
+function candidateEvidence(result: DeterministicEngineResult, crawl: Awaited<ReturnType<typeof crawlBusinessWebsite>>) {
+  const visibleBlockByDocument = new Map<string, string>();
+  for (const block of crawl.sourceBlocks) {
+    if (block.extractionMethod !== "semantic_html") continue;
+    if (!visibleBlockByDocument.has(block.sourceDocumentId)) visibleBlockByDocument.set(block.sourceDocumentId, block.id);
+  }
 
-  let pack = base;
-  let serialized = JSON.stringify(pack);
-  while (serialized.length > MAX_SEMANTIC_INPUT_CHARACTERS && pack.evidenceCandidates.length > 4) {
-    pack = { ...pack, evidenceCandidates: pack.evidenceCandidates.slice(0, pack.evidenceCandidates.length - 1) };
-    serialized = JSON.stringify(pack);
+  const candidates = crawl.pages.flatMap((page) => {
+    const sourceBlockId = page.sourceDocumentId ? visibleBlockByDocument.get(page.sourceDocumentId) : undefined;
+    return sourceBlockId ? pageFragments(page, sourceBlockId) : [];
+  });
+
+  const selected: EvidenceCandidate[] = [];
+  const perPage = new Map<string, number>();
+  const chosen = new Set<string>();
+  const ranked = [...candidates].sort((a, b) => b.score - a.score || a.url.localeCompare(b.url));
+
+  const pageTypeOrder = ["home", "services", "products", "pricing", "about", "faq", "testimonials", "case_studies", "industries", "use_cases", "locations", "contact", "certifications"];
+  for (const pageType of pageTypeOrder) {
+    const candidate = ranked.find((item) => item.pageType === pageType && !chosen.has(`${item.sourceBlockId}\u0000${item.excerpt}`));
+    if (!candidate) continue;
+    selected.push(candidate);
+    chosen.add(`${candidate.sourceBlockId}\u0000${candidate.excerpt}`);
+    perPage.set(candidate.url, 1);
   }
-  while (serialized.length > MAX_SEMANTIC_INPUT_CHARACTERS && pack.deterministicFacts.length > 12) {
-    pack = { ...pack, deterministicFacts: pack.deterministicFacts.slice(0, pack.deterministicFacts.length - 1) };
-    serialized = JSON.stringify(pack);
+
+  for (const candidate of ranked) {
+    if (selected.length >= MAX_SELECTED_EVIDENCE) break;
+    const identity = `${candidate.sourceBlockId}\u0000${candidate.excerpt}`;
+    if (chosen.has(identity)) continue;
+    const pageCount = perPage.get(candidate.url) ?? 0;
+    if (pageCount >= MAX_EVIDENCE_PER_PAGE) continue;
+    selected.push(candidate);
+    chosen.add(identity);
+    perPage.set(candidate.url, pageCount + 1);
   }
-  if (serialized.length > MAX_SEMANTIC_INPUT_CHARACTERS) {
-    serialized = serialized.slice(0, MAX_SEMANTIC_INPUT_CHARACTERS);
-  }
-  return { pack, serialized };
+
+  const existingCategories = new Set(result.categories);
+  const missingCategories = WEBSITE_KNOWLEDGE_CATEGORIES.filter((category) => !existingCategories.has(category));
+  return {
+    missingCategories,
+    evidenceCandidates: selected.map(({ score: _score, ...item }) => item),
+  };
+}
+
+function buildSemanticPack(result: DeterministicEngineResult, cleanFacts: WebsiteKnowledgeFact[], crawl: Awaited<ReturnType<typeof crawlBusinessWebsite>>) {
+  const evidence = candidateEvidence(result, crawl);
+  const pack = {
+    existingFacts: compactFactIdentities(cleanFacts),
+    missingInformation: result.missingInformation.slice(0, 12).map((item) => ({ topic: item.topic, reason: item.reason })),
+    conflicts: result.conflicts.slice(0, 8).map((item) => ({ topicKey: item.topicKey, reason: item.reason })),
+    missingCategories: evidence.missingCategories,
+    evidenceCandidates: evidence.evidenceCandidates,
+  };
+  return { pack, serialized: JSON.stringify(pack) };
 }
 
 type SemanticResponse = {
   businessName?: unknown;
   industry?: unknown;
-  productsServices?: unknown;
-  idealCustomers?: unknown;
-  additionalKnowledge?: unknown;
   facts?: unknown;
 };
 
+function comparableWords(value: string): Set<string> {
+  return new Set(normalizeText(value).toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length >= 4));
+}
+
+function meaningfullyDuplicatesExisting(candidate: WebsiteKnowledgeFact, existingFacts: WebsiteKnowledgeFact[]): boolean {
+  const candidateText = normalizeText(candidate.value).toLowerCase();
+  const candidateWords = comparableWords(candidateText);
+  return existingFacts.some((fact) => {
+    if (fact.category !== candidate.category) return false;
+    const existingText = normalizeText(fact.value).toLowerCase();
+    if (candidateText === existingText || candidateText.includes(existingText) || existingText.includes(candidateText)) return true;
+    const existingWords = comparableWords(existingText);
+    if (!candidateWords.size || !existingWords.size) return false;
+    let overlap = 0;
+    for (const word of candidateWords) if (existingWords.has(word)) overlap += 1;
+    return overlap / Math.min(candidateWords.size, existingWords.size) >= 0.72;
+  });
+}
+
 function normalizeSemanticFacts(
   value: unknown,
-  deterministic: DeterministicEngineResult,
+  existingFacts: WebsiteKnowledgeFact[],
   crawl: Awaited<ReturnType<typeof crawlBusinessWebsite>>,
 ): WebsiteKnowledgeFact[] {
   const blocksById = new Map(crawl.sourceBlocks.map((block) => [block.id, block]));
   const documentsById = new Map(crawl.sourceDocuments.map((document) => [document.id, document]));
-  const existing = new Set(deterministic.websiteKnowledge.facts.map(websiteFactIdentity));
+  const existing = new Set(existingFacts.map(websiteFactIdentity));
+  const accepted = [...existingFacts];
   const rows = Array.isArray(value) ? value : [];
 
   return rows.slice(0, MAX_SEMANTIC_FACTS).flatMap((raw) => {
@@ -206,6 +288,7 @@ function normalizeSemanticFacts(
     const factValue = normalizeText(item.value);
     const confidence = normalizeText(item.confidence) as WebsiteKnowledgeFact["confidence"];
     if (!categorySet.has(category) || !title || !factValue || !["high", "medium", "low"].includes(confidence)) return [];
+    if (looksLikeChrome(title) || looksLikeChrome(factValue)) return [];
 
     const evidence = (Array.isArray(item.evidence) ? item.evidence : []).slice(0, 3).flatMap((rawEvidence) => {
       if (!rawEvidence || typeof rawEvidence !== "object" || Array.isArray(rawEvidence)) return [];
@@ -213,7 +296,7 @@ function normalizeSemanticFacts(
       const sourceBlockId = normalizeText(candidate.sourceBlockId);
       const excerpt = normalizeText(candidate.excerpt);
       const block = blocksById.get(sourceBlockId);
-      if (!block || !excerpt) return [];
+      if (!block || !excerpt || looksLikeChrome(excerpt)) return [];
       const blockText = normalizeText(block.normalizedText);
       if (!blockText.toLowerCase().includes(excerpt.toLowerCase())) return [];
       const document = documentsById.get(block.sourceDocumentId);
@@ -231,16 +314,18 @@ function normalizeSemanticFacts(
     if (!evidence.length) return [];
 
     const fact: WebsiteKnowledgeFact = { category, title, value: factValue, confidence, evidence };
+    if (meaningfullyDuplicatesExisting(fact, accepted)) return [];
     const identity = websiteFactIdentity(fact);
     if (existing.has(identity)) return [];
     existing.add(identity);
+    accepted.push(fact);
     return [fact];
   });
 }
 
 function deterministicSummary(facts: WebsiteKnowledgeFact[], categories: WebsiteKnowledgeFact["category"][], maximum = 4) {
   return facts
-    .filter((fact) => categories.includes(fact.category))
+    .filter((fact) => categories.includes(fact.category) && !looksLikeChrome(fact.value))
     .slice(0, maximum)
     .map((fact) => fact.value)
     .join(" ");
@@ -280,19 +365,25 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
           sourceBlocks: crawl.sourceBlocks,
         });
         const deterministicMs = performance.now() - deterministicStarted;
+        const cleanFacts = cleanDeterministicFacts(deterministic);
+        const discardedDeterministicFacts = deterministic.websiteKnowledge.facts.length - cleanFacts.length;
         send({ type: "progress", percent: 82 });
 
-        const { pack, serialized } = buildSemanticPack(deterministic);
+        const { pack, serialized } = buildSemanticPack(deterministic, cleanFacts, crawl);
         const availableSourceCharacters = crawl.sourceBlocks.reduce((total, block) => total + block.normalizedText.length, 0);
+        const evidenceCharacters = pack.evidenceCandidates.reduce((total, item) => total + item.excerpt.length, 0);
         console.info("LEADFORGE_COMPACT_SEMANTIC_INPUT", {
           crawlAttemptId: crawl.crawlAttempt.id,
           sourceBlockCount: crawl.sourceBlocks.length,
           availableSourceCharacters,
           semanticInputCharacters: serialized.length,
-          deterministicFactCount: deterministic.facts.length,
-          deterministicFactsSent: pack.deterministicFacts.length,
-          evidenceBlocksSent: pack.evidenceCandidates.length,
-          maxSemanticInputCharacters: MAX_SEMANTIC_INPUT_CHARACTERS,
+          evidenceCharacters,
+          deterministicFactCount: deterministic.websiteKnowledge.facts.length,
+          cleanDeterministicFacts: cleanFacts.length,
+          discardedDeterministicFacts,
+          evidenceFragmentsSent: pack.evidenceCandidates.length,
+          representedPages: new Set(pack.evidenceCandidates.map((item) => item.url)).size,
+          missingCategories: pack.missingCategories.length,
           reductionRatio: availableSourceCharacters > 0 ? serialized.length / availableSourceCharacters : 0,
         });
 
@@ -315,8 +406,8 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
           semantic = {};
         }
 
-        const semanticFacts = normalizeSemanticFacts(semantic.facts, deterministic, crawl);
-        const mergedFacts = new Map(deterministic.websiteKnowledge.facts.map((fact) => [websiteFactIdentity(fact), fact]));
+        const semanticFacts = normalizeSemanticFacts(semantic.facts, cleanFacts, crawl);
+        const mergedFacts = new Map(cleanFacts.map((fact) => [websiteFactIdentity(fact), fact]));
         for (const fact of semanticFacts) mergedFacts.set(websiteFactIdentity(fact), fact);
         const facts = Array.from(mergedFacts.values());
         const knowledge = {
@@ -331,11 +422,12 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
           totalTokens: response.usage.totalTokens,
         };
         const cost = estimateAiTokenCost(model, usage);
-        const businessName = resolveCrawledBusinessName(normalizeText(semantic.businessName), crawl);
+        const deterministicBusinessName = cleanFacts.find((fact) => fact.category === "business_identity")?.value ?? "";
+        const businessName = resolveCrawledBusinessName(normalizeText(semantic.businessName) || deterministicBusinessName, crawl);
         const industry = normalizeText(semantic.industry) || deterministicSummary(facts, ["industry_served", "company_overview"], 2);
-        const productsServices = normalizeText(semantic.productsServices) || deterministicSummary(facts, ["product", "service", "primary_use_case"], 5);
-        const idealCustomers = normalizeText(semantic.idealCustomers) || deterministicSummary(facts, ["customer_segment", "industry_served"], 4);
-        const additionalKnowledge = normalizeText(semantic.additionalKnowledge) || deterministicSummary(facts, ["competitive_differentiator", "pricing_plan", "location_service_area", "certification", "faq"], 5);
+        const productsServices = deterministicSummary(facts, ["product", "service", "primary_use_case"], 5);
+        const idealCustomers = deterministicSummary(facts, ["customer_segment", "industry_served"], 4);
+        const additionalKnowledge = deterministicSummary(facts, ["competitive_differentiator", "pricing_plan", "location_service_area", "certification", "faq"], 5);
 
         const timings = {
           ...crawl.diagnostics.timings,
@@ -347,7 +439,8 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
         console.info("LEADFORGE_COMPACT_SEMANTIC_RESULT", {
           crawlAttemptId: crawl.crawlAttempt.id,
           model: response.modelId,
-          deterministicFacts: deterministic.facts.length,
+          deterministicFacts: deterministic.websiteKnowledge.facts.length,
+          cleanDeterministicFacts: cleanFacts.length,
           semanticFactsAdded: semanticFacts.length,
           finalFacts: facts.length,
           inputTokens: usage.inputTokens,
@@ -392,8 +485,12 @@ export async function runLeadForgeCompactResearchRequest(request: Request) {
             semanticReview: {
               availableSourceCharacters,
               inputCharacters: serialized.length,
-              deterministicFacts: deterministic.facts.length,
+              evidenceCharacters,
+              deterministicFacts: deterministic.websiteKnowledge.facts.length,
+              cleanDeterministicFacts: cleanFacts.length,
+              discardedDeterministicFacts,
               semanticFactsAdded: semanticFacts.length,
+              representedPages: new Set(pack.evidenceCandidates.map((item) => item.url)).size,
             },
           },
         });
