@@ -5,26 +5,16 @@ import { cleanText, keyText, stableId } from "./util";
 type Category = DeterministicFact["category"];
 
 const COMMERCIAL = new Set<Category>([
-  "company_overview",
-  "pricing_plan",
-  "product",
-  "service",
-  "feature_capability",
-  "customer_segment",
-  "industry_served",
-  "primary_use_case",
-  "location_service_area",
-  "competitive_differentiator",
-  "mission_value_proposition",
-  "support_onboarding",
-  "brand_voice_terminology",
-  "additional_business_knowledge",
+  "company_overview", "pricing_plan", "product", "service", "feature_capability",
+  "customer_segment", "industry_served", "primary_use_case", "location_service_area",
+  "competitive_differentiator", "mission_value_proposition", "support_onboarding",
+  "brand_voice_terminology", "additional_business_knowledge",
 ]);
 
 const POLICY_LANGUAGE = /\b(?:privacy|cookie|personal information|data collection|data retention|do not track|\bdnt\b|refunds?|returns?|terms of use|terms and conditions|customer(?:'s|s') responsibility|it is the customer(?:'s|s') responsibility)\b/i;
 const EDITORIAL_TITLE = /\b(?:tips?|best practices?|ways to|how to|guide to|consider a|things to|ideas? for|strategies? for|what is|why you should)\b/i;
-const FIRST_PARTY_CLAIM = /\b(?:we|our|us|the company|the agency|the business|the firm|the studio|the practice|the restaurant|the shop)\b/i;
-const EXPLICIT_OFFER = /\b(?:we (?:offer|provide|deliver|sell|serve|specialize)|our (?:services?|products?|menu|offerings?)|specializ(?:e|es|ing) in|available (?:in|for)|serving|located in|based in)\b/i;
+const FIRST_PARTY_CLAIM = /\b(?:we|our|us|the company|the agency|the business|the firm|the studio|the practice|the provider|the organization|the team)\b/i;
+const EXPLICIT_OFFER = /\b(?:we (?:offer|provide|deliver|sell|serve|specialize)|our (?:services?|products?|offerings?)|specializ(?:e|es|ing) in|available (?:in|for)|serving|located in|based in)\b/i;
 const GENERIC_PAGE_CHROME = /^(?:home|about|contact|blog|menu|services?|products?|learn more|read more|view more|order now|shop now)$/i;
 
 function editorialEvidence(fact: DeterministicFact) {
@@ -71,12 +61,12 @@ function pageLooksCommercial(block: NormalizedSourceBlock) {
   if (["products", "services", "pricing", "locations", "industries", "use_cases"].includes(block.pageType)) return true;
   const signal = `${block.evidence.url} ${block.evidence.pageTitle ?? ""} ${block.heading ?? ""}`;
   if (EDITORIAL_TITLE.test(signal)) return false;
-  return /\b(?:services?|products?|solutions?|pricing|packages?|menu|shop|store|printing|branding|embroidery|marketing|consulting|design|development|repairs?|installation|catering|distillery)\b/i.test(signal);
+  return /\b(?:services?|products?|solutions?|pricing|packages?|offers?|menu|catalog|shop|store)\b/i.test(signal);
 }
 
 function categoryForTitle(title: string, block: NormalizedSourceBlock): Category {
   if (block.pageType === "pricing" || /\b(?:pricing|packages?|specials?|offers?)\b/i.test(title)) return "pricing_plan";
-  if (block.pageType === "products" || /\b(?:products?|shop|store|merch)\b/i.test(title)) return "product";
+  if (block.pageType === "products" || /\b(?:products?|catalog|shop|store)\b/i.test(title)) return "product";
   return "service";
 }
 
