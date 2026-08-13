@@ -9,6 +9,12 @@ const CONCEPT_AGGREGATE_CATEGORIES = new Set<DeterministicFact["category"]>([
     "certification",
     "integration",
     "industry_served",
+    "primary_use_case",
+    "support_onboarding",
+    "customer_segment",
+    "competitive_differentiator",
+    "mission_value_proposition",
+    "brand_voice_terminology",
 ]);
 
 function isCustomerProof(fact: DeterministicFact) {
