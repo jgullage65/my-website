@@ -22,7 +22,9 @@ export const KNOWLEDGE_OWNER_CONTRACTS: readonly KnowledgeOwnerContract[] = [
       "business_identity",
       "company_overview",
       "contact_information",
+      "contact",
       "location_service_area",
+      "location",
       "certification",
       "partnership",
     ],
@@ -34,6 +36,7 @@ export const KNOWLEDGE_OWNER_CONTRACTS: readonly KnowledgeOwnerContract[] = [
       "product",
       "service",
       "pricing_plan",
+      "pricing",
       "feature_capability",
       "integration",
       "ai_automation",
@@ -45,7 +48,9 @@ export const KNOWLEDGE_OWNER_CONTRACTS: readonly KnowledgeOwnerContract[] = [
     label: "Market & Customer",
     categories: [
       "customer_segment",
+      "customer",
       "industry_served",
+      "industry",
       "primary_use_case",
       "mission_value_proposition",
       "brand_voice_terminology",
@@ -56,6 +61,7 @@ export const KNOWLEDGE_OWNER_CONTRACTS: readonly KnowledgeOwnerContract[] = [
     label: "Proof & Authority",
     categories: [
       "competitive_differentiator",
+      "differentiator",
       "additional_business_knowledge",
     ],
   },
@@ -65,8 +71,11 @@ export const KNOWLEDGE_OWNER_CONTRACTS: readonly KnowledgeOwnerContract[] = [
     categories: [
       "faq",
       "policy",
+      "guarantee",
+      "process",
       "security_compliance",
       "support_onboarding",
+      "other",
     ],
   },
 ] as const;
