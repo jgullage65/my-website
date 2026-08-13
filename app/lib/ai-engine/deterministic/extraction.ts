@@ -16,7 +16,7 @@ const RULES: Rule[] = [
     {
         category: "pricing_plan",
         evidence: /(?:[$£€]\s?\d|\b(?:new patient|introductory|limited[- ]time)?\s+(?:special|offer)\b|\b(?:special|offer|discount|pricing|price|plan|package|tier)\b.{0,80}(?:[$£€]\s?\d|\bfree\b)|(?:[$£€]\s?\d).{0,80}\b(?:special|offer|visit|consultation|session|package|plan)\b)/i,
-        topic: t => (t.match(/([\w $£€'-]{2,45}) (?:special|offer|plan|package|tier)/i)?.[0] ?? t.slice(0, 55)),
+        topic: t => (t.match(/([\w $£€'-]{2,45}) (?:special|offer|plan|package|tier)/i)?.[0] ?? cleanText(t)),
         title: "Pricing or offer"
     },
     {
@@ -24,7 +24,7 @@ const RULES: Rule[] = [
         pages: ["contact", "support", "home"],
         evidence: /(?:[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\+?\d[\d ().-]{7,}\d)|\b(?:email|call|phone|contact)\b)/i,
         topic: t => (t.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0] ??
-            t.match(/\+?\d[\d ().-]{7,}\d/)?.[0] ?? t.slice(0, 45)),
+            t.match(/\+?\d[\d ().-]{7,}\d/)?.[0] ?? cleanText(t)),
         title: "Contact method"
     },
     {
@@ -32,65 +32,65 @@ const RULES: Rule[] = [
         pages: ["policies"],
         evidence: /\b(?:refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information|opt[- ]out|deletion request)\b/i,
         topic: t => (t.match(/\b(refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information)[\w -]{0,20}/i)?.[0] ??
-            t.slice(0, 45)),
+            cleanText(t)),
         title: "Policy"
     },
     {
         category: "location_service_area",
         evidence: /\b(?:located|based|serv(?:e|es|ing|ice area)|office|address|available (?:in|throughout)|serving patients in|serving clients in|surrounding area|surrounding areas|nationwide|worldwide)\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Location or service area"
     },
     {
         category: "integration",
         pages: ["integrations", "technical"],
         evidence: /\b(?:integrates? with|integration|connects? (?:to|with)|compatible with|plugin for)\b/i,
-        topic: t => t.replace(/^.*?\b(?:with|to|for)\b/i, "").slice(0, 45),
+        topic: t => cleanText(t.replace(/^.*?\b(?:with|to|for)\b/i, "")),
         title: "Integration"
     },
     {
         category: "security_compliance",
         pages: ["security", "compliance", "technical", "certifications"],
         evidence: /\b(?:encrypted?|encryption|soc ?(?:2|ii)|gdpr|hipaa|iso ?27001|sso|mfa|multi-factor authentication|penetration testing|data encryption)\b/i,
-        topic: t => (t.match(/\b(soc ?(?:2|ii)|gdpr|hipaa|iso ?27001|sso|mfa|encryption|encrypted)\b/i)?.[0] ?? t.slice(0, 45)),
+        topic: t => (t.match(/\b(soc ?(?:2|ii)|gdpr|hipaa|iso ?27001|sso|mfa|encryption|encrypted)\b/i)?.[0] ?? cleanText(t)),
         title: "Security and compliance"
     },
     {
         category: "certification",
         evidence: /\b(?:licensed|license(?:d)?|certified|certification|accredited|accreditation|doctor of [a-z ]+ degree|degree from|board[- ]certified)\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Credential or certification"
     },
     {
         category: "support_onboarding",
         evidence: /\b(?:support|onboarding|implementation|training|help desk|response time|getting started|new patient|first visit|initial evaluation|consultation|review(?:ing)? findings|x-?rays?|day\s*[12]|follow[- ]up visit|treatment plan|recovery roadmap)\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Process or onboarding"
     },
     {
         category: "partnership",
         pages: ["partnerships", "about"],
         evidence: /\b(?:partner(?:ship|ed)?|affiliate|reseller)\b/i,
-        topic: t => t.slice(0, 55),
+        topic: t => cleanText(t),
         title: "Partnership"
     },
     {
         category: "customer_segment",
         evidence: /\b(?:built for|designed for|serves?|serving|helping|customers? (?:are|include)|clients? (?:are|include)|patients?|teams? in|businesses? in|people (?:with|who))\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Customer segment"
     },
     {
         category: "industry_served",
         pages: ["industries"],
         evidence: /\b(?:industries? (?:we )?serve|solutions? for|serving the)\b/i,
-        topic: t => t.slice(0, 55),
+        topic: t => cleanText(t),
         title: "Industry served"
     },
     {
         category: "primary_use_case",
         evidence: /\b(?:use case|helps? (?:you|teams|patients|clients)|used (?:to|for)|treats?|treating|care for|relief from|pain|sciatica|numbness|tingling|injur(?:y|ies)|whiplash|disc(?:-related)?|spinal stenosis)\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Primary use case"
     },
     {
@@ -98,14 +98,14 @@ const RULES: Rule[] = [
         pages: ["products", "services", "technical", "home", "use_cases"],
         heading: /\b(ai|automation|intelligence|agent|feature|capabilit)\b/i,
         evidence: /\b(?:artificial intelligence|machine learning|\bAI\b|automat(?:e|es|ed|ion)|agentic)\b/,
-        topic: t => t.slice(0, 55),
+        topic: t => cleanText(t),
         title: "AI and automation capability"
     },
     {
         category: "technical_capability",
         pages: ["technical"],
         evidence: /\b(?:api|sdk|webhook|developer|cloud|self-hosted|architecture|data export)\b/i,
-        topic: t => t.slice(0, 55),
+        topic: t => cleanText(t),
         title: "Technical capability"
     },
     {
@@ -113,47 +113,47 @@ const RULES: Rule[] = [
         pages: ["products"],
         evidence: /\b(?:product|platform|software|app|application|suite|tool)\b/i,
         heading: /./,
-        topic: (t) => t.slice(0, 55),
+        topic: t => cleanText(t),
         title: "Product"
     },
     {
         category: "service",
         evidence: /\b(?:we (?:offer|provide|deliver)|our services? include|offers?|provides?|specializes? in|specializing in|treatment|therapy|care|consulting|implementation|managed service|spinal decompression|chiropractic|auto accident injury)\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Service"
     },
     {
         category: "feature_capability",
         pages: ["products", "services", "technical", "home"],
         evidence: /\b(?:features?|capabilit|includes?|enables?|allows? (?:you|teams)|can (?:create|manage|track|connect|generate|automate))\b/i,
-        topic: t => t.slice(0, 55),
+        topic: t => cleanText(t),
         title: "Feature or capability"
     },
     {
         category: "mission_value_proposition",
         pages: ["about", "home"],
         evidence: /\b(?:our mission|we exist to|we believe|helps? .{2,40} (?:save|grow|reduce|increase|improve)|so you can|core values?|philosophy|approach)\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Mission and value proposition"
     },
     {
         category: "competitive_differentiator",
         pages: ["about", "home", "products", "services"],
         evidence: /\b(?:unlike|only|unique|proprietary|award-winning|differentiates?|without (?:the|any)|faster than|over (?:a|one) decade|more than \d+ years|over \d+ years|advanced|proven methods?|goes above and beyond)\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Competitive differentiator"
     },
     {
         category: "company_overview",
         pages: ["about", "home"],
         evidence: /\b(?:we are|founded|our company|our team|specializes? in|is a[n]? |practice|clinic|agency|studio|company)\b/i,
-        topic: t => "company",
+        topic: () => "company",
         title: "Company overview"
     },
     {
         category: "brand_voice_terminology",
         evidence: /\b(?:we call (?:this|it|our)|known as|referred to as|our (?:method|framework|approach)|core values?|healing journey|recovery roadmap)\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Brand terminology"
     },
     {
@@ -161,19 +161,19 @@ const RULES: Rule[] = [
         pages: ["case_studies"],
         evidence: /\b(?:case study|resulted in|increased|reduced|grew|saved|delivered)\b/i,
         heading: /./,
-        topic: t => t.slice(0, 55),
+        topic: t => cleanText(t),
         title: "Case study"
     },
     {
         category: "additional_business_knowledge",
         evidence: /(?:[“”"]|\b(?:testimonial|review|reviews|customer said|client said|patient said|recommend|highly recommend|life-changing|worked wonders|customer service|helped me tremendously|made a big difference)\b)/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "Customer proof"
     },
     {
         category: "faq",
         evidence: /\b(?:faq|frequently asked|is .* safe|how long|who is a candidate|can i|do you accept|insurance|ppo|hsa|fsa|first visit|first day|prior surgery|candidate for|what conditions)\b/i,
-        topic: t => t.slice(0, 70),
+        topic: t => cleanText(t),
         title: "FAQ"
     },
 ];
@@ -205,11 +205,9 @@ function sentences(text: string): string[] {
 function isContractBoilerplate(text: string): boolean {
     return /\b(?:may include|may update|may modify|may improve|may discontinue|does not guarantee|cannot guarantee|limits may vary|covered items may include|service commitments covered items|lost revenue or business opportunities|third-party service failures|subject to change|at any time without notice)\b/i.test(text);
 }
-function meaningfulTitle(rule: Rule, topic: string, evidence: NormalizedEvidence): string {
+function meaningfulTitle(rule: Rule, _topic: string, evidence: NormalizedEvidence): string {
     const heading = cleanText(evidence.heading ?? "");
-    if (heading && heading.length >= 3 && heading.length <= 90 && !/^(features?|capabilit(?:y|ies)|overview|details?|information)$/i.test(heading)) return heading;
-    const normalizedTopic = cleanText(topic).replace(/[.:;,-]+$/g, "");
-    if (normalizedTopic.length >= 3 && normalizedTopic.length <= 90) return normalizedTopic;
+    if (heading && heading.length >= 3 && !/^(features?|capabilit(?:y|ies)|overview|details?|information|home|about|services?|products?|contact|faq)$/i.test(heading)) return heading;
     return rule.title;
 }
 function makeFact(category: Category, title: string, value: string, topic: string, evidence: NormalizedEvidence, explicit = true, evidenceExcerpt = value): DeterministicFact {
@@ -377,7 +375,7 @@ export function extractOwnerFacts(input: DeterministicEngineInput): Deterministi
             else if (field === "productsServices" &&
                 /\b(service|consulting|implementation|training|managed|we (?:provide|deliver|offer)|done-for-you)\b/i.test(part))
                 resolved = "service";
-            facts.push(makeFact(resolved, title, part, part.slice(0, 55), evidence(part, title)));
+            facts.push(makeFact(resolved, title, part, part, evidence(part, title)));
         }
     return facts;
 }
