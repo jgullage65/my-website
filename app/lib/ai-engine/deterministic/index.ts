@@ -31,15 +31,8 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
     const started = performance.now();
     const normalizedBlocks = normalizeSources(input);
     const routedBlocks = routeSourceBlocks(normalizedBlocks);
-    const rawCandidates = [...extractOwnerFacts(input), ...extractWebsiteFacts(normalizedBlocks)];
-    const structurallyRecoveredCandidates = recoverCommercialPageFacts(rawCandidates, normalizedBlocks);
-    const ownedCandidates = assignFactsToOwners(structurallyRecoveredCandidates, routedBlocks);
-    const deduplicated = deduplicateFacts(ownedCandidates);
-    let conflicts = detectConflicts(deduplicated.facts);
-    const facts = scoreConfidence(deduplicated.facts, conflicts);
-    conflicts = detectConflicts(facts);
     const faqs = assembleFaqs(normalizedBlocks);
-    const faqFacts = faqs.map(f => ({
+    const faqCandidates = faqs.map(f => ({
         id: f.id,
         topicKey: canonicalTopicKey({ category: "faq", value: f.question, suggestedTopic: f.question }),
         category: "faq" as const,
@@ -51,7 +44,18 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
         evidence: f.evidence,
         explicit: true
     }));
-    const allFacts = [...facts, ...faqFacts].sort((a, b) => a.id.localeCompare(b.id));
+    const rawCandidates = [
+        ...extractOwnerFacts(input),
+        ...extractWebsiteFacts(normalizedBlocks),
+        ...faqCandidates,
+    ];
+    const structurallyRecoveredCandidates = recoverCommercialPageFacts(rawCandidates, normalizedBlocks);
+    const ownedCandidates = assignFactsToOwners(structurallyRecoveredCandidates, routedBlocks);
+    const deduplicated = deduplicateFacts(ownedCandidates);
+    let conflicts = detectConflicts(deduplicated.facts);
+    const facts = scoreConfidence(deduplicated.facts, conflicts);
+    conflicts = detectConflicts(facts);
+    const allFacts = [...facts].sort((a, b) => a.id.localeCompare(b.id));
     const concepts = assembleBusinessConcepts(allFacts, conflicts);
     const relationships = assembleConceptRelationships(allFacts, concepts, conflicts);
     const sessionId = input.sessionId ?? stableId("demo_session", allFacts.map(f => f.id).join("\0"));
