@@ -1,13 +1,7 @@
 import type { WebsiteKnowledgeFact } from "../knowledge/websiteKnowledge";
-import type {
-    DeterministicEngineInput,
-    DeterministicFact,
-    NormalizedEvidence,
-    NormalizedSourceBlock,
-} from "./contracts";
+import type { DeterministicEngineInput, DeterministicFact, NormalizedEvidence, NormalizedSourceBlock } from "./contracts";
 import { cleanText, keyText, stableId } from "./util";
 import { canonicalTopicKey } from "./topics";
-
 type Category = WebsiteKnowledgeFact["category"];
 type Rule = {
     category: Category;
@@ -17,194 +11,172 @@ type Rule = {
     topic: (text: string) => string;
     title: string;
 };
-
 const money = /(?:[$£€]\s?\d|\d+(?:\.\d+)?\s?(?:usd|gbp|eur)|\b(?:free|pricing|per month|monthly|annual(?:ly)?|plan|special|offer|discount)\b)/i;
-const commercialPages = ["home", "about", "products", "services", "use_cases", "industries", "pricing", "contact", "support", "onboarding", "locations", "testimonials", "case_studies"];
-const servicePages = ["home", "about", "services", "use_cases", "pricing", "support", "onboarding"];
-const proofPages = ["home", "about", "services", "testimonials", "case_studies"];
-
-function phrase(text: string, pattern: RegExp, fallback: string) {
-    return cleanText(text.match(pattern)?.[0] ?? fallback);
-}
-
 const RULES: Rule[] = [
     {
         category: "pricing_plan",
-        pages: ["home", "pricing", "services", "products", "support", "onboarding"],
-        evidence: /(?:[$£€]\s?\d|\b(?:new patient|introductory|limited[- ]time)?\s+(?:special|offer|promotion)\b|\b(?:special|offer|promotion|discount|pricing|price|plan|package|tier)\b.{0,100}(?:[$£€]\s?\d|\bfree\b)|(?:[$£€]\s?\d).{0,100}\b(?:special|offer|promotion|visit|consultation|session|package|plan)\b)/i,
-        topic: (text) => phrase(text, /\b(?:new patient|introductory|limited[- ]time)?\s*(?:special|offer|promotion)\b/i, "Pricing or offer"),
-        title: "Pricing or offer",
+        evidence: /(?:[$£€]\s?\d|\b(?:new patient|introductory|limited[- ]time)?\s+(?:special|offer)\b|\b(?:special|offer|discount|pricing|price|plan|package|tier)\b.{0,80}(?:[$£€]\s?\d|\bfree\b)|(?:[$£€]\s?\d).{0,80}\b(?:special|offer|visit|consultation|session|package|plan)\b)/i,
+        topic: t => (t.match(/([\w $£€'-]{2,45}) (?:special|offer|plan|package|tier)/i)?.[0] ?? t.slice(0, 55)),
+        title: "Pricing or offer"
     },
     {
         category: "contact_information",
         pages: ["contact", "support", "home"],
         evidence: /(?:[\w.+-]+@[\w.-]+\.[a-z]{2,}|(?:\+?\d[\d ().-]{7,}\d)|\b(?:email|call|phone|contact)\b)/i,
-        topic: (text) => cleanText(
-            text.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0] ??
-            text.match(/\+?\d[\d ().-]{7,}\d/)?.[0] ??
-            "Contact method"
-        ),
-        title: "Contact method",
+        topic: t => (t.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0] ??
+            t.match(/\+?\d[\d ().-]{7,}\d/)?.[0] ?? t.slice(0, 45)),
+        title: "Contact method"
     },
     {
         category: "policy",
         pages: ["policies"],
         evidence: /\b(?:refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information|opt[- ]out|deletion request)\b/i,
-        topic: (text) => phrase(text, /\b(?:refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information|opt[- ]out|deletion request)\b/i, "Policy"),
-        title: "Policy",
+        topic: t => (t.match(/\b(refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information)[\w -]{0,20}/i)?.[0] ??
+            t.slice(0, 45)),
+        title: "Policy"
     },
     {
         category: "location_service_area",
-        pages: ["home", "about", "contact", "locations", "services"],
-        evidence: /\b(?:located in|based in|serv(?:e|es|ing)\s+(?:patients|clients|customers)?\s*(?:in)?|service area|office in|practice in|clinic in|available in|available throughout|surrounding area|surrounding areas|nationwide|worldwide)\b/i,
-        topic: (text) => phrase(text, /\b(?:located in|based in|service area|office in|practice in|clinic in|available in|available throughout|surrounding areas?|nationwide|worldwide)\b/i, "Location or service area"),
-        title: "Location or service area",
+        evidence: /\b(?:located|based|serv(?:e|es|ing|ice area)|office|address|available (?:in|throughout)|serving patients in|serving clients in|surrounding area|surrounding areas|nationwide|worldwide)\b/i,
+        topic: t => t.slice(0, 70),
+        title: "Location or service area"
     },
     {
         category: "integration",
         pages: ["integrations", "technical"],
         evidence: /\b(?:integrates? with|integration|connects? (?:to|with)|compatible with|plugin for)\b/i,
-        topic: (text) => phrase(text, /\b(?:integrates? with|integration|connects? (?:to|with)|compatible with|plugin for)\b/i, "Integration"),
-        title: "Integration",
+        topic: t => t.replace(/^.*?\b(?:with|to|for)\b/i, "").slice(0, 45),
+        title: "Integration"
     },
     {
         category: "security_compliance",
         pages: ["security", "compliance", "technical", "certifications"],
         evidence: /\b(?:encrypted?|encryption|soc ?(?:2|ii)|gdpr|hipaa|iso ?27001|sso|mfa|multi-factor authentication|penetration testing|data encryption)\b/i,
-        topic: (text) => phrase(text, /\b(?:soc ?(?:2|ii)|gdpr|hipaa|iso ?27001|sso|mfa|multi-factor authentication|encryption|encrypted)\b/i, "Security and compliance"),
-        title: "Security and compliance",
+        topic: t => (t.match(/\b(soc ?(?:2|ii)|gdpr|hipaa|iso ?27001|sso|mfa|encryption|encrypted)\b/i)?.[0] ?? t.slice(0, 45)),
+        title: "Security and compliance"
     },
     {
         category: "certification",
-        pages: ["home", "about", "services", "certifications"],
         evidence: /\b(?:licensed|license(?:d)?|certified|certification|accredited|accreditation|doctor of [a-z ]+ degree|degree from|board[- ]certified)\b/i,
-        topic: (text) => phrase(text, /\b(?:licensed|certified|certification|accredited|accreditation|doctor of [a-z ]+ degree|degree from|board[- ]certified)\b/i, "Credential or certification"),
-        title: "Credential or certification",
+        topic: t => t.slice(0, 70),
+        title: "Credential or certification"
     },
     {
         category: "support_onboarding",
-        pages: ["home", "services", "support", "onboarding", "pricing"],
-        evidence: /\b(?:support|onboarding|implementation|training|help desk|response time|getting started|new patient|first visit|initial evaluation|consultation|review(?:ing| of)? findings|x-?rays?|day\s*[12]|follow[- ]up visit|treatment plan|recovery roadmap)\b/i,
-        topic: (text) => phrase(text, /\b(?:new patient|first visit|initial evaluation|consultation|review(?:ing| of)? findings|day\s*[12]|treatment plan|recovery roadmap|onboarding|implementation|training|support)\b/i, "Process or onboarding"),
-        title: "Process or onboarding",
+        evidence: /\b(?:support|onboarding|implementation|training|help desk|response time|getting started|new patient|first visit|initial evaluation|consultation|review(?:ing)? findings|x-?rays?|day\s*[12]|follow[- ]up visit|treatment plan|recovery roadmap)\b/i,
+        topic: t => t.slice(0, 70),
+        title: "Process or onboarding"
     },
     {
         category: "partnership",
         pages: ["partnerships", "about"],
         evidence: /\b(?:partner(?:ship|ed)?|affiliate|reseller)\b/i,
-        topic: (text) => phrase(text, /\b(?:partner(?:ship|ed)?|affiliate|reseller)\b/i, "Partnership"),
-        title: "Partnership",
+        topic: t => t.slice(0, 55),
+        title: "Partnership"
     },
     {
         category: "customer_segment",
-        pages: commercialPages,
         evidence: /\b(?:built for|designed for|serves?|serving|helping|customers? (?:are|include)|clients? (?:are|include)|patients?|teams? in|businesses? in|people (?:with|who))\b/i,
-        topic: (text) => phrase(text, /\b(?:patients?|customers?|clients?|businesses?|teams?|people (?:with|who))\b/i, "Customer segment"),
-        title: "Customer segment",
+        topic: t => t.slice(0, 70),
+        title: "Customer segment"
     },
     {
         category: "industry_served",
-        pages: ["industries", "home", "about"],
+        pages: ["industries"],
         evidence: /\b(?:industries? (?:we )?serve|solutions? for|serving the)\b/i,
-        topic: (text) => phrase(text, /\b(?:industries? (?:we )?serve|solutions? for|serving the)\b/i, "Industry served"),
-        title: "Industry served",
+        topic: t => t.slice(0, 55),
+        title: "Industry served"
     },
     {
         category: "primary_use_case",
-        pages: servicePages,
         evidence: /\b(?:use case|helps? (?:you|teams|patients|clients)|used (?:to|for)|treats?|treating|care for|relief from|pain|sciatica|numbness|tingling|injur(?:y|ies)|whiplash|disc(?:-related)?|spinal stenosis)\b/i,
-        topic: (text) => phrase(text, /\b(?:sciatica|numbness|tingling|whiplash|spinal stenosis|disc(?:-related)? injur(?:y|ies)|auto(?:mobile)? accident injur(?:y|ies)|neck pain|back pain|pain)\b/i, "Primary use case"),
-        title: "Primary use case",
+        topic: t => t.slice(0, 70),
+        title: "Primary use case"
     },
     {
         category: "ai_automation",
         pages: ["products", "services", "technical", "home", "use_cases"],
         heading: /\b(ai|automation|intelligence|agent|feature|capabilit)\b/i,
         evidence: /\b(?:artificial intelligence|machine learning|\bAI\b|automat(?:e|es|ed|ion)|agentic)\b/,
-        topic: (text) => phrase(text, /\b(?:artificial intelligence|machine learning|\bAI\b|automat(?:e|es|ed|ion)|agentic)\b/, "AI and automation capability"),
-        title: "AI and automation capability",
+        topic: t => t.slice(0, 55),
+        title: "AI and automation capability"
     },
     {
         category: "technical_capability",
         pages: ["technical"],
         evidence: /\b(?:api|sdk|webhook|developer|cloud|self-hosted|architecture|data export)\b/i,
-        topic: (text) => phrase(text, /\b(?:api|sdk|webhook|developer|cloud|self-hosted|architecture|data export)\b/i, "Technical capability"),
-        title: "Technical capability",
+        topic: t => t.slice(0, 55),
+        title: "Technical capability"
     },
     {
         category: "product",
         pages: ["products"],
         evidence: /\b(?:product|platform|software|app|application|suite|tool)\b/i,
         heading: /./,
-        topic: (text) => phrase(text, /\b(?:[A-Z][A-Za-z0-9 '&+-]+\s+(?:platform|software|app|application|suite|tool|product))\b/, "Product"),
-        title: "Product",
+        topic: (t) => t.slice(0, 55),
+        title: "Product"
     },
     {
         category: "service",
-        pages: servicePages,
-        evidence: /\b(?:we (?:offer|provide|deliver)|our services? include|offers?|provides?|specializes? in|specializing in|therapy|treatment|chiropractic care|consulting|implementation|managed service|spinal decompression|auto accident injury)\b/i,
-        topic: (text) => phrase(text, /\b(?:non-surgical spinal decompression therapy|spinal decompression therapy|spinal decompression|auto(?:mobile)? accident injury (?:chiropractic )?care|auto accident injury|chiropractic care|consulting|implementation|managed service|therapy|treatment)\b/i, "Service"),
-        title: "Service",
+        evidence: /\b(?:we (?:offer|provide|deliver)|our services? include|offers?|provides?|specializes? in|specializing in|treatment|therapy|care|consulting|implementation|managed service|spinal decompression|chiropractic|auto accident injury)\b/i,
+        topic: t => t.slice(0, 70),
+        title: "Service"
     },
     {
         category: "feature_capability",
         pages: ["products", "services", "technical", "home"],
         evidence: /\b(?:features?|capabilit|includes?|enables?|allows? (?:you|teams)|can (?:create|manage|track|connect|generate|automate))\b/i,
-        topic: (text) => phrase(text, /\b(?:features?|capabilit(?:y|ies)|includes?|enables?)\b/i, "Feature or capability"),
-        title: "Feature or capability",
+        topic: t => t.slice(0, 55),
+        title: "Feature or capability"
     },
     {
         category: "mission_value_proposition",
         pages: ["about", "home"],
         evidence: /\b(?:our mission|we exist to|we believe|helps? .{2,40} (?:save|grow|reduce|increase|improve)|so you can|core values?|philosophy|approach)\b/i,
-        topic: (text) => phrase(text, /\b(?:our mission|we exist to|we believe|core values?|philosophy|approach)\b/i, "Mission and value proposition"),
-        title: "Mission and value proposition",
+        topic: t => t.slice(0, 70),
+        title: "Mission and value proposition"
     },
     {
         category: "competitive_differentiator",
         pages: ["about", "home", "products", "services"],
-        evidence: /\b(?:unlike|only|unique|proprietary|award-winning|differentiates?|without (?:the|any)|faster than|over (?:a|one) decade|more than \d+ years|over \d+ years|advanced|proven methods?|goes above and beyond|best results)\b/i,
-        topic: (text) => phrase(text, /\b(?:over (?:a|one) decade|more than \d+ years|over \d+ years|unique|advanced|proven methods?|goes above and beyond|best results|award-winning|proprietary)\b/i, "Competitive differentiator"),
-        title: "Competitive differentiator",
+        evidence: /\b(?:unlike|only|unique|proprietary|award-winning|differentiates?|without (?:the|any)|faster than|over (?:a|one) decade|more than \d+ years|over \d+ years|advanced|proven methods?|goes above and beyond)\b/i,
+        topic: t => t.slice(0, 70),
+        title: "Competitive differentiator"
     },
     {
         category: "company_overview",
         pages: ["about", "home"],
-        evidence: /\b(?:we are|founded|our company|our team|specializes? in|practice|clinic|agency|studio|company)\b/i,
-        topic: () => "Company overview",
-        title: "Company overview",
+        evidence: /\b(?:we are|founded|our company|our team|specializes? in|is a[n]? |practice|clinic|agency|studio|company)\b/i,
+        topic: t => "company",
+        title: "Company overview"
     },
     {
         category: "brand_voice_terminology",
-        pages: commercialPages,
         evidence: /\b(?:we call (?:this|it|our)|known as|referred to as|our (?:method|framework|approach)|core values?|healing journey|recovery roadmap)\b/i,
-        topic: (text) => phrase(text, /\b(?:core values?|healing journey|recovery roadmap|our (?:method|framework|approach)|we call (?:this|it|our)|known as|referred to as)\b/i, "Brand terminology"),
-        title: "Brand terminology",
+        topic: t => t.slice(0, 70),
+        title: "Brand terminology"
     },
     {
         category: "additional_business_knowledge",
         pages: ["case_studies"],
         evidence: /\b(?:case study|resulted in|increased|reduced|grew|saved|delivered)\b/i,
         heading: /./,
-        topic: (text) => phrase(text, /\b(?:case study|resulted in|increased|reduced|grew|saved|delivered)\b/i, "Case study"),
-        title: "Case study",
+        topic: t => t.slice(0, 55),
+        title: "Case study"
     },
     {
         category: "additional_business_knowledge",
-        pages: proofPages,
         evidence: /(?:[“”"]|\b(?:testimonial|review|reviews|customer said|client said|patient said|recommend|highly recommend|life-changing|worked wonders|customer service|helped me tremendously|made a big difference)\b)/i,
-        topic: (text) => phrase(text, /\b(?:testimonial|review|recommend|highly recommend|customer service|life-changing|worked wonders|helped me tremendously|made a big difference)\b/i, "Customer proof"),
-        title: "Customer proof",
+        topic: t => t.slice(0, 70),
+        title: "Customer proof"
     },
     {
         category: "faq",
-        pages: ["home", "services", "support", "onboarding", "pricing"],
         evidence: /\b(?:faq|frequently asked|is .* safe|how long|who is a candidate|can i|do you accept|insurance|ppo|hsa|fsa|first visit|first day|prior surgery|candidate for|what conditions)\b/i,
-        topic: (text) => phrase(text, /\b(?:insurance|ppo|hsa|fsa|candidate|how long|safe|first visit|first day|prior surgery|what conditions)\b/i, "FAQ"),
-        title: "FAQ",
+        topic: t => t.slice(0, 70),
+        title: "FAQ"
     },
 ];
-
 const RULE_PRIORITY: Partial<Record<Category, number>> = {
     pricing_plan: 110,
     service: 105,
@@ -217,55 +189,31 @@ const RULE_PRIORITY: Partial<Record<Category, number>> = {
     faq: 88,
     additional_business_knowledge: 86,
     customer_segment: 82,
-    company_overview: 80,
-    mission_value_proposition: 78,
     contact_information: 70,
     feature_capability: 70,
     integration: 65,
     policy: 30,
     security_compliance: 25,
 };
-
-const PRIORITIZED_RULES = [...RULES].sort(
-    (left, right) => (RULE_PRIORITY[right.category] ?? 70) - (RULE_PRIORITY[left.category] ?? 70),
-);
-
+const PRIORITIZED_RULES = [...RULES].sort((left, right) =>
+    (RULE_PRIORITY[right.category] ?? 70) - (RULE_PRIORITY[left.category] ?? 70));
 function sentences(text: string): string[] {
-    return text
-        .split(/(?<=[.!?])\s+|\n+/)
+    return text.split(/(?<=[.!?])\s+|\n+/)
         .map(cleanText)
-        .filter((value) => value.length >= 12 && value.length <= 1200);
+        .filter((x) => x.length >= 12 && x.length <= 1200);
 }
-
 function isContractBoilerplate(text: string): boolean {
-    return /\b(?:may include|may update|may modify|may improve|may discontinue|does not guarantee|cannot guarantee|limits may vary|covered items may include|service commitments covered items|lost revenue or business opportunities|third-party service failures|subject to change|at any time without notice|personal information|ip address|cookies?|pixels?|advertisers?|do not track|\bdnt\b|data collection|data retention|third-party sites?|browser information|device information)\b/i.test(text);
+    return /\b(?:may include|may update|may modify|may improve|may discontinue|does not guarantee|cannot guarantee|limits may vary|covered items may include|service commitments covered items|lost revenue or business opportunities|third-party service failures|subject to change|at any time without notice)\b/i.test(text);
 }
-
-function meaningfulTitle(rule: Rule, evidence: NormalizedEvidence): string {
+function meaningfulTitle(rule: Rule, topic: string, evidence: NormalizedEvidence): string {
     const heading = cleanText(evidence.heading ?? "");
-    const headingLooksUseful =
-        heading.length >= 3 &&
-        !/^(features?|capabilit(?:y|ies)|overview|details?|information|home|about|services|products|contact|faq)$/i.test(heading) &&
-        !/[.!?]$/.test(heading);
-    return headingLooksUseful ? heading : rule.title;
+    if (heading && heading.length >= 3 && heading.length <= 90 && !/^(features?|capabilit(?:y|ies)|overview|details?|information)$/i.test(heading)) return heading;
+    const normalizedTopic = cleanText(topic).replace(/[.:;,-]+$/g, "");
+    if (normalizedTopic.length >= 3 && normalizedTopic.length <= 90) return normalizedTopic;
+    return rule.title;
 }
-
-function makeFact(
-    category: Category,
-    title: string,
-    value: string,
-    topic: string,
-    evidence: NormalizedEvidence,
-    explicit = true,
-    evidenceExcerpt = value,
-): DeterministicFact {
-    const topicKey = canonicalTopicKey({
-        category,
-        value,
-        suggestedTopic: topic,
-        heading: evidence.heading,
-        pageType: evidence.pageType,
-    });
+function makeFact(category: Category, title: string, value: string, topic: string, evidence: NormalizedEvidence, explicit = true, evidenceExcerpt = value): DeterministicFact {
+    const topicKey = canonicalTopicKey({ category, value, suggestedTopic: topic, heading: evidence.heading, pageType: evidence.pageType });
     return {
         id: stableId("det_fact", `${topicKey}\0${keyText(value)}\0${evidence.provenance}`),
         category,
@@ -276,156 +224,97 @@ function makeFact(
         confidenceScore: 0,
         provenance: evidence.provenance,
         evidence: [{ ...evidence, excerpt: evidenceExcerpt }],
-        explicit,
+        explicit
     };
 }
 
 type Expansion = { value: string; topic: string };
-
-const trimmedEntity = (value: string) =>
-    cleanText(value).replace(/^(?:and|or)\s+/i, "").replace(/[.,:;]+$/g, "");
-
+const trimmedEntity = (value: string) => cleanText(value).replace(/^(?:and|or)\s+/i, "").replace(/[.,:;]+$/g, "");
 function namedList(value: string): string[] {
     return value.split(/\s*(?:,|\band\b|\bor\b)\s*/i).map(trimmedEntity).filter(Boolean);
 }
-
 function uniqueExpansions(values: string[]): Expansion[] {
     const seen = new Set<string>();
-    return values
-        .map(trimmedEntity)
-        .filter((value) => {
-            const key = keyText(value);
-            if (!key || seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        })
-        .map((value) => ({ value, topic: value }));
+    return values.map(trimmedEntity).filter(value => {
+        const key = keyText(value);
+        if (!key || seen.has(key)) return false;
+        seen.add(key); return true;
+    }).map(value => ({ value, topic: value }));
 }
-
+/** Expand only grammar that explicitly identifies the list's semantic type. */
 function expand(rule: Rule, text: string): Expansion[] | undefined {
     if (rule.category === "security_compliance") {
-        const claims = Array.from(
-            text.matchAll(/\b(SOC\s*(?:II|2)|HIPAA|ISO\s*27001|GDPR|encryption|encrypted|SSO|MFA)\b/gi),
-            (match) => match[1],
-        );
+        const claims = Array.from(text.matchAll(/\b(SOC\s*(?:II|2)|HIPAA|ISO\s*27001|GDPR|encryption|encrypted|SSO|MFA)\b/gi), match => match[1]);
         if (claims.length > 1) return uniqueExpansions(claims);
     }
-
     if (rule.category === "integration") {
         const list = text.match(/\b(?:integrates? with|connects? (?:to|with)|compatible with|plugins? for)\s+(.+?)(?:[.!]|$)/i)?.[1];
         if (list) {
-            const names = namedList(list).filter((name) => /^[A-Z][A-Za-z0-9 .+&-]+$/.test(name));
+            const names = namedList(list).filter(name => /^[A-Z][A-Za-z0-9 .+&-]{1,45}$/.test(name));
             if (names.length > 1) return uniqueExpansions(names);
         }
     }
-
     if (rule.category === "pricing_plan") {
-        const plans = Array.from(
-            text.matchAll(/\b([A-Z][A-Za-z0-9 '&-]*?)\s+(?:plan|package|tier)\b/g),
-            (match) => `${match[1]} plan`,
-        );
+        const plans = Array.from(text.matchAll(/\b([A-Z][A-Za-z0-9 '&-]{0,30}?)\s+(?:plan|package|tier)\b/g), match => `${match[1]} plan`);
         if (plans.length > 1) return uniqueExpansions(plans);
     }
-
     if (rule.category === "service") {
         const list = text.match(/\b(?:we (?:offer|provide|deliver)|our services? include)\s+(.+?)(?:[.!]|$)/i)?.[1];
         if (list) {
-            const names = namedList(list)
-                .map((name) => name.replace(/\s+services?$/i, ""))
-                .filter((name) => /\b(?:consulting|implementation|training|management|design|optimization|strategy|therapy|treatment|care|chiropractic|decompression)\b/i.test(name));
+            const names = namedList(list).map(name => name.replace(/\s+services?$/i, "")).filter(name => /\b(?:consulting|implementation|training|management|design|optimization|cleaning|strategy|therapy|treatment|care|chiropractic)\b/i.test(name));
             if (names.length > 1) return uniqueExpansions(names);
         }
     }
-
     if (rule.category === "product") {
         const list = text.match(/\b(?:our products? include|we (?:offer|sell)|products?:)\s+(.+?)(?:[.!]|$)/i)?.[1];
         if (list) {
-            const names = namedList(list).filter((name) => /\b(?:product|platform|software|app|application|suite|tool)\b/i.test(name));
+            const names = namedList(list).filter(name => /\b(?:product|platform|software|app|application|suite|tool)\b/i.test(name));
             if (names.length > 1) return uniqueExpansions(names);
         }
     }
-
     if (rule.category === "location_service_area") {
-        const list = text.match(/\b(?:(?:offices? (?:are )?(?:located )?in)|(?:we )?serve|available (?:in|throughout)|serving (?:patients|clients|customers)?\s*(?:in)?)\s+(.+?)(?:[.!]|$)/i)?.[1];
+        const list = text.match(/\b(?:(?:offices? (?:are )?(?:located )?in)|(?:we )?serve|available (?:in|throughout)|serving (?:patients|clients)?\s*(?:in)?)\s+(.+?)(?:[.!]|$)/i)?.[1];
         if (list) {
-            const names = namedList(list).filter((name) => /^(?:[A-Z][a-z]+(?:[ -][A-Z][a-z]+){0,2})$/.test(name));
+            const names = namedList(list).filter(name => /^(?:[A-Z][a-z]+(?:[ -][A-Z][a-z]+){0,2})$/.test(name));
             if (names.length > 1) return uniqueExpansions(names);
         }
     }
-
     return undefined;
 }
-
 export function extractWebsiteFacts(blocks: readonly NormalizedSourceBlock[]): DeterministicFact[] {
     const facts: DeterministicFact[] = [];
     const byId = new Map(blocks.map((block) => [block.id, block]));
-
     for (const block of blocks) {
-        if (block.type === "heading" || block.type === "faq_question") continue;
-
+        if (block.type === "heading" || block.type === "faq_question")
+            continue;
         const previous = block.previousBlockId ? byId.get(block.previousBlockId) : undefined;
         const structuralContext = `${block.heading ?? ""} ${previous?.type === "heading" ? previous.text : ""}`;
-
         for (const text of sentences(block.text)) {
             if (isContractBoilerplate(text)) continue;
             const matchedCategories = new Set<Category>();
-
             for (const rule of PRIORITIZED_RULES) {
                 const pageMatch = !rule.pages || rule.pages.includes(block.pageType);
                 const headingMatch = !rule.heading || rule.heading.test(structuralContext);
                 const standardClaim = /\b(?:soc ?(?:2|ii)|hipaa|iso ?27001|gdpr)\b/i.test(text);
                 const categoryConsistent = rule.category !== "certification" || !standardClaim;
-
-                if (
-                    pageMatch &&
-                    headingMatch &&
-                    categoryConsistent &&
-                    rule.evidence.test(text) &&
-                    !matchedCategories.has(rule.category)
-                ) {
+                if (pageMatch && headingMatch && categoryConsistent && rule.evidence.test(text) && !matchedCategories.has(rule.category)) {
                     const expansions = expand(rule, text);
-                    if (expansions?.length) {
-                        for (const item of expansions) {
-                            facts.push(
-                                makeFact(
-                                    rule.category,
-                                    meaningfulTitle(rule, block.evidence),
-                                    item.value,
-                                    item.topic,
-                                    block.evidence,
-                                    true,
-                                    text,
-                                ),
-                            );
-                        }
-                    } else {
+                    if (expansions?.length) for (const item of expansions)
+                        facts.push(makeFact(rule.category, meaningfulTitle(rule, item.topic, block.evidence), item.value, item.topic, block.evidence, true, text));
+                    else {
                         const topic = rule.topic(text);
-                        facts.push(
-                            makeFact(
-                                rule.category,
-                                meaningfulTitle(rule, block.evidence),
-                                text,
-                                topic,
-                                block.evidence,
-                            ),
-                        );
+                        facts.push(makeFact(rule.category, meaningfulTitle(rule, topic, block.evidence), text, topic, block.evidence));
                     }
                     matchedCategories.add(rule.category);
                 }
             }
         }
     }
-
     return facts;
 }
-
 function ownerParts(value: string): string[] {
-    return value
-        .split(/\n+|;|(?<=[.!?])\s+/)
-        .map(cleanText)
-        .filter((part) => part.length > 2);
+    return value.split(/\n+|;|(?<=[.!?])\s+/).map(cleanText).filter((x) => x.length > 2);
 }
-
 export function extractOwnerFacts(input: DeterministicEngineInput): DeterministicFact[] {
     const owner = input.owner ?? {};
     const evidence = (excerpt: string, heading: string): NormalizedEvidence => ({
@@ -435,57 +324,45 @@ export function extractOwnerFacts(input: DeterministicEngineInput): Deterministi
         pageType: "other",
         sourceType: "owner",
         provenance: "owner",
-        structured: true,
+        structured: true
     });
-
     const facts: DeterministicFact[] = [];
-
-    if (cleanText(owner.businessName)) {
-        const businessName = cleanText(owner.businessName);
-        facts.push(
-            makeFact(
-                "business_identity",
-                "Business name",
-                businessName,
-                "Business name",
-                evidence(businessName, "Business profile"),
-            ),
-        );
-    }
-
+    if (cleanText(owner.businessName))
+        facts.push(makeFact("business_identity", "Business name", cleanText(owner.businessName), "business name", evidence(cleanText(owner.businessName), "Business profile")));
     if (cleanText(owner.industry)) {
         const industry = cleanText(owner.industry);
         facts.push(makeFact("industry_served", "Industry", industry, industry, evidence(industry, "Industry")));
     }
-
-    const fields: Array<[keyof typeof owner, Category, string]> = [
+    const fields: Array<[
+        keyof typeof owner,
+        Category,
+        string
+    ]> = [
         ["productsServices", "additional_business_knowledge", "Products and services"],
         ["idealCustomers", "customer_segment", "Ideal customers"],
         ["policiesOperations", "policy", "Policies and operations"],
         ["caseStudiesTestimonials", "additional_business_knowledge", "Case studies and testimonials"],
         ["additionalKnowledge", "additional_business_knowledge", "Additional owner knowledge"],
-        ["tone", "brand_voice_terminology", "Brand voice"],
+        ["tone", "brand_voice_terminology", "Brand voice"]
     ];
-
-    for (const [field, category, title] of fields) {
+    for (const [field, category, title] of fields)
         for (const part of ownerParts(cleanText(owner[field]))) {
             let resolved = category;
-
-            if (money.test(part)) resolved = "pricing_plan";
-            else if (/\b(refund|cancel|privacy|policy|warranty|guarantee)\b/i.test(part)) resolved = "policy";
-            else if (/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(part)) resolved = "contact_information";
-            else if (/\b(testimonial|case study|resulted in|increased|reduced)\b/i.test(part)) resolved = "additional_business_knowledge";
-            else if (
-                field === "productsServices" &&
-                /\b(product|platform|software|app|application|tool|suite|license|subscription)\b/i.test(part) &&
-                /\b(service|consulting|implementation|training|managed|we (?:provide|deliver|offer)|done-for-you)\b/i.test(part)
-            ) {
-                const product = trimmedEntity(
-                    part.match(/\b([A-Z][A-Za-z0-9-]*(?:\s+[A-Za-z0-9-]+){0,3}\s+(?:software|platform|product|app|application|tool|suite))\b/)?.[1] ?? "",
-                );
-                const service = trimmedEntity(
-                    part.match(/\b([A-Za-z][A-Za-z -]*?(?:implementation services?|consulting services?|managed services?|training services?))\b/i)?.[1] ?? "",
-                );
+            if (money.test(part))
+                resolved = "pricing_plan";
+            else if (/\b(refund|cancel|privacy|policy|warranty|guarantee)\b/i.test(part))
+                resolved = "policy";
+            else if (/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i.test(part))
+                resolved = "contact_information";
+            else if (/\b(testimonial|case study|resulted in|increased|reduced)\b/i.test(part))
+                resolved = "additional_business_knowledge";
+            else if (field === "productsServices" &&
+                /\b(product|platform|software|app|application|tool|suite|license|subscription)\b/i
+                    .test(part) &&
+                /\b(service|consulting|implementation|training|managed|we (?:provide|deliver|offer)|done-for-you)\b/i
+                    .test(part)) {
+                const product = trimmedEntity(part.match(/\b([A-Z][A-Za-z0-9-]*(?:\s+[A-Za-z0-9-]+){0,3}\s+(?:software|platform|product|app|application|tool|suite))\b/)?.[1] ?? "");
+                const service = trimmedEntity(part.match(/\b([A-Za-z][A-Za-z -]{0,35}?(?:implementation services?|consulting services?|managed services?|training services?))\b/i)?.[1] ?? "");
                 if (product && service) {
                     const ownerEvidence = evidence(part, title);
                     facts.push(makeFact("product", title, product, product, ownerEvidence, true, part));
@@ -493,18 +370,14 @@ export function extractOwnerFacts(input: DeterministicEngineInput): Deterministi
                     continue;
                 }
                 resolved = "product";
-            } else if (
-                field === "productsServices" &&
-                /\b(product|platform|software|app|application|tool|suite|license|subscription)\b/i.test(part)
-            ) resolved = "product";
-            else if (
-                field === "productsServices" &&
-                /\b(service|consulting|implementation|training|managed|we (?:provide|deliver|offer)|done-for-you)\b/i.test(part)
-            ) resolved = "service";
-
-            facts.push(makeFact(resolved, title, part, title, evidence(part, title)));
+            }
+            else if (field === "productsServices" &&
+                /\b(product|platform|software|app|application|tool|suite|license|subscription)\b/i.test(part))
+                resolved = "product";
+            else if (field === "productsServices" &&
+                /\b(service|consulting|implementation|training|managed|we (?:provide|deliver|offer)|done-for-you)\b/i.test(part))
+                resolved = "service";
+            facts.push(makeFact(resolved, title, part, part.slice(0, 55), evidence(part, title)));
         }
-    }
-
     return facts;
 }
