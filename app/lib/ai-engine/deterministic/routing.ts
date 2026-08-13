@@ -24,6 +24,8 @@ const COMMERCIAL_SIGNAL = /\b(?:services?|products?|pricing|packages?|plans?|off
 const MARKET_SIGNAL = /\b(?:industries?|who we serve|customers?|clients?|audience|markets?|use cases?|solutions? for|serving)\b/i;
 const OPERATIONS_SIGNAL = /\b(?:faq|support|onboarding|getting started|implementation|training|help desk|process|contact|hours?)\b/i;
 const TECHNICAL_SIGNAL = /\b(?:technical|developers?|api|sdk|webhook|integration|security|compliance|soc ?2|hipaa|gdpr|iso ?27001)\b/i;
+const PRICE_SIGNAL = /(?:[$£€]\s?\d|\b\d+(?:\.\d{2})\b|\b(?:price|pricing|per person|per item|per hour|per month|starting at|from only)\b)/i;
+const STRUCTURED_ITEM_TYPES = new Set<NormalizedSourceBlock["type"]>(["list_item", "table_row", "table_cell", "definition"]);
 
 function pageLane(pageType: ClassifiedPageType): EvidenceLane {
   if (["products", "services", "pricing"].includes(pageType)) return "commercial";
@@ -50,9 +52,46 @@ function strongestSectionLane(block: NormalizedSourceBlock): { lane: EvidenceLan
   return { lane: pageLane(block.pageType), reasons: [`page_type:${block.pageType}`] };
 }
 
+function structurallyCommercialUrls(blocks: readonly NormalizedSourceBlock[]) {
+  const byUrl = new Map<string, NormalizedSourceBlock[]>();
+  for (const block of blocks) {
+    const existing = byUrl.get(block.evidence.url) ?? [];
+    existing.push(block);
+    byUrl.set(block.evidence.url, existing);
+  }
+
+  const commercial = new Set<string>();
+  Array.from(byUrl.entries()).forEach(([url, pageBlocks]) => {
+    const first = pageBlocks[0];
+    if (!first || first.pageType !== "other") return;
+
+    const pageSignal = cleanText(`${first.evidence.pageTitle ?? ""} ${url}`);
+    if (LEGAL_SIGNAL.test(pageSignal) || EDITORIAL_SIGNAL.test(pageSignal) || PROOF_SIGNAL.test(pageSignal)) return;
+
+    const body = pageBlocks.filter((block) => block.type !== "heading" && block.type !== "faq_question");
+    if (!body.length) return;
+
+    const structured = body.filter((block) => STRUCTURED_ITEM_TYPES.has(block.type));
+    const prose = body.filter((block) => !STRUCTURED_ITEM_TYPES.has(block.type));
+    const priceBearing = body.filter((block) => PRICE_SIGNAL.test(block.text));
+
+    if (structured.length > prose.length || priceBearing.length > 0) commercial.add(url);
+  });
+  return commercial;
+}
+
 export function routeSourceBlocks(blocks: readonly NormalizedSourceBlock[]): RoutedSourceBlock[] {
+  const structurallyCommercial = structurallyCommercialUrls(blocks);
+
   return blocks.map((block) => {
     const routed = strongestSectionLane(block);
+    if (routed.lane === "unknown" && structurallyCommercial.has(block.evidence.url)) {
+      return {
+        ...block,
+        evidenceLane: "commercial" as const,
+        routingReasons: [...routed.reasons, "page_structure_catalog_or_price_bearing"],
+      };
+    }
     return { ...block, evidenceLane: routed.lane, routingReasons: routed.reasons };
   });
 }
