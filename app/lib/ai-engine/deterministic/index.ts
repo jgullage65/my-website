@@ -49,7 +49,7 @@ export function buildDeterministicBusinessBrain(input: DeterministicEngineInput)
         ...extractWebsiteFacts(normalizedBlocks),
         ...faqCandidates,
     ];
-    const structurallyRecoveredCandidates = recoverCommercialPageFacts(rawCandidates, normalizedBlocks);
+    const structurallyRecoveredCandidates = recoverCommercialPageFacts(rawCandidates, routedBlocks);
     const ownedCandidates = assignFactsToOwners(structurallyRecoveredCandidates, routedBlocks);
     const deduplicated = deduplicateFacts(ownedCandidates);
     let conflicts = detectConflicts(deduplicated.facts);
