@@ -11,14 +11,13 @@ type Rule = {
     topic: (text: string) => string;
     title: string;
 };
-const money = /(?:[$£€]\s?\d|\d+(?:\.\d+)?\s?(?:usd|gbp|eur)|\b(?:free|pricing|per month|monthly|annual(?:ly)?|plan)\b)/i;
+const money = /(?:[$£€]\s?\d|\d+(?:\.\d+)?\s?(?:usd|gbp|eur)|\b(?:free|pricing|per month|monthly|annual(?:ly)?|plan|special|offer|discount)\b)/i;
 const RULES: Rule[] = [
     {
         category: "pricing_plan",
-        pages: ["pricing"],
-        evidence: money,
-        topic: t => (t.match(/([\w -]{2,30}) (?:plan|package|tier)/i)?.[1] ?? t.slice(0, 45)),
-        title: "Pricing and plan"
+        evidence: /(?:[$£€]\s?\d|\b(?:new patient|introductory|limited[- ]time)?\s+(?:special|offer)\b|\b(?:special|offer|discount|pricing|price|plan|package|tier)\b.{0,80}(?:[$£€]\s?\d|\bfree\b)|(?:[$£€]\s?\d).{0,80}\b(?:special|offer|visit|consultation|session|package|plan)\b)/i,
+        topic: t => (t.match(/([\w $£€'-]{2,45}) (?:special|offer|plan|package|tier)/i)?.[0] ?? t.slice(0, 55)),
+        title: "Pricing or offer"
     },
     {
         category: "contact_information",
@@ -30,17 +29,16 @@ const RULES: Rule[] = [
     },
     {
         category: "policy",
-        pages: ["policies", "pricing", "support"],
-        evidence: /\b(refund|return|cancel(?:lation)?|privacy|warranty|guarantee|terms|notice period|retention)\b/i,
-        topic: t => (t.match(/\b(refund|return|cancel(?:lation)?|privacy|warranty|guarantee|terms|retention)[\w -]{0,20}/i)?.[0] ??
+        pages: ["policies"],
+        evidence: /\b(?:refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information|opt[- ]out|deletion request)\b/i,
+        topic: t => (t.match(/\b(refund|return|cancel(?:lation)?|privacy policy|warranty|guarantee|terms of use|data retention|personal information)[\w -]{0,20}/i)?.[0] ??
             t.slice(0, 45)),
         title: "Policy"
     },
     {
         category: "location_service_area",
-        pages: ["locations", "contact", "home"],
-        evidence: /\b(?:located|based|serv(?:e|ing|ice area)|office|address|available throughout|nationwide|worldwide)\b/i,
-        topic: t => t.slice(0, 55),
+        evidence: /\b(?:located|based|serv(?:e|es|ing|ice area)|office|address|available (?:in|throughout)|serving patients in|serving clients in|surrounding area|surrounding areas|nationwide|worldwide)\b/i,
+        topic: t => t.slice(0, 70),
         title: "Location or service area"
     },
     {
@@ -52,24 +50,22 @@ const RULES: Rule[] = [
     },
     {
         category: "security_compliance",
-        pages: ["security", "compliance", "technical", "certifications", "about"],
-        evidence: /\b(?:encrypted?|encryption|soc ?2|gdpr|hipaa|iso ?27001|sso|mfa|security|compliant?)\b/i,
-        topic: t => (t.match(/\b(soc ?2|gdpr|hipaa|iso ?27001|sso|mfa|encryption)\b/i)?.[0] ?? t.slice(0, 45)),
+        pages: ["security", "compliance", "technical", "certifications"],
+        evidence: /\b(?:encrypted?|encryption|soc ?(?:2|ii)|gdpr|hipaa|iso ?27001|sso|mfa|multi-factor authentication|penetration testing|data encryption)\b/i,
+        topic: t => (t.match(/\b(soc ?(?:2|ii)|gdpr|hipaa|iso ?27001|sso|mfa|encryption|encrypted)\b/i)?.[0] ?? t.slice(0, 45)),
         title: "Security and compliance"
     },
     {
         category: "certification",
-        pages: ["certifications", "about"],
-        evidence: /\b(?:certified|certification|accredited|accreditation)\b/i,
-        topic: t => t.slice(0, 55),
-        title: "Certification"
+        evidence: /\b(?:licensed|license(?:d)?|certified|certification|accredited|accreditation|doctor of [a-z ]+ degree|degree from|board[- ]certified)\b/i,
+        topic: t => t.slice(0, 70),
+        title: "Credential or certification"
     },
     {
         category: "support_onboarding",
-        pages: ["support", "onboarding"],
-        evidence: /\b(?:support|onboarding|implementation|training|help desk|response time|getting started)\b/i,
-        topic: t => t.slice(0, 55),
-        title: "Onboarding and support"
+        evidence: /\b(?:support|onboarding|implementation|training|help desk|response time|getting started|new patient|first visit|initial evaluation|consultation|review(?:ing)? findings|x-?rays?|day\s*[12]|follow[- ]up visit|treatment plan|recovery roadmap)\b/i,
+        topic: t => t.slice(0, 70),
+        title: "Process or onboarding"
     },
     {
         category: "partnership",
@@ -80,9 +76,8 @@ const RULES: Rule[] = [
     },
     {
         category: "customer_segment",
-        pages: ["industries", "use_cases", "home"],
-        evidence: /\b(?:built for|designed for|serves?|helping|customers? (?:are|include)|teams? in)\b/i,
-        topic: t => t.slice(0, 55),
+        evidence: /\b(?:built for|designed for|serves?|serving|helping|customers? (?:are|include)|clients? (?:are|include)|patients?|teams? in|businesses? in|people (?:with|who))\b/i,
+        topic: t => t.slice(0, 70),
         title: "Customer segment"
     },
     {
@@ -94,10 +89,9 @@ const RULES: Rule[] = [
     },
     {
         category: "primary_use_case",
-        pages: ["use_cases"],
-        evidence: /\b(?:use case|helps? (?:you|teams)|so (?:you|teams) can|used (?:to|for))\b/i,
-        topic: t => t.slice(0, 55),
-        title: "Use case"
+        evidence: /\b(?:use case|helps? (?:you|teams|patients|clients)|used (?:to|for)|treats?|treating|care for|relief from|pain|sciatica|numbness|tingling|injur(?:y|ies)|whiplash|disc(?:-related)?|spinal stenosis)\b/i,
+        topic: t => t.slice(0, 70),
+        title: "Primary use case"
     },
     {
         category: "ai_automation",
@@ -124,10 +118,8 @@ const RULES: Rule[] = [
     },
     {
         category: "service",
-        pages: ["services"],
-        evidence: /\b(?:we (?:offer|provide|deliver)|our services? include|service package|consulting|implementation|managed service)\b/i,
-        heading: /./,
-        topic: t => t.slice(0, 55),
+        evidence: /\b(?:we (?:offer|provide|deliver)|our services? include|offers?|provides?|specializes? in|specializing in|treatment|therapy|care|consulting|implementation|managed service|spinal decompression|chiropractic|auto accident injury)\b/i,
+        topic: t => t.slice(0, 70),
         title: "Service"
     },
     {
@@ -140,28 +132,28 @@ const RULES: Rule[] = [
     {
         category: "mission_value_proposition",
         pages: ["about", "home"],
-        evidence: /\b(?:our mission|we exist to|we believe|helps? .{2,40} (?:save|grow|reduce|increase|improve)|so you can)\b/i,
-        topic: t => t.slice(0, 55),
+        evidence: /\b(?:our mission|we exist to|we believe|helps? .{2,40} (?:save|grow|reduce|increase|improve)|so you can|core values?|philosophy|approach)\b/i,
+        topic: t => t.slice(0, 70),
         title: "Mission and value proposition"
     },
     {
         category: "competitive_differentiator",
         pages: ["about", "home", "products", "services"],
-        evidence: /\b(?:unlike|only|unique|proprietary|award-winning|differentiates?|without (?:the|any)|faster than)\b/i,
-        topic: t => t.slice(0, 55),
+        evidence: /\b(?:unlike|only|unique|proprietary|award-winning|differentiates?|without (?:the|any)|faster than|over (?:a|one) decade|more than \d+ years|over \d+ years|advanced|proven methods?|goes above and beyond)\b/i,
+        topic: t => t.slice(0, 70),
         title: "Competitive differentiator"
     },
     {
         category: "company_overview",
-        pages: ["about"],
-        evidence: /\b(?:we are|founded|our company|our team|specializes? in|is a[n]? )\b/i,
+        pages: ["about", "home"],
+        evidence: /\b(?:we are|founded|our company|our team|specializes? in|is a[n]? |practice|clinic|agency|studio|company)\b/i,
         topic: t => "company",
         title: "Company overview"
     },
     {
         category: "brand_voice_terminology",
-        evidence: /\b(?:we call (?:this|it|our)|known as|referred to as|our (?:method|framework|approach))\b/i,
-        topic: t => t.slice(0, 55),
+        evidence: /\b(?:we call (?:this|it|our)|known as|referred to as|our (?:method|framework|approach)|core values?|healing journey|recovery roadmap)\b/i,
+        topic: t => t.slice(0, 70),
         title: "Brand terminology"
     },
     {
@@ -174,28 +166,39 @@ const RULES: Rule[] = [
     },
     {
         category: "additional_business_knowledge",
-        pages: ["testimonials"],
-        evidence: /(?:[“”"]|\b(?:testimonial|customer said|client said|recommend|working with)\b)/i,
-        heading: /./,
-        topic: t => t.slice(0, 55),
-        title: "Testimonial"
+        evidence: /(?:[“”"]|\b(?:testimonial|review|reviews|customer said|client said|patient said|recommend|highly recommend|life-changing|worked wonders|customer service|helped me tremendously|made a big difference)\b)/i,
+        topic: t => t.slice(0, 70),
+        title: "Customer proof"
+    },
+    {
+        category: "faq",
+        evidence: /\b(?:faq|frequently asked|is .* safe|how long|who is a candidate|can i|do you accept|insurance|ppo|hsa|fsa|first visit|first day|prior surgery|candidate for|what conditions)\b/i,
+        topic: t => t.slice(0, 70),
+        title: "FAQ"
     },
 ];
 const RULE_PRIORITY: Partial<Record<Category, number>> = {
-    pricing_plan: 100,
-    policy: 95,
-    contact_information: 95,
-    integration: 90,
-    security_compliance: 90,
-    feature_capability: 80,
-    product: 60,
-    service: 60,
-    additional_business_knowledge: 50
+    pricing_plan: 110,
+    service: 105,
+    product: 105,
+    primary_use_case: 100,
+    competitive_differentiator: 95,
+    certification: 94,
+    location_service_area: 92,
+    support_onboarding: 90,
+    faq: 88,
+    additional_business_knowledge: 86,
+    customer_segment: 82,
+    contact_information: 70,
+    feature_capability: 70,
+    integration: 65,
+    policy: 30,
+    security_compliance: 25,
 };
 const PRIORITIZED_RULES = [...RULES].sort((left, right) =>
     (RULE_PRIORITY[right.category] ?? 70) - (RULE_PRIORITY[left.category] ?? 70));
 function sentences(text: string): string[] {
-    return text.split(/(?<=[.!])\s+|\n+/)
+    return text.split(/(?<=[.!?])\s+|\n+/)
         .map(cleanText)
         .filter((x) => x.length >= 12 && x.length <= 1200);
 }
@@ -258,7 +261,7 @@ function expand(rule: Rule, text: string): Expansion[] | undefined {
     if (rule.category === "service") {
         const list = text.match(/\b(?:we (?:offer|provide|deliver)|our services? include)\s+(.+?)(?:[.!]|$)/i)?.[1];
         if (list) {
-            const names = namedList(list).map(name => name.replace(/\s+services?$/i, "")).filter(name => /\b(?:consulting|implementation|training|management|design|optimization|cleaning|strategy)\b/i.test(name));
+            const names = namedList(list).map(name => name.replace(/\s+services?$/i, "")).filter(name => /\b(?:consulting|implementation|training|management|design|optimization|cleaning|strategy|therapy|treatment|care|chiropractic)\b/i.test(name));
             if (names.length > 1) return uniqueExpansions(names);
         }
     }
@@ -270,7 +273,7 @@ function expand(rule: Rule, text: string): Expansion[] | undefined {
         }
     }
     if (rule.category === "location_service_area") {
-        const list = text.match(/\b(?:(?:offices? (?:are )?(?:located )?in)|(?:we )?serve|available throughout)\s+(.+?)(?:[.!]|$)/i)?.[1];
+        const list = text.match(/\b(?:(?:offices? (?:are )?(?:located )?in)|(?:we )?serve|available (?:in|throughout)|serving (?:patients|clients)?\s*(?:in)?)\s+(.+?)(?:[.!]|$)/i)?.[1];
         if (list) {
             const names = namedList(list).filter(name => /^(?:[A-Z][a-z]+(?:[ -][A-Z][a-z]+){0,2})$/.test(name));
             if (names.length > 1) return uniqueExpansions(names);
