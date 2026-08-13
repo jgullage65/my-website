@@ -206,7 +206,7 @@ function isContractBoilerplate(text: string): boolean {
     return /\b(?:may include|may update|may modify|may improve|may discontinue|does not guarantee|cannot guarantee|limits may vary|covered items may include|service commitments covered items|lost revenue or business opportunities|third-party service failures|subject to change|at any time without notice)\b/i.test(text);
 }
 function isNonBusinessCommercialContext(text: string): boolean {
-    return /\b(?:personal information|personally identifiable|ip address|cookies?|pixels?|advertisers?|advertising partners?|do not track|\bdnt\b|browser information|device information|tracking technolog|data collection|data retention|third[- ]party sites?|services usage|consumer privacy|ccpa|other party(?:'s)?|insurance card|exchange information|consult an attorney|protect your rights)\b/i.test(text);
+    return /\b(?:personal information|personally identifiable|ip address|cookies?|pixels?|advertisers?|advertising partners?|do not track|\bdnt\b|browser information|device information|tracking technolog|data collection|data retention|third[- ]party sites?|services usage|consumer privacy|ccpa)\b/i.test(text);
 }
 function meaningfulTitle(rule: Rule, _topic: string, evidence: NormalizedEvidence): string {
     const heading = cleanText(evidence.heading ?? "");
