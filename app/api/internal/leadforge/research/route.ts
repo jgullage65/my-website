@@ -1,3 +1,6 @@
+import { parseIdentity } from "@/app/lib/ai-engine/public-research/contracts";
+import { runStoredPublicResearch } from "@/app/lib/ai-engine/public-research/store";
+import { eventResponse, independentResearchEvents, readResearchEvents } from "@/app/lib/ai-engine/public-research/orchestration";
 import { timingSafeEqual } from "node:crypto";
 import { runLeadForgeCompactResearchRequest } from "@/app/lib/ai-engine/research/leadforgeCompactResearch";
 import { normalizeExternalReference, toLeadForgeEvent, type LeadForgeResearchRequest } from "./contract";
@@ -98,13 +101,34 @@ export async function POST(request: Request) {
     );
   }
 
+  const identity = parseIdentity(body.businessIdentity);
+  const streaming = new URL(request.url).searchParams.get("stream") === "true";
+  const website = typeof body.website === "string" ? body.website.trim() : "";
+  const supplemental = body.supplemental === true && (!website || streaming);
+  if (body.businessIdentity !== undefined && !identity) return jsonError(400, "invalid_business_identity", "businessIdentity requires a business name.");
+  if (!website && (!identity || !supplemental)) return jsonError(400, "website_required", "A website or businessIdentity with supplemental research enabled is required.");
+
   const coreRequest = new Request(request.url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ website: body.website }),
     signal: request.signal,
   });
-  const coreResponse = await runLeadForgeCompactResearchRequest(coreRequest);
+  // Website-only requests use the original runner and stream without modification.
+  const coreResponse = !supplemental || !identity
+    ? await runLeadForgeCompactResearchRequest(coreRequest)
+    : eventResponse(independentResearchEvents({
+        website, identity, supplemental, signal: request.signal,
+        websiteEvents: async function* () {
+          const response = await runLeadForgeCompactResearchRequest(coreRequest);
+          if (!response.ok || !response.body) {
+            yield { type: "error", error: { code: "website_import_failed", message: "Website research could not be started." } };
+            return;
+          }
+          yield* readResearchEvents(response.body);
+        },
+        supplement: () => runStoredPublicResearch(identity, request.signal),
+      }), request.signal);
 
   if (!coreResponse.ok) {
     let error: unknown = {
@@ -127,7 +151,6 @@ export async function POST(request: Request) {
     return jsonError(500, "research_incomplete", "Website research ended without a response stream.");
   }
 
-  const streaming = new URL(request.url).searchParams.get("stream") === "true";
   if (streaming) {
     return new Response(transformEventStream(coreResponse.body, externalReference), {
       headers: {

@@ -2,6 +2,8 @@ export type LeadForgeResearchRequest = {
   website?: unknown;
   externalReference?: unknown;
   modelId?: unknown;
+  businessIdentity?: unknown;
+  supplemental?: unknown;
 };
 
 type ResearchEvent = Record<string, unknown>;
@@ -43,6 +45,7 @@ export function toLeadForgeEvent(event: ResearchEvent, externalReference?: strin
         additionalKnowledge: imported.additionalKnowledge,
       },
       knowledge: event.knowledge,
+      ...(event.research ? { research: event.research } : {}),
     },
     sources: {
       documents: event.sourceDocuments,

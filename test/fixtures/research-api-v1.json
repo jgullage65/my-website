@@ -1,0 +1,160 @@
+{
+  "contractVersion": 1,
+  "cases": [
+    {
+      "name": "legacy_website",
+      "request": {
+        "website": "https://acme.example",
+        "externalReference": "fixture-lead"
+      },
+      "raw": {
+        "type": "result",
+        "ok": true,
+        "import": {
+          "businessName": "Acme",
+          "website": "https://acme.example/",
+          "requestedUrl": "https://acme.example",
+          "resolvedUrl": "https://acme.example/"
+        },
+        "knowledge": {
+          "facts": [],
+          "coverage": {},
+          "unresolvedQuestions": []
+        },
+        "pages": [],
+        "sourceDocuments": [],
+        "sourceBlocks": [],
+        "crawlAttemptId": "website_attempt",
+        "usage": {
+          "aiCalls": 0,
+          "tokens": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "totalTokens": 0
+          }
+        }
+      },
+      "event": {
+        "type": "result",
+        "success": true,
+        "status": "complete",
+        "externalReference": "fixture-lead",
+        "target": {
+          "requestedUrl": "https://acme.example",
+          "normalizedUrl": "https://acme.example/"
+        },
+        "businessKnowledgePack": {
+          "businessIdentity": {
+            "name": "Acme",
+            "website": "https://acme.example/"
+          },
+          "intakeSummary": {},
+          "knowledge": {
+            "facts": [],
+            "coverage": {},
+            "unresolvedQuestions": []
+          }
+        },
+        "sources": {
+          "documents": [],
+          "blocks": []
+        },
+        "crawl": {
+          "attemptId": "website_attempt",
+          "pages": []
+        },
+        "usage": {
+          "aiCalls": 0,
+          "tokens": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "totalTokens": 0
+          }
+        }
+      }
+    },
+    {
+      "name": "no_website",
+      "request": {
+        "businessIdentity": {
+          "name": "Acme",
+          "address": "123 Main St",
+          "city": "Austin",
+          "state": "TX"
+        },
+        "supplemental": true,
+        "externalReference": "fixture-lead"
+      },
+      "raw": {
+        "type": "result",
+        "ok": true,
+        "import": {
+          "businessName": "Acme"
+        },
+        "knowledge": {
+          "facts": [],
+          "coverage": {},
+          "unresolvedQuestions": []
+        },
+        "pages": [],
+        "sourceDocuments": [],
+        "sourceBlocks": [],
+        "crawlAttemptId": "public_attempt",
+        "usage": {
+          "aiCalls": 0,
+          "tokens": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "totalTokens": 0
+          }
+        },
+        "research": {
+          "schemaVersion": 1,
+          "depth": "insufficient_evidence",
+          "websiteStatus": "not_provided",
+          "supplementalStatus": "complete"
+        }
+      },
+      "event": {
+        "type": "result",
+        "success": true,
+        "status": "complete",
+        "externalReference": "fixture-lead",
+        "target": {},
+        "businessKnowledgePack": {
+          "businessIdentity": {
+            "name": "Acme"
+          },
+          "intakeSummary": {},
+          "knowledge": {
+            "facts": [],
+            "coverage": {},
+            "unresolvedQuestions": []
+          },
+          "research": {
+            "schemaVersion": 1,
+            "depth": "insufficient_evidence",
+            "websiteStatus": "not_provided",
+            "supplementalStatus": "complete"
+          }
+        },
+        "sources": {
+          "documents": [],
+          "blocks": []
+        },
+        "crawl": {
+          "attemptId": "public_attempt",
+          "pages": []
+        },
+        "usage": {
+          "aiCalls": 0,
+          "tokens": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "totalTokens": 0
+          }
+        }
+      }
+    }
+  ]
+}
