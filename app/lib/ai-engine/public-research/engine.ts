@@ -1,3 +1,4 @@
+import { localRegistryAdapters } from "./localRegistries";
 import { calculateCoverage } from "../deterministic/coverage";
 import { scoreConfidence } from "../deterministic/confidence";
 import { canonicalTopicKey } from "../deterministic/topics";
@@ -69,7 +70,7 @@ export async function researchPublicBusiness(
       .map((f) => f.category) ?? [],
   );
   const authority = { official_record: 3, first_party: 2, directory: 1 };
-  const adapters = [...(options.adapters ?? [gleifAdapter])].sort((a, b) => {
+  const adapters = [...(options.adapters ?? [...localRegistryAdapters, gleifAdapter])].sort((a, b) => {
     const priority = (adapter: SourceAdapter) => {
       const missing = (adapter.supplies ?? []).filter(
         (category) => !covered.has(category),
@@ -85,6 +86,7 @@ export async function researchPublicBusiness(
         ? 1
         : 0;
       return (
+        (adapter.applicable?.(identity) === false ? -1000 : (adapter.priority ?? 0)) +
         missing * 10 +
         authority[adapter.policy.authority] +
         Math.min(3, yieldCount) -
@@ -103,6 +105,10 @@ export async function researchPublicBusiness(
       snapshot.facts.length >= RESEARCH_LIMITS.facts
     )
       break;
+    if (adapter.applicable?.(identity) === false) {
+      snapshot.outcomes.push({url:adapter.policy.origin,policyId:adapter.policy.id,state:"not_researched",reason:"outside_supported_jurisdiction_or_category"});
+      continue;
+    }
     try {
       const candidates = await adapter.discover(identity, fetcher);
       if (!candidates.length)
@@ -223,6 +229,7 @@ export async function researchPublicBusiness(
         } catch (error) {
           outcome.reason =
             error instanceof Error ? error.message : "source_unavailable";
+          if (/source_http_|rate_limited|timeout|timed out|aborted|cancelled|budget_exhausted|domain_busy|getaddrinfo|ECONN|ENOTFOUND|EAI_AGAIN/i.test(outcome.reason)) outcome.state = "source_unavailable";
         }
       }
     } catch (error) {

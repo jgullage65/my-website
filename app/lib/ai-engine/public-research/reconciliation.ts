@@ -140,7 +140,7 @@ export function reconcileSnapshot(
         current.outcomes.some(
           (o) =>
             o.policyId === f.research.policyId &&
-            o.state === "source_unavailable",
+            ["source_unavailable", "not_found", "not_researched"].includes(o.state),
         ),
     ),
   );

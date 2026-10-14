@@ -9,6 +9,8 @@ import { GLEIF_POLICY } from "./policy";
 import { ResearchFetcher, RESEARCH_LIMITS } from "./transport";
 export type SourceAdapter = {
   supplies?: string[];
+  priority?: number;
+  applicable?: (identity: BusinessIdentity) => boolean;
   id: string;
   policy: SourcePolicy;
   discover(

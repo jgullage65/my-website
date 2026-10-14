@@ -19,7 +19,7 @@ const street = (s?: string) =>
     .replace(/\broad\b/g, "rd")
     .replace(/\bavenue\b/g, "ave")
     .replace(/\bdrive\b/g, "dr");
-const region = (s?: string) => normalized(s).replace(/^us /, "");
+const region = (s?: string) => normalized(s).replace(/^us /, "").replace(/^washington$/, "wa");
 const domain = (s?: string) => {
   try {
     return new URL(s!.includes("://") ? s! : "https://" + s).hostname
@@ -43,7 +43,7 @@ export function matchBusiness(
       classification: "insufficient_evidence",
       signals: ["missing_business_name"],
     };
-  const exactName = name(target.name) === name(candidate.name);
+  const exactName = name(target.name) === name(candidate.name) || !!candidate.formerNames?.some(n => name(n) === name(target.name));
   const former = target.formerNames?.some(
     (n) => name(n) === name(candidate.name),
   );
@@ -75,15 +75,19 @@ export function matchBusiness(
       return reject("registration_identifier_conflict");
     signals.push("registration_identifier_equal");
     // A registry can identify the legal entity while still not identifying a requested branch.
-    if (!target.branch) return { classification: "confirmed", signals };
+    // Location conflicts below still reject a legal entity record from another branch or a former address.
   }
-  for (const key of ["city", "country", "postalCode"] as const)
+  const country = (s?: string) => normalized(s).replace(/^(?:usa|united states(?: of america)?)$/, "us");
+  if (target.country && candidate.country && country(target.country) !== country(candidate.country)) return reject("country_conflict");
+  for (const key of ["city"] as const)
     if (
       target[key] &&
       candidate[key] &&
       normalized(target[key]) !== normalized(candidate[key])
     )
       return reject(key + "_conflict");
+  const zip = (v?: string) => /^(?:\d{5})(?:-\d{4})?$/.test(v ?? "") && (target.country === "US" || candidate.country === "US") ? v!.slice(0,5) : normalized(v);
+  if (target.postalCode && candidate.postalCode && zip(target.postalCode) !== zip(candidate.postalCode)) return reject("postalCode_conflict");
   if (
     target.state &&
     candidate.state &&
@@ -96,6 +100,7 @@ export function matchBusiness(
     street(target.address) !== street(candidate.address)
   )
     return reject("street_address_conflict_or_moved");
+  if (signals.includes("registration_identifier_equal") && !target.branch) return { classification: "confirmed", signals };
   const address =
     !!target.address &&
     !!candidate.address &&
@@ -107,11 +112,12 @@ export function matchBusiness(
     !!target.state &&
     !!candidate.state &&
     region(target.state) === region(candidate.state);
-  const phone =
-    !!target.phone &&
-    !!candidate.phone &&
-    target.phone.replace(/\D/g, "").slice(-10) ===
-      candidate.phone.replace(/\D/g, "").slice(-10);
+  const phoneDigits = (value?: string) => {
+    const digits = (value ?? "").replace(/\D/g, "");
+    return digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  };
+  const targetPhone = phoneDigits(target.phone), candidatePhone = phoneDigits(candidate.phone);
+  const phone = /^\d{10,15}$/.test(targetPhone) && targetPhone === candidatePhone;
   const sameDomain =
     !!domain(target.website) &&
     domain(target.website) === domain(candidate.website);

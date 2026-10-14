@@ -9,33 +9,28 @@ function combineSignals(signals: AbortSignal[]): AbortSignal {
     }
   ).any(signals);
 }
-export const RESEARCH_LIMITS = {
-  requests: 10,
-  candidates: 4,
-  totalBytes: 3_000_000,
-  requestBytes: 750_000,
-  durationMs: 25_000,
-  requestTimeoutMs: 5000,
-  redirects: 2,
-  facts: 60,
-} as const;
+import { RESEARCH_LIMITS } from "./limits";
+export { RESEARCH_LIMITS } from "./limits";
 type WireResponse = Awaited<ReturnType<typeof requestSafeDestination>>;
 export type ResearchTransport = (
   url: URL,
   options: { signal: AbortSignal; headers: Record<string, string> },
 ) => Promise<WireResponse>;
-export type Slot = (host: string, interval: number) => Promise<boolean>;
+export type SlotLease = { release(): Promise<void> };
+export type Slot = (host: string, interval: number) => Promise<boolean | SlotLease>;
 export class ResearchSkip extends Error {
   constructor(readonly reason: string) {
     super(reason);
   }
 }
-const slots = new Map<string, number>();
+const slots = new Map<string, { next: number; active: boolean }>();
 export const localSlot: Slot = async (host, interval) => {
   const now = Date.now();
-  if ((slots.get(host) ?? 0) > now) return false;
-  slots.set(host, now + interval);
-  return true;
+  const prior = slots.get(host);
+  if (prior?.active || (prior?.next ?? 0) > now) return false;
+  const lease = { next: now + interval, active: true };
+  slots.set(host, lease);
+  return { release: async () => { lease.active = false; } };
 };
 const wait = (ms: number, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {
@@ -83,7 +78,8 @@ export class ResearchFetcher {
     if ((this.hostRequests.get(url.host) ?? 0) >= 7)
       throw new ResearchSkip("domain_request_budget_exhausted");
     // Slot is shared across server instances in production. No in-request retry of denied/rate-limited responses.
-    for (let tries = 0; !(await this.slot(url.host, interval)); tries++) {
+    let lease: boolean | SlotLease;
+    for (let tries = 0; !(lease = await this.slot(url.host, interval)); tries++) {
       if (tries >= 6) throw new ResearchSkip("domain_busy");
       await wait(Math.min(interval, 2000), this.signal);
     }
@@ -93,6 +89,7 @@ export class ResearchFetcher {
       this.signal,
       AbortSignal.timeout(RESEARCH_LIMITS.requestTimeoutMs),
     ]);
+    try {
     const response = await this.wire(url, {
       signal,
       headers: {
@@ -146,6 +143,9 @@ export class ResearchFetcher {
       bytes: buffer,
       text: new TextDecoder().decode(buffer),
     };
+    } finally {
+      if (typeof lease === "object") await lease.release();
+    }
   }
   async get(
     input: string,

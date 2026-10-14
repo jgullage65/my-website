@@ -742,3 +742,22 @@ test("an aborted body is cancelled instead of hanging a supplemental job", async
   await assert.rejects(pending);
   assert.equal(cancelled, true);
 });
+
+test("domain slots release on wire failure and serialize in-flight requests", async () => {
+  let active = false, releases = 0;
+  const f = new ResearchFetcher(undefined, async () => { throw new Error("wire_failed"); }, async () => {
+    assert.equal(active, false); active = true;
+    return { release: async () => { active = false; releases++; } };
+  });
+  await assert.rejects(f.get("https://api.gleif.org/api/v1/lei-records", GLEIF_POLICY), /wire_failed/);
+  assert.equal(active, false); assert.equal(releases, 1);
+});
+
+test("disappeared discovery results retain old licensed evidence as stale, not an authoritative deletion", async () => {
+  const previous = await researchPublicBusiness(identity, {adapters:[gleifAdapter], fetcher:registryFetcher()});
+  assert.ok(previous.facts.length);
+  const current = await researchPublicBusiness(identity, {previous,adapters:[gleifAdapter],fetcher:fetcher(url=>url.pathname === "/robots.txt" ? response("User-agent: *\nDisallow:","text/plain") : response(JSON.stringify({data:[]})))});
+  assert.equal(current.facts.length,previous.facts.length);
+  assert.ok(current.facts.every(f=>f.research.state==="stale"));
+  assert.equal(current.documents[0]?.id,previous.documents[0]?.id);
+});

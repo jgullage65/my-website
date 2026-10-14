@@ -1,0 +1,1034 @@
+{
+  "evaluationType": "controlled live API evaluation via environment HTTP proxy; not native deployment staging",
+  "sampleSelection": "Known registry records selected by industry; not random or unseen LeadForge leads; no website crawl in this evaluation",
+  "productionNetworkVerified": false,
+  "rounds": [
+    {
+      "label": "initial controlled retrievals",
+      "evaluatedAt": [
+        "2026-10-14T23:03:31.900Z",
+        "2026-10-14T23:03:40.096Z",
+        "2026-10-14T23:05:06.342Z"
+      ],
+      "results": [
+        {
+          "business": "CANLIS INC",
+          "category": "restaurant",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000013110002386%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "654c9d9408a05d504e6a4aabf4e99ee703a8d58827af8f6bb8cedcf59b31cc6c",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTBCaEVwT1JfZHN5cGgzZWJNcmxOWWk5Qnhvc3M---gzioM8c3YTSJoJVf2VFVoWLcMuCAWrQ--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: CANLIS INC",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 2576 AURORA AVE N, SEATTLE, WA, 98109-2206",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: CANLIS INC",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000013110002386",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Limited-Service Restaurants",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 19501212",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31182,
+            "durationMs": 11126,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "EBONY DESIGNS",
+          "category": "salon",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000042890006292%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "08c8454643d7eaea42ce758ba4458d4522413d132970d5320d0f1a88d61b14ce",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTBwOW9TYl9LbDczdzBEVWVaTm1Sai1PZVd6QUU---gzioa2HTx1Bh48V6yCiYqtTmFNv2cjg--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: WILLIAMS GRACIE MAE",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 955 20TH AVE, SEATTLE, WA, 98122",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: EBONY DESIGNS",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000042890006292",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Beauty Salons",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 19670101",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31174,
+            "durationMs": 11550,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "SAFEWAY INC STORE 1508",
+          "category": "retail",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000000210000035%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "974d8a7a511e67b7739dca743e52095884b8603ff2be6c39b4049d2e6115ab0f",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTBwNnlabjhGV282MmNvbzN4cXhzSzRzZnZPemc---gzirsdxovJuwUdJYiKzNgbrZ9lWkvjA--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: SAFEWAY INC",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 3820 RAINIER AVE S, SEATTLE, WA, 98118-1159",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: SAFEWAY INC STORE 1508",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000000210000035",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Supermarkets and Other Grocery Retailers (except Convenience Retailers)",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 19950101",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31298,
+            "durationMs": 12234,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "HELSELL FETTERMAN LLP",
+          "category": "professional services",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000025300003956%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "3f8039ed0c275b9e3a588394031b39cdd31b3844f52a913686f1fb4bab59dbac",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTB3T0s1YS03Z1djYXRGajVXUktobmt5THkxUXc---gziqS3eK1BRMkTKK1k4vV6YGA4CKYtw--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: HELSELL FETTERMAN LLP",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 800 5TH AVE # 3200, SEATTLE, WA, 98104-3176",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: HELSELL FETTERMAN LLP",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000025300003956",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Offices of Lawyers",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 19570301",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31226,
+            "durationMs": 12803,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "MANSON CONSTRUCTION CO",
+          "category": "construction contractor",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000000920000168%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "b920a1d9544c43f60c05bab0950beb849bcf050d17fde6ee2f4c9814ed0509c3",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTBSam9qUEdORUc4RGY1Ri1WMWpETUtMc0IzOVE---gziqD_hoCS5zvEcA-UggOAeeqH0joog--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: MANSON CONSTRUCTION CO",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 5209 E MARGINAL WAY S, SEATTLE, WA, 98134",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: MANSON CONSTRUCTION CO",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000000920000168",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Other Heavy and Civil Engineering Construction",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 19430704",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31266,
+            "durationMs": 14863,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "!ECO STAR C G CONSTRUCTION LLC",
+          "category": "construction contractor",
+          "policyId": "washington-contractor-license-pddl",
+          "outcomes": [
+            {
+              "url": "https://data.wa.gov/resource/m8qx-ubtq.json?%24where=contractorlicensenumber%3D%27ECOSTSC758NN%27&%24limit=2",
+              "policyId": "washington-contractor-license-pddl",
+              "state": "accepted",
+              "discoveredBy": "washington-contractor-license-pddl_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "5ae41bf1e2224866f780cd08bfd6548482b088243cacfb3f63b63066babff8bc",
+              "etag": "W/\"Zm94dHJvdC4zOTEwM18xXzI1NDI4Nm91bUdjZlI2OUZFX3pWa2N3WEV6dzFtV05N---gzipXWofa856lCLese3ON3LEGHgpK6M--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 19:36:34 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Washington Department of Labor & Industries",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: !ECO STAR C G CONSTRUCTION LLC",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 2420 COLUMBIA HOUSE BLVD #311, VANCOUVER, WA, 98661",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "WA contractor license number: ECOSTSC758NN",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "WA contractor license status as published: ACTIVE",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "WA contractor license expiration as published: 2027-08-15T00:00:00.000",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "WA registered contractor specialty: GENERAL",
+              "category": "company_overview",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 45794,
+            "durationMs": 13616,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "BROWN BEAR CAR WASH",
+          "category": "auto repair",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000048810619820%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "f8278c4e720dbd8afcfbaa68d204bcd5b96b493fff7d01d173f3c7e960d064b6",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTBlR05Sb0pmVFdkU3NJNUF6eWZRWjRXcERtczQ---gzirLELpT2gePnKIcw3WmVe63cLzXvA--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: CAR WASH ENTERPRISES INC",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 1513 NE 145TH ST, SEATTLE, WA, 98155-7205",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: BROWN BEAR CAR WASH",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000048810619820",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Car Washes",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 20080805",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31192,
+            "durationMs": 12828,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        }
+      ]
+    },
+    {
+      "label": "repeat with final city/ZIP discovery filters",
+      "evaluatedAt": "2026-10-14T23:09:26.264Z",
+      "results": [
+        {
+          "business": "CANLIS INC",
+          "category": "restaurant",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000013110002386%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "654c9d9408a05d504e6a4aabf4e99ee703a8d58827af8f6bb8cedcf59b31cc6c",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTBCaEVwT1JfZHN5cGgzZWJNcmxOWWk5Qnhvc3M---gzioM8c3YTSJoJVf2VFVoWLcMuCAWrQ--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: CANLIS INC",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 2576 AURORA AVE N, SEATTLE, WA, 98109-2206",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: CANLIS INC",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000013110002386",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Limited-Service Restaurants",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 19501212",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31182,
+            "durationMs": 16429,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "EBONY DESIGNS",
+          "category": "salon",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000042890006292%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "08c8454643d7eaea42ce758ba4458d4522413d132970d5320d0f1a88d61b14ce",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTBwOW9TYl9LbDczdzBEVWVaTm1Sai1PZVd6QUU---gzioa2HTx1Bh48V6yCiYqtTmFNv2cjg--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: WILLIAMS GRACIE MAE",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 955 20TH AVE, SEATTLE, WA, 98122",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: EBONY DESIGNS",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000042890006292",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Beauty Salons",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 19670101",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31174,
+            "durationMs": 12797,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "SAFEWAY INC STORE 1508",
+          "category": "retail",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000000210000035%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "974d8a7a511e67b7739dca743e52095884b8603ff2be6c39b4049d2e6115ab0f",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTBwNnlabjhGV282MmNvbzN4cXhzSzRzZnZPemc---gzirsdxovJuwUdJYiKzNgbrZ9lWkvjA--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: SAFEWAY INC",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 3820 RAINIER AVE S, SEATTLE, WA, 98118-1159",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: SAFEWAY INC STORE 1508",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000000210000035",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Supermarkets and Other Grocery Retailers (except Convenience Retailers)",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 19950101",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31298,
+            "durationMs": 13786,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "HELSELL FETTERMAN LLP",
+          "category": "professional services",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000025300003956%27&%24limit=2",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "accepted",
+              "discoveredBy": "seattle-business-license-public-domain_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "3f8039ed0c275b9e3a588394031b39cdd31b3844f52a913686f1fb4bab59dbac",
+              "etag": "W/\"Z29sZi4xNzU4MF80XzI1OTB3T0s1YS03Z1djYXRGajVXUktobmt5THkxUXc---gziqS3eK1BRMkTKK1k4vV6YGA4CKYtw--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 16:32:11 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Seattle Department of Finance and Administrative Services",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: HELSELL FETTERMAN LLP",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 800 5TH AVE # 3200, SEATTLE, WA, 98104-3176",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Published trade name: HELSELL FETTERMAN LLP",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle business license tax certificate account: 0000025300003956",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Seattle active license dataset inclusion (not storefront verification): Listed at retrieval time",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered industry classification (NAICS): Offices of Lawyers",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "License start date as published: 19570301",
+              "category": "business_identity",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 31226,
+            "durationMs": 13713,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "MANSON CONSTRUCTION CO",
+          "category": "construction contractor",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "source_unavailable",
+              "reason": "The operation was aborted"
+            }
+          ],
+          "facts": [],
+          "metrics": {
+            "requests": 2,
+            "bytes": 1747,
+            "durationMs": 7782,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "!ECO STAR C G CONSTRUCTION LLC",
+          "category": "construction contractor",
+          "policyId": "washington-contractor-license-pddl",
+          "outcomes": [
+            {
+              "url": "https://data.wa.gov/resource/m8qx-ubtq.json?%24where=contractorlicensenumber%3D%27ECOSTSC758NN%27&%24limit=2",
+              "policyId": "washington-contractor-license-pddl",
+              "state": "accepted",
+              "discoveredBy": "washington-contractor-license-pddl_exact_name",
+              "match": {
+                "classification": "confirmed",
+                "signals": [
+                  "normalized_name_equal",
+                  "street_address_equal",
+                  "city_and_region_equal"
+                ]
+              },
+              "fingerprint": "5ae41bf1e2224866f780cd08bfd6548482b088243cacfb3f63b63066babff8bc",
+              "etag": "W/\"Zm94dHJvdC4zOTEwM18xXzI1NDI4Nm91bUdjZlI2OUZFX3pWa2N3WEV6dzFtV05N---gzipXWofa856lCLese3ON3LEGHgpK6M--gzip--gzip\"",
+              "lastModified": "Wed, 14 Oct 2026 19:36:34 GMT"
+            }
+          ],
+          "facts": [
+            {
+              "value": "Registry publisher: Washington Department of Labor & Industries",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered business name: !ECO STAR C G CONSTRUCTION LLC",
+              "category": "company_overview",
+              "evidenceCount": 1
+            },
+            {
+              "value": "Registered address (not verified operating location): 2420 COLUMBIA HOUSE BLVD #311, VANCOUVER, WA, 98661",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "WA contractor license number: ECOSTSC758NN",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "WA contractor license status as published: ACTIVE",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "WA contractor license expiration as published: 2027-08-15T00:00:00.000",
+              "category": "business_identity",
+              "evidenceCount": 1
+            },
+            {
+              "value": "WA registered contractor specialty: GENERAL",
+              "category": "company_overview",
+              "evidenceCount": 1
+            }
+          ],
+          "metrics": {
+            "requests": 4,
+            "bytes": 45794,
+            "durationMs": 13596,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        },
+        {
+          "business": "BROWN BEAR CAR WASH",
+          "category": "auto repair",
+          "policyId": "seattle-business-license-public-domain",
+          "outcomes": [
+            {
+              "url": "https://data.seattle.gov",
+              "policyId": "seattle-business-license-public-domain",
+              "state": "source_unavailable",
+              "reason": "The operation was aborted"
+            }
+          ],
+          "facts": [],
+          "metrics": {
+            "requests": 1,
+            "bytes": 0,
+            "durationMs": 5004,
+            "aiCalls": 0,
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "paidRequests": 0
+          }
+        }
+      ]
+    }
+  ],
+  "branchLimitObservation": [
+    {
+      "business": "BROWN BEAR CAR WASH",
+      "category": "auto repair",
+      "policyId": "seattle-business-license-public-domain",
+      "outcomes": [
+        {
+          "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000048810007138%27&%24limit=2",
+          "policyId": "seattle-business-license-public-domain",
+          "state": "rejected",
+          "discoveredBy": "seattle-business-license-public-domain_exact_name",
+          "match": {
+            "classification": "rejected",
+            "signals": [
+              "normalized_name_equal",
+              "postalCode_conflict"
+            ]
+          },
+          "reason": "identity_rejected"
+        },
+        {
+          "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000048810007140%27&%24limit=2",
+          "policyId": "seattle-business-license-public-domain",
+          "state": "rejected",
+          "discoveredBy": "seattle-business-license-public-domain_exact_name",
+          "match": {
+            "classification": "rejected",
+            "signals": [
+              "normalized_name_equal",
+              "postalCode_conflict"
+            ]
+          },
+          "reason": "identity_rejected"
+        },
+        {
+          "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000048810007141%27&%24limit=2",
+          "policyId": "seattle-business-license-public-domain",
+          "state": "rejected",
+          "discoveredBy": "seattle-business-license-public-domain_exact_name",
+          "match": {
+            "classification": "rejected",
+            "signals": [
+              "normalized_name_equal",
+              "postalCode_conflict"
+            ]
+          },
+          "reason": "identity_rejected"
+        },
+        {
+          "url": "https://data.seattle.gov/resource/wnbq-64tb.json?%24where=city_account_number%3D%270000048810007142%27&%24limit=2",
+          "policyId": "seattle-business-license-public-domain",
+          "state": "rejected",
+          "discoveredBy": "seattle-business-license-public-domain_exact_name",
+          "match": {
+            "classification": "rejected",
+            "signals": [
+              "normalized_name_equal",
+              "postalCode_conflict"
+            ]
+          },
+          "reason": "identity_rejected"
+        }
+      ],
+      "facts": [],
+      "metrics": {
+        "requests": 7,
+        "bytes": 33751,
+        "durationMs": 21084,
+        "aiCalls": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "paidRequests": 0
+      }
+    }
+  ]
+}

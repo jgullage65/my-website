@@ -20,20 +20,25 @@ async function ensureSchema() {
       snapshot jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`;
       await sql`CREATE INDEX IF NOT EXISTS ai_builder_public_research_history_subject ON ai_builder_public_research_history(subject_key,created_at DESC)`;
       await sql`CREATE TABLE IF NOT EXISTS ai_builder_public_research_host_slots (host text PRIMARY KEY, next_slot timestamptz NOT NULL)`;
+      await sql`ALTER TABLE ai_builder_public_research_host_slots ADD COLUMN IF NOT EXISTS lease_owner text, ADD COLUMN IF NOT EXISTS lease_until timestamptz`;
     })().catch((error) => {
       schema = undefined;
       throw error;
     });
   await schema;
 }
-// A slot lasts longer than the maximum request deadline. Denied slots are not queued indefinitely.
+// Rate interval and in-flight concurrency are separate. A crashed worker's lease expires after the 5s request deadline.
 const distributedSlot: Slot = async (host, interval) => {
-  const rows =
-    await getSql()`INSERT INTO ai_builder_public_research_host_slots(host,next_slot)
-    VALUES(${host},now()+(${Math.max(6000, interval)}*interval '1 millisecond'))
-    ON CONFLICT(host) DO UPDATE SET next_slot=excluded.next_slot
-    WHERE ai_builder_public_research_host_slots.next_slot<=now() RETURNING host`;
-  return Array.isArray(rows) && rows.length === 1;
+  const owner = randomUUID(), sql = getSql();
+  const rows = await sql`INSERT INTO ai_builder_public_research_host_slots(host,next_slot,lease_owner,lease_until)
+    VALUES(${host},now()+(${interval}*interval '1 millisecond'),${owner},now()+interval '6 seconds')
+    ON CONFLICT(host) DO UPDATE SET next_slot=excluded.next_slot,lease_owner=excluded.lease_owner,lease_until=excluded.lease_until
+    WHERE ai_builder_public_research_host_slots.next_slot<=now()
+      AND coalesce(ai_builder_public_research_host_slots.lease_until,'epoch')<=now() RETURNING host`;
+  if (!Array.isArray(rows) || rows.length !== 1) return false;
+  return { release: async () => {
+    await sql`UPDATE ai_builder_public_research_host_slots SET lease_owner=null,lease_until=null WHERE host=${host} AND lease_owner=${owner}`;
+  } };
 };
 export async function runStoredPublicResearch(
   identity: BusinessIdentity,
@@ -74,14 +79,15 @@ export async function runStoredPublicResearch(
       previous,
       fetcher: new ResearchFetcher(signal, undefined, distributedSlot),
     });
+    const value = JSON.stringify(current);
+    if (Buffer.byteLength(value, "utf8") > 1_000_000) throw new Error("research_snapshot_storage_budget_exhausted");
     // Only new immutable records belong to the new attempt; 304 and stale evidence keep their original IDs.
     await persistWebsiteSourceRecords(
       current.attempt,
       current.documents.filter((d) => d.crawlAttemptId === current.attempt.id),
       current.blocks.filter((b) => b.crawlAttemptId === current.attempt.id),
     );
-    const value = JSON.stringify(current),
-      fingerprint = snapshotFingerprint(current);
+    const fingerprint = snapshotFingerprint(current);
     // Lease comparison fences late workers from overwriting newer research.
     const updated =
       await sql`UPDATE ai_builder_public_research_state SET snapshot=${value}::jsonb,
@@ -90,6 +96,9 @@ export async function runStoredPublicResearch(
     if (!Array.isArray(updated) || !updated.length) return null;
     await sql`INSERT INTO ai_builder_public_research_history(attempt_id,subject_key,fingerprint,snapshot)
       VALUES(${current.attempt.id},${subjectKey},${fingerprint},${value}::jsonb) ON CONFLICT(attempt_id) DO NOTHING`;
+    // Bound redundant snapshot copies. Immutable evidence is retained under the existing source-record lifecycle.
+    await sql`DELETE FROM ai_builder_public_research_history WHERE subject_key=${subjectKey} AND attempt_id IN (
+      SELECT attempt_id FROM ai_builder_public_research_history WHERE subject_key=${subjectKey} ORDER BY created_at DESC,attempt_id DESC OFFSET 32)`;
     return current;
   } catch (error) {
     await sql`UPDATE ai_builder_public_research_state SET lease_owner=null,lease_until=null,next_attempt_at=now()+interval '6 hours'

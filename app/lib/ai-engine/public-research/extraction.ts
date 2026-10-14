@@ -1,3 +1,4 @@
+import { registryRecord } from "./localRegistries";
 import {
   semanticHtml,
   extractJsonLd,
@@ -82,6 +83,8 @@ export async function sourceIdentities(
   candidate: Candidate,
   response: Awaited<ReturnType<ResearchFetcher["get"]>>,
 ): Promise<BusinessIdentity[]> {
+  const local = registryRecord(candidate.policyId, response.text, candidate.url);
+  if (local) return [local.identity];
   if (candidate.policyId.startsWith("gleif-"))
     return [gleifIdentity(object(JSON.parse(response.text)).data)];
   if (
@@ -131,12 +134,18 @@ export async function extractApprovedSource(input: {
     structured = "",
     pdf: Awaited<ReturnType<typeof parsePdf>> | undefined;
   const isGleif = policy.id.startsWith("gleif-");
+  const local = registryRecord(policy.id, response.text, candidate.url);
+  const isRegistry = isGleif || !!local;
   const direct: {
     category: ResearchFact["category"];
     title: string;
     value: string;
   }[] = [];
-  if (isGleif) {
+  if (local) {
+    title = local.identity.name;
+    direct.push(...local.facts);
+    content = direct.map(f => f.value).join("\n");
+  } else if (isGleif) {
     const record = object(object(JSON.parse(response.text)).data),
       attributes = object(record.attributes),
       entity = object(attributes.entity),
@@ -245,7 +254,7 @@ export async function extractApprovedSource(input: {
     {
       url: response.url,
       title,
-      pageType: isGleif ? "public_record" : "external_source",
+      pageType: isRegistry ? "public_record" : "external_source",
       sourceDocumentId: id,
       text: content + (structured ? "\n" + structured : ""),
       crawlAttemptId: attemptId,
@@ -256,7 +265,7 @@ export async function extractApprovedSource(input: {
     sourceDocuments: [document],
     sourceBlocks: blocks,
   });
-  const raw = isGleif
+  const raw = isRegistry
     ? direct.map((f) => ({
         ...f,
         confidence: "medium" as const,

@@ -1,3 +1,4 @@
+import { LOCAL_REGISTRY_POLICIES } from "./localRegistries";
 import { type SourcePolicy } from "./contracts";
 
 /** Only the API data is covered. GLEIF website text, logos and linked websites are not approved. */
@@ -24,7 +25,7 @@ export const GLEIF_POLICY: SourcePolicy = {
   minIntervalMs: 1500,
   maxBytes: 750_000,
 };
-export const SOURCE_POLICIES: readonly SourcePolicy[] = [GLEIF_POLICY];
+export const SOURCE_POLICIES: readonly SourcePolicy[] = [GLEIF_POLICY, ...LOCAL_REGISTRY_POLICIES];
 export function policyRejection(
   url: URL,
   policy: SourcePolicy | undefined,
