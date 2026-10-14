@@ -8,8 +8,6 @@ import { localRegistryAdapters, registryRecord } from "../app/lib/ai-engine/publ
 import { ResearchFetcher, type ResearchTransport } from "../app/lib/ai-engine/public-research/transport";
 import { researchPublicBusiness } from "../app/lib/ai-engine/public-research/engine";
 const run = promisify(execFile);
-const [samplesPath, outputPath, mode] = process.argv.slice(2);
-if (!samplesPath || !outputPath || !["native", "proxy-evaluation"].includes(mode ?? "")) throw new Error("Usage: <samples.json> <output.json> native|proxy-evaluation");
 // curl honors the evaluation environment's HTTPS proxy and normal CA validation. This is NOT production DNS/SSRF verification.
 const proxyWire: ResearchTransport = async (url, options) => {
   const dir = await mkdtemp(join(tmpdir(), "registry-eval-"));
@@ -21,6 +19,9 @@ const proxyWire: ResearchTransport = async (url, options) => {
     return {status,ok:status===200,headers,body:new ReadableStream({start(c){c.enqueue(bytes);c.close();}})};
   } finally {await rm(dir,{recursive:true,force:true});}
 };
+async function main() {
+const [samplesPath, outputPath, mode] = process.argv.slice(2);
+if (!samplesPath || !outputPath || !["native", "proxy-evaluation"].includes(mode ?? "")) throw new Error("Usage: <samples.json> <output.json> native|proxy-evaluation");
 const samples = JSON.parse(await readFile(samplesPath,"utf8"));
 const results = [];
 for (const sample of samples) {
@@ -34,3 +35,6 @@ for (const sample of samples) {
   results.push(result); console.log(JSON.stringify({business:identity.name,accepted:result.facts.length>0,requests:result.metrics.requests,durationMs:result.metrics.durationMs}));
 }
 await writeFile(outputPath,JSON.stringify({evaluatedAt:new Date().toISOString(),mode,productionNetworkVerified:false,results},null,2)+"\n");
+
+}
+void main().catch(error => { console.error(error instanceof Error ? error.message : "evaluation_failed"); process.exitCode = 1; });
