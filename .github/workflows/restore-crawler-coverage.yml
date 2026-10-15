@@ -1,0 +1,42 @@
+name: Fix crawler syntax
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/restore-crawler-coverage-trigger"
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref }}
+      - name: Fix crawler syntax
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/lib/ai-engine/crawler/crawlBusinessWebsite.ts')
+          lines = path.read_text().splitlines()
+          index = 213
+          expected = '  const { chromium } = await (loadPlaywright ? loadPlaywright() : import("playwright") as Promise<{ chromium: { launch: (options: { headless: boolean; args?: string[] }) => Promise<PlaywrightBrowser> }>);'
+          fixed = '  const { chromium } = await (loadPlaywright ? loadPlaywright() : import("playwright") as Promise<{ chromium: { launch: (options: { headless: boolean; args?: string[] }) => Promise<PlaywrightBrowser> } }>);'
+          if lines[index] != expected:
+              raise SystemExit(f'Unexpected line 214: {lines[index]}')
+          lines[index] = fixed
+          path.write_text('\n'.join(lines) + '\n')
+          PY
+      - name: Commit fix
+        run: |
+          rm -f .github/restore-crawler-coverage-trigger
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/lib/ai-engine/crawler/crawlBusinessWebsite.ts .github/restore-crawler-coverage-trigger
+          git commit -m "Fix crawler Playwright syntax"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
