@@ -1,5 +1,7 @@
+import { publicResearchSubjectKey } from "./identityKey";
+import { validatedCacheView } from "./reuse";
 import "server-only";
-import { createHmac, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { getSql } from "../../db/client";
 import { persistWebsiteSourceRecords } from "../crawler/websiteSourceRecordStore";
 import { type BusinessIdentity, type ResearchSnapshot } from "./contracts";
@@ -50,9 +52,7 @@ export async function runStoredPublicResearch(
     process.env.LEADFORGE_RESEARCH_API_SECRET;
   if (!secret) throw new Error("research_identity_hash_secret_missing");
   // No Discovery/Google input values or Place payloads are stored. The matching key is a keyed digest only.
-  const subjectKey = createHmac("sha256", secret)
-      .update(JSON.stringify(identity))
-      .digest("hex"),
+  const subjectKey = publicResearchSubjectKey(identity, secret),
     owner = randomUUID(),
     sql = getSql();
   const claimed =
@@ -64,11 +64,12 @@ export async function runStoredPublicResearch(
   if (!Array.isArray(claimed) || !claimed.length) {
     const existing =
       await sql`SELECT snapshot FROM ai_builder_public_research_state WHERE subject_key=${subjectKey}`;
-    return (
+    const cached = (
       ((Array.isArray(existing)
         ? (existing[0] as Record<string, unknown>)?.snapshot
         : null) as ResearchSnapshot) ?? null
     );
+    return cached ? validatedCacheView(cached, identity) : null;
   }
   const previous =
     ((claimed[0] as Record<string, unknown>)?.snapshot as ResearchSnapshot) ??
@@ -99,7 +100,7 @@ export async function runStoredPublicResearch(
     // Bound redundant snapshot copies. Immutable evidence is retained under the existing source-record lifecycle.
     await sql`DELETE FROM ai_builder_public_research_history WHERE subject_key=${subjectKey} AND attempt_id IN (
       SELECT attempt_id FROM ai_builder_public_research_history WHERE subject_key=${subjectKey} ORDER BY created_at DESC,attempt_id DESC OFFSET 32)`;
-    return current;
+    return validatedCacheView(current, identity);
   } catch (error) {
     await sql`UPDATE ai_builder_public_research_state SET lease_owner=null,lease_until=null,next_attempt_at=now()+interval '6 hours'
       WHERE subject_key=${subjectKey} AND lease_owner=${owner}`.catch(

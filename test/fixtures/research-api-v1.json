@@ -155,6 +155,223 @@
           }
         }
       }
+    },
+    {
+      "name": "scoped_official_record",
+      "request": {
+        "businessIdentity": {
+          "name": "Acme",
+          "address": "123 Main St",
+          "city": "Austin",
+          "state": "TX"
+        },
+        "supplemental": true,
+        "externalReference": "fixture-lead"
+      },
+      "raw": {
+        "type": "result",
+        "ok": true,
+        "import": {
+          "businessName": "Acme"
+        },
+        "knowledge": {
+          "facts": [
+            {
+              "category": "business_identity",
+              "title": "Registered legal name",
+              "value": "Registered legal name: Acme",
+              "confidence": "medium",
+              "provenance": "public_record",
+              "evidence": [
+                {
+                  "url": "https://api.gleif.org/api/v1/lei-records/ABCDEFGHIJKLMNOPQRST",
+                  "excerpt": "Registered legal name: Acme",
+                  "provenance": "public_record"
+                }
+              ],
+              "research": {
+                "sourceKind": "official_record",
+                "claimScope": "legal_entity",
+                "state": "supported",
+                "match": {
+                  "classification": "confirmed",
+                  "scope": "legal_entity",
+                  "signals": [
+                    "registration_identifier_equal"
+                  ]
+                },
+                "policyId": "gleif-lei-cc0-2026-10",
+                "retrievedAt": "2026-10-15T00:00:00Z",
+                "independenceGroups": [
+                  "gleif"
+                ],
+                "corroboration": "single_source"
+              }
+            }
+          ],
+          "coverage": {},
+          "unresolvedQuestions": []
+        },
+        "pages": [],
+        "sourceDocuments": [],
+        "sourceBlocks": [],
+        "crawlAttemptId": "public_attempt",
+        "usage": {
+          "aiCalls": 0,
+          "tokens": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "totalTokens": 0
+          }
+        },
+        "research": {
+          "schemaVersion": 1,
+          "depth": "limited_public_sources",
+          "websiteStatus": "not_provided",
+          "supplementalStatus": "complete",
+          "sourceFacts": [
+            {
+              "category": "business_identity",
+              "title": "Registered legal name",
+              "value": "Registered legal name: Acme",
+              "confidence": "medium",
+              "provenance": "public_record",
+              "evidence": [
+                {
+                  "url": "https://api.gleif.org/api/v1/lei-records/ABCDEFGHIJKLMNOPQRST",
+                  "excerpt": "Registered legal name: Acme",
+                  "provenance": "public_record"
+                }
+              ],
+              "research": {
+                "sourceKind": "official_record",
+                "claimScope": "legal_entity",
+                "state": "supported",
+                "match": {
+                  "classification": "confirmed",
+                  "scope": "legal_entity",
+                  "signals": [
+                    "registration_identifier_equal"
+                  ]
+                },
+                "policyId": "gleif-lei-cc0-2026-10",
+                "retrievedAt": "2026-10-15T00:00:00Z",
+                "independenceGroups": [
+                  "gleif"
+                ],
+                "corroboration": "single_source"
+              }
+            }
+          ]
+        }
+      },
+      "event": {
+        "type": "result",
+        "success": true,
+        "status": "complete",
+        "externalReference": "fixture-lead",
+        "target": {},
+        "businessKnowledgePack": {
+          "businessIdentity": {
+            "name": "Acme"
+          },
+          "intakeSummary": {},
+          "knowledge": {
+            "facts": [
+              {
+                "category": "business_identity",
+                "title": "Registered legal name",
+                "value": "Registered legal name: Acme",
+                "confidence": "medium",
+                "provenance": "public_record",
+                "evidence": [
+                  {
+                    "url": "https://api.gleif.org/api/v1/lei-records/ABCDEFGHIJKLMNOPQRST",
+                    "excerpt": "Registered legal name: Acme",
+                    "provenance": "public_record"
+                  }
+                ],
+                "research": {
+                  "sourceKind": "official_record",
+                  "claimScope": "legal_entity",
+                  "state": "supported",
+                  "match": {
+                    "classification": "confirmed",
+                    "scope": "legal_entity",
+                    "signals": [
+                      "registration_identifier_equal"
+                    ]
+                  },
+                  "policyId": "gleif-lei-cc0-2026-10",
+                  "retrievedAt": "2026-10-15T00:00:00Z",
+                  "independenceGroups": [
+                    "gleif"
+                  ],
+                  "corroboration": "single_source"
+                }
+              }
+            ],
+            "coverage": {},
+            "unresolvedQuestions": []
+          },
+          "research": {
+            "schemaVersion": 1,
+            "depth": "limited_public_sources",
+            "websiteStatus": "not_provided",
+            "supplementalStatus": "complete",
+            "sourceFacts": [
+              {
+                "category": "business_identity",
+                "title": "Registered legal name",
+                "value": "Registered legal name: Acme",
+                "confidence": "medium",
+                "provenance": "public_record",
+                "evidence": [
+                  {
+                    "url": "https://api.gleif.org/api/v1/lei-records/ABCDEFGHIJKLMNOPQRST",
+                    "excerpt": "Registered legal name: Acme",
+                    "provenance": "public_record"
+                  }
+                ],
+                "research": {
+                  "sourceKind": "official_record",
+                  "claimScope": "legal_entity",
+                  "state": "supported",
+                  "match": {
+                    "classification": "confirmed",
+                    "scope": "legal_entity",
+                    "signals": [
+                      "registration_identifier_equal"
+                    ]
+                  },
+                  "policyId": "gleif-lei-cc0-2026-10",
+                  "retrievedAt": "2026-10-15T00:00:00Z",
+                  "independenceGroups": [
+                    "gleif"
+                  ],
+                  "corroboration": "single_source"
+                }
+              }
+            ]
+          }
+        },
+        "sources": {
+          "documents": [],
+          "blocks": []
+        },
+        "crawl": {
+          "attemptId": "public_attempt",
+          "pages": []
+        },
+        "usage": {
+          "aiCalls": 0,
+          "tokens": {
+            "inputTokens": 0,
+            "outputTokens": 0,
+            "totalTokens": 0
+          }
+        }
+      }
     }
   ]
 }

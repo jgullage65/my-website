@@ -30,6 +30,7 @@ export function policyRejection(
   url: URL,
   policy: SourcePolicy | undefined,
   now = Date.now(),
+  purpose: "retrieve" | "reuse" = "retrieve",
 ): string | null {
   if (!policy) return "unknown_source_permissions";
   if (policy.excluded) return "source_excluded";
@@ -42,7 +43,7 @@ export function policyRejection(
     return "permission_review_expired";
   if (
     !policy.permissionUrls.length ||
-    !Object.values(policy.rights).every((v) => v === true) ||
+    !(purpose === "retrieve" ? Object.values(policy.rights) : [policy.rights.storeContent, policy.rights.retainFacts, policy.rights.commercialUse]).every((v) => v === true) ||
     Object.keys(policy.rights).length !== 6
   )
     return "insufficient_access_or_reuse_rights";

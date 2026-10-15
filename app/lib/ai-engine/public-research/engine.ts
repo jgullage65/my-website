@@ -1,9 +1,6 @@
+import { publicCoverage } from "./coverage";
+import { retainedSourceIdentity, revalidateSource } from "./reuse";
 import { localRegistryAdapters } from "./localRegistries";
-import { calculateCoverage } from "../deterministic/coverage";
-import { scoreConfidence } from "../deterministic/confidence";
-import { canonicalTopicKey } from "../deterministic/topics";
-import { sha256 } from "../crawler/websiteSourceRecords";
-import type { DeterministicFact } from "../deterministic/contracts";
 import { randomUUID } from "node:crypto";
 import { buildDeterministicBusinessBrain } from "../deterministic";
 import {
@@ -99,17 +96,25 @@ export async function researchPublicBusiness(
       adapters.map((a) => [a.policy.id, a.policy]),
     ),
     seen = new Set<string>();
-  for (const adapter of adapters.slice(0, 4)) {
-    if (
-      fetcher.signal.aborted ||
-      snapshot.facts.length >= RESEARCH_LIMITS.facts
-    )
-      break;
-    if (adapter.applicable?.(identity) === false) {
-      snapshot.outcomes.push({url:adapter.policy.origin,policyId:adapter.policy.id,state:"not_researched",reason:"outside_supported_jurisdiction_or_category"});
-      continue;
-    }
+  // Reserve minimum useful request opportunities before any source can spend the shared budget.
+  const planned: SourceAdapter[] = [];
+  const deferred: SourceOutcome[] = [];
+  let reserved = 0;
+  const minimum = (a: SourceAdapter) => Math.max(1, a.minimumRequests ?? 2);
+  for (const adapter of adapters.slice(0, RESEARCH_LIMITS.adapters)) {
+    const reason = adapter.applicable?.(identity) === false ? "outside_supported_jurisdiction_or_category" :
+      reserved + minimum(adapter) > RESEARCH_LIMITS.requests ? "aggregate_request_reservation" : null;
+    if (reason) {deferred.push({url:adapter.policy.origin,policyId:adapter.policy.id,state:"not_researched",reason});continue;}
+    planned.push(adapter); reserved += minimum(adapter);
+  }
+  for (let index = 0; index < planned.length; index++) {
+    const adapter = planned[index]!;
+    if (fetcher.signal.aborted || snapshot.facts.length >= RESEARCH_LIMITS.facts) break;
+    const futureReservation = planned.slice(index + 1).reduce((n,a)=>n+minimum(a),0);
+    const allowance = Math.max(0, RESEARCH_LIMITS.requests - fetcher.metrics.requests - futureReservation);
+    const timeAllowance = Math.max(1, (RESEARCH_LIMITS.durationMs - (Date.now() - started)) * minimum(adapter) / (minimum(adapter) + futureReservation));
     try {
+      await fetcher.withinRequestBudget(allowance, async () => {
       const candidates = await adapter.discover(identity, fetcher);
       if (!candidates.length)
         snapshot.outcomes.push({
@@ -118,10 +123,14 @@ export async function researchPublicBusiness(
           state: "not_found",
           reason: "no_candidates",
         });
+      let evaluated = 0;
+      const candidateAllowance = Math.max(0, Math.min(RESEARCH_LIMITS.candidates,
+        RESEARCH_LIMITS.aggregateCandidates - seen.size - (planned.length - index - 1)));
       for (const candidate of candidates.slice(0, RESEARCH_LIMITS.candidates)) {
-        if (seen.size >= RESEARCH_LIMITS.candidates) break;
+        if (evaluated >= candidateAllowance || seen.size >= RESEARCH_LIMITS.aggregateCandidates) break;
         if (seen.has(candidate.url)) continue;
         seen.add(candidate.url);
+        evaluated++;
         if (
           snapshot.facts.length >= RESEARCH_LIMITS.facts ||
           fetcher.signal.aborted
@@ -140,7 +149,7 @@ export async function researchPublicBusiness(
           if (rejection || !policy)
             throw new Error(rejection ?? "unknown_source");
           const prior = options.previous?.outcomes.find(
-            (o) => o.url === candidate.url && o.state === "accepted",
+            (o) => o.url === candidate.url && o.state === "accepted" && o.identityVersion === 1 && !!o.sourceIdentity,
           );
           const response = await fetcher.get(candidate.url, policy, {
             ...(prior?.etag ? { "if-none-match": prior.etag } : {}),
@@ -151,39 +160,14 @@ export async function researchPublicBusiness(
           if (response.status === 304) {
             if (!options.previous || !prior)
               throw new Error("not_modified_without_snapshot");
-            // Rebuild immutable records and re-match from the previously retained, licensed evidence.
-            const documents = options.previous.documents.filter(
-              (d) => d.actualFetchedUrl === candidate.url,
-            );
-            const ids = new Set(documents.map((d) => d.id));
-            snapshot.documents.push(...documents);
-            snapshot.blocks.push(
-              ...options.previous.blocks.filter((b) =>
-                ids.has(b.sourceDocumentId),
-              ),
-            );
-            snapshot.pages.push(
-              ...options.previous.pages.filter((p) =>
-                ids.has(p.sourceDocumentId),
-              ),
-            );
-            snapshot.facts.push(
-              ...options.previous.facts
-                .filter((f) =>
-                  f.evidence.some((e) => ids.has(e.sourceDocumentId ?? "")),
-                )
-                .map((f) => ({
-                  ...f,
-                  research: {
-                    ...f.research,
-                    retrievedAt: new Date().toISOString(),
-                  },
-                })),
-            );
-            Object.assign(outcome, prior, {
-              state: "accepted",
-              reason: "not_modified",
-            });
+            const checked = revalidateSource(options.previous, prior, policy, identity);
+            snapshot.documents.push(...checked.documents);
+            snapshot.blocks.push(...checked.blocks);
+            snapshot.pages.push(...checked.pages);
+            snapshot.facts.push(...checked.facts.slice(0, RESEARCH_LIMITS.facts - snapshot.facts.length).map(f=>({
+              ...f,research:{...f.research,validatedAt:new Date().toISOString()}
+            })));
+            Object.assign(outcome, prior, {state:"accepted",reason:"not_modified",match:checked.match});
             continue;
           }
           const identities = await sourceIdentities(candidate, response),
@@ -221,6 +205,8 @@ export async function researchPublicBusiness(
               RESEARCH_LIMITS.facts - snapshot.facts.length,
             ),
           );
+          outcome.identityVersion = 1;
+          outcome.sourceIdentity = retainedSourceIdentity(identities[0]!);
           outcome.state = "accepted";
           outcome.fingerprint = extracted.document.sourceContentHash;
           outcome.etag = response.headers.get("etag") ?? undefined;
@@ -232,6 +218,7 @@ export async function researchPublicBusiness(
           if (/source_http_|rate_limited|timeout|timed out|aborted|cancelled|budget_exhausted|domain_busy|getaddrinfo|ECONN|ENOTFOUND|EAI_AGAIN/i.test(outcome.reason)) outcome.state = "source_unavailable";
         }
       }
+      }, timeAllowance);
     } catch (error) {
       snapshot.outcomes.push({
         url: adapter.policy.origin,
@@ -240,42 +227,20 @@ export async function researchPublicBusiness(
         reason: error instanceof Error ? error.message : "discovery_failed",
       });
     }
+    if (index === planned.length - 1) {
+      const next = deferred.findIndex(o => o.reason === "aggregate_request_reservation" &&
+        minimum(adapters.find(a=>a.policy.id===o.policyId)!) <= RESEARCH_LIMITS.requests - fetcher.metrics.requests);
+      if (next >= 0) planned.push(adapters.find(a=>a.policy.id===deferred.splice(next,1)[0]!.policyId)!);
+    }
   }
+  snapshot.outcomes.push(...deferred);
   snapshot.attempt.completedAt = new Date().toISOString();
   snapshot.attempt.status =
     snapshot.outcomes.some((o) => o.state === "source_unavailable") ||
     fetcher.signal.aborted
       ? "partial"
       : "completed";
-  const accepted = snapshot.facts.map(
-    (fact): DeterministicFact => ({
-      ...fact,
-      id: "public_fact_" + sha256(fact.category + "\0" + fact.value),
-      topicKey: canonicalTopicKey({
-        category: fact.category,
-        value: fact.value,
-        suggestedTopic: fact.title,
-      }),
-      provenance: "website",
-      explicit: true,
-      confidenceScore: 0,
-      evidence: fact.evidence.map((e) => ({
-        ...e,
-        pageType: "other",
-        sourceType:
-          fact.research.sourceKind === "official_record"
-            ? "structured_data"
-            : "html",
-        provenance: "website",
-        structured: fact.research.sourceKind === "official_record",
-      })),
-    }),
-  );
-  const coverage = calculateCoverage(
-    scoreConfidence(accepted, []),
-    [],
-    accepted.filter((f) => f.category === "faq").length,
-  );
+  const coverage = publicCoverage(snapshot.facts);
   snapshot.coverage = coverage.coverage;
   snapshot.unresolvedQuestions = coverage.missingInformation.map(
     (item) => item.suggestedQuestion,

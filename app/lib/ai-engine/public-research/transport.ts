@@ -48,6 +48,15 @@ const wait = (ms: number, signal: AbortSignal) =>
 export class ResearchFetcher {
   readonly metrics = { requests: 0, bytes: 0 };
   readonly signal: AbortSignal;
+  private requestCeiling: number = RESEARCH_LIMITS.requests;
+  private scopeSignal?: AbortSignal;
+  async withinRequestBudget<T>(allowance: number, work: () => Promise<T>, durationMs: number = RESEARCH_LIMITS.durationMs): Promise<T> {
+    const priorSignal = this.scopeSignal;
+    this.scopeSignal = combineSignals([this.signal, ...(priorSignal ? [priorSignal] : []), AbortSignal.timeout(Math.max(1, Math.floor(durationMs)))]);
+    const previous = this.requestCeiling;
+    this.requestCeiling = Math.min(previous, this.metrics.requests + Math.max(0, allowance));
+    try { return await work(); } finally { this.requestCeiling = previous; this.scopeSignal = priorSignal; }
+  }
   private readonly robots = new Map<string, string>();
   private readonly seen = new Set<string>();
   private readonly hostRequests = new Map<string, number>();
@@ -69,24 +78,25 @@ export class ResearchFetcher {
     headers: Record<string, string> = {},
     interval = policy.minIntervalMs,
   ) {
-    this.signal.throwIfAborted();
+    (this.scopeSignal ?? this.signal).throwIfAborted();
     if (
       this.metrics.requests >= RESEARCH_LIMITS.requests ||
       this.metrics.bytes >= RESEARCH_LIMITS.totalBytes
     )
       throw new ResearchSkip("aggregate_budget_exhausted");
+    if (this.metrics.requests >= this.requestCeiling) throw new ResearchSkip("adapter_request_budget_exhausted");
     if ((this.hostRequests.get(url.host) ?? 0) >= 7)
       throw new ResearchSkip("domain_request_budget_exhausted");
     // Slot is shared across server instances in production. No in-request retry of denied/rate-limited responses.
     let lease: boolean | SlotLease;
     for (let tries = 0; !(lease = await this.slot(url.host, interval)); tries++) {
       if (tries >= 6) throw new ResearchSkip("domain_busy");
-      await wait(Math.min(interval, 2000), this.signal);
+      await wait(Math.min(interval, 2000), this.scopeSignal ?? this.signal);
     }
     this.metrics.requests++;
     this.hostRequests.set(url.host, (this.hostRequests.get(url.host) ?? 0) + 1);
     const signal = combineSignals([
-      this.signal,
+      this.scopeSignal ?? this.signal,
       AbortSignal.timeout(RESEARCH_LIMITS.requestTimeoutMs),
     ]);
     try {

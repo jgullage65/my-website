@@ -280,9 +280,12 @@ export async function extractApprovedSource(input: {
         ],
       }))
     : brain.websiteKnowledge.facts;
+  const claimScope = isGleif || (isRegistry && !policy.id.startsWith("seattle-")) ? "legal_entity" as const : "business_location" as const;
+  const provenance = policy.authority === "official_record" ? "public_record" as const : "external_source" as const;
   const facts: ResearchFact[] = raw
     .filter(
       (f) =>
+        (match.scope !== "legal_entity" || claimScope === "legal_entity") &&
         !/^The website contains/i.test(f.value) &&
         f.evidence.length &&
         f.evidence.every((e) =>
@@ -295,11 +298,14 @@ export async function extractApprovedSource(input: {
     .slice(0, 60)
     .map((f) => ({
       ...f,
+      provenance,
+      evidence: f.evidence.map(e => ({...e, provenance})),
       confidence:
         f.confidence === "high" && policy.authority === "directory"
           ? "medium"
           : f.confidence,
       research: {
+        claimScope,
         sourceKind: policy.authority,
         independenceGroups: [policy.independenceGroup],
         retrievedAt: fetchedAt,

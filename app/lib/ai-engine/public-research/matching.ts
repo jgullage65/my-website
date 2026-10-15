@@ -100,7 +100,7 @@ export function matchBusiness(
     street(target.address) !== street(candidate.address)
   )
     return reject("street_address_conflict_or_moved");
-  if (signals.includes("registration_identifier_equal") && !target.branch) return { classification: "confirmed", signals };
+
   const address =
     !!target.address &&
     !!candidate.address &&
@@ -132,9 +132,10 @@ export function matchBusiness(
     (!target.branch ||
       normalized(target.branch) === normalized(candidate.branch))
   )
-    return { classification: "confirmed", signals };
+    return { classification: "confirmed", scope: "business_location", signals };
   if (phone && locality && !target.branch)
-    return { classification: "confirmed", signals };
+    return { classification: "confirmed", scope: "legal_entity", signals: [...signals, "phone_does_not_confirm_establishment"] };
+  if (signals.includes("registration_identifier_equal")) return { classification: "confirmed", scope: "legal_entity", signals: [...signals, "legal_entity_only_not_branch_confirmation"] };
   return {
     classification:
       address || locality || sameDomain ? "ambiguous" : "insufficient_evidence",

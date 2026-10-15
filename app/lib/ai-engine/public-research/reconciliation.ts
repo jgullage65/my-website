@@ -1,3 +1,4 @@
+import { claimScopeAllowed } from "./reuse";
 import { reconcileWebsiteRecrawl } from "../crawler/websiteRecrawlReconciliation";
 import {
   canonicalWebsiteRecrawlJson,
@@ -27,7 +28,8 @@ export function reconcileFacts(
     if (
       fact.research.match.classification !== "confirmed" ||
       !fact.evidence.length ||
-      fact.research.state === "stale"
+      fact.research.state !== "supported" ||
+      (!!fact.research.claimScope && !claimScopeAllowed(fact, fact.research.match))
     )
       continue;
     const identity = key(fact);

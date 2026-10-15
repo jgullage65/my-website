@@ -1,0 +1,33 @@
+{
+  "baselineCommit": "cb325df56804bfcc742163cde65518c69f5333a9",
+  "input": {
+    "now": "2026-10-14T00:00:00Z",
+    "sessionId": "website-compatibility",
+    "owner": {
+      "businessName": "Acme",
+      "productsServices": "We provide commercial plumbing maintenance.",
+      "additionalKnowledge": "We support business customers."
+    },
+    "pages": [
+      {
+        "url": "https://acme.example/services",
+        "title": "Services",
+        "pageType": "services",
+        "text": "We provide commercial plumbing services for business customers. Our maintenance service includes emergency repairs."
+      },
+      {
+        "url": "https://acme.example/pricing",
+        "title": "Pricing",
+        "pageType": "pricing",
+        "text": "The Professional plan costs $99 per month. Customers can cancel with 30 days notice."
+      },
+      {
+        "url": "https://acme.example/contact",
+        "title": "Contact",
+        "pageType": "contact",
+        "text": "Contact our support team at help@acme.example. Our office is located in Austin."
+      }
+    ]
+  },
+  "expectedSha256": "26437234ddc2211ed6256182e045a9371ad4c349846d9c9cecd3f89f62ce26c3"
+}

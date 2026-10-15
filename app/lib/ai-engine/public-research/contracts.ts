@@ -62,7 +62,9 @@ export function parseIdentity(value: unknown): BusinessIdentity | null {
       .filter(Boolean);
   return identity;
 }
+export type ClaimScope = "legal_entity" | "business_location";
 export type Match = {
+  scope?: ClaimScope;
   classification:
     | "confirmed"
     | "ambiguous"
@@ -92,7 +94,11 @@ export type SourcePolicy = {
   excluded?: boolean;
 };
 export type ResearchFact = WebsiteKnowledgeFact & {
+  provenance?: "public_record" | "external_source";
+  evidence: (WebsiteKnowledgeFact["evidence"][number] & { provenance?: "public_record" | "external_source" })[];
   research: {
+    claimScope?: ClaimScope;
+    validatedAt?: string;
     sourceKind: SourcePolicy["authority"];
     independenceGroups: string[];
     retrievedAt: string;
@@ -117,6 +123,8 @@ export type SourceOutcome = {
   match?: Match;
   discoveredBy?: string;
   fingerprint?: string;
+  identityVersion?: 1;
+  sourceIdentity?: BusinessIdentity;
   etag?: string;
   lastModified?: string;
 };

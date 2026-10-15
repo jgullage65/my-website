@@ -9,6 +9,7 @@ import { GLEIF_POLICY } from "./policy";
 import { ResearchFetcher, RESEARCH_LIMITS } from "./transport";
 export type SourceAdapter = {
   supplies?: string[];
+  minimumRequests?: number;
   priority?: number;
   applicable?: (identity: BusinessIdentity) => boolean;
   id: string;
@@ -41,6 +42,7 @@ export function gleifIdentity(record: unknown): BusinessIdentity {
 }
 export const gleifAdapter: SourceAdapter = {
   id: "gleif-legal-entity-search",
+  minimumRequests: 3,
   supplies: ["business_identity", "company_overview"],
   policy: GLEIF_POLICY,
   async discover(identity, fetcher) {
@@ -80,6 +82,7 @@ export function publishedIndexAdapter(
 ): SourceAdapter {
   return {
     id,
+    minimumRequests: 3,
     policy,
     async discover(identity, fetcher) {
       const response = await fetcher.get(indexUrl, policy);

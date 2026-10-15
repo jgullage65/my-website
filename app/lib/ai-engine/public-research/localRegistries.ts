@@ -20,7 +20,7 @@ export const LOCAL_REGISTRY_POLICIES: SourcePolicy[] = registries.map(r => ({
 // These datasets license business records, not linked sites, names of principals, or all city/state portal content.
 const literal = (s: string) => "'" + s.replace(/'/g, "''") + "'";
 export const localRegistryAdapters: SourceAdapter[] = registries.map((r, index) => ({
-  id: r.id, priority: 5, applicable: r.applies, policy: LOCAL_REGISTRY_POLICIES[index]!, supplies: ["business_identity", "company_overview"],
+  id: r.id, minimumRequests: 4, priority: 5, applicable: r.applies, policy: LOCAL_REGISTRY_POLICIES[index]!, supplies: ["business_identity", "company_overview"],
   async discover(identity, fetcher) {
     if (!r.applies(identity)) return [];
     const policy = LOCAL_REGISTRY_POLICIES[index]!;
