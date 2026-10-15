@@ -18,7 +18,8 @@ export function scoreConfidence(facts: readonly DeterministicFact[], conflicts: 
     const conflicting = new Set(conflicts.flatMap(c => c.factIds));
     return facts.map(fact => {
         const pages = new Set(fact.evidence.map(e => e.url));
-        let score = fact.provenance === "owner" ? 82 : 46;
+        // Public registry origin is explicit; authority alone does not imply stronger truth or location coverage.
+        let score = fact.provenance === "owner" ? 82 : fact.provenance === "external_source" ? 40 : 46;
         if (fact.explicit)
             score += 10;
         if (fact.evidence.some(e => e.structured))

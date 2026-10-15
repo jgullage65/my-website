@@ -1,7 +1,7 @@
 import type { AiBuilderSession } from "../contracts";
 import type { WebsiteSourceBlockRecord, WebsiteSourceDocumentRecord } from "../crawler/websiteSourceRecords";
 import type { WebsiteKnowledgeCoverage, WebsiteKnowledgeFact, WebsiteKnowledgePage } from "../knowledge/websiteKnowledge";
-export type KnowledgeProvenance = "owner" | "website";
+export type KnowledgeProvenance = "owner" | "website" | "public_record" | "external_source";
 export type DeterministicSourceType = "owner" | "html" | "rendered_html" | "pdf" | "structured_data";
 export type ClassifiedPageType = "home" | "about" | "products" | "services" | "pricing" | "faq" | "policies" | "contact" | "locations" | "industries" | "use_cases" | "case_studies" | "testimonials" | "integrations" | "security" | "compliance" | "technical" | "onboarding" | "support" | "partnerships" | "certifications" | "other";
 export type DeterministicPage = WebsiteKnowledgePage & {

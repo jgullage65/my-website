@@ -35,7 +35,7 @@ export const BUSINESS_CONTEXT_CATEGORIES = [
   export type BusinessContextSource = {
     intakeBlockId: string;
     excerpt: string;
-    sourceType: "manual_intake" | "generated_qa" | "website" | "user_edit";
+    sourceType: "manual_intake" | "generated_qa" | "website" | "user_edit" | "public_record" | "external_source";
     sourceUrl?: string | null;
   };
   
@@ -59,7 +59,7 @@ export type BusinessContextMetadata = {
       heading?: string;
       pageType?: string;
       sourceType?: string;
-      provenance?: "owner" | "website";
+      provenance?: "owner" | "website" | "public_record" | "external_source";
     }>;
   };
   

@@ -459,7 +459,7 @@ export async function assertSafeDestination(
 type SafeHttpResponse = { status: number; ok: boolean; headers: Headers; body: ReadableStream<Uint8Array> };
 type SafeRequest = (url: URL, options: { signal: AbortSignal; headers: Record<string, string> }) => Promise<SafeHttpResponse>;
 
-async function requestSafeDestination(url: URL, options: { signal: AbortSignal; headers: Record<string, string> }): Promise<SafeHttpResponse> {
+export async function requestSafeDestination(url: URL, options: { signal: AbortSignal; headers: Record<string, string> }): Promise<SafeHttpResponse> {
   const approved = await assertSafeDestination(url);
   return new Promise<SafeHttpResponse>((resolve, reject) => {
     const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(url, {
@@ -622,7 +622,7 @@ function dedupePdfUrl(value: string): string {
   return parsed.toString();
 }
 
-async function parsePdf(bytes: Uint8Array): Promise<ParsedPdf> {
+export async function parsePdf(bytes: Uint8Array): Promise<ParsedPdf> {
   // The dependency is loaded only when an eligible PDF survives discovery.
   // @ts-ignore The package is installed in deployed builds; CI may install production dependencies separately.
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -824,7 +824,7 @@ type SemanticDiagnostics = { headingsRetained:number; paragraphsRetained:number;
 type HtmlNode = { tag:string; attrs:string; children:HtmlNode[]; text:string };
 
 /** A deliberately small HTML tree builder: extraction needs document relationships, not browser layout. */
-function semanticHtml(html: string): { text:string; h1:string; diagnostics:SemanticDiagnostics } {
+export function semanticHtml(html: string): { text:string; h1:string; diagnostics:SemanticDiagnostics } {
   const diagnostics: SemanticDiagnostics = { headingsRetained:0, paragraphsRetained:0, listItemsRetained:0, tablesRetained:0, tableRowsRetained:0, definitionEntriesRetained:0, visibleFaqsRetained:0, hiddenElementsIgnored:0, semanticBlocksDeduplicated:0, extractionOutputTruncated:0 };
   const root:HtmlNode={tag:"root",attrs:"",children:[],text:""}; const stack=[root]; let nodes=0;
   const voidTags=new Set(["br","hr","img","meta","link","input","source","area","base","embed","param","track","wbr"]);
@@ -961,7 +961,7 @@ function structuredUrls(value: unknown): string[] {
   return urls;
 }
 
-function extractJsonLd(html: string): JsonLdExtraction {
+export function extractJsonLd(html: string): JsonLdExtraction {
   const result: JsonLdExtraction = { text: "", blocksDetected: 0, blocksParsed: 0, malformedBlocks: 0, entitiesDetected: 0, factsRetained: 0, factsDeduplicated: 0 };
   const facts: string[] = [];
   const factKeys = new Set<string>();

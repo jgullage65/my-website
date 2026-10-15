@@ -32,7 +32,7 @@ export function assembleSession(result: Omit<DeterministicEngineResult, "session
         source: {
             intakeBlockId: primary?.sourceBlockId ?? f.id,
             excerpt: primary?.excerpt ?? f.value,
-            sourceType: f.provenance === "owner" ? "manual_intake" as const : "website" as const,
+            sourceType: f.provenance === "owner" ? "manual_intake" as const : f.provenance,
             sourceUrl: primary?.url
         },
         metadata: {

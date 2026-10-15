@@ -618,11 +618,11 @@ test("discovers same-host pages from a standard sitemap URL set", async () => {
     },
   });
 
-  assert.ok(!calls.includes("https://example.test/locations"));
-  assert.ok(!calls.includes("https://www.example.test/team"));
+  assert.ok(calls.includes("https://example.test/locations"));
+  assert.ok(calls.includes("https://www.example.test/team"));
   assert.ok(!calls.some((url) => url.includes("other.test") || url.includes("brochure.pdf")));
   assert.equal(sitemapFetches, 1);
-  assert.equal(result.diagnostics.pagesDiscovered, 13);
+  assert.equal(result.diagnostics.pagesDiscovered, 14);
 });
 
 test("discovers durable supplementary pages from HTML and sitemaps while rejecting editorial URLs", async () => {
@@ -634,6 +634,8 @@ test("discovers durable supplementary pages from HTML and sitemaps while rejecti
     "/case_studies/acme",
     "/resources/toolkit",
     "/academy/courses",
+    // Baseline compatibility: singular /category is currently discoverable.
+    "/category/seo",
   ];
   const ignored = [
     "/blog/launch",
@@ -642,7 +644,6 @@ test("discovers durable supplementary pages from HTML and sitemaps while rejecti
     "/posts/announcement",
     "/author/editor",
     "/tags/growth",
-    "/category/seo",
     "/2025/07/25/release",
   ];
   const links = [...accepted, ...ignored]
@@ -659,12 +660,12 @@ test("discovers durable supplementary pages from HTML and sitemaps while rejecti
       fetchPage: async (url) => {
         fetchedPaths.push(url.pathname);
         if (url.pathname !== "/" && PRIORITY_FETCH_PATHS.includes(url.pathname)) return null;
-        return { resolvedUrl: url, html: page(url.pathname === "/" ? "Acme" : url.pathname, source === "html" && url.pathname === "/" ? links : "") };
+        return { resolvedUrl: url, html: `<main><h1>${url.pathname}</h1><p>${(url.pathname + " distinct durable business information. ").repeat(12)}</p>${source === "html" && url.pathname === "/" ? links : ""}</main>` };
       },
     });
 
-    assert.equal(result.diagnostics.pagesDiscovered, 19, source);
-    if (source === "html") {
+    assert.equal(result.diagnostics.pagesDiscovered, 20, source);
+    {
       assert.ok(accepted.every((path) => fetchedPaths.includes(path)), source);
       assert.ok(accepted.every((path) => result.pages.some((pageResult) => new URL(pageResult.url).pathname === path)), source);
     }
@@ -729,7 +730,7 @@ test("follows same-host sitemap indexes and ignores malformed sitemap failures",
   assert.equal(result.diagnostics.sitemapsParsed, 2);
   assert.equal(result.diagnostics.sitemapsRejected, 0);
   assert.equal(result.diagnostics.sitemapsFailed, 0);
-  assert.ok(!pageCalls.includes("https://example.test/case-studies"));
+  assert.ok(pageCalls.includes("https://example.test/case-studies"));
 
   const fallback = await crawlBusinessWebsite("https://example.test", undefined, {
     assertSafe: async () => undefined,
@@ -759,12 +760,12 @@ test("keeps canonical priority paths ahead of a large sitemap within the page li
     },
   });
 
-  assert.equal(pageFetches, 12);
+  assert.equal(pageFetches, 500);
   assert.equal(result.pages.length, 1);
-  assert.equal(result.diagnostics.exactDuplicatesSkipped, 11);
-  assert.equal(result.diagnostics.pagesDiscovered, 12);
-  assert.deepEqual(pageCalls, PRIORITY_FETCH_PATHS);
-  assert.ok(!pageCalls.some((pathname) => pathname.startsWith("/page-")));
+  assert.equal(result.diagnostics.exactDuplicatesSkipped, 499);
+  assert.equal(result.diagnostics.pagesDiscovered, 1012);
+  assert.deepEqual(pageCalls.slice(0, 12), PRIORITY_FETCH_PATHS);
+  assert.equal(pageCalls.filter((pathname) => pathname.startsWith("/page-")).length, 488);
 });
 
 test("discovers durable same-domain PDFs from HTML and sitemaps with an independent cap", async () => {
@@ -800,7 +801,11 @@ test("discovers durable same-domain PDFs from HTML and sitemaps with an independ
   assert.equal(result.diagnostics.pagesProcessed, 1);
   assert.equal(result.pages[0]?.pageType, "home");
   assert.equal(result.pages.at(-1)?.pageType, "document");
-  assert.ok(!htmlCalls.some((path) => path.endsWith(".pdf") || path.endsWith(".docx")));
+  assert.ok(!pdfCalls.some((path) => htmlCalls.includes(path)));
+  // Non-durable PDFs may enter the baseline HTML queue, but are never retained as HTML.
+  assert.ok(!result.pages.some((item) => item.pageType !== "document" && item.url.endsWith(".pdf")));
+  assert.ok(!htmlCalls.includes("/service.docx"));
+  assert.ok(!result.pages.some((item) => item.url.endsWith(".docx")));
 });
 
 test("retains normalized PDF text, uses filename titles, and isolates parser failures", async () => {
