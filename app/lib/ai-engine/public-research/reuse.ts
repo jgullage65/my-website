@@ -1,3 +1,5 @@
+import { RESEARCH_LIMITS } from "./limits";
+import { RESEARCH_REFRESH_MS } from "./scheduling";
 import { parseIdentity, type BusinessIdentity, type ResearchSnapshot, type SourcePolicy, type SourceOutcome, type ResearchFact } from "./contracts";
 import { matchBusiness } from "./matching";
 import { policyRejection, SOURCE_POLICIES } from "./policy";
@@ -37,7 +39,7 @@ export function revalidateSource(previous: ResearchSnapshot, prior: SourceOutcom
 /** A new publication view; historical snapshots and already-published canonical Intelligence are never mutated. */
 export function validatedCacheView(previous: ResearchSnapshot, target: BusinessIdentity, options: {policies?: readonly SourcePolicy[]; now?: number; maxAgeMs?: number} = {}): ResearchSnapshot {
   const now=options.now ?? Date.now(), policies=options.policies ?? SOURCE_POLICIES;
-  const completed=Date.parse(previous.attempt.completedAt), stale=!Number.isFinite(completed) || completed>now || now-completed > (options.maxAgeMs ?? 6*60*60_000);
+  const completed=Date.parse(previous.attempt.completedAt), stale=!Number.isFinite(completed) || completed>now || now-completed > (options.maxAgeMs ?? RESEARCH_REFRESH_MS);
   const factKey = (f: ResearchFact) => JSON.stringify([f.category,f.title,f.value,f.evidence]);
   const accepted = new Map<string, ResearchFact>();
   const outcomes=previous.outcomes.map(outcome=> {
@@ -46,6 +48,8 @@ export function validatedCacheView(previous: ResearchSnapshot, target: BusinessI
       if(stale) throw new Error("cached_snapshot_stale");
       const checked=revalidateSource(previous,outcome,policies.find(p=>p.id===outcome.policyId),target,now);
       for(const fact of checked.facts) {
+        const observed = Date.parse(fact.research.validatedAt ?? fact.research.retrievedAt);
+        if (!Number.isFinite(observed) || observed > now || now - observed > (options.maxAgeMs ?? RESEARCH_REFRESH_MS)) continue;
         accepted.set(factKey(fact), fact);
       }
       return {...outcome,match:checked.match};
@@ -56,4 +60,25 @@ export function validatedCacheView(previous: ResearchSnapshot, target: BusinessI
   const coverage=publicCoverage(facts);
   return {...previous,facts,outcomes,documents:previous.documents.filter(d=>documentIds.has(d.id)),
     blocks:previous.blocks.filter(b=>documentIds.has(b.sourceDocumentId)),pages:previous.pages.filter(p=>documentIds.has(p.sourceDocumentId)),coverage:coverage.coverage,unresolvedQuestions:coverage.missingInformation.map(m=>m.suggestedQuestion)};
+}
+
+/** Carry forward still-valid evidence only for unavailable sources, without renewing its age. */
+export function preserveAvailableResearch(current: ResearchSnapshot, previous: ResearchSnapshot | null, target: BusinessIdentity): ResearchSnapshot {
+  if (!previous) return current;
+  const available = validatedCacheView(previous, target);
+  const failed = new Set(current.outcomes.filter(o => o.state === "source_unavailable").map(o => o.policyId));
+  const accepted = new Set(current.outcomes.filter(o => o.state === "accepted").map(o => o.policyId));
+  const facts = available.facts.filter(f => failed.has(f.research.policyId) && !accepted.has(f.research.policyId))
+    .slice(0, Math.max(0, RESEARCH_LIMITS.facts - current.facts.filter(f => f.research.state === "supported").length));
+  if (!facts.length) return current;
+  const policies = new Set(facts.map(f => f.research.policyId));
+  const ids = new Set(facts.flatMap(f => f.evidence.map(e => e.sourceDocumentId)));
+  const unique = <T extends { id: string }>(items: T[]) => Array.from(new Map(items.map(i => [i.id, i])).values());
+  return {...current,
+    facts:[...current.facts.filter(f => !policies.has(f.research.policyId)), ...facts],
+    documents:unique([...current.documents, ...available.documents.filter(d => ids.has(d.id))]),
+    blocks:unique([...current.blocks, ...available.blocks.filter(b => ids.has(b.sourceDocumentId))]),
+    pages:[...current.pages, ...available.pages.filter(p => ids.has(p.sourceDocumentId) && !current.pages.some(c => c.sourceDocumentId === p.sourceDocumentId))],
+    outcomes:[...current.outcomes, ...available.outcomes.filter(o => o.state === "accepted" && policies.has(o.policyId)).map(o => ({...o,reason:"cached_after_source_failure"}))],
+  };
 }

@@ -1,5 +1,6 @@
+import { researchSchedule } from "./scheduling";
 import { publicResearchSubjectKey } from "./identityKey";
-import { validatedCacheView } from "./reuse";
+import { preserveAvailableResearch, validatedCacheView } from "./reuse";
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { getSql } from "../../db/client";
@@ -17,6 +18,7 @@ async function ensureSchema() {
       await sql`CREATE TABLE IF NOT EXISTS ai_builder_public_research_state (
       subject_key text PRIMARY KEY, lease_owner text, lease_until timestamptz, next_attempt_at timestamptz,
       snapshot jsonb, updated_at timestamptz NOT NULL DEFAULT now())`;
+      await sql`ALTER TABLE ai_builder_public_research_state ADD COLUMN IF NOT EXISTS consecutive_failures integer NOT NULL DEFAULT 0`;
       await sql`CREATE TABLE IF NOT EXISTS ai_builder_public_research_history (
       attempt_id text PRIMARY KEY, subject_key text NOT NULL, fingerprint text NOT NULL,
       snapshot jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now())`;
@@ -60,7 +62,7 @@ export async function runStoredPublicResearch(
     VALUES(${subjectKey},${owner},now()+interval '45 seconds')
     ON CONFLICT(subject_key) DO UPDATE SET lease_owner=excluded.lease_owner,lease_until=excluded.lease_until
     WHERE coalesce(ai_builder_public_research_state.lease_until,'epoch')<now()
-      AND coalesce(ai_builder_public_research_state.next_attempt_at,'epoch')<=now() RETURNING snapshot`;
+      AND coalesce(ai_builder_public_research_state.next_attempt_at,'epoch')<=now() RETURNING snapshot,consecutive_failures`;
   if (!Array.isArray(claimed) || !claimed.length) {
     const existing =
       await sql`SELECT snapshot FROM ai_builder_public_research_state WHERE subject_key=${subjectKey}`;
@@ -74,12 +76,16 @@ export async function runStoredPublicResearch(
   const previous =
     ((claimed[0] as Record<string, unknown>)?.snapshot as ResearchSnapshot) ??
     null;
+  const previousFailures = Number((claimed[0] as Record<string, unknown>)?.consecutive_failures) || 0;
+  let published: ResearchSnapshot | null = null;
   try {
-    const current = await researchPublicBusiness(identity, {
+    const researched = await researchPublicBusiness(identity, {
       signal,
       previous,
       fetcher: new ResearchFetcher(signal, undefined, distributedSlot),
     });
+    const current = preserveAvailableResearch(researched, previous, identity);
+    const schedule = researchSchedule(current, previousFailures);
     const value = JSON.stringify(current);
     if (Buffer.byteLength(value, "utf8") > 1_000_000) throw new Error("research_snapshot_storage_budget_exhausted");
     // Only new immutable records belong to the new attempt; 304 and stale evidence keep their original IDs.
@@ -92,9 +98,11 @@ export async function runStoredPublicResearch(
     // Lease comparison fences late workers from overwriting newer research.
     const updated =
       await sql`UPDATE ai_builder_public_research_state SET snapshot=${value}::jsonb,
-      lease_owner=null,lease_until=null,next_attempt_at=now()+interval '6 hours',updated_at=now()
+      lease_owner=null,lease_until=null,next_attempt_at=now()+(${schedule.delayMs}*interval '1 millisecond'),
+      consecutive_failures=${schedule.failures},updated_at=now()
       WHERE subject_key=${subjectKey} AND lease_owner=${owner} AND lease_until>now() RETURNING subject_key`;
     if (!Array.isArray(updated) || !updated.length) return null;
+    published = current;
     await sql`INSERT INTO ai_builder_public_research_history(attempt_id,subject_key,fingerprint,snapshot)
       VALUES(${current.attempt.id},${subjectKey},${fingerprint},${value}::jsonb) ON CONFLICT(attempt_id) DO NOTHING`;
     // Bound redundant snapshot copies. Immutable evidence is retained under the existing source-record lifecycle.
@@ -102,10 +110,16 @@ export async function runStoredPublicResearch(
       SELECT attempt_id FROM ai_builder_public_research_history WHERE subject_key=${subjectKey} ORDER BY created_at DESC,attempt_id DESC OFFSET 32)`;
     return validatedCacheView(current, identity);
   } catch (error) {
-    await sql`UPDATE ai_builder_public_research_state SET lease_owner=null,lease_until=null,next_attempt_at=now()+interval '6 hours'
-      WHERE subject_key=${subjectKey} AND lease_owner=${owner}`.catch(
+    if (published) return validatedCacheView(published, identity);
+    const schedule = researchSchedule(null, previousFailures);
+    const released = await sql`UPDATE ai_builder_public_research_state SET lease_owner=null,lease_until=null,
+      next_attempt_at=now()+(${schedule.delayMs}*interval '1 millisecond'),consecutive_failures=${schedule.failures}
+      WHERE subject_key=${subjectKey} AND lease_owner=${owner} AND lease_until>now() RETURNING subject_key`.catch(
       () => undefined,
     );
+    if (!Array.isArray(released)) throw error;
+    if (!released.length) return null;
+    if (previous && !signal?.aborted) return validatedCacheView(previous, identity);
     throw error;
   }
 }

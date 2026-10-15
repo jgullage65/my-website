@@ -72,3 +72,57 @@ Still required in the actual supported staging runtime: native DNS/HTTPS/CA/TLS 
 Use the existing native script and migration/rollback procedure in `public-business-research.md`, the paired consumer integration document and PR #1785. Crawler first; additive consumer lease migration before the consumer release; authenticated smoke checks afterward. On rollback, consumer before crawler, retain additive columns/canonical versions/immutable evidence, and drain or expire jobs/leases. No security bypass or production migration is a substitute for staging acceptance.
 
 **Assessment:** targeted fixes and local regressions are implemented; production acceptance remains blocked by unavailable authenticated staging and the documented pre-existing deterministic failures. Both original PRs must remain drafts. Preview build checks are recorded in the PRs separately from runtime acceptance; CodeRabbit skips draft review and is not an independent review approval.
+
+## Supplemental retry and partial-failure scheduling — October 15 follow-up
+
+### Baseline and confirmed behavior
+
+Continued the existing draft heads: crawler `73c2c2d9f7356194437456627fae400f49546a26` and LeadForge `a6b7f306916b768581190db9de031b2c684500c9`. The six-hour unconditional gate in `runStoredPublicResearch` was confirmed by inspection and reproduced in deterministic tests, not asserted to be a production incident. Both a published partial snapshot and an exception previously set the same six-hour gate as clean research. Candidate-stage `robots_unavailable` and generic network failures also needed consistent unavailability classification. Permanent candidate HTTP failures (for example 404), identity rejection and insufficient matching evidence do not justify expedited retries.
+
+The path is: authenticated API invokes the stored supplemental runner; the exact-identity HMAC selects a subject; one atomic insert/conflict update claims its 45-second lease only when `next_attempt_at` is due. Nonowners, including callers during backoff, read a current independently validated publication view without a network attempt. The owner runs the existing engine/adapters/transport, persists new immutable evidence, then atomically publishes the snapshot, clears its lease and writes the next eligible time and failure count. Publication and failure updates both compare the owner and unexpired lease. A fenced worker returns no publication; it cannot alter a replacement's interval, failure count or lease. Immutable/history records retain their established lifecycle.
+
+### Exact resulting intervals
+
+| Result | Next eligible attempt, measured from attempt completion/failure |
+| --- | --- |
+| Clean completed research with supported facts | 6 hours; reset consecutive failure count to zero |
+| Clean completed research with no candidates or insufficient matching evidence | 6 hours; reset consecutive failure count to zero |
+| First partial/unavailable or thrown attempt | 5 minutes |
+| Second consecutive incomplete attempt | 15 minutes |
+| Third consecutive incomplete attempt | 1 hour |
+| Fourth and every subsequent consecutive incomplete attempt | 6 hours; counter saturates at four |
+| Successful recovery, including a clean insufficient-evidence response | 6 hours; reset failure count so a later outage begins at 5 minutes |
+| Active lease or any future eligibility time | Return validated cache, or null if none exists; do not fetch, increment counters or extend the existing deadline |
+
+There are at most three expedited recovery intervals in an uninterrupted failure streak, followed by the normal six-hour cadence. Intervals are deterministic and persisted per subject across instances; no jitter, sleeps until the next attempt, in-request source retry loop, external job or new scheduler was introduced. DNS failures, request timeouts, HTTP 429/503, other transient HTTP failures, unavailable robots and exhausted/busy bounded source attempts use the incomplete-result path. A source can remain unavailable indefinitely without creating an increasingly aggressive loop.
+
+The existing distributed host slots, host concurrency lease, source minimum intervals, robots decisions and fail-closed access/content permissions are unchanged. Existing global limits remain ten requests, eight aggregate candidates/four per adapter, four adapters, 25 seconds total, five seconds per request, 3 MB total bytes, 750 KB per request, two redirects and sixty supported facts. Carry-forward evidence cannot exceed the supported-fact budget.
+
+**Eligibility is request-driven, not a promise of an automatic attempt at that time.** The crawler has no autonomous research scheduler. Inspection of the paired head's `automaticLeadIntelligence.ts` and `ensureLeadIntelligence.ts` confirmed separate canonical-product rules: completed canonical reads reuse their pack; cron freshness is 120 days for website research, seven days for limited public sources and six hours for insufficient evidence/failed rows; completed refresh and new-unlock claims also retain their 30-minute guard. Those policies can cause the next incoming crawler request to arrive later than its five-minute eligibility. This correction removes the crawler's six-hour veto when a request does arrive; it does not shorten LeadForge's product freshness policy or guarantee a five-minute cron recovery. No compatible API or consumer change is required for that behavior, and PR #1785 is unchanged. Changing canonical cron selection or adding automatic expedited invocation would be a separate product scheduling change, not an undocumented consequence of this fix.
+
+### Evidence and failure preservation
+
+A transiently unavailable source may contribute previously successful evidence only while the cache independently passes current identity, scope, immutable binding, source rights, policy review and six-hour freshness checks. Preserve original immutable IDs, retrieval/validation timestamps and original evidence age; never relabel a failed fetch as a successful network validation. Keep the current unavailable outcome alongside the explicitly `cached_after_source_failure` accepted observation, so a carried-forward fact cannot reset backoff. Partial retries cannot extend evidence freshness by refreshing only the snapshot timestamp. A successful actual 304 can still independently revalidate content under the established identity/policy/scope checks.
+
+Expired or unauthorized facts and their documents/blocks/pages are excluded from new publication views on cache reads and refreshed returns; historical records remain retained under the existing lifecycle. Exceptions leave the previous stored snapshot intact and can return only its validated view while still owning the lease. Ancillary history failure after an already-fenced successful publication cannot turn that publication into a failure or change its schedule. Protected website publication/merging is unchanged. The paired canonical repository continues its established lease/version and research-depth downgrade protections; it is not modified by this task.
+
+### Files changed in this follow-up
+
+- `app/lib/ai-engine/public-research/scheduling.ts`: deterministic intervals, bounded failure counter and transient candidate-failure classification.
+- `app/lib/ai-engine/public-research/store.ts`: persist/atomically update the counter with scheduling; fence failed-worker returns and preserve validated previous results on an owned failure.
+- `app/lib/ai-engine/public-research/engine.ts`: consistent transient candidate classification, including robots unavailability.
+- `app/lib/ai-engine/public-research/reuse.ts`: bounded still-valid carry-forward; per-evidence age checks in new publication views.
+- `app/lib/ai-engine/public-research/schedulingStore.test.ts`: 21 focused regression cases using production store SQL in isolated PGlite PostgreSQL and fixture responses through the real engine/transport/adapters. Only persistence of immutable evidence is stubbed; claims, eligibility, counters, publication, history, failure updates and lease fencing execute actual SQL. Engine inputs are controlled to inject deterministic provider outcomes, without live requests.
+- `package.json` and `package-lock.json`: development-only PGlite dependency for the SQL regression tests; runtime dependency versions unchanged.
+- `docs/public-research-corrective-review.md`: this implementation/verification report.
+
+### Verification executed and remaining blockers
+
+- `npm run test:public-research`: **111/111 pass**, comprising the existing 90 supplemental/API/security tests and 21 added scheduling/cache/SQL cases. Covers complete/partial success; temporary DNS failure; request timeout; HTTP 429/503; robots unavailability during discovery and candidate evaluation; empty and identity-insufficient results; all bounded retry steps and reset after recovery; cached no-network reads; concurrent initial/refresh requests; populated legacy-schema upgrade and idempotence; stale successful/throwing workers; preserved valid evidence without age extension; stale/revoked/expired evidence exclusion; supported-fact limits; and ancillary history failure.
+- `npm run test:ai-builder-crawler`: **67/67 pass**. Protected full website crawler files are unchanged. Existing website-first publication, failure preservation, source throttling, robots, security, global budgets and exact deterministic-output characterization also pass in the supplemental suite.
+- `npm run typecheck`: pass. `git diff --check`: pass. No production build or hosted database execution is claimed for this follow-up.
+- No LeadForge files, API fixture contract, AI/token/provider/Places call path or protected full website extraction were changed. No merge, deployment or production migration was performed. Both existing draft PRs remain drafts.
+
+The store's existing idempotent startup schema workflow adds `consecutive_failures integer NOT NULL DEFAULT 0`; a populated pre-column state table was upgraded without changing its cached snapshot or eligibility. Hosted staging still must validate DDL privileges/locking and cross-instance behavior. No production database was contacted. Rollback can retain this additive column and all snapshots/evidence; old code ignores it. Mixed old/new workers remain safe under the same lease but old workers retain their former six-hour behavior until drained.
+
+Remaining production acceptance blockers are the previously documented native hosting-runtime DNS/TLS/pinned-transport/robots checks, authenticated end-to-end and cross-instance staging verification, and hosted migration privileges/lock/idempotence validation. Existing seven deterministic-suite baseline failures remain documented above and were not repaired or rerun as part of this focused scheduling change. The retry intervals require an incoming request, as described above. Local passing tests do not satisfy those staging gates. Neither PR is production accepted or authorized to merge/deploy.

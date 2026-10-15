@@ -1,3 +1,4 @@
+import { transientResearchFailure } from "./scheduling";
 import { publicCoverage } from "./coverage";
 import { retainedSourceIdentity, revalidateSource } from "./reuse";
 import { localRegistryAdapters } from "./localRegistries";
@@ -215,7 +216,7 @@ export async function researchPublicBusiness(
         } catch (error) {
           outcome.reason =
             error instanceof Error ? error.message : "source_unavailable";
-          if (/source_http_|rate_limited|timeout|timed out|aborted|cancelled|budget_exhausted|domain_busy|getaddrinfo|ECONN|ENOTFOUND|EAI_AGAIN/i.test(outcome.reason)) outcome.state = "source_unavailable";
+          if (transientResearchFailure(outcome.reason)) outcome.state = "source_unavailable";
         }
       }
       }, timeAllowance);
